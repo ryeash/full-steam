@@ -1,0 +1,46 @@
+package com.fullsteam.model.gamemodes;
+
+public final class JuggernautInfo extends GameInfo {
+    private final int team1Score;
+    private final int team2Score;
+    private final String team1Juggernaut;
+    private final String team2Juggernaut;
+    private final long roundTimeRemainingSeconds;
+
+    public JuggernautInfo(int team1Score,
+                          int team2Score,
+                          String team1Juggernaut,
+                          String team2Juggernaut,
+                          long roundTimeRemainingSeconds) {
+        this.team1Score = team1Score;
+        this.team2Score = team2Score;
+        this.team1Juggernaut = team1Juggernaut;
+        this.team2Juggernaut = team2Juggernaut;
+        this.roundTimeRemainingSeconds = roundTimeRemainingSeconds;
+    }
+
+    @Override
+    public String getType() {
+        return "Juggernaut";
+    }
+
+    public int getTeam1Score() {
+        return team1Score;
+    }
+
+    public int getTeam2Score() {
+        return team2Score;
+    }
+
+    public String getTeam1Juggernaut() {
+        return team1Juggernaut;
+    }
+
+    public String getTeam2Juggernaut() {
+        return team2Juggernaut;
+    }
+
+    public long getRoundTimeRemainingSeconds() {
+        return roundTimeRemainingSeconds;
+    }
+}

@@ -1,0 +1,594 @@
+package com.fullsteam.games;
+
+import com.fullsteam.CollisionUtils;
+import com.fullsteam.Config;
+import com.fullsteam.GameLobby;
+import com.fullsteam.Jackson;
+import com.fullsteam.WeaponFactory;
+import com.fullsteam.model.Bullet;
+import com.fullsteam.model.DeathMarker;
+import com.fullsteam.model.GameEvent;
+import com.fullsteam.model.GameState;
+import com.fullsteam.model.Obstacle;
+import com.fullsteam.model.Player;
+import com.fullsteam.model.PlayerConfigRequest;
+import com.fullsteam.model.PlayerInput;
+import com.fullsteam.model.Vector2D;
+import com.fullsteam.model.Weapon;
+import com.fullsteam.model.ai.AIPlayer;
+import com.fullsteam.model.ai.DeathmatchAIStrategy;
+import io.netty.channel.Channel;
+import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+
+import static com.fullsteam.Config.AFK_TIMEOUT_MS;
+import static com.fullsteam.Config.DEATH_MARKER_DURATION_MS;
+import static com.fullsteam.Config.GAME_HEIGHT;
+import static com.fullsteam.Config.GAME_WIDTH;
+import static com.fullsteam.Config.OBSTACLE_COUNT;
+import static com.fullsteam.Config.PLAYER_SIZE;
+import static com.fullsteam.Config.RESPAWN_DELAY_MS;
+import static com.fullsteam.Config.ROUND_DURATION_SECONDS;
+import static com.fullsteam.Config.SPAWN_HORIZONTAL_PADDING;
+import static com.fullsteam.Config.SPAWN_MIDFIELD_BUFFER;
+import static com.fullsteam.Config.SPAWN_VERTICAL_PADDING;
+import static com.fullsteam.Config.TICK_RATE;
+
+public abstract class AbstractGameStateManager {
+    protected final Logger log = LoggerFactory.getLogger(getClass());
+
+    protected static final AtomicLong gameIdGenerator = new AtomicLong(1);
+
+    protected final GameLobby gameLobby;
+    protected final Long gameId = gameIdGenerator.getAndIncrement();
+    protected final Map<String, Player> players = new ConcurrentHashMap<>();
+    protected final Map<String, Channel> playerChannels = new ConcurrentHashMap<>();
+    protected final List<Bullet> bullets = new CopyOnWriteArrayList<>();
+    protected final List<Obstacle> obstacles = new CopyOnWriteArrayList<>();
+    protected final List<DeathMarker> deathMarkers = new CopyOnWriteArrayList<>();
+    protected final List<GameEvent> gameEvents = new CopyOnWriteArrayList<>();
+    protected final ScheduledExecutorService gameLoop = Executors.newScheduledThreadPool(2);
+    private boolean isRoundOver = false;
+
+    public AbstractGameStateManager(GameLobby gameLobby) {
+        this.gameLobby = gameLobby;
+    }
+
+    public abstract String gameType();
+
+    public Long getGameId() {
+        return gameId;
+    }
+
+    public void sendGameEvent(GameEvent gameEvent) {
+        gameEvents.add(gameEvent);
+    }
+
+    public boolean isFull() {
+        return players.values().stream().filter(p -> !(p instanceof AIPlayer)).count() >= 10;
+    }
+
+    public boolean hasHumanPlayers() {
+        return !players.values().stream().allMatch(p -> p instanceof AIPlayer);
+    }
+
+    public void startGameLoop() {
+        startNewRound();
+        // The TeamBalancer will automatically add AI players, so the initial call is no longer needed.
+        gameLoop.scheduleAtFixedRate(this::updateGame, 0, 1000 / TICK_RATE, TimeUnit.MILLISECONDS);
+        log.info("Game loop started at {} FPS", TICK_RATE);
+    }
+
+    public Player addPlayer(String playerId, Channel channel) {
+        // Assign player to the team with fewer players to keep things balanced.
+        long team1Count = players.values().stream().filter(p -> p.getTeam() == 1).count();
+        long team2Count = players.values().stream().filter(p -> p.getTeam() == 2).count();
+        int team = (team1Count <= team2Count) ? 1 : 2;
+
+        Player player = new Player(playerId, 0, 0, team);
+        setValidSpawnPosition(player);
+        players.put(playerId, player);
+        playerChannels.put(playerId, channel);
+        log.info("Player {} joined team {} at position ({}, {})", playerId, team, player.getX(), player.getY());
+        return player;
+    }
+
+    /**
+     * Adds an AI player to a specific team. Called by the TeamBalancer.
+     *
+     * @param team The team ID to add the AI player to.
+     */
+    public void addAIPlayer(int team) {
+        String playerId = "ai-" + UUID.randomUUID();
+        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new DeathmatchAIStrategy());
+        setValidSpawnPosition(player);
+        players.put(playerId, player);
+        log.info("AI Player {} joined team {} at position ({}, {})", playerId, team, player.getX(), player.getY());
+    }
+
+    public void removePlayer(String playerId) {
+        players.remove(playerId);
+        playerChannels.remove(playerId);
+        log.info("Player {} left the game", playerId);
+        sendGameState();
+    }
+
+    public void handlePlayerInput(String playerId, PlayerInput input) {
+        Player player = players.get(playerId);
+        if (player == null) {
+            return;
+        }
+        player.setLastInputTime(System.currentTimeMillis());
+        if (player.isDead()) {
+            return;
+        }
+
+        // Handle movement
+        if (input.getUp()) {
+            player.setVelocityY(-player.getSpeed());
+        } else if (input.getDown()) {
+            player.setVelocityY(player.getSpeed());
+        } else {
+            player.setVelocityY(0);
+        }
+
+        if (input.getLeft()) {
+            player.setVelocityX(-player.getSpeed());
+        } else if (input.getRight()) {
+            player.setVelocityX(player.getSpeed());
+        } else {
+            player.setVelocityX(0);
+        }
+
+        // Handle reload input before shooting
+        if (input.isReload()) {
+            player.startReload();
+        }
+
+        // Handle shooting
+        if (input.getShooting()) {
+            if (player.canShoot()) {
+                // Calculate bullet direction based on mouse position
+                double dx = input.getMouseX() - (player.getX() + PLAYER_SIZE / 2.0);
+                double dy = input.getMouseY() - (player.getY() + PLAYER_SIZE / 2.0);
+                double length = Math.sqrt(dx * dx + dy * dy);
+
+                if (length > 0) {
+                    double baseAngle = Math.atan2(dy / length, dx / length);
+                    fireWeapon(player, baseAngle);
+                }
+            } else if (player.getCurrentAmmoInMagazine() <= 0 && !player.isReloading()) {
+                player.startReload();
+            }
+        }
+    }
+
+    protected void fireWeapon(Player player, double aimAngle) {
+        Weapon weapon = player.getWeapon();
+        double bulletX = player.getX() + (PLAYER_SIZE / 2.0);
+        double bulletY = player.getY() + (PLAYER_SIZE / 2.0);
+
+        // Fire all bullets for this shot (or whatever is left in the magazine)
+        int bulletsToFire = Math.min(weapon.getBulletsPerShot(), player.getCurrentAmmoInMagazine());
+
+        for (int i = 0; i < bulletsToFire; i++) {
+            // Apply random spread to each bullet individually
+            double spread = (ThreadLocalRandom.current().nextDouble() - 0.5) * weapon.getBulletSpread();
+            double finalAngle = aimAngle + spread;
+
+            Bullet bullet = new Bullet(bulletX, bulletY,
+                    Math.cos(finalAngle), Math.sin(finalAngle),
+                    player.getId(), player.getTeam(),
+                    weapon.getBulletDamage(), weapon.getBulletSpeed(), weapon.getBulletRange());
+            bullets.add(bullet);
+        }
+
+        // Trigger cooldown and set aim direction after the shot is fired
+        player.shoot(aimAngle);
+    }
+
+    protected void updateGame() {
+        try {
+            if (!isRoundOver) {
+                isRoundOver = checkEndConditions();
+                if (isRoundOver) {
+                    gameLoop.schedule(() -> {
+                        endRound();
+                        startNewRound();
+                    }, Config.NEXT_ROUND_DELAY_MS, TimeUnit.MILLISECONDS);
+                }
+            }
+            checkAfkPlayers();
+            checkAndRespawnPlayers();
+            updateDeathMarkers();
+            updateGameEvents();
+            updatePlayers();
+            updateBullets();
+            sendGameState();
+        } catch (Throwable t) {
+            log.error("error executing game loop", t);
+        }
+    }
+
+    /**
+     * Removes events that have expired.
+     */
+    protected void updateGameEvents() {
+        gameEvents.removeIf(event -> System.currentTimeMillis() >= event.expirationTime());
+    }
+
+    /**
+     * Adds a new event to be displayed to clients.
+     *
+     * @param message    The text to display.
+     * @param type       The type of event.
+     * @param durationMs How long the event should stay on screen.
+     */
+    protected void addGameEvent(String message, GameEvent.EventType type, long durationMs) {
+        long expiration = System.currentTimeMillis() + durationMs;
+        gameEvents.add(new GameEvent(message, type, expiration));
+        log.info("New Game Event: {}", message);
+    }
+
+    protected abstract boolean checkEndConditions();
+
+    protected void endRound() {
+        if (Config.ROTATE_GAME_MODES) {
+            // kick the humans to the next game mode
+            playerChannels.forEach((id, channel) -> {
+                Player player = players.get(id);
+                if (!(player instanceof AIPlayer)) {
+                    gameLobby.joinNext(players.get(id), channel, this);
+                }
+            });
+        }
+    }
+
+    /**
+     * Resets the game state for a new round. This includes scores, player positions, and the timer.
+     */
+    protected void startNewRound() {
+        isRoundOver = false;
+        // Clear transient game objects
+        bullets.clear();
+        deathMarkers.clear();
+        gameEvents.clear();
+
+        generateObstacles();
+
+        // Reset all players
+        for (Player player : players.values()) {
+            player.resetStats();
+            player.resetHealth();
+            player.finishReload();
+            player.setDead(false); // Ensure they are alive
+            setValidSpawnPosition(player); // Move them to a spawn point
+        }
+
+        log.info("New round started! Round will end in {} seconds.", ROUND_DURATION_SECONDS);
+        sendGameState(); // Send an immediate update to reflect the reset
+    }
+
+
+    protected void updateDeathMarkers() {
+        long currentTime = System.currentTimeMillis();
+        deathMarkers.removeIf(marker -> currentTime >= marker.expirationTime());
+    }
+
+    /**
+     * Checks for players who have not sent input for a while and removes them.
+     */
+    protected void checkAfkPlayers() {
+        long currentTime = System.currentTimeMillis();
+        List<String> afkPlayerIds = new ArrayList<>();
+
+        for (Map.Entry<String, Player> entry : players.entrySet()) {
+            Player player = entry.getValue();
+            // We don't want to kick AI players
+            if (player instanceof AIPlayer) {
+                continue;
+            }
+
+            // don't expect dead players to do anything
+            if (player.isDead()) {
+                player.setLastInputTime(System.currentTimeMillis());
+                continue;
+            }
+
+            if (currentTime - player.getLastInputTime() > AFK_TIMEOUT_MS) {
+                afkPlayerIds.add(entry.getKey());
+            }
+        }
+
+        for (String playerId : afkPlayerIds) {
+            log.info("Player {} is AFK. Removing from game.", playerId);
+            Channel channel = playerChannels.get(playerId);
+            if (channel != null) {
+                // Closing the channel will trigger the channelInactive event in the
+                // GameWebSocketHandler, which will then call removePlayer.
+                channel.close();
+            } else {
+                // If there's no channel, but the player exists, it's a dangling player. Remove it directly.
+                removePlayer(playerId);
+            }
+        }
+    }
+
+    protected void updatePlayers() {
+        for (Player player : players.values()) {
+            double oldX = player.getX();
+            double oldY = player.getY();
+
+            // Check for reload completion before any other action
+            if (player.isReloading() && System.currentTimeMillis() >= player.getReloadCompleteTime()) {
+                player.finishReload();
+                log.debug("Player {} finished reloading.", player.getId());
+            }
+
+            // Let the AI make its decisions first, then apply movement
+            if (player instanceof AIPlayer ai) {
+                Optional<AIPlayer.ShootAction> shootAction = ai.update(players.values(), obstacles, buildGameState().info());
+
+                if (shootAction.isPresent()) {
+                    if (ai.canShoot()) {
+                        AIPlayer.ShootAction action = shootAction.get();
+                        double baseAngle = Math.atan2(action.directionY(), action.directionX());
+                        fireWeapon(ai, baseAngle);
+                    }
+                } else if (ai.getCurrentAmmoInMagazine() <= 0 && !ai.isReloading()) {
+                    ai.startReload();
+                }
+            } else {
+                // Apply velocity for human players
+                player.update();
+            }
+
+            // --- Collision Resolution with Obstacles ---
+            if (isColliding(player, obstacles)) {
+                // Player's new position is invalid. Attempt to slide along the obstacle.
+                // This is done by testing movement on each axis independently.
+                // ... (the rest of the sliding logic)
+                // First, try moving only on the Y axis.
+                player.setX(oldX);
+                if (isColliding(player, obstacles)) {
+                    // That didn't work, so the Y-move was the problem.
+                    // Revert Y and try moving only on the X axis.
+                    player.setY(oldY);
+                    player.setX(oldX + player.getVelocityX());
+                    if (isColliding(player, obstacles)) {
+                        // Still colliding, can't move on X either. Revert both.
+                        player.setX(oldX);
+                    }
+                }
+            }
+
+            // Keep players within game bounds
+            player.setX(Math.max(0, Math.min(GAME_WIDTH - PLAYER_SIZE, player.getX())));
+            player.setY(Math.max(0, Math.min(GAME_HEIGHT - PLAYER_SIZE, player.getY())));
+        }
+    }
+
+    protected void updateBullets() {
+        bullets.removeIf(bullet -> {
+            bullet.update();
+
+            // Remove bullets that are out of bounds or have traveled max distance
+            if (bullet.getX() < 0 || bullet.getX() > GAME_WIDTH || bullet.getY() < 0 || bullet.getY() > GAME_HEIGHT || bullet.hasExceededMaxDistance()) {
+                return true;
+            }
+
+            // Check bullet-obstacle collisions
+            if (isColliding(bullet, obstacles)) {
+                return true;
+            }
+
+            // Check bullet-player collisions
+            for (Player player : players.values()) {
+                // Check for collision with an enemy player
+                if (!player.isDead() && player.getTeam() != bullet.getTeam() && isColliding(bullet, player)) {
+                    // Apply damage and check if it was a kill
+                    if (player.takeDamage(bullet.getDamage())) {
+                        killPlayer(player, players.get(bullet.getShooterId()));
+                    }
+                    return true; // Remove bullet on hit
+                }
+            }
+
+            return false;
+        });
+    }
+
+    protected void killPlayer(Player victim, Player shooter) {
+        if (victim.isDead()) {
+            return; // Prevent scoring on an already dead player
+        }
+
+        victim.setDead(true);
+        victim.incrementDeaths();
+        victim.setRespawnTime(System.currentTimeMillis() + RESPAWN_DELAY_MS);
+        victim.setVelocityX(0);
+        victim.setVelocityY(0);
+
+        if (shooter != null) {
+            shooter.incrementKills();
+            log.info("Player {} was eliminated by {}. (K/D: {}/{})", victim.getId(), shooter.getId(), shooter.getKills(), shooter.getDeaths());
+        } else {
+            // This can happen if the shooter disconnects right after firing
+            log.info("Player {} was eliminated by a disconnected player.", victim.getId());
+        }
+
+        // Add the death marker
+        double markerX = victim.getX() + (PLAYER_SIZE / 2); // Center of the player
+        double markerY = victim.getY() + (PLAYER_SIZE / 2);
+        long expiration = System.currentTimeMillis() + DEATH_MARKER_DURATION_MS;
+        deathMarkers.add(new DeathMarker(markerX, markerY, expiration));
+    }
+
+    protected void checkAndRespawnPlayers() {
+        long currentTime = System.currentTimeMillis();
+        for (Player player : players.values()) {
+            if (player.isDead() && currentTime >= player.getRespawnTime()) {
+                player.setDead(false);
+                player.resetHealth();
+                player.finishReload();
+                setValidSpawnPosition(player);
+                log.info("Player {} has respawned.", player.getId());
+            }
+        }
+    }
+
+    protected boolean isColliding(Bullet bullet, Player player) {
+        if (player.isDead()) return false; // Cannot collide with dead players
+        double playerCenterX = player.getX() + (PLAYER_SIZE / 2);
+        double playerCenterY = player.getY() + (PLAYER_SIZE / 2);
+        double dx = bullet.getX() - playerCenterX;
+        double dy = bullet.getY() - playerCenterY;
+        return Math.sqrt(dx * dx + dy * dy) < (PLAYER_SIZE / 2); // Simple circle collision
+    }
+
+    /**
+     * Builds the game state object with mode-specific data like scores.
+     * This must be implemented by concrete game mode managers.
+     *
+     * @return The fully constructed GameState object.
+     */
+    protected abstract GameState buildGameState();
+
+    protected void sendGameState() {
+        GameState gameState = buildGameState();
+        if (gameState == null) {
+            log.warn("buildGameState() returned null, skipping send.");
+            return;
+        }
+        String json = Jackson.writeValueAsString(gameState);
+
+        // Iterate over the entry set to have access to both the playerId and the channel
+        playerChannels.forEach((playerId, channel) -> {
+            if (channel.isActive()) {
+                channel.writeAndFlush(new TextWebSocketFrame(json)).addListener(future -> {
+                    if (!future.isSuccess()) {
+                        log.error("Failed to send game state to player {}. Closing channel.", playerId, future.cause());
+                        channel.close(); // This will trigger removal in the handler
+                    }
+                });
+            }
+            // Removing inactive channels here is better handled by the channelInactive handler in GameWebSocketHandler
+        });
+    }
+
+    protected void generateObstacles() {
+        obstacles.clear();
+        for (int i = 0; i < OBSTACLE_COUNT / 2; i++) {
+            Obstacle ob = Obstacle.createRandomPolygonObstacle();
+            obstacles.add(ob);
+            obstacles.add(ob.createMirrorClone());
+        }
+
+        if (OBSTACLE_COUNT % 2 == 1) {
+            obstacles.add(Obstacle.createSymmetricPolygonObstacle());
+        }
+    }
+
+    protected void setValidSpawnPosition(Player player) {
+        boolean inObstacle;
+        do {
+            inObstacle = false;
+            double x;
+
+            // Calculate the available width for spawning on one side of the map.
+            final double spawnableWidth = (GAME_WIDTH / 2.0) - SPAWN_HORIZONTAL_PADDING - SPAWN_MIDFIELD_BUFFER;
+
+            // Spawn players on their respective sides of the map
+            if (player.getTeam() == 1) {
+                // Team 1 spawns on the left half, away from the edge and the center.
+                x = SPAWN_HORIZONTAL_PADDING + ThreadLocalRandom.current().nextDouble() * spawnableWidth;
+            } else {
+                // Team 2 spawns on the right half, away from the edge and the center.
+                double startX = (GAME_WIDTH / 2.0) + SPAWN_MIDFIELD_BUFFER;
+                x = startX + ThreadLocalRandom.current().nextDouble() * spawnableWidth;
+            }
+
+            // Calculate a random Y position, away from the top and bottom edges.
+            final double spawnableHeight = GAME_HEIGHT - (2 * SPAWN_VERTICAL_PADDING);
+            double y = SPAWN_VERTICAL_PADDING + ThreadLocalRandom.current().nextDouble() * spawnableHeight;
+
+            player.setX(x);
+            player.setY(y);
+            if (isColliding(player, obstacles)) {
+                inObstacle = true;
+            }
+        } while (inObstacle);
+    }
+
+    // --- Collision Detection Methods ---
+
+    protected boolean isColliding(Player player, List<Obstacle> checkObstacles) {
+        for (Obstacle obstacle : checkObstacles) {
+            if (isColliding(player, obstacle)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected boolean isColliding(Player player, Obstacle obstacle) {
+        return CollisionUtils.checkCirclePolygonCollision(
+                new Vector2D(player.getX() + PLAYER_SIZE / 2, player.getY() + PLAYER_SIZE / 2), PLAYER_SIZE / 2, obstacle.vertices());
+    }
+
+    protected boolean isColliding(Bullet bullet, List<Obstacle> checkObstacles) {
+        for (Obstacle obstacle : checkObstacles) {
+            if (isColliding(bullet, obstacle)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected boolean isColliding(Bullet bullet, Obstacle obstacle) {
+        return CollisionUtils.isPointInsidePolygon(new Vector2D(bullet.getX(), bullet.getY()), obstacle.vertices());
+    }
+
+    /**
+     * Handles a request from a player to change their weapon.
+     *
+     * @param playerId The ID of the player making the request.
+     * @param request  The weapon change request details.
+     */
+    public void handlePlayerConfigChange(String playerId, PlayerConfigRequest request) {
+        Player player = players.get(playerId);
+        if (player == null || request.getWeaponName() == null) {
+            return;
+        }
+        if (request.getPlayerName() != null && !request.getPlayerName().isEmpty()) {
+            player.setPlayerName(request.getPlayerName());
+        }
+        if (request.getWeaponName() != null
+            && !request.getWeaponName().isEmpty()
+            && !request.getWeaponName().equals(player.getWeapon().getName())) {
+            Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
+            player.setWeapon(newWeapon);
+            player.setCurrentAmmoInMagazine(0);
+            player.startReload();
+        }
+        log.info("Player {} reconfigured: {}", playerId, request);
+    }
+
+    public void shutdown() {
+        gameLoop.shutdown();
+    }
+}

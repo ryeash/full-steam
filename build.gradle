@@ -1,0 +1,45 @@
+plugins {
+    id 'java'
+    id("com.gradleup.shadow") version "8.3.8"
+}
+
+group = 'com.fullsteam'
+version = '1.0.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+def nettyVersion = "4.2.3.Final"
+def jacksonVersion = "2.19.2"
+def logbackVersion = "1.5.13"
+
+dependencies {
+    implementation "io.netty:netty-transport:${nettyVersion}"
+    implementation "io.netty:netty-codec-http:${nettyVersion}"
+    implementation "io.netty:netty-handler:${nettyVersion}"
+    implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+    implementation "ch.qos.logback:logback-classic:${logbackVersion}"
+
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+shadowJar {
+    mergeServiceFiles()
+    manifest {
+        attributes 'Main-Class': 'com.fullsteam.GameServer'
+    }
+    archiveBaseName.set('full-steam')
+    archiveVersion.set(project.version)
+    archiveClassifier.set('')
+    zip64 = true
+}
+
+tasks.register('stage') {
+    dependsOn shadowJar
+}
