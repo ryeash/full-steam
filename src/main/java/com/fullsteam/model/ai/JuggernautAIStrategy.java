@@ -41,7 +41,7 @@ public class JuggernautAIStrategy implements IAIStrategy {
         }
 
         // --- I am NOT the Juggernaut. Decide based on my archetype. ---
-        switch (self.getArchetype()) {
+        switch (self.archetype()) {
             case WARRIOR:
             case OBJECTIVE_HOUND:
                 // These archetypes will focus on attacking the enemy Juggernaut.

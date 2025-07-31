@@ -20,7 +20,7 @@ public class KingOfTheHillAIStrategy implements IAIStrategy {
         }
 
         // --- Archetype-based Decision Making ---
-        switch (self.getArchetype()) {
+        switch (self.archetype()) {
             case WARRIOR:
                 prioritizeCombat(self, allPlayers, koth);
                 break;

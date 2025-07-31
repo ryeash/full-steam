@@ -15,7 +15,6 @@ import com.fullsteam.model.gamemodes.CaptureTheFlagInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -210,7 +209,7 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
                 roundTimeRemainingSeconds
         );
         return new GameState(
-                List.copyOf(players.values()),
+                players.values(),
                 bullets,
                 obstacles,
                 deathMarkers,

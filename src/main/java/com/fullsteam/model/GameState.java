@@ -2,9 +2,10 @@ package com.fullsteam.model;
 
 import com.fullsteam.model.gamemodes.GameInfo;
 
+import java.util.Collection;
 import java.util.List;
 
-public record GameState(List<Player> players,
+public record GameState(Collection<Player> players,
                         List<Bullet> bullets,
                         List<Obstacle> obstacles,
                         List<DeathMarker> deathMarkers,

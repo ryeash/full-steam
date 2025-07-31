@@ -58,7 +58,7 @@ public class AIPlayer extends Player {
         this.strafeChance = Math.max(0.1, BASE_STRAFE_CHANCE + (ThreadLocalRandom.current().nextDouble() - 0.5) * 0.2);
     }
 
-    public AIArchetype getArchetype() {
+    public AIArchetype archetype() {
         return archetype;
     }
 

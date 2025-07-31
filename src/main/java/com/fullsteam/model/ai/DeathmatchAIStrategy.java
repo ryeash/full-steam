@@ -13,7 +13,7 @@ public class DeathmatchAIStrategy implements IAIStrategy {
 
         // --- Archetype-based Decision Making ---
         // The AI's "personality" determines its priorities, even in a simple deathmatch.
-        switch (self.getArchetype()) {
+        switch (self.archetype()) {
             case WARRIOR:
             case OBJECTIVE_HOUND: // In Deathmatch, the objective *is* combat.
                 // These archetypes are purely aggressive. They will always seek a fight.

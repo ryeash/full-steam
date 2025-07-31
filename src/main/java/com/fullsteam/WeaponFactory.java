@@ -86,12 +86,12 @@ public class WeaponFactory {
                 "S",
                 4,  // Fire Rate: 900ms cooldown (slow)
                 10, // Damage: 30 per pellet (high potential)
-                3,  // Range: 250 (very short)
+                4,  // Range: 250 (very short)
                 10,  // Speed: 7.5 (average)
-                1,  // Accuracy: 0.385 spread (very wide)
+                2,  // Accuracy: 0.385 spread (very wide)
                 50, // Multi-shot: 5 pellets
                 10,  // Magazine Size: 15 rounds
-                12  // Reload Speed: 3.8s (slow)
+                10  // Reload Speed: 3.8s (slow)
         ));
 
         addPreset(new Weapon(
@@ -135,7 +135,7 @@ public class WeaponFactory {
             27,
             0,
             10,
-            2,
+            4,
             20
     );
     public static final Weapon HEAVY_ZOMBIE_CLAW = new Weapon(
@@ -147,7 +147,7 @@ public class WeaponFactory {
             7,
             0,
             10,
-            2,
+            4,
             20
     );
 

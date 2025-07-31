@@ -2,6 +2,7 @@ package com.fullsteam.games;
 
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
+import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.Obstacle;
@@ -12,7 +13,6 @@ import com.fullsteam.model.ai.ZombieAIStrategy;
 import com.fullsteam.model.gamemodes.ZombieDefenseInfo;
 import io.netty.channel.Channel;
 
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -53,6 +53,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     @Override
     protected void startNewRound() {
         super.startNewRound();
+        roundEndTime = System.currentTimeMillis() + (Config.ROUND_DURATION_SECONDS * 1000);
         this.waveNumber = 0;
         // Schedule the first wave
         this.nextWaveTime = System.currentTimeMillis() + INITIAL_WAVE_DELAY_MS;
@@ -91,14 +92,17 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         // Introduce special zombies in later waves
         if (waveNumber > 5 && random < 0.15) { // 15% chance for a Brute
             zombie.setPlayerName("Brute");
+            zombie.setWeapon(WeaponFactory.HEAVY_ZOMBIE_CLAW);
             zombie.setMaxHealth(300);
             zombie.setSpeed(Config.ZOMBIE_SPEED - .6);
         } else if (waveNumber > 3 && random < 0.30) { // 30% chance for a Runner
             zombie.setPlayerName("Runner");
+            zombie.setWeapon(WeaponFactory.ZOMBIE_CLAW);
             zombie.setMaxHealth(50);
             zombie.setSpeed(Config.ZOMBIE_SPEED + .6);
         } else {
             zombie.setPlayerName("Zombie");
+            zombie.setWeapon(WeaponFactory.ZOMBIE_CLAW);
             zombie.setMaxHealth(50);
             zombie.setSpeed(Config.ZOMBIE_SPEED);
         }
@@ -212,21 +216,18 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
         long timeToNextWave = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(nextWaveTime - System.currentTimeMillis()));
         long zombiesAlive = players.values().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
-
-        ZombieDefenseInfo gameInfo = new ZombieDefenseInfo(
-                this.waveNumber,
-                zombiesAlive,
-                timeToNextWave,
-                roundTimeRemainingSeconds
-        );
-
         return new GameState(
-                List.copyOf(players.values()),
-                List.copyOf(bullets),
-                List.copyOf(obstacles),
-                List.copyOf(deathMarkers),
-                List.copyOf(gameEvents),
-                gameInfo
+                players.values(),
+                bullets,
+                obstacles,
+                deathMarkers,
+                gameEvents,
+                new ZombieDefenseInfo(
+                        this.waveNumber,
+                        zombiesAlive,
+                        timeToNextWave,
+                        roundTimeRemainingSeconds
+                )
         );
     }
 }

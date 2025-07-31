@@ -26,7 +26,7 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
 
         // --- Archetype-based Decision Making ---
         // The AI's "personality" determines its priorities.
-        switch (self.getArchetype()) {
+        switch (self.archetype()) {
             case WARRIOR:
                 prioritizeCombat(self, allPlayers, myFlag, enemyFlag, amICarryingFlag);
                 break;

@@ -269,6 +269,7 @@
 
             this.backgroundCanvas = document.createElement('canvas');
             this.backgroundCtx = this.backgroundCanvas.getContext('2d');
+            this.currentGameType = '';
             this.backgroundNeedsRedraw = true; // Flag to trigger a redraw
 
             this.lastScoreboardUpdateTime = 0;
@@ -325,7 +326,8 @@
                     this.playerId = data.playerId;
                     this.playerTeam = data.team;
                     this.backgroundNeedsRedraw = true;
-
+                    this.gameState = { players: [], bullets: [], obstacles: [], deathMarkers: [], events: [], info: null };
+                    
                     // Update the UI with team info
                     const teamElement = document.getElementById('yourTeam');
                     teamElement.textContent = this.playerTeam;
@@ -348,7 +350,8 @@
             this.ws.onclose = () => {
                 document.getElementById('status').textContent = 'Disconnected';
                 document.getElementById('status').style.color = '#F44336';
-                setTimeout(() => this.connect(), 3000);
+                // TODO: disable auto re-connect because of our AFK timeout
+                //setTimeout(() => this.connect(), 3000);
             };
 
             this.ws.onerror = (error) => {
@@ -963,12 +966,14 @@
             const playerCenterX = player.x + playerSize / 2;
             const playerCenterY = player.y + playerSize / 2;
 
-            // Draw player body (tank chassis)
+            // Draw player body (circle)
             this.ctx.fillStyle = player.team === 1 ? '#4CAF50' : '#F44336';
             this.ctx.strokeStyle = player.id === this.playerId ? '#6600cc' : (player.team === 1 ? '#388E3C' : '#B71C1C');
             this.ctx.lineWidth = 2;
-            this.ctx.fillRect(player.x, player.y, playerSize, playerSize);
-            this.ctx.strokeRect(player.x, player.y, playerSize, playerSize);
+            this.ctx.beginPath();
+            this.ctx.arc(playerCenterX, playerCenterY, playerSize / 2, 0, 2 * Math.PI);
+            this.ctx.fill();
+            this.ctx.stroke();
 
             // Draw the turret, rotated to face the aim direction
             this.ctx.save();

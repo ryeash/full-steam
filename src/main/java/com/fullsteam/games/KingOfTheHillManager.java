@@ -125,11 +125,11 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
         );
 
         return new GameState(
-                List.copyOf(players.values()),
-                List.copyOf(bullets),
-                List.copyOf(obstacles),
-                List.copyOf(deathMarkers),
-                List.copyOf(gameEvents),
+                players.values(),
+                bullets,
+                obstacles,
+                deathMarkers,
+                gameEvents,
                 gameInfo
         );
     }

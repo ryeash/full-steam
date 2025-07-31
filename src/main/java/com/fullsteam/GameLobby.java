@@ -45,12 +45,12 @@ public class GameLobby {
     public GameLobby() {
         lobbyMaintenanceExecutor.scheduleAtFixedRate(this::cleanupEmptyGames, CLEANUP_INTERVAL_SECONDS, CLEANUP_INTERVAL_SECONDS, TimeUnit.SECONDS);
         logger.info("Lobby maintenance task scheduled to run every {} seconds.", CLEANUP_INTERVAL_SECONDS);
+        addGameMode(ZombieDefenseManager.class, () -> new ZombieDefenseManager(this));
         addGameMode(OddballManager.class, () -> new OddballManager(this));
         addGameMode(EliminationManager.class, () -> new EliminationManager(this));
         addGameMode(KingOfTheHillManager.class, () -> new KingOfTheHillManager(this));
         addGameMode(CaptureTheFlagManager.class, () -> new CaptureTheFlagManager(this));
         addGameMode(TeamDeathmatchManager.class, () -> new TeamDeathmatchManager(this));
-        addGameMode(ZombieDefenseManager.class, () -> new ZombieDefenseManager(this));
         addGameMode(JuggernautManager.class, () -> new JuggernautManager(this));
     }
 
