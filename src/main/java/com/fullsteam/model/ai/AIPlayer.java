@@ -90,7 +90,7 @@ public class AIPlayer extends Player {
             case FLEEING:
                 if (this.objectiveTargetPoint != null) {
                     // Fleeing logic doesn't need complex avoidance, direct is fine.
-                    moveAwayFrom(this.objectiveTargetPoint);
+                    moveAwayFrom(this.objectiveTargetPoint, obstacles);
                 } else {
                     performWanderBehavior(obstacles);
                 }
@@ -169,7 +169,7 @@ public class AIPlayer extends Player {
         }
 
         if (isReloading()) {
-            moveAwayFrom(currentTarget.getX(), currentTarget.getY());
+            moveAwayFrom(currentTarget.getX(), currentTarget.getY(), obstacles);
             return Optional.empty();
         }
 
@@ -205,8 +205,21 @@ public class AIPlayer extends Player {
         return Optional.empty();
     }
 
-    private void moveAwayFrom(Vector2D v) {
-        moveAwayFrom(v.x(), v.y());
+    private void moveAwayFrom(Vector2D v, List<Obstacle> obstacles) {
+        moveAwayFrom(v.x(), v.y(), obstacles);
+    }
+
+    private void moveAwayFrom(double targetX, double targetY, List<Obstacle> obstacles) {
+        double dx = getX() - targetX;
+        double dy = getY() - targetY;
+        double distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance > 0) {
+            Vector2D desiredDirection = new Vector2D(dx / distance, dy / distance);
+            // Use the pathfinding logic to find a clear retreat path.
+            Vector2D finalDirection = findClearPath(desiredDirection, obstacles);
+            setVelocityX(finalDirection.x() * getSpeed());
+            setVelocityY(finalDirection.y() * getSpeed());
+        }
     }
 
     private void performWanderBehavior(List<Obstacle> obstacles) {
@@ -289,31 +302,42 @@ public class AIPlayer extends Player {
 
     /**
      * Finds a clear direction of movement by testing the desired direction and then
-     * rotating it left and right if it's blocked.
+     * incrementally steering left and right if it's blocked.
      *
      * @param desiredDirection The ideal direction of travel.
      * @param obstacles        The list of all obstacles.
      * @return A clear direction vector, or a reversed direction as a last resort.
      */
     private Vector2D findClearPath(Vector2D desiredDirection, List<Obstacle> obstacles) {
+        // The "feeler" checks a short distance ahead.
         double feelerLength = getSpeed() * 15;
-        Vector2D feelerEnd = getCenter().add(desiredDirection.scale(feelerLength));
 
+        // 1. Check if the desired path is already clear.
+        Vector2D feelerEnd = getCenter().add(desiredDirection.scale(feelerLength));
         if (findBlockingObstacle(getCenter(), feelerEnd, obstacles) == null) {
             return desiredDirection;
         }
 
-        double[] anglesToTest = {20, -20, 45, -45, 90, -90};
-        for (double angle : anglesToTest) {
-            double radians = Math.toRadians(angle);
-            Vector2D newDirection = desiredDirection.rotate(radians);
-            feelerEnd = getCenter().add(newDirection.scale(feelerLength));
-
+        // 2. If blocked, incrementally search for a clear path by rotating the feeler.
+        // This creates a smoother "steering" behavior around obstacles.
+        double steeringAngleIncrement = Math.toRadians(15); // Try every 15 degrees
+        for (int i = 1; i <= 6; i++) { // Check up to 90 degrees left/right
+            // Try turning right
+            Vector2D rightTurnDirection = desiredDirection.rotate(steeringAngleIncrement * i);
+            feelerEnd = getCenter().add(rightTurnDirection.scale(feelerLength));
             if (findBlockingObstacle(getCenter(), feelerEnd, obstacles) == null) {
-                return newDirection;
+                return rightTurnDirection; // Found a clear path to the right
+            }
+
+            // Try turning left
+            Vector2D leftTurnDirection = desiredDirection.rotate(-steeringAngleIncrement * i);
+            feelerEnd = getCenter().add(leftTurnDirection.scale(feelerLength));
+            if (findBlockingObstacle(getCenter(), feelerEnd, obstacles) == null) {
+                return leftTurnDirection; // Found a clear path to the left
             }
         }
 
+        // 3. If all forward-facing paths are blocked, move backward away from the desired direction.
         return desiredDirection.scale(-0.5);
     }
 }
