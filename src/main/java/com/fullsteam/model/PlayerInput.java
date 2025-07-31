@@ -9,6 +9,7 @@ public class PlayerInput {
     private double mouseX;
     private double mouseY;
     private boolean reload;
+    private boolean weaponCycle;
 
     public PlayerInput() {
     }
@@ -88,5 +89,9 @@ public class PlayerInput {
 
     public void setReload(boolean reload) {
         this.reload = reload;
+    }
+
+    public boolean isWeaponCycle() {
+        return weaponCycle;
     }
 }

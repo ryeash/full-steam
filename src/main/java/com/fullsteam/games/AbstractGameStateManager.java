@@ -15,6 +15,7 @@ import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Weapon;
+import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.DeathmatchAIStrategy;
 import io.netty.channel.Channel;
@@ -114,7 +115,7 @@ public abstract class AbstractGameStateManager {
      */
     public void addAIPlayer(int team) {
         String playerId = "ai-" + UUID.randomUUID();
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new DeathmatchAIStrategy());
+        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new DeathmatchAIStrategy(), AIArchetype.randomArchetype());
         setValidSpawnPosition(player);
         players.put(playerId, player);
         log.info("AI Player {} joined team {} at position ({}, {})", playerId, team, player.getX(), player.getY());
@@ -175,6 +176,32 @@ public abstract class AbstractGameStateManager {
                 player.startReload();
             }
         }
+
+        if (input.isWeaponCycle()) {
+            cyclePlayerWeapon(player);
+        }
+    }
+
+    private void cyclePlayerWeapon(Player player) {
+        if (player == null || player.isDead()) {
+            return;
+        }
+
+        // Get the list of all available weapon names
+        List<String> weaponNames = WeaponFactory.weaponOptions();
+
+        // Find the index of the player's current weapon
+        String currentWeaponName = player.getWeapon().getName();
+        int currentIndex = weaponNames.indexOf(currentWeaponName);
+
+        // Calculate the index of the next weapon, wrapping around to the start
+        int nextIndex = (currentIndex + 1) % weaponNames.size();
+
+        // Get the new weapon from the factory and set it on the player
+        Weapon newWeapon = WeaponFactory.getWeapon(weaponNames.get(nextIndex));
+        player.setWeapon(newWeapon);
+
+        log.info("Player {} cycled weapon to {}", player.getId(), newWeapon.getName());
     }
 
     protected void fireWeapon(Player player, double aimAngle) {
@@ -495,7 +522,7 @@ public abstract class AbstractGameStateManager {
         for (int i = 0; i < OBSTACLE_COUNT / 2; i++) {
             Obstacle ob = Obstacle.createRandomPolygonObstacle();
             obstacles.add(ob);
-            obstacles.add(ob.createMirrorClone());
+            obstacles.add(ob.create180Clone());
         }
 
         if (OBSTACLE_COUNT % 2 == 1) {

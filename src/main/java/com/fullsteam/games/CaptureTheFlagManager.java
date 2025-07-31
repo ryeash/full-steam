@@ -8,6 +8,7 @@ import com.fullsteam.model.GameState;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
+import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.CaptureTheFlagAIStrategy;
 import com.fullsteam.model.gamemodes.CaptureTheFlagInfo;
@@ -52,7 +53,7 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
     public void addAIPlayer(int team) {
         String playerId = "ai-" + UUID.randomUUID();
         // Inject the CTF-specific strategy when creating the AI
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new CaptureTheFlagAIStrategy());
+        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new CaptureTheFlagAIStrategy(), AIArchetype.randomArchetype());
         setValidSpawnPosition(player);
         players.put(playerId, player);
         log.info("AI Player {} (CTF Strategy) joined team {}", playerId, team);
@@ -235,7 +236,7 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
 
             if (!isColliding) {
                 obstacles.add(newObstacle);
-                obstacles.add(newObstacle.createMirrorClone());
+                obstacles.add(newObstacle.create180Clone());
             } else {
                 log.warn("Could not place an obstacle without colliding with a flag base after 100 attempts.");
             }

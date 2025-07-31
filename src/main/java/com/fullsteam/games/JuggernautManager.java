@@ -6,6 +6,7 @@ import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
+import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.JuggernautAIStrategy;
 import com.fullsteam.model.gamemodes.JuggernautInfo;
@@ -40,7 +41,7 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     @Override
     public void addAIPlayer(int team) {
         String playerId = "ai-" + UUID.randomUUID();
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new JuggernautAIStrategy());
+        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new JuggernautAIStrategy(), AIArchetype.randomArchetype());
         setValidSpawnPosition(player);
         players.put(playerId, player);
         log.info("AI Player {} (Juggernaut Strategy) joined team {}", playerId, team);

@@ -8,6 +8,7 @@ import com.fullsteam.model.Hill;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
+import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.KingOfTheHillAIStrategy;
 import com.fullsteam.model.gamemodes.KingOfTheHillInfo;
@@ -50,7 +51,7 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
     @Override
     public void addAIPlayer(int team) {
         String playerId = "ai-" + UUID.randomUUID();
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new KingOfTheHillAIStrategy());
+        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new KingOfTheHillAIStrategy(), AIArchetype.randomArchetype());
         setValidSpawnPosition(player);
         players.put(playerId, player);
         log.info("AI Player {} (CTF Strategy) joined team {}", playerId, team);
@@ -159,7 +160,7 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
 
             if (!isColliding) {
                 obstacles.add(newObstacle);
-                obstacles.add(newObstacle.createMirrorClone());
+                obstacles.add(newObstacle.create180Clone());
             } else {
                 log.warn("Could not place an obstacle without colliding with the hill after 100 attempts.");
             }

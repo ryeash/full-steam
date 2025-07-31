@@ -2,11 +2,11 @@ package com.fullsteam.games;
 
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
-import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.ZombieAIStrategy;
 import com.fullsteam.model.gamemodes.ZombieDefenseInfo;
@@ -85,13 +85,24 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     private void spawnZombie() {
         String playerId = "zombie-" + UUID.randomUUID();
         // Zombies are on Team 2
-        AIPlayer zombie = new AIPlayer(playerId, 0, 0, 2, new ZombieAIStrategy());
-        zombie.setWeapon(WeaponFactory.ZOMBIE_CLAW);
-        zombie.setPlayerName("Zombie");
-        zombie.setMaxHealth(50);
-        zombie.resetHealth();
-        zombie.setSpeed(Config.ZOMBIE_SPEED);
+        AIPlayer zombie = new AIPlayer(playerId, 0, 0, 2, new ZombieAIStrategy(), AIArchetype.randomArchetype());
+        double random = ThreadLocalRandom.current().nextDouble();
 
+        // Introduce special zombies in later waves
+        if (waveNumber > 5 && random < 0.15) { // 15% chance for a Brute
+            zombie.setPlayerName("Brute");
+            zombie.setMaxHealth(300);
+            zombie.setSpeed(Config.ZOMBIE_SPEED - .6);
+        } else if (waveNumber > 3 && random < 0.30) { // 30% chance for a Runner
+            zombie.setPlayerName("Runner");
+            zombie.setMaxHealth(50);
+            zombie.setSpeed(Config.ZOMBIE_SPEED + .6);
+        } else {
+            zombie.setPlayerName("Zombie");
+            zombie.setMaxHealth(50);
+            zombie.setSpeed(Config.ZOMBIE_SPEED);
+        }
+        zombie.resetHealth();
         // Spawn zombies at the edges of the map
         setZombieSpawnPosition(zombie);
         players.put(playerId, zombie);

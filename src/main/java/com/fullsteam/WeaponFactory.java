@@ -122,13 +122,25 @@ public class WeaponFactory {
     }
 
     /**
-     * This is the zombie specific weapon, it is not included in
-     * the preset list because we don't want it to be selectable
+     * These are the zombie specific weapons, they are not included in
+     * the preset list because we don't want them to be selectable
      * or randomly assigned to non-zombie AIs.
      */
     public static final Weapon ZOMBIE_CLAW = new Weapon(
             "Claw",
             "C",
+            10,
+            30,
+            -1,
+            27,
+            0,
+            10,
+            2,
+            20
+    );
+    public static final Weapon HEAVY_ZOMBIE_CLAW = new Weapon(
+            "HeavyClaw",
+            "HC",
             10,
             50,
             -1,

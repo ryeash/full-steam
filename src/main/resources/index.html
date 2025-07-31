@@ -136,27 +136,67 @@
             color: #FFC107; /* Highlight color for the local player */
         }
 
+        #player-config {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #444;
+        }
+
+        #player-config h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #ccc;
+            font-size: 1.1em;
+            border-bottom: none; /* Override general h3 style */
+        }
+
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .config-item label {
+            margin-right: 10px;
+            color: #aaa;
+        }
+
+        #playerNameInput, #weaponSelector {
+            flex-grow: 1; /* Make them fill the available space */
+        }
+
+        /* --- Styles for the Redesigned Info Bar --- */
+        .game-info-left, .game-info-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex: 1; /* Allow sections to grow and shrink */
+        }
+
+        .game-info-right {
+            justify-content: flex-end; /* Align items to the right */
+        }
     </style>
 </head>
 <body>
 <div id="game-wrapper">
     <div id="main-content">
         <div class="info-bar">
-            <div class="player-stats">
-                <span>Name: <input type="text" id="playerNameInput" placeholder="Your Name"></span>
-                <span>Weapon: </span>
-                <select id="weaponSelector">
-                    <option>Loading...</option>
-                </select>
+            <!-- Left side of the info bar -->
+            <div class="game-info-left">
                 <span>Team: <b id="yourTeam">?</b></span>
+                <span>Players: <b id="playerCount">0</b></span>
             </div>
+            <!-- Center part of the info bar -->
             <div class="scoreboard-header">
                 <span id="team1Score" class="team1">0</span>
                 <span id="roundTimer" style="margin: 0 20px; color: #FFC107;">00:00</span>
                 <span id="team2Score" class="team2">0</span>
             </div>
-            <div class="game-info">
-                <span>Players: <b id="playerCount">0</b></span>
+            <!-- Right side of the info bar -->
+            <div class="game-info-right">
+                <span>Ping: <b id="latency" style="color: white;">--</b> ms</span>
                 <span>Status: <b id="status" style="color: #FFC107;">Connecting...</b></span>
             </div>
         </div>
@@ -169,6 +209,22 @@
         <h4 id="gameModeDisplay"
             style="text-align: center; margin-top: -5px; margin-bottom: 15px; color: #ccc; font-weight: normal;">
             Loading...</h4>
+
+        <!-- NEW: Player configuration section -->
+        <div id="player-config">
+            <h3>Your Setup</h3>
+            <div class="config-item">
+                <label for="playerNameInput">Name:</label>
+                <input type="text" id="playerNameInput" placeholder="Your Name">
+            </div>
+            <div class="config-item">
+                <label for="weaponSelector">Weapon:</label>
+                <select id="weaponSelector">
+                    <option>Loading...</option>
+                </select>
+            </div>
+        </div>
+
         <div id="team1-scoreboard">
             <h3 class="team1">Team 1</h3>
             <ul id="team1-players">
@@ -184,7 +240,7 @@
         <div id="controls" style="text-align: left; padding-left: 10px;">
             <p><strong>Controls:</strong></p>
             <p>⌨️ WASD/Arrows: Move | R: Reload | Mouse: Aim & Shoot</p>
-            <p>🎮 Left Stick: Move | Right Stick: Aim | RT/R2: Shoot | X/Square: Reload</p>
+            <p>🎮 Left Stick: Move | Right Stick: Aim | Y/△: Swap Weapon | X/□: Reload | RT/R2: Shoot</p>
         </div>
     </div>
 </div>
@@ -206,6 +262,10 @@
             this.gamepad = null;
             this.isGamepadActive = false;
             this.gamepadAim = { x: 1, y: 0 }; // Default aim direction
+            this.gamepadWeaponSwapPressed = false; // Track previous state of the gamepad swap button
+
+            this.latency = 0;
+            this.pingStartTime = 0;
 
             this.backgroundCanvas = document.createElement('canvas');
             this.backgroundCtx = this.backgroundCanvas.getContext('2d');
@@ -232,10 +292,35 @@
             this.ws.onopen = () => {
                 document.getElementById('status').textContent = 'Connected';
                 document.getElementById('status').style.color = '#4CAF50';
+
+                // Start sending pings to measure latency
+                // Ping every 2 seconds
+                setInterval(() => {
+                    this.pingStartTime = Date.now();
+                    this.ws.send(JSON.stringify({ type: 'ping' }));
+                }, 2000);
             };
 
             this.ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
+
+                // Handle pong message for latency calculation
+                if (data.type === 'pong') {
+                    this.latency = Date.now() - this.pingStartTime;
+                    const latencyEl = document.getElementById('latency');
+                    latencyEl.textContent = this.latency;
+
+                    // Change color based on latency value for quick feedback
+                    if (this.latency > 150) {
+                        latencyEl.style.color = '#F44336'; // Red for high latency
+                    } else if (this.latency > 80) {
+                        latencyEl.style.color = '#FFC107'; // Yellow for medium latency
+                    } else {
+                        latencyEl.style.color = 'white'; // Default color
+                    }
+                    return;
+                }
+
                 if (data.type === 'welcome') {
                     this.playerId = data.playerId;
                     this.playerTeam = data.team;
@@ -334,7 +419,8 @@
                 shooting: false,
                 mouseX: 0,
                 mouseY: 0,
-                reload: false
+                reload: false,
+                weaponCycle: false
             };
             const deadzone = 0.25;
 
@@ -351,6 +437,13 @@
                 input.right = leftStickX > deadzone;
                 input.shooting = this.gamepad.buttons[7] && this.gamepad.buttons[7].value > 0.5; // R2/RT
                 input.reload = this.gamepad.buttons[2] && this.gamepad.buttons[2].pressed;
+
+                // Check for weapon swap button press (Y/Triangle, which is button 3)
+                const swapButtonPressed = this.gamepad.buttons[3] && this.gamepad.buttons[3].pressed;
+                if (swapButtonPressed && !this.gamepadWeaponSwapPressed) {
+                    input.weaponCycle = true; // Send the cycle command on the first press
+                }
+                this.gamepadWeaponSwapPressed = swapButtonPressed; // Update state for the next frame
 
                 // Update aim direction from the right stick
                 const aimMagnitude = Math.sqrt(rightStickX * rightStickX + rightStickY * rightStickY);

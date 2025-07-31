@@ -89,6 +89,12 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
         String type = rootNode.path("type").asText("playerInput");
 
         switch (type) {
+            case "ping":
+                // Immediately send a pong message back to the client's channel.
+                // The content can be simple; the 'type' is what matters.
+                String pongMessage = "{\"type\":\"pong\"}";
+                ctx.channel().writeAndFlush(new TextWebSocketFrame(pongMessage));
+                break;
             case "playerInput":
                 PlayerInput input = Jackson.treeToValue(rootNode, PlayerInput.class);
                 game.handlePlayerInput(playerId, input);

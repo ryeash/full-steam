@@ -32,6 +32,7 @@ public class AIPlayer extends Player {
     private transient Player currentTarget;
     private transient Vector2D objectiveTargetPoint;
     private transient final IAIStrategy aiStrategy;
+    private transient final AIArchetype archetype;
 
     private transient long lastWanderDirectionChangeTime;
     private transient long lastStrafeTime;
@@ -47,13 +48,18 @@ public class AIPlayer extends Player {
     public record ShootAction(double directionX, double directionY) {
     }
 
-    public AIPlayer(String id, double x, double y, int team, IAIStrategy aiStrategy) {
+    public AIPlayer(String id, double x, double y, int team, IAIStrategy aiStrategy, AIArchetype archetype) {
         super(id, "AI - " + RandomNames.randomName(), x, y, team, WeaponFactory.getRandomWeapon());
         this.aiStrategy = aiStrategy;
+        this.archetype = archetype;
         this.reactionTimeMs = Config.BASE_REACTION_TIME_MS + (long) (ThreadLocalRandom.current().nextGaussian() * 50);
         this.aimInaccuracyRadians = Math.max(0.01, BASE_AIM_INACCURACY_RADIANS + (ThreadLocalRandom.current().nextDouble() - 0.4) * 0.04);
         this.strafeInterval = BASE_STRAFE_INTERVAL_MS + (long) (ThreadLocalRandom.current().nextGaussian() * 300);
         this.strafeChance = Math.max(0.1, BASE_STRAFE_CHANCE + (ThreadLocalRandom.current().nextDouble() - 0.5) * 0.2);
+    }
+
+    public AIArchetype getArchetype() {
+        return archetype;
     }
 
     /**

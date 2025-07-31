@@ -84,6 +84,20 @@ public record Obstacle(List<Vector2D> vertices) {
         return new Obstacle(mirroredVertices);
     }
 
+    /**
+     * Creates a new obstacle that is a 180-degree rotation of this one around the center of the game world.
+     * This is equivalent to mirroring it across both the horizontal and vertical center lines.
+     * Useful for creating maps with rotational symmetry.
+     *
+     * @return A new, rotated Obstacle instance.
+     */
+    public Obstacle create180Clone() {
+        List<Vector2D> rotatedVertices = this.vertices.stream()
+                .map(vertex -> new Vector2D(Config.GAME_WIDTH - vertex.x(), Config.GAME_HEIGHT - vertex.y()))
+                .toList();
+        return new Obstacle(rotatedVertices);
+    }
+
     public static Obstacle createRectangle(double x, double y, double width, double height) {
         List<Vector2D> vertices = new ArrayList<>();
         vertices.add(new Vector2D(x, y));
