@@ -3,6 +3,7 @@ package com.fullsteam;
 import com.fullsteam.games.AbstractGameStateManager;
 import com.fullsteam.games.CaptureTheFlagManager;
 import com.fullsteam.games.EliminationManager;
+import com.fullsteam.games.EscortManager;
 import com.fullsteam.games.JuggernautManager;
 import com.fullsteam.games.KingOfTheHillManager;
 import com.fullsteam.games.OddballManager;
@@ -54,6 +55,7 @@ public class GameLobby {
         addGameMode(OddballManager.class, () -> new OddballManager(this));
         addGameMode(EliminationManager.class, () -> new EliminationManager(this));
         addGameMode(KingOfTheHillManager.class, () -> new KingOfTheHillManager(this));
+        addGameMode(EscortManager.class, () -> new EscortManager(this));
     }
 
     public List<ActiveGame> getActiveGames() {

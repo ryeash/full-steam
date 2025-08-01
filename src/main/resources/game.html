@@ -825,6 +825,7 @@
             this.drawHill();
             this.drawFlags();
             this.drawOddball();
+            this.drawPayload();
             this.drawGameEvents();
         }
 
@@ -1272,6 +1273,57 @@
                 this.ctx.arc(playerCenterX, playerCenterY, healthBarRadius, startAngle, healthEndAngle);
                 this.ctx.stroke();
             }
+        }
+
+        drawPayload() {
+            const gameInfo = this.gameState.info;
+            if (!gameInfo || gameInfo.type !== 'Escort' || !gameInfo.obstacle) {
+                return;
+            }
+
+            const payload = gameInfo.obstacle;
+            if (!payload.vertices || payload.vertices.length < 3) {
+                return;
+            }
+
+            // --- Draw Capture Zone ---
+            // Calculate payload center by averaging its vertices
+            const payloadCenter = payload.vertices.reduce((acc, v) => ({ x: acc.x + v.x, y: acc.y + v.y }), { x: 0, y: 0 });
+            payloadCenter.x /= payload.vertices.length;
+            payloadCenter.y /= payload.vertices.length;
+
+            // This radius should match Config.ESCORT_PLAYER_PROXIMITY on the server
+            const captureRadius = gameInfo.captureRadius;
+
+            this.ctx.save();
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([10, 10]); // Create the dashed effect
+            // Animate the dashes to make the zone feel active
+            this.ctx.lineDashOffset = -(Date.now() / 50);
+
+            this.ctx.beginPath();
+            this.ctx.arc(payloadCenter.x, payloadCenter.y, captureRadius, 0, 2 * Math.PI);
+            this.ctx.stroke();
+            this.ctx.restore();
+
+            this.ctx.save();
+            // A metallic, heavy look for the payload
+            this.ctx.fillStyle = '#B0BEC5'; // Blue Grey color
+            this.ctx.strokeStyle = '#546E7A'; // Darker Blue Grey for the border
+            this.ctx.lineWidth = 3;
+            this.ctx.lineJoin = 'round';
+
+            // Draw the main polygon shape
+            this.ctx.beginPath();
+            this.ctx.moveTo(payload.vertices[0].x, payload.vertices[0].y);
+            for (let i = 1; i < payload.vertices.length; i++) {
+                this.ctx.lineTo(payload.vertices[i].x, payload.vertices[i].y);
+            }
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+            this.ctx.restore();
         }
 
         startGameLoop() {

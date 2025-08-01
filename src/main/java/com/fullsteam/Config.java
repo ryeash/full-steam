@@ -98,4 +98,10 @@ public class Config {
     public static final long ZOMBIE_TIME_BETWEEN_WAVES_MS = getLong("game.zombie.time_between_waves_ms", 15_000);
     public static final long ZOMBIE_INITIAL_WAVE_DELAY_MS = getLong("game.zombie.initial_wave_delay_ms", 5_000);
 
+    // --- Escort Game Mode ---
+    public static final double ESCORT_OBSTACLE_WIDTH = getDouble("game.escort.obstacle_width", 50.0);
+    public static final double ESCORT_OBSTACLE_HEIGHT = getDouble("game.escort.obstacle_height", 40.0);
+    public static final double ESCORT_OBSTACLE_SPEED = getDouble("game.escort.obstacle_speed", 1.0);
+    public static final double ESCORT_PLAYER_PROXIMITY = getDouble("game.escort.player_proximity", 100.0);
+
 }

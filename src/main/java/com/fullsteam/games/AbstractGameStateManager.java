@@ -253,6 +253,7 @@ public abstract class AbstractGameStateManager {
             if (!isRoundOver) {
                 isRoundOver = checkEndConditions();
                 if (isRoundOver) {
+                    sendGameEvent(GameEvent.blue("Next round starting in %s seconds".formatted(Config.NEXT_ROUND_DELAY_MS / 1000)));
                     gameLoop.schedule(this::startNewRound, Config.NEXT_ROUND_DELAY_MS, TimeUnit.MILLISECONDS);
                 }
             }
