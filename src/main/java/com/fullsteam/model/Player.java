@@ -17,7 +17,7 @@ public class Player {
     protected double speed;
     @JsonIgnore
     protected double defaultSpeed;
-    protected final int team;
+    protected int team;
     protected Weapon weapon;
     protected double currentHealth;
     protected double maxHealth;
@@ -199,6 +199,10 @@ public class Player {
 
     public int getTeam() {
         return team;
+    }
+
+    public void setTeam(int team) {
+        this.team = team;
     }
 
     // The setter for team is removed as it is now final.

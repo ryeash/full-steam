@@ -3,12 +3,12 @@ package com.fullsteam.games;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.GameState;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.JuggernautAIStrategy;
+import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.JuggernautInfo;
 
 import java.util.List;
@@ -105,26 +105,15 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected GameState buildGameState() {
+    protected GameInfo buildGameState() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
-
-        JuggernautInfo gameInfo = new JuggernautInfo(
+        return new JuggernautInfo(
                 (int) this.team1Score,
                 (int) this.team2Score,
                 team1Juggernaut,
                 team2Juggernaut,
                 roundTimeRemainingSeconds
-        );
-
-        return new GameState(
-                players.values(),
-                bullets,
-                obstacles,
-                hazards,
-                deathMarkers,
-                gameEvents,
-                gameInfo
         );
     }
 

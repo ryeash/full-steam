@@ -3,7 +3,6 @@ package com.fullsteam.games;
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
-import com.fullsteam.model.GameState;
 import com.fullsteam.model.Hill;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
@@ -11,6 +10,7 @@ import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.KingOfTheHillAIStrategy;
+import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.KingOfTheHillInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,26 +111,14 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected GameState buildGameState() {
+    protected GameInfo buildGameState() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
-
-        // Create the specific info object for this game mode
-        KingOfTheHillInfo gameInfo = new KingOfTheHillInfo(
+        return new KingOfTheHillInfo(
                 this.hill,
                 this.team1Score,
                 this.team2Score,
                 roundTimeRemainingSeconds
-        );
-
-        return new GameState(
-                players.values(),
-                bullets,
-                obstacles,
-                hazards,
-                deathMarkers,
-                gameEvents,
-                gameInfo
         );
     }
 

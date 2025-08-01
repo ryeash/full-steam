@@ -4,7 +4,6 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.Flag;
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.GameState;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
@@ -12,6 +11,7 @@ import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.CaptureTheFlagAIStrategy;
 import com.fullsteam.model.gamemodes.CaptureTheFlagInfo;
+import com.fullsteam.model.gamemodes.GameInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -198,24 +198,15 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected GameState buildGameState() {
+    protected GameInfo buildGameState() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
-        CaptureTheFlagInfo gameInfo = new CaptureTheFlagInfo(
+        return new CaptureTheFlagInfo(
                 this.team1Flag,
                 this.team2Flag,
                 this.team1Score,
                 this.team2Score,
                 roundTimeRemainingSeconds
-        );
-        return new GameState(
-                players.values(),
-                bullets,
-                obstacles,
-                hazards,
-                deathMarkers,
-                gameEvents,
-                gameInfo
         );
     }
 

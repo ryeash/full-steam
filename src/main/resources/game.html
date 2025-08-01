@@ -166,7 +166,7 @@
             flex-grow: 1; /* Make them fill the available space */
         }
 
-        #leaveGameBtn {
+        #leaveGameBtn, #switchTeamBtn {
             background-color: #a1322a;
             color: white;
             border: 1px solid #c7574e;
@@ -176,8 +176,9 @@
             font-size: 1em;
             width: 100%;
             box-sizing: border-box;
+            margin-top: 10px;
         }
-        #leaveGameBtn:hover {
+        #leaveGameBtn:hover, #switchTeamBtn:hover {
             background-color: #c7574e;
         }
 
@@ -233,6 +234,7 @@
                     <option>Loading...</option>
                 </select>
             </div>
+            <button id="switchTeamBtn">Switch Team</button>
         </div>
 
         <div id="team1-scoreboard">
@@ -408,6 +410,10 @@
             document.getElementById('leaveGameBtn').addEventListener('click', () => {
                 window.location.href = 'lobby.html';
             });
+            document.getElementById('switchTeamBtn').addEventListener('click', () => {
+                this.sendTeamChangeRequest();
+                this.canvas.focus();
+            });
         }
 
         /**
@@ -531,6 +537,18 @@
             };
             this.ws.send(JSON.stringify(message));
             console.log(`Sent player config: Name=${playerName}, Weapon=${weaponName}`);
+        }
+
+        sendTeamChangeRequest() {
+            if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+            const message = {
+                type: 'configChange',
+                requestTeamChange: true
+            };
+            this.ws.send(JSON.stringify(message));
+            console.log('Sent team change request.');
         }
 
         loadPlayerName() {

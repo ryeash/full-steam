@@ -3,9 +3,9 @@ package com.fullsteam.games;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.GameState;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.gamemodes.EliminationInfo;
+import com.fullsteam.model.gamemodes.GameInfo;
 
 import java.util.concurrent.TimeUnit;
 
@@ -107,29 +107,19 @@ public class EliminationManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected GameState buildGameState() {
+    protected GameInfo buildGameState() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
 
         long team1Alive = players.values().stream().filter(p -> p.getTeam() == 1 && !p.isDead()).count();
         long team2Alive = players.values().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
 
-        EliminationInfo gameInfo = new EliminationInfo(
+        return new EliminationInfo(
                 this.team1Score,
                 this.team2Score,
                 team1Alive,
                 team2Alive,
                 roundTimeRemainingSeconds
-        );
-
-        return new GameState(
-                players.values(),
-                bullets,
-                obstacles,
-                hazards,
-                deathMarkers,
-                gameEvents,
-                gameInfo
         );
     }
 }

@@ -20,6 +20,7 @@ import com.fullsteam.model.WelcomeMessage;
 import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.DeathmatchAIStrategy;
+import com.fullsteam.model.gamemodes.GameInfo;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import org.slf4j.Logger;
@@ -28,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -282,7 +284,7 @@ public abstract class AbstractGameStateManager {
      */
     protected void addGameEvent(String message, GameEvent.EventType type, long durationMs) {
         long expiration = System.currentTimeMillis() + durationMs;
-        gameEvents.add(new GameEvent(message, type, expiration));
+        gameEvents.add(new GameEvent(message, type, null, expiration));
         log.info("New Game Event: {}", message);
     }
 
@@ -368,7 +370,15 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void updatePlayers() {
-        GameState gameState = buildGameState();
+        GameState gameState = new GameState(
+                players.values(),
+                bullets,
+                obstacles,
+                hazards,
+                deathMarkers,
+                gameEvents,
+                null
+        );
         for (Player player : players.values()) {
             double oldX = player.getX();
             double oldY = player.getY();
@@ -522,19 +532,30 @@ public abstract class AbstractGameStateManager {
      *
      * @return The fully constructed GameState object.
      */
-    protected abstract GameState buildGameState();
+    protected abstract GameInfo buildGameState();
+
+    protected List<GameEvent> eventsForPlayer(String playerId) {
+        return gameEvents.stream()
+                .filter(ge -> ge.playerId() == null || Objects.equals(ge.playerId(), playerId))
+                .toList();
+    }
 
     protected void sendGameState() {
-        GameState gameState = buildGameState();
-        if (gameState == null) {
-            log.warn("buildGameState() returned null, skipping send.");
-            return;
-        }
-        String json = Jackson.writeValueAsString(gameState);
+        GameInfo gameInfo = buildGameState();
 
         // Iterate over the entry set to have access to both the playerId and the channel
         playerChannels.forEach((playerId, channel) -> {
             if (channel.isActive() && channel.isOpen()) {
+                GameState gameState = new GameState(
+                        players.values(),
+                        bullets,
+                        obstacles,
+                        hazards,
+                        deathMarkers,
+                        eventsForPlayer(playerId),
+                        gameInfo
+                );
+                String json = Jackson.writeValueAsString(gameState);
                 channel.writeAndFlush(new TextWebSocketFrame(json)).addListener(future -> {
                     if (!future.isSuccess()) {
                         log.error("Failed to send game state to player {}. Closing channel.", playerId, future.cause());
@@ -643,21 +664,49 @@ public abstract class AbstractGameStateManager {
      */
     public void handlePlayerConfigChange(String playerId, PlayerConfigRequest request) {
         Player player = players.get(playerId);
-        if (player == null || request.getWeaponName() == null) {
+        if (player == null) {
             return;
         }
+
         if (request.getPlayerName() != null && !request.getPlayerName().isEmpty()) {
             player.setPlayerName(request.getPlayerName());
         }
+
         if (request.getWeaponName() != null
             && !request.getWeaponName().isEmpty()
             && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
-            player.setCurrentAmmoInMagazine(0);
+            player.setCurrentAmmoInMagazine(0); // force a reload
             player.startReload();
         }
-        log.info("Player {} reconfigured: {}", playerId, request);
+
+        if (request.isRequestTeamChange()) {
+            int currentTeam = player.getTeam();
+            int otherTeam = (currentTeam == 1) ? 2 : 1;
+
+            // Check if the other team is full
+            // only count human players
+            long otherTeamCount = players.values()
+                    .stream()
+                    .filter(p -> !(p instanceof AIPlayer))
+                    .filter(p -> p.getTeam() == otherTeam)
+                    .count();
+
+            if (otherTeamCount < MAX_PLAYERS_PER_TEAM) {
+                player.setTeam(otherTeam);
+                // Kill the player to force a respawn on the new team's side
+                killPlayer(player, null);
+                playerChannels.get(player.getId())
+                        .writeAndFlush(new TextWebSocketFrame(Jackson.writeValueAsString(new WelcomeMessage(player.getId(), player.getTeam(), gameId))));
+                log.info("Player {} switched to team {}", playerId, otherTeam);
+            } else {
+                // TODO: refactor GameEvent to support sending message to specific players
+                // then send a message to the user to tell them that they aren't allowed to move teams
+                log.warn("Player {} failed to switch to team {}: team is full.", playerId, otherTeam);
+            }
+        }
+        log.info("Player {} reconfigured: name={}, weapon={}", playerId, player.getPlayerName(), player.getWeapon().getName());
     }
 
     protected void generateHazards() {

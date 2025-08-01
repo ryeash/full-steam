@@ -4,12 +4,12 @@ import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.GameState;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.ZombieAIStrategy;
+import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.ZombieDefenseInfo;
 import io.netty.channel.Channel;
 
@@ -243,24 +243,16 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     }
 
     @Override
-    protected GameState buildGameState() {
+    protected GameInfo buildGameState() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
         long timeToNextWave = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(nextWaveTime - System.currentTimeMillis()));
         long zombiesAlive = players.values().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
-        return new GameState(
-                players.values(),
-                bullets,
-                obstacles,
-                hazards,
-                deathMarkers,
-                gameEvents,
-                new ZombieDefenseInfo(
-                        this.waveNumber,
-                        zombiesAlive,
-                        timeToNextWave,
-                        roundTimeRemainingSeconds
-                )
+        return new ZombieDefenseInfo(
+                this.waveNumber,
+                zombiesAlive,
+                timeToNextWave,
+                roundTimeRemainingSeconds
         );
     }
 }

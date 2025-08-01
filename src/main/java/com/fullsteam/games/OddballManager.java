@@ -4,7 +4,6 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.GameState;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Oddball;
 import com.fullsteam.model.Player;
@@ -12,6 +11,7 @@ import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.OddballAIStrategy;
+import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.OddballInfo;
 
 import java.util.Objects;
@@ -167,25 +167,14 @@ public class OddballManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected GameState buildGameState() {
+    protected GameInfo buildGameState() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
-
-        OddballInfo gameInfo = new OddballInfo(
+        return new OddballInfo(
                 this.oddball,
                 this.team1Score,
                 this.team2Score,
                 roundTimeRemainingSeconds
-        );
-
-        return new GameState(
-                players.values(),
-                bullets,
-                obstacles,
-                hazards,
-                deathMarkers,
-                gameEvents,
-                gameInfo
         );
     }
 }
