@@ -26,6 +26,18 @@ public record GameEvent(String message,
         GENERIC_INFO
     }
 
+    public static GameEvent team(int team, String message) {
+        EventType type;
+        if (team == 1) {
+            type = EventType.GREEN;
+        } else if (team == 2) {
+            type = EventType.RED;
+        } else {
+            type = EventType.BLUE;
+        }
+        return new GameEvent(message, type, System.currentTimeMillis() + Config.GAME_EVENT_DURATION_MS);
+    }
+
     public static GameEvent red(String message) {
         return new GameEvent(message, EventType.RED, System.currentTimeMillis() + Config.GAME_EVENT_DURATION_MS);
     }

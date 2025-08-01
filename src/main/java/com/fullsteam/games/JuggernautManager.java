@@ -132,7 +132,7 @@ public class JuggernautManager extends AbstractTeamBasedManager {
             player.setCurrentHealth(Config.DEFAULT_PLAYER_HEALTH);
         }
         sendGameEvent(GameEvent.info("Starting new round!"));
-        sendGameEvent(GameEvent.info("Will select new juggernauts in " + (JUGGERNAUT_SELECTION_DELAY_MS / 1000) + " seconds"));
+        sendGameEvent(GameEvent.blue("Will select new juggernauts in " + (JUGGERNAUT_SELECTION_DELAY_MS / 1000) + " seconds"));
         players.values().forEach(this::setValidSpawnPosition);
         gameLoop.schedule(() -> {
             selectNewJuggernautForTeam(1);
@@ -154,7 +154,7 @@ public class JuggernautManager extends AbstractTeamBasedManager {
             }
             juggernaut.setCurrentHealth(JUGGERNAUT_HEALTH);
             juggernaut.setMaxHealth(JUGGERNAUT_HEALTH);
-            sendGameEvent(GameEvent.info("%s is Team %d's Juggernaut!".formatted(juggernaut.getPlayerName(), team)));
+            sendGameEvent(GameEvent.team(team, "%s is Team %d's Juggernaut!".formatted(juggernaut.getPlayerName(), team)));
             log.info("{} is the new Juggernaut for team {}", juggernaut.getPlayerName(), team);
         } else {
             log.warn("Cannot select Juggernaut for team {}: no players on team.", team);

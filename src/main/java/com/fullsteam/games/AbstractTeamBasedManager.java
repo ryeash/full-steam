@@ -1,6 +1,5 @@
 package com.fullsteam.games;
 
-import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.TeamBalancer;
 import com.fullsteam.model.GameEvent;
@@ -31,8 +30,7 @@ public abstract class AbstractTeamBasedManager extends AbstractGameStateManager 
         sentVictoryMessage = true;
         int winningTeam = winningTeam();
         if (winningTeam > 0) {
-            GameEvent.EventType type = winningTeam == 1 ? GameEvent.EventType.GREEN : GameEvent.EventType.RED;
-            sendGameEvent(new GameEvent("Team %d wins with a score of %d-%d!".formatted(winningTeam, (int) team1Score, (int) team2Score), type, System.currentTimeMillis() + Config.GAME_EVENT_DURATION_MS));
+            sendGameEvent(GameEvent.team(winningTeam, "Team %d wins with a score of %d-%d!".formatted(winningTeam, (int) team1Score, (int) team2Score)));
         } else {
             sendGameEvent(GameEvent.info("The game ended in a draw"));
         }

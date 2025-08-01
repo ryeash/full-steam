@@ -63,7 +63,7 @@ public abstract class AbstractGameStateManager {
     protected final List<DeathMarker> deathMarkers = new CopyOnWriteArrayList<>();
     protected final List<GameEvent> gameEvents = new CopyOnWriteArrayList<>();
     protected final ScheduledExecutorService gameLoop = Executors.newScheduledThreadPool(2);
-    private boolean isRoundOver = false;
+    protected boolean isRoundOver = false;
 
     public AbstractGameStateManager(GameLobby gameLobby) {
         this.gameLobby = gameLobby;

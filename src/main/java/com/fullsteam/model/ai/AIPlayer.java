@@ -31,12 +31,15 @@ public class AIPlayer extends Player {
     private transient AIState currentState = AIState.WANDERING;
     private transient Player currentTarget;
     private transient Vector2D objectiveTargetPoint;
+    private transient Vector2D wanderTarget;
     private transient final IAIStrategy aiStrategy;
     private transient final AIArchetype archetype;
 
     private transient long lastWanderDirectionChangeTime;
     private transient long lastStrafeTime;
     private transient boolean strafeRight = true;
+    private transient Vector2D acceleration = Vector2D.ZERO;
+    private transient double maxForce = 0.2; // The maximum steering force, controls turning ability
     private transient long timeTargetAcquired;
 
     // --- AI "Personality" Traits ---
@@ -78,6 +81,15 @@ public class AIPlayer extends Player {
             return Optional.empty();
         }
 
+        // High-priority check: Reload if the magazine is empty and not already reloading.
+        // This is a crucial behavior that makes the AI play by the same rules as humans.
+        if (getCurrentAmmoInMagazine() == 0 && !isReloading()) {
+            startReload();
+        }
+
+        // Reset acceleration at the start of each frame
+        this.acceleration = Vector2D.ZERO;
+
         // 1. Let the strategy determine the current state, objective, and primary target
         aiStrategy.updateAIState(this, allPlayers, gameInfo);
 
@@ -88,6 +100,12 @@ public class AIPlayer extends Player {
         Optional<ShootAction> shootAction = checkForShootingOpportunity(allPlayers, obstacles);
 
         // 4. Update player physics (position based on velocity)
+        // 4. Update player physics using steering
+        // Update velocity by adding acceleration
+        setVelocity(getVelocity().add(this.acceleration));
+        // Limit velocity to max speed
+        setVelocity(getVelocity().limit(getSpeed()));
+        // Update position based on new velocity
         super.update();
 
         // 5. Return the shoot action if any
@@ -105,35 +123,26 @@ public class AIPlayer extends Player {
                     performWanderBehavior(obstacles); // Fallback if target is lost
                     return;
                 }
-                if (isReloading()) {
-                    moveAwayFrom(currentTarget.getCenter(), obstacles); // Retreat while reloading
-                    return;
-                }
                 // Decide whether to strafe or advance on the target
                 long currentTime = System.currentTimeMillis();
                 if (currentTime - lastStrafeTime > this.strafeInterval) {
                     lastStrafeTime = currentTime;
                     strafeRight = ThreadLocalRandom.current().nextBoolean();
                 }
-                if (ThreadLocalRandom.current().nextDouble() < this.strafeChance) {
-                    moveStrafe();
+
+                if (isReloading() || getCenter().distanceSq(currentTarget.getCenter()) < 150 * 150) {
+                    // If reloading or too close, strafe to be evasive
+                    strafe(obstacles);
                 } else {
-                    moveTowardsPoint(currentTarget.getX(), currentTarget.getY(), obstacles);
+                    // Otherwise, seek the target
+                    seek(currentTarget.getCenter(), obstacles);
                 }
                 break;
             case CAPTURING_OBJECTIVE:
-                if (this.objectiveTargetPoint != null) {
-                    moveTowardsPoint(this.objectiveTargetPoint.x(), this.objectiveTargetPoint.y(), obstacles);
-                } else {
-                    performWanderBehavior(obstacles);
-                }
+                seek(this.objectiveTargetPoint, obstacles);
                 break;
             case FLEEING:
-                if (this.objectiveTargetPoint != null) {
-                    moveAwayFrom(this.objectiveTargetPoint, obstacles);
-                } else {
-                    performWanderBehavior(obstacles);
-                }
+                flee(this.objectiveTargetPoint, obstacles);
                 break;
             case WANDERING:
                 if (objectiveTargetPoint != null) {
@@ -151,7 +160,7 @@ public class AIPlayer extends Player {
      * @return An Optional ShootAction if a valid target is found and the AI can fire.
      */
     private Optional<ShootAction> checkForShootingOpportunity(Collection<Player> allPlayers, List<Obstacle> obstacles) {
-        if (isReloading() || !canShoot()) {
+        if (isReloading() || !canShoot() || getCurrentAmmoInMagazine() == 0) {
             return Optional.empty();
         }
 
@@ -199,6 +208,58 @@ public class AIPlayer extends Player {
         return bestTarget;
     }
 
+    // =================================================================================
+    // --- Steering Behaviors ---
+    // =================================================================================
+
+    /**
+     * Applies a steering force to the AI's acceleration.
+     */
+    private void applyForce(Vector2D force) {
+        this.acceleration = this.acceleration.add(force);
+    }
+
+    /**
+     * A steering behavior that directs the AI towards a target point.
+     * It incorporates simple obstacle avoidance.
+     */
+    private void seek(Vector2D target, List<Obstacle> obstacles) {
+        if (target == null) {
+            performWanderBehavior(obstacles);
+            return;
+        }
+        // 1. Calculate the desired velocity (a vector pointing from us to the target)
+        Vector2D desiredDirection = target.subtract(getCenter()).normalize();
+
+        // 2. Use the existing obstacle avoidance to adjust the desired direction
+        Vector2D avoidanceDirection = findClearPath(desiredDirection, obstacles);
+        Vector2D desiredVelocity = avoidanceDirection.multiply(getSpeed());
+
+        // 3. Calculate the steering force (the force required to change current velocity to desired velocity)
+        Vector2D steer = desiredVelocity.subtract(getVelocity());
+        steer = steer.limit(this.maxForce); // Limit the force to our turning ability
+
+        // 4. Apply the force
+        applyForce(steer);
+    }
+
+    /**
+     * A steering behavior that directs the AI away from a target point.
+     */
+    private void flee(Vector2D target, List<Obstacle> obstacles) {
+        if (target == null) {
+            performWanderBehavior(obstacles);
+            return;
+        }
+        // The desired velocity is the opposite of seek
+        Vector2D desiredDirection = getCenter().subtract(target).normalize();
+        Vector2D avoidanceDirection = findClearPath(desiredDirection, obstacles);
+        Vector2D desiredVelocity = avoidanceDirection.multiply(getSpeed());
+
+        Vector2D steer = desiredVelocity.subtract(getVelocity());
+        steer = steer.limit(this.maxForce);
+        applyForce(steer);
+    }
 
     public void setCurrentState(AIState state) {
         this.currentState = state;
@@ -227,35 +288,15 @@ public class AIPlayer extends Player {
         }
     }
 
-    private void moveTowardsPoint(double targetX, double targetY, List<Obstacle> obstacles) {
-        Vector2D targetPoint = new Vector2D(targetX, targetY);
-        double distanceSq = getCenter().distanceSq(targetPoint);
-
-        if (distanceSq < 100) { // Stop if very close
-            setVelocity(Vector2D.ZERO);
-            return;
-        }
-
-        Vector2D desiredDirection = targetPoint.add(getCenter().multiply(-1)).normalize();
-        Vector2D finalDirection = findClearPath(desiredDirection, obstacles);
-        setVelocity(finalDirection.multiply(getSpeed()));
-    }
-
-    private void moveAwayFrom(Vector2D v, List<Obstacle> obstacles) {
-        Vector2D desiredDirection = getCenter().add(v.multiply(-1)).normalize();
-        Vector2D finalDirection = findClearPath(desiredDirection, obstacles);
-        setVelocity(finalDirection.multiply(getSpeed()));
-    }
-
     private void performWanderBehavior(List<Obstacle> obstacles) {
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - lastWanderDirectionChangeTime > WANDER_DIRECTION_CHANGE_INTERVAL || getVelocity().magnitudeSq() == 0) {
-            double angle = ThreadLocalRandom.current().nextDouble() * 2 * Math.PI;
-            Vector2D desiredDirection = new Vector2D(Math.cos(angle), Math.sin(angle));
-            Vector2D finalDirection = findClearPath(desiredDirection, obstacles);
-            setVelocity(finalDirection.multiply(getSpeed()));
-            lastWanderDirectionChangeTime = currentTime;
+        // If we don't have a wander target or we've reached it, pick a new one.
+        if (wanderTarget == null || getCenter().distanceSq(wanderTarget) < 100 * 100) { // 100px radius
+            double x = ThreadLocalRandom.current().nextDouble(50, Config.GAME_WIDTH - 50);
+            double y = ThreadLocalRandom.current().nextDouble(50, Config.GAME_HEIGHT - 50);
+            this.wanderTarget = new Vector2D(x, y);
         }
+        // Smoothly move towards the wander target.
+        seek(this.wanderTarget, obstacles);
     }
 
     private ShootAction shootWithInaccuracy(double dx, double dy) {
@@ -265,8 +306,9 @@ public class AIPlayer extends Player {
         return new ShootAction(Math.cos(finalAngle), Math.sin(finalAngle));
     }
 
-    private void moveStrafe() {
+    private void strafe(List<Obstacle> obstacles) {
         if (currentTarget == null) {
+            performWanderBehavior(obstacles);
             return;
         }
         double dx = currentTarget.getX() - getX();
@@ -280,10 +322,12 @@ public class AIPlayer extends Player {
             strafeDy = -strafeDy;
         }
 
-        double length = Math.sqrt(strafeDx * strafeDx + strafeDy * strafeDy);
-        if (length > 0) {
-            setVelocity(new Vector2D((strafeDx / length) * getSpeed(), (strafeDy / length) * getSpeed()));
-        }
+        Vector2D desiredDirection = new Vector2D(strafeDx, strafeDy).normalize();
+        Vector2D avoidanceDirection = findClearPath(desiredDirection, obstacles);
+        Vector2D desiredVelocity = avoidanceDirection.multiply(getSpeed());
+
+        Vector2D steer = desiredVelocity.subtract(getVelocity());
+        applyForce(steer.limit(this.maxForce)); // Apply a strong force for responsive strafing
     }
 
     private Obstacle findBlockingObstacle(Vector2D start, Vector2D end, List<Obstacle> obstacles) {

@@ -20,6 +20,16 @@ public record Vector2D(double x, double y) {
     }
 
     /**
+     * Subtracts another vector from this vector.
+     *
+     * @param other The vector to subtract.
+     * @return A new Vector2D representing the difference.
+     */
+    public Vector2D subtract(Vector2D other) {
+        return new Vector2D(this.x - other.x, this.y - other.y);
+    }
+
+    /**
      * Multiplies this vector by a scalar value.
      * An alias for the scale() method for semantic clarity in different contexts.
      *
@@ -61,6 +71,20 @@ public record Vector2D(double x, double y) {
             return new Vector2D(x / mag, y / mag);
         }
         return ZERO;
+    }
+
+    /**
+     * Limits the magnitude of this vector to a maximum value.
+     * If the magnitude is already less than the max, it returns a copy of this vector.
+     *
+     * @param max The maximum magnitude.
+     * @return A new Vector2D with a magnitude no greater than max.
+     */
+    public Vector2D limit(double max) {
+        if (magnitudeSq() > max * max) {
+            return normalize().multiply(max);
+        }
+        return this;
     }
 
     /**

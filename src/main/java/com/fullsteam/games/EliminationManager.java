@@ -85,7 +85,7 @@ public class EliminationManager extends AbstractTeamBasedManager {
         if (roundDecided) {
             if (!sentVictoryMessage) {
                 if (winningTeam > 0) {
-                    sendGameEvent(GameEvent.info("Team %d wins the round!".formatted(winningTeam)));
+                    sendGameEvent(GameEvent.team(winningTeam, "Team %d wins the round!".formatted(winningTeam)));
                 } else {
                     sendGameEvent(GameEvent.info("The round is a draw"));
                 }

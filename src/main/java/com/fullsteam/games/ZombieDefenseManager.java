@@ -26,6 +26,7 @@ import static com.fullsteam.Config.ZOMBIE_TIME_BETWEEN_WAVES_MS;
  */
 public class ZombieDefenseManager extends AbstractGameStateManager {
 
+    private static final long WAVE_WARNING_TIME_MS = 5_000; // 5 seconds before the wave hits
     private int waveNumber = 0;
     private long nextWaveTime;
     private long roundEndTime;
@@ -58,7 +59,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         // Schedule the first wave
         this.nextWaveTime = System.currentTimeMillis() + ZOMBIE_INITIAL_WAVE_DELAY_MS;
         log.info("Zombie Defense match started. Survive for {} seconds.", Config.ROUND_DURATION_SECONDS);
-        sendGameEvent(GameEvent.info("First wave incoming..."));
+        sendGameEvent(GameEvent.yellow("First wave incoming..."));
     }
 
     @Override
@@ -73,7 +74,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         waveNumber++;
         int zombiesToSpawn = 5 + (waveNumber * 3); // Waves get progressively harder
         log.info("Spawning Wave {} with {} zombies.", waveNumber, zombiesToSpawn);
-        sendGameEvent(GameEvent.info("Wave " + waveNumber + " has arrived!"));
+        sendGameEvent(GameEvent.red("Wave " + waveNumber + " has arrived!"));
 
         for (int i = 0; i < zombiesToSpawn; i++) {
             spawnZombie();
@@ -81,6 +82,17 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
 
         // Schedule the next wave
         this.nextWaveTime = System.currentTimeMillis() + ZOMBIE_TIME_BETWEEN_WAVES_MS;
+        // Schedule a warning message to appear before the next wave
+        long warningDelay = ZOMBIE_TIME_BETWEEN_WAVES_MS - WAVE_WARNING_TIME_MS;
+        if (warningDelay > 0) {
+            final int nextWaveNumber = this.waveNumber + 1;
+            gameLoop.schedule(() -> {
+                // Check if the game is still running to avoid sending messages after game over
+                if (System.currentTimeMillis() < roundEndTime && !isRoundOver) {
+                    sendGameEvent(GameEvent.yellow("Wave " + nextWaveNumber + " is incoming!"));
+                }
+            }, warningDelay, TimeUnit.MILLISECONDS);
+        }
     }
 
     private void spawnZombie() {

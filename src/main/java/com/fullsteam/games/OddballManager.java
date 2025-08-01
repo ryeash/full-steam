@@ -76,7 +76,6 @@ public class OddballManager extends AbstractTeamBasedManager {
         updateOddball();
     }
 
-
     private void updateOddball() {
         // --- Add points to the carrying team ---
         if (oddball.state() == Oddball.OddballState.CARRIED) {
@@ -92,7 +91,7 @@ public class OddballManager extends AbstractTeamBasedManager {
                 oddball = oddball.withPosition(carrier.getCenter());
             } else {
                 oddball = oddball.asDroppedAt(oddball.position());
-                sendGameEvent(GameEvent.info("The Oddball was dropped!"));
+                sendGameEvent(GameEvent.yellow("The Oddball was dropped!"));
             }
         }
 
@@ -113,7 +112,7 @@ public class OddballManager extends AbstractTeamBasedManager {
                 if (Vector2D.distanceSq(player.getCenter(), oddball.position()) < BALL_PICKUP_RADIUS_SQ) {
                     oddball = oddball.asCarriedBy(player.getId(), player.getCenter());
                     log.info("Player {} picked up the Oddball for team {}!", player.getPlayerName(), player.getTeam());
-                    sendGameEvent(GameEvent.info("%s picked up the Oddball!".formatted(player.getPlayerName())));
+                    sendGameEvent(GameEvent.team(player.getTeam(), "%s picked up the Oddball!".formatted(player.getPlayerName())));
                     break; // Only one player can pick it up
                 }
             }
@@ -127,7 +126,7 @@ public class OddballManager extends AbstractTeamBasedManager {
         if (oddball.state() == Oddball.OddballState.CARRIED && victim.getId().equals(oddball.carrierId())) {
             oddball = oddball.asDroppedAt(victim.getCenter());
             log.info("Oddball carrier was eliminated! Ball dropped at ({}, {}).", victim.getX(), victim.getY());
-            sendGameEvent(GameEvent.info("The Oddball carrier was eliminated!"));
+            sendGameEvent(GameEvent.blue("The Oddball carrier was eliminated!"));
         }
     }
 
