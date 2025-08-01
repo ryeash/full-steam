@@ -10,6 +10,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.util.AttributeKey;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +29,12 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        if (evt instanceof WebSocketServerProtocolHandler.HandshakeComplete) {
+        if (evt instanceof WebSocketServerProtocolHandler.HandshakeComplete handshake) {
+            String uri = handshake.requestUri();
+            String[] split = StringUtils.split(uri, '/');
+            String gameId = split[1];
+            String gameType = split[2];
+
             // 1. Check with the lobby if a new player can be accepted.
             if (!gameLobby.tryAcceptNewPlayer()) {
                 log.warn("Server is full ({} players). Rejecting new connection from {}.",
@@ -39,7 +45,7 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
 
             // --- If accepted, proceed as normal ---
             try {
-                gameLobby.joinGame(ctx.channel());
+                gameLobby.joinGame(ctx.channel(), gameId, gameType);
             } catch (Exception e) {
                 // If anything goes wrong during setup, make sure to decrement the player count.
                 gameLobby.playerDisconnected();
@@ -55,7 +61,7 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         // channelActive is called when the TCP connection is established, before the
         // WebSocket handshake. We'll let userEventTriggered handle the logic.
-        log.debug("Channel {} became active, awaiting handshake.", ctx.channel().id());
+        log.info("Channel {} became active, awaiting handshake.", ctx.channel().id());
         super.channelActive(ctx);
     }
 

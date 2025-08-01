@@ -16,6 +16,7 @@ import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Weapon;
+import com.fullsteam.model.WelcomeMessage;
 import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.DeathmatchAIStrategy;
@@ -44,6 +45,7 @@ import static com.fullsteam.Config.GAME_WIDTH;
 import static com.fullsteam.Config.HAZARD_COUNT;
 import static com.fullsteam.Config.HAZARD_DAMAGE_FACTOR;
 import static com.fullsteam.Config.HAZARD_SLOW_FACTOR;
+import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
 import static com.fullsteam.Config.OBSTACLE_COUNT;
 import static com.fullsteam.Config.PLAYER_SIZE;
 import static com.fullsteam.Config.RESPAWN_DELAY_MS;
@@ -249,10 +251,7 @@ public abstract class AbstractGameStateManager {
             if (!isRoundOver) {
                 isRoundOver = checkEndConditions();
                 if (isRoundOver) {
-                    gameLoop.schedule(() -> {
-                        endRound();
-                        startNewRound();
-                    }, Config.NEXT_ROUND_DELAY_MS, TimeUnit.MILLISECONDS);
+                    gameLoop.schedule(this::startNewRound, Config.NEXT_ROUND_DELAY_MS, TimeUnit.MILLISECONDS);
                 }
             }
             checkAfkPlayers();
@@ -289,42 +288,38 @@ public abstract class AbstractGameStateManager {
 
     protected abstract boolean checkEndConditions();
 
-    protected void endRound() {
-        if (Config.ROTATE_GAME_MODES) {
-            // kick the humans to the next game mode
-            playerChannels.forEach((id, channel) -> {
-                Player player = players.get(id);
-                if (!(player instanceof AIPlayer)) {
-                    gameLobby.joinNext(players.get(id), channel, this);
-                }
-            });
-        }
-    }
-
     /**
      * Resets the game state for a new round. This includes scores, player positions, and the timer.
      */
     protected void startNewRound() {
-        isRoundOver = false;
-        // Clear transient game objects
-        bullets.clear();
-        deathMarkers.clear();
-        gameEvents.clear();
+        try {
+            isRoundOver = false;
+            // Clear transient game objects
+            bullets.clear();
+            deathMarkers.clear();
+            gameEvents.clear();
 
-        generateObstacles();
-        generateHazards();
+            generateObstacles();
+            generateHazards();
 
-        // Reset all players
-        for (Player player : players.values()) {
-            player.resetStats();
-            player.resetHealth();
-            player.finishReload();
-            player.setDead(false); // Ensure they are alive
-            setValidSpawnPosition(player); // Move them to a spawn point
+            // Reset all players
+            for (Player player : players.values()) {
+                player.resetStats();
+                player.resetHealth();
+                player.finishReload();
+                player.setDead(false); // Ensure they are alive
+                setValidSpawnPosition(player); // Move them to a spawn point
+                if (!(player instanceof AIPlayer)) {
+                    playerChannels.get(player.getId())
+                            .writeAndFlush(new TextWebSocketFrame(Jackson.writeValueAsString(new WelcomeMessage(player.getId(), player.getTeam(), gameId))));
+                }
+            }
+
+            log.info("New round started! Round will end in {} seconds.", ROUND_DURATION_SECONDS);
+            sendGameState(); // Send an immediate update to reflect the reset
+        } catch (Throwable t) {
+            log.error("error resetting game state", t);
         }
-
-        log.info("New round started! Round will end in {} seconds.", ROUND_DURATION_SECONDS);
-        sendGameState(); // Send an immediate update to reflect the reset
     }
 
 
@@ -385,7 +380,7 @@ public abstract class AbstractGameStateManager {
             }
 
             // Reset speed at the start of the check, in case they left a hazard zone
-            player.setSpeed(Config.DEFAULT_PLAYER_SPEED);
+            player.restoreSpeed();
             for (Hazard hazard : hazards) {
                 if (player.getCenter().distanceSq(hazard.position()) < hazard.radiusSq()) {
                     switch (hazard.type()) {
@@ -565,9 +560,9 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void setValidSpawnPosition(Player player) {
-        boolean inObstacle;
+        boolean invalidPosition;
         do {
-            inObstacle = false;
+            invalidPosition = false;
             double x;
 
             // Calculate the available width for spawning on one side of the map.
@@ -589,10 +584,26 @@ public abstract class AbstractGameStateManager {
 
             player.setX(x);
             player.setY(y);
+
+            // First, check if the spawn point is inside an obstacle.
             if (isColliding(player, obstacles)) {
-                inObstacle = true;
+                invalidPosition = true;
+                continue; // Try a new position
             }
-        } while (inObstacle);
+
+            // Next, check if the spawn point is inside a damage hazard.
+            Vector2D playerCenter = new Vector2D(player.getX() + PLAYER_SIZE / 2, player.getY() + PLAYER_SIZE / 2);
+            for (Hazard hazard : hazards) {
+                if (hazard.type() == Hazard.Type.DAMAGE) {
+                    // Check if the player's center is inside the hazard's radius.
+                    // This is a simplified check, but consistent with how hazards affect players during the game.
+                    if (playerCenter.distanceSq(hazard.position()) < hazard.radiusSq()) {
+                        invalidPosition = true;
+                        break; // Exit the for loop and try a new position
+                    }
+                }
+            }
+        } while (invalidPosition);
     }
 
     // --- Collision Detection Methods ---
@@ -670,5 +681,13 @@ public abstract class AbstractGameStateManager {
 
     public void shutdown() {
         gameLoop.shutdown();
+    }
+
+    public int getPlayerCount() {
+        return (int) players.values().stream().filter(p -> !(p instanceof AIPlayer)).count();
+    }
+
+    public int getMaxPlayers() {
+        return MAX_PLAYERS_PER_TEAM * 2;
     }
 }

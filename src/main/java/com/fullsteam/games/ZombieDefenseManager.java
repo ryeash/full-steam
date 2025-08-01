@@ -17,6 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
 import static com.fullsteam.Config.ZOMBIE_INITIAL_WAVE_DELAY_MS;
 import static com.fullsteam.Config.ZOMBIE_TIME_BETWEEN_WAVES_MS;
 
@@ -56,6 +57,14 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         super.startNewRound();
         roundEndTime = System.currentTimeMillis() + (Config.ROUND_DURATION_SECONDS * 1000);
         this.waveNumber = 0;
+
+        // clear the zombies from the previous round
+        players.values()
+                .stream()
+                .filter(p -> p.getTeam() == 2)
+                .map(Player::getId)
+                .toList()
+                .forEach(this::removePlayer);
         // Schedule the first wave
         this.nextWaveTime = System.currentTimeMillis() + ZOMBIE_INITIAL_WAVE_DELAY_MS;
         log.info("Zombie Defense match started. Survive for {} seconds.", Config.ROUND_DURATION_SECONDS);
@@ -67,6 +76,14 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         super.updateGame();
         if (System.currentTimeMillis() >= nextWaveTime) {
             spawnNextWave();
+        }
+    }
+
+    @Override
+    protected void killPlayer(Player victim, Player shooter) {
+        super.killPlayer(victim, shooter);
+        if (victim.getTeam() == 2) {
+            removePlayer(victim.getId());
         }
     }
 
@@ -118,6 +135,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
             zombie.setMaxHealth(50);
             zombie.setSpeed(Config.ZOMBIE_SPEED);
         }
+        zombie.setDefaultSpeed(zombie.getSpeed());
         zombie.resetHealth();
         // Spawn zombies at the edges of the map
         setZombieSpawnPosition(zombie);
@@ -217,9 +235,11 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
             player.setX(centerX + (ThreadLocalRandom.current().nextDouble() - 0.5) * (houseWidth - 100));
             player.setY(centerY + (ThreadLocalRandom.current().nextDouble() - 0.5) * (houseHeight - 100));
         }
-        // This case is for zombies, who have their own spawn logic.
-        // This method will be called from super.startNewRound(), but we can ignore it
-        // as setZombieSpawnPosition() will be used for actual zombie placement.
+    }
+
+    @Override
+    public int getMaxPlayers() {
+        return MAX_PLAYERS_PER_TEAM; // Only 5 humans allowed in this game
     }
 
     @Override

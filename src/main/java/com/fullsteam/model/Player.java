@@ -15,6 +15,8 @@ public class Player {
     protected double velocityY;
     @JsonIgnore
     protected double speed;
+    @JsonIgnore
+    protected double defaultSpeed;
     protected final int team;
     protected Weapon weapon;
     protected double currentHealth;
@@ -46,6 +48,7 @@ public class Player {
         this.y = y;
         this.team = team;
         this.speed = Config.DEFAULT_PLAYER_SPEED;
+        this.defaultSpeed = Config.DEFAULT_PLAYER_SPEED;
         setWeapon(weapon);
         this.currentHealth = Config.DEFAULT_PLAYER_HEALTH;
         this.maxHealth = Config.DEFAULT_PLAYER_HEALTH;
@@ -180,6 +183,18 @@ public class Player {
 
     public void setSpeed(double speed) {
         this.speed = speed;
+    }
+
+    public double getDefaultSpeed() {
+        return defaultSpeed;
+    }
+
+    public void setDefaultSpeed(double defaultSpeed) {
+        this.defaultSpeed = defaultSpeed;
+    }
+
+    public void restoreSpeed() {
+        setSpeed(getDefaultSpeed());
     }
 
     public int getTeam() {

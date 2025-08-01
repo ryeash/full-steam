@@ -54,10 +54,10 @@ public abstract class AbstractTeamBasedManager extends AbstractGameStateManager 
 
     @Override
     protected void startNewRound() {
-        super.startNewRound();
-        this.roundEndTime = System.currentTimeMillis() + (ROUND_DURATION_SECONDS * 1000);
         resetScore();
+        this.roundEndTime = System.currentTimeMillis() + (ROUND_DURATION_SECONDS * 1000);
         this.sentVictoryMessage = false;
+        super.startNewRound();
     }
 
     @Override

@@ -166,6 +166,21 @@
             flex-grow: 1; /* Make them fill the available space */
         }
 
+        #leaveGameBtn {
+            background-color: #a1322a;
+            color: white;
+            border: 1px solid #c7574e;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        #leaveGameBtn:hover {
+            background-color: #c7574e;
+        }
+
         /* --- Styles for the Redesigned Info Bar --- */
         .game-info-left, .game-info-right {
             display: flex;
@@ -237,6 +252,9 @@
             <p>⌨️ WASD/Arrows: Move | R: Reload | Mouse: Aim & Shoot</p>
             <p>🎮 Left Stick: Move | Right Stick: Aim | Y/△: Swap Weapon | X/□: Reload | RT/R2: Shoot</p>
         </div>
+        <div style="text-align: center; margin-top: 20px; padding: 0 5px;">
+             <button id="leaveGameBtn">Leave Game</button>
+        </div>
     </div>
 </div>
 
@@ -282,7 +300,11 @@
 
         connect() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${location.hostname}:${location.port}/game`;
+            // --- Read query parameters to join a specific game ---
+            const urlParams = new URLSearchParams(window.location.search);
+            const gameId = urlParams.get('gameId') || 'null';
+            const gameType = urlParams.get('gameType') || 'null';
+            let wsUrl = `${protocol}//${location.hostname}:${location.port}/game/${gameId}/${gameType}`;
 
             this.ws = new WebSocket(wsUrl);
 
@@ -382,6 +404,9 @@
             document.getElementById('weaponSelector').addEventListener('change', () => {
                 this.sendConfigChange();
                 this.canvas.focus();
+            });
+            document.getElementById('leaveGameBtn').addEventListener('click', () => {
+                window.location.href = 'lobby.html';
             });
         }
 
@@ -651,7 +676,6 @@
             const bCtx = this.backgroundCtx;
             bCtx.fillStyle = '#333';
             bCtx.fillRect(0, 0, this.backgroundCanvas.width, this.backgroundCanvas.height);
-
 
             // Render hazards
             if (this.gameState.hazards) {

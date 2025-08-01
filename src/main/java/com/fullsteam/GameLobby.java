@@ -8,6 +8,7 @@ import com.fullsteam.games.KingOfTheHillManager;
 import com.fullsteam.games.OddballManager;
 import com.fullsteam.games.TeamDeathmatchManager;
 import com.fullsteam.games.ZombieDefenseManager;
+import com.fullsteam.model.ActiveGame;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.WelcomeMessage;
@@ -25,6 +26,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static com.fullsteam.Config.CLEANUP_INTERVAL_SECONDS;
 import static com.fullsteam.Config.MAX_GLOBAL_PLAYERS;
@@ -54,13 +56,93 @@ public class GameLobby {
         addGameMode(KingOfTheHillManager.class, () -> new KingOfTheHillManager(this));
     }
 
+    public List<ActiveGame> getActiveGames() {
+        return activeGames.values().stream()
+                .map(game -> new ActiveGame(
+                        game.getGameId(),
+                        game.gameType(),
+                        game.getPlayerCount(),
+                        game.getMaxPlayers()))
+                .collect(Collectors.toList());
+    }
+
+    public List<String> getGameTypes() {
+        return GAME_ROTATION.stream()
+                .map(GameMode::type)
+                .map(Class::getSimpleName)
+                .toList();
+    }
+
     public void addGameMode(Class<? extends AbstractGameStateManager> type, Supplier<AbstractGameStateManager> builder) {
         GAME_ROTATION.add(new GameMode(type, builder));
     }
 
     public void joinGame(Channel ctx) {
-        AbstractGameStateManager game = findOrCreateGame(GAME_ROTATION.get(0).type);
-        joinGame(ctx, game);
+        joinGame(ctx, null, null);
+    }
+
+    public void joinGame(Channel channel, String gameIdStr, String gameTypeStr) {
+        AbstractGameStateManager gameToJoin = null;
+
+        // 1. Try to join by specific game ID
+        if (gameIdStr != null && !gameIdStr.isEmpty() && !gameIdStr.equals("null")) {
+            try {
+                long gameId = Long.parseLong(gameIdStr);
+                AbstractGameStateManager game = activeGames.get(gameId);
+                if (game != null) {
+                    if (!game.isFull()) {
+                        gameToJoin = game;
+                        logger.info("Player {} joining specific game by ID: {}", GameWebSocketHandler.playerId(channel), gameId);
+                    } else {
+                        logger.warn("Player {} attempted to join full game {}. Will try to find another game of the same type.", GameWebSocketHandler.playerId(channel), gameId);
+                        // If the requested game is full, we can try to find another of the same type.
+                        gameTypeStr = game.getClass().getSimpleName();
+                    }
+                } else {
+                    logger.warn("Player {} attempted to join non-existent game {}. Will try to find a game by type if specified.", GameWebSocketHandler.playerId(channel), gameId);
+                }
+            } catch (NumberFormatException e) {
+                logger.warn("Invalid gameId format provided: '{}'. Ignoring.", gameIdStr);
+            }
+        }
+
+        // 2. If no game found by ID, try to find/create by game type
+        if (gameToJoin == null && gameTypeStr != null && !gameTypeStr.isEmpty() && !gameTypeStr.equals("null")) {
+            Class<? extends AbstractGameStateManager> gameTypeClass = findGameTypeClass(gameTypeStr);
+            if (gameTypeClass != null) {
+                logger.info("Player {} looking for game of type: {}", GameWebSocketHandler.playerId(channel), gameTypeStr);
+                gameToJoin = findOrCreateGame(gameTypeClass);
+            } else {
+                logger.warn("Unsupported game type requested: '{}'. Will find any available game.", gameTypeStr);
+            }
+        }
+
+        // 3. If still no game, find any available game (default behavior)
+        if (gameToJoin == null) {
+            logger.info("No specific game requested or found, finding any available game for player {}.", GameWebSocketHandler.playerId(channel));
+            if (!GAME_ROTATION.isEmpty()) {
+                // Default to finding any game of the first type in rotation, which findOrCreateGame handles.
+                gameToJoin = findOrCreateGame(GAME_ROTATION.get(0).type());
+            } else {
+                logger.error("No game modes configured in GAME_ROTATION. Cannot assign player {} to a game.", GameWebSocketHandler.playerId(channel));
+                channel.writeAndFlush(new TextWebSocketFrame("{\"type\":\"error\", \"message\":\"Server has no configured game modes.\"}"));
+                channel.close();
+                playerDisconnected(); // We incremented early, so we must decrement.
+                return;
+            }
+        }
+
+        // 4. Join the determined game
+        joinGame(channel, gameToJoin);
+    }
+
+    private Class<? extends AbstractGameStateManager> findGameTypeClass(String gameTypeStr) {
+        for (GameMode mode : GAME_ROTATION) {
+            if (mode.type().getSimpleName().equalsIgnoreCase(gameTypeStr)) {
+                return mode.type();
+            }
+        }
+        return null;
     }
 
     public void joinGame(Channel ctx, AbstractGameStateManager game) {
@@ -100,50 +182,6 @@ public class GameLobby {
             }
         }
         throw new IllegalArgumentException("unsupported game type: " + gameType.getSimpleName());
-    }
-
-    /**
-     * Moves a player from their previous game to the next one in the rotation.
-     *
-     * @param player       The player to move.
-     * @param ctx          The player's channel.
-     * @param previousGame The game the player is leaving.
-     */
-    public void joinNext(Player player, Channel ctx, AbstractGameStateManager previousGame) {
-        // 1. Remove player from the old game.
-        previousGame.removePlayer(player.getId());
-
-        // 2. Find the index of the current game mode in the rotation.
-        int currentIndex = -1;
-        for (int i = 0; i < GAME_ROTATION.size(); i++) {
-            if (GAME_ROTATION.get(i).type().equals(previousGame.getClass())) {
-                currentIndex = i;
-                break;
-            }
-        }
-
-        if (currentIndex == -1) {
-            // This case should ideally not happen if all game modes are registered.
-            // As a fallback, join the first game mode in the rotation.
-            logger.warn("Could not find previous game mode {} in rotation. Defaulting to the first game mode.", previousGame.getClass().getSimpleName());
-            if (!GAME_ROTATION.isEmpty()) {
-                Class<? extends AbstractGameStateManager> nextGameType = GAME_ROTATION.get(0).type();
-                joinGame(ctx, findOrCreateGame(nextGameType));
-            } else {
-                logger.error("GAME_ROTATION is empty! Cannot join next game.");
-            }
-            return;
-        }
-
-        // 3. Calculate the index of the next game mode, wrapping around if necessary.
-        int nextIndex = (currentIndex + 1) % GAME_ROTATION.size();
-
-        // 4. Get the next game mode's type.
-        Class<? extends AbstractGameStateManager> nextGameType = GAME_ROTATION.get(nextIndex).type();
-        logger.info("Player {} is rotating from {} to {}.", player.getId(), previousGame.getClass().getSimpleName(), nextGameType.getSimpleName());
-
-        // 5. Find or create a game of the next type and have the player join it.
-        joinGame(ctx, findOrCreateGame(nextGameType));
     }
 
     public void removeGame(Long gameId) {

@@ -46,8 +46,8 @@ public class GameServer {
                             pipeline.addLast(new HttpServerCodec());
                             pipeline.addLast(new HttpObjectAggregator(65536));
                             pipeline.addLast(new ChunkedWriteHandler());
-                            pipeline.addLast(new HttpStaticFileServerHandler());
-                            pipeline.addLast(new WebSocketServerProtocolHandler("/game"));
+                            pipeline.addLast(new WebSocketServerProtocolHandler("/game", true));
+                            pipeline.addLast(new HttpStaticFileServerHandler(gameLobby));
                             pipeline.addLast(new GameWebSocketHandler(gameLobby));
                         }
                     });

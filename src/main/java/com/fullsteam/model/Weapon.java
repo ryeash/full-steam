@@ -24,7 +24,7 @@ public class Weapon {
     /**
      * Creates a new Weapon by converting stat points into game values.
      *
-     * @param name               The name of the weapon preset (e.g., "Assault Rifle").
+     * @param name               The name of the weapon preset (e.g., "Assault").
      * @param fireRatePoints     Points for fire rate (0-30). More points = lower cooldown.
      * @param damagePoints       Points for damage (0-40). More points = more damage.
      * @param rangePoints        Points for range (0-10). More points = longer bullet travel distance.

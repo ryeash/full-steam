@@ -1,5 +1,6 @@
 package com.fullsteam;
 
+import com.fullsteam.model.LobbyInfo;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -18,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -26,6 +28,7 @@ import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.TimeZone;
 
+import static com.fullsteam.Config.MAX_GLOBAL_PLAYERS;
 import static io.netty.handler.codec.http.HttpHeaderNames.CACHE_CONTROL;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
@@ -47,14 +50,14 @@ public class HttpStaticFileServerHandler extends SimpleChannelInboundHandler<Ful
     public static final String HTTP_DATE_GMT_TIMEZONE = "GMT";
     public static final int HTTP_CACHE_SECONDS = 60;
     private static final long startup = System.currentTimeMillis();
+    private final GameLobby gameLobby;
+
+    public HttpStaticFileServerHandler(GameLobby gameLobby) {
+        this.gameLobby = gameLobby;
+    }
 
     @Override
     public void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
-        String uri = request.uri();
-        if (!uri.startsWith("/static/")) {
-            ctx.fireChannelRead(request.retain());
-            return;
-        }
         if (!request.decoderResult().isSuccess()) {
             sendError(ctx, BAD_REQUEST);
             return;
@@ -65,7 +68,18 @@ public class HttpStaticFileServerHandler extends SimpleChannelInboundHandler<Ful
             return;
         }
 
-        String path = uri.substring(7);
+        URI uri = URI.create(request.uri());
+        String path = uri.getPath();
+
+        if ("/api/games".equals(path)) {
+            sendLobbyInfo(ctx, request);
+            return;
+        }
+
+        if (path.equals("/")) {
+            path = "/lobby.html";
+        }
+
         byte[] bytes;
         try (InputStream resourceAsStream = getClass().getResourceAsStream(path)) {
             if (resourceAsStream == null) {
@@ -81,6 +95,23 @@ public class HttpStaticFileServerHandler extends SimpleChannelInboundHandler<Ful
         HttpUtil.setContentLength(response, fileLength);
         setContentTypeHeader(response, file);
         setDateAndCacheHeaders(response, file);
+        if (HttpUtil.isKeepAlive(request)) {
+            response.headers().set(CONNECTION, HttpHeaderValues.KEEP_ALIVE);
+        }
+        ctx.writeAndFlush(response);
+    }
+
+    private void sendLobbyInfo(ChannelHandlerContext ctx, FullHttpRequest request) {
+        LobbyInfo info = new LobbyInfo(
+                gameLobby.getGlobalPlayerCount(),
+                MAX_GLOBAL_PLAYERS,
+                gameLobby.getGameTypes(),
+                gameLobby.getActiveGames()
+        );
+        String json = Jackson.writeValueAsString(info);
+        FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.copiedBuffer(json, CharsetUtil.UTF_8));
+        response.headers().set(CONTENT_TYPE, "application/json; charset=UTF-8");
+        HttpUtil.setContentLength(response, response.content().readableBytes());
         if (HttpUtil.isKeepAlive(request)) {
             response.headers().set(CONNECTION, HttpHeaderValues.KEEP_ALIVE);
         }

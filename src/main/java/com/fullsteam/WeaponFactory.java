@@ -2,6 +2,7 @@ package com.fullsteam;
 
 import com.fullsteam.model.Weapon;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,10 +15,13 @@ import java.util.concurrent.ThreadLocalRandom;
 public class WeaponFactory {
 
     private static final Map<String, Weapon> weaponPresets = new ConcurrentHashMap<>();
+    private static final List<String> weaponNames;
+    private static final Weapon[] weaponArray;
+
 
     static {
         addPreset(new Weapon(
-                "Assault Rifle",
+                "Assault",
                 "A",
                 32, // Fire Rate: 300ms cooldown (fast)
                 20, // Damage: 50 (good)
@@ -97,12 +101,12 @@ public class WeaponFactory {
         addPreset(new Weapon(
                 "Street Sweeper",
                 "SW",
-                37,  // Fire Rate: 875ms cooldown (slow)
+                27,  // Fire Rate: 875ms cooldown (slow)
                 5,  // Damage: 20 per pellet (medium potential)
                 2,  // Range: 200 (very short)
                 0,  // Speed: 6.0 (slow)
                 0,  // Accuracy: 0.4 spread (max spread)
-                50, // Multi-shot: 6 pellets
+                60, // Multi-shot: 6 pellets
                 4,  // Magazine Size: 14 rounds
                 2   // Reload Speed: 4.8s (very slow)
         ));
@@ -111,14 +115,22 @@ public class WeaponFactory {
                 "Twin Sixes",
                 "T6s",
                 20, // Fire Rate: 500ms cooldown (medium)
-                30, // Damage: 60 (high)
+                25, // Damage: 60 (high)
                 4,  // Range: 350 (short-medium)
                 21, // Speed: 12.5 (very fast)
                 8, // Accuracy: 0.25 spread (accurate)
                 10, // Multi-shot: 2 pellets
                 2,  // Magazine Size: 12 rounds
-                5   // Reload Speed: 4.5s (slow)
+                10   // Reload Speed: 4.5s (slow)
         ));
+
+        // Pre-sort the weapon names for faster access.
+        weaponNames = Collections.unmodifiableList(
+                weaponPresets.keySet().stream().sorted().toList()
+        );
+
+        // Cache the weapon array for faster random access.
+        weaponArray = weaponPresets.values().toArray(new Weapon[0]);
     }
 
     /**
@@ -159,14 +171,14 @@ public class WeaponFactory {
     }
 
     public static List<String> weaponOptions() {
-        return weaponPresets.keySet().stream().sorted().toList();
+        return weaponNames;
     }
 
     /**
      * Retrieves a weapon preset by name.
      *
      * @param name The name of the weapon (e.g., "Sniper Rifle").
-     * @return The requested Weapon, or the default "Assault Rifle" if not found.
+     * @return The requested Weapon, or the default "Assault" if not found.
      */
     public static Weapon getWeapon(String name) {
         return weaponPresets.getOrDefault(name, getDefaultWeapon());
@@ -175,14 +187,13 @@ public class WeaponFactory {
     /**
      * Gets the default weapon for new players.
      *
-     * @return The default "Assault Rifle".
+     * @return The default "Assault".
      */
     public static Weapon getDefaultWeapon() {
-        return weaponPresets.get("Assault Rifle");
+        return weaponPresets.get("Assault");
     }
 
     public static Weapon getRandomWeapon() {
-        Object[] values = weaponPresets.values().toArray();
-        return (Weapon) values[ThreadLocalRandom.current().nextInt(values.length)];
+        return weaponArray[ThreadLocalRandom.current().nextInt(weaponArray.length)];
     }
 }
