@@ -9,6 +9,7 @@ import com.fullsteam.model.Bullet;
 import com.fullsteam.model.DeathMarker;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
+import com.fullsteam.model.Hazard;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
@@ -40,6 +41,9 @@ import static com.fullsteam.Config.AFK_TIMEOUT_MS;
 import static com.fullsteam.Config.DEATH_MARKER_DURATION_MS;
 import static com.fullsteam.Config.GAME_HEIGHT;
 import static com.fullsteam.Config.GAME_WIDTH;
+import static com.fullsteam.Config.HAZARD_COUNT;
+import static com.fullsteam.Config.HAZARD_DAMAGE_FACTOR;
+import static com.fullsteam.Config.HAZARD_SLOW_FACTOR;
 import static com.fullsteam.Config.OBSTACLE_COUNT;
 import static com.fullsteam.Config.PLAYER_SIZE;
 import static com.fullsteam.Config.RESPAWN_DELAY_MS;
@@ -60,6 +64,7 @@ public abstract class AbstractGameStateManager {
     protected final Map<String, Channel> playerChannels = new ConcurrentHashMap<>();
     protected final List<Bullet> bullets = new CopyOnWriteArrayList<>();
     protected final List<Obstacle> obstacles = new CopyOnWriteArrayList<>();
+    protected final List<Hazard> hazards = new CopyOnWriteArrayList<>();
     protected final List<DeathMarker> deathMarkers = new CopyOnWriteArrayList<>();
     protected final List<GameEvent> gameEvents = new CopyOnWriteArrayList<>();
     protected final ScheduledExecutorService gameLoop = Executors.newScheduledThreadPool(2);
@@ -307,6 +312,7 @@ public abstract class AbstractGameStateManager {
         gameEvents.clear();
 
         generateObstacles();
+        generateHazards();
 
         // Reset all players
         for (Player player : players.values()) {
@@ -367,6 +373,7 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void updatePlayers() {
+        GameState gameState = buildGameState();
         for (Player player : players.values()) {
             double oldX = player.getX();
             double oldY = player.getY();
@@ -377,10 +384,26 @@ public abstract class AbstractGameStateManager {
                 log.debug("Player {} finished reloading.", player.getId());
             }
 
+            // Reset speed at the start of the check, in case they left a hazard zone
+            player.setSpeed(Config.DEFAULT_PLAYER_SPEED);
+            for (Hazard hazard : hazards) {
+                if (player.getCenter().distanceSq(hazard.position()) < hazard.radiusSq()) {
+                    switch (hazard.type()) {
+                        case SLOW:
+                            player.setSpeed(Config.DEFAULT_PLAYER_SPEED * hazard.effectValue());
+                            break;
+                        case DAMAGE:
+                            if (player.takeDamage(hazard.effectValue())) {
+                                killPlayer(player, null);
+                            }
+                            break;
+                    }
+                }
+            }
+
             // Let the AI make its decisions first, then apply movement
             if (player instanceof AIPlayer ai) {
-                Optional<AIPlayer.ShootAction> shootAction = ai.update(players.values(), obstacles, buildGameState().info());
-
+                Optional<AIPlayer.ShootAction> shootAction = ai.update(gameState);
                 if (shootAction.isPresent()) {
                     if (ai.canShoot()) {
                         AIPlayer.ShootAction action = shootAction.get();
@@ -466,7 +489,7 @@ public abstract class AbstractGameStateManager {
             log.info("Player {} was eliminated by {}. (K/D: {}/{})", victim.getId(), shooter.getId(), shooter.getKills(), shooter.getDeaths());
         } else {
             // This can happen if the shooter disconnects right after firing
-            log.info("Player {} was eliminated by a disconnected player.", victim.getId());
+            log.info("Player {} was eliminated by a disconnected player or a hazard.", victim.getId());
         }
 
         // Add the death marker
@@ -516,7 +539,7 @@ public abstract class AbstractGameStateManager {
 
         // Iterate over the entry set to have access to both the playerId and the channel
         playerChannels.forEach((playerId, channel) -> {
-            if (channel.isActive()) {
+            if (channel.isActive() && channel.isOpen()) {
                 channel.writeAndFlush(new TextWebSocketFrame(json)).addListener(future -> {
                     if (!future.isSuccess()) {
                         log.error("Failed to send game state to player {}. Closing channel.", playerId, future.cause());
@@ -624,6 +647,25 @@ public abstract class AbstractGameStateManager {
             player.startReload();
         }
         log.info("Player {} reconfigured: {}", playerId, request);
+    }
+
+    protected void generateHazards() {
+        hazards.clear();
+        for (Hazard.Type hazardType : Hazard.Type.values()) {
+            for (int i = 0; i < HAZARD_COUNT / 2; i++) {
+                double radius = ThreadLocalRandom.current().nextDouble(60, 90);
+                double x = ThreadLocalRandom.current().nextDouble(150, (Config.GAME_WIDTH / 2.0) - 150);
+                double y = ThreadLocalRandom.current().nextDouble(150, Config.GAME_HEIGHT - 150);
+
+                double effectValue = switch (hazardType) {
+                    case SLOW -> HAZARD_SLOW_FACTOR;
+                    case DAMAGE -> HAZARD_DAMAGE_FACTOR;
+                };
+                hazards.add(new Hazard(hazardType, new Vector2D(x, y), radius, radius * radius, effectValue));
+                hazards.add(new Hazard(hazardType, new Vector2D(Config.GAME_WIDTH - x, Config.GAME_HEIGHT - y), radius, radius * radius, effectValue));
+            }
+        }
+        log.info("Generated {} slowing hazards.", hazards.size());
     }
 
     public void shutdown() {

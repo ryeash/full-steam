@@ -64,6 +64,9 @@ public class Config {
     public static final double SPAWN_MIDFIELD_BUFFER = getDouble("game.spawn_midfield_buffer", 100.0);
     public static final int MAX_PLAYERS_PER_TEAM = getInt("game.max_players_per_team", 5);
     public static final boolean ROTATE_GAME_MODES = getBool("game.rotate_game_modes", true);
+    public static final int HAZARD_COUNT = getInt("game.hazard.count", 4);
+    public static final double HAZARD_SLOW_FACTOR = getDouble("game.hazard.slow_factor", 0.5); // 50% speed
+    public static final double HAZARD_DAMAGE_FACTOR = getDouble("game.hazard.damage_factor", 0.5); // damage per tick;
 
     // --- Capture the Flag (CTF) Game Mode ---
     public static final int CTF_SCORE_TO_WIN = getInt("game.ctf.score_to_win", 3);

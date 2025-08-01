@@ -1,5 +1,6 @@
 package com.fullsteam.model.ai;
 
+import com.fullsteam.model.GameState;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.KingOfTheHillInfo;
@@ -12,10 +13,13 @@ public class KingOfTheHillAIStrategy implements IAIStrategy {
     private static final DeathmatchAIStrategy FALLBACK_STRATEGY = new DeathmatchAIStrategy();
 
     @Override
-    public void updateAIState(AIPlayer self, Collection<Player> allPlayers, GameInfo gameInfo) {
+    public void updateAIState(AIPlayer self, GameState gameState) {
+        Collection<Player> allPlayers = gameState.players();
+        GameInfo gameInfo = gameState.info();
+
         if (!(gameInfo instanceof KingOfTheHillInfo koth)) {
             // Fallback safely instead of crashing the server if the game mode is wrong.
-            FALLBACK_STRATEGY.updateAIState(self, allPlayers, gameInfo);
+            FALLBACK_STRATEGY.updateAIState(self, gameState);
             return;
         }
 

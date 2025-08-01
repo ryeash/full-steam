@@ -182,6 +182,7 @@ public class OddballManager extends AbstractTeamBasedManager {
                 players.values(),
                 bullets,
                 obstacles,
+                hazards,
                 deathMarkers,
                 gameEvents,
                 gameInfo

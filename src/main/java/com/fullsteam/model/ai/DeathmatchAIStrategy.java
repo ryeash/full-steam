@@ -1,5 +1,6 @@
 package com.fullsteam.model.ai;
 
+import com.fullsteam.model.GameState;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.gamemodes.GameInfo;
 
@@ -7,7 +8,10 @@ import java.util.Collection;
 
 public class DeathmatchAIStrategy implements IAIStrategy {
     @Override
-    public void updateAIState(AIPlayer self, Collection<Player> allPlayers, GameInfo gameInfo) {
+    public void updateAIState(AIPlayer self, GameState gameState) {
+        Collection<Player> allPlayers = gameState.players();
+        GameInfo gameInfo = gameState.info();
+
         // --- Pre-computation: Get key state information once ---
         Player closestEnemy = findClosestEnemy(self, allPlayers);
 

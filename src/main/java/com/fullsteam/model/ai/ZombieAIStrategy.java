@@ -1,7 +1,7 @@
 package com.fullsteam.model.ai;
 
+import com.fullsteam.model.GameState;
 import com.fullsteam.model.Player;
-import com.fullsteam.model.gamemodes.GameInfo;
 
 import java.util.Collection;
 import java.util.Comparator;
@@ -13,7 +13,9 @@ import java.util.Comparator;
 public class ZombieAIStrategy implements IAIStrategy {
 
     @Override
-    public void updateAIState(AIPlayer self, Collection<Player> allPlayers, GameInfo gameInfo) {
+    public void updateAIState(AIPlayer self, GameState gameState) {
+        Collection<Player> allPlayers = gameState.players();
+
         // Find the closest living human player
         allPlayers.stream()
                 .filter(p -> p.getTeam() == 1 && !p.isDead())

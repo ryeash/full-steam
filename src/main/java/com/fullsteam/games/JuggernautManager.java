@@ -77,13 +77,17 @@ public class JuggernautManager extends AbstractTeamBasedManager {
         super.killPlayer(victim, shooter);
         if (Objects.equals(victim.getId(), team1Juggernaut)
             || Objects.equals(victim.getId(), team2Juggernaut)) {
-            sendGameEvent(GameEvent.info("Team %s Juggernaut %s was eliminated by %s!".formatted(victim.getTeam(), victim.getPlayerName(), shooter.getPlayerName())));
+            if (shooter != null) {
+                sendGameEvent(GameEvent.info("Team %s Juggernaut %s was eliminated by %s!".formatted(victim.getTeam(), victim.getPlayerName(), shooter.getPlayerName())));
+            } else {
+                sendGameEvent(GameEvent.info("Team %s Juggernaut %s was eliminated!".formatted(victim.getTeam(), victim.getPlayerName())));
+            }
             team1Juggernaut = null;
             team2Juggernaut = null;
-            if (shooter.getTeam() == 1) {
-                team1Score++;
-            } else {
+            if (victim.getTeam() == 1) {
                 team2Score++;
+            } else {
+                team1Score++;
             }
             triggerJuggernautReset();
         }
@@ -117,6 +121,7 @@ public class JuggernautManager extends AbstractTeamBasedManager {
                 players.values(),
                 bullets,
                 obstacles,
+                hazards,
                 deathMarkers,
                 gameEvents,
                 gameInfo

@@ -1,5 +1,6 @@
 package com.fullsteam.model.ai;
 
+import com.fullsteam.model.GameState;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.JuggernautInfo;
@@ -14,9 +15,12 @@ public class JuggernautAIStrategy implements IAIStrategy {
     private static final DeathmatchAIStrategy FALLBACK_STRATEGY = new DeathmatchAIStrategy();
 
     @Override
-    public void updateAIState(AIPlayer self, Collection<Player> allPlayers, GameInfo gameInfo) {
+    public void updateAIState(AIPlayer self, GameState gameState) {
+        Collection<Player> allPlayers = gameState.players();
+        GameInfo gameInfo = gameState.info();
+
         if (!(gameInfo instanceof JuggernautInfo j)) {
-            FALLBACK_STRATEGY.updateAIState(self, allPlayers, gameInfo); // Fallback for safety
+            FALLBACK_STRATEGY.updateAIState(self, gameState); // Fallback for safety
             return;
         }
 

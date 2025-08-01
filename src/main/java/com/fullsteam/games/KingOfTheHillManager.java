@@ -127,6 +127,7 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
                 players.values(),
                 bullets,
                 obstacles,
+                hazards,
                 deathMarkers,
                 gameEvents,
                 gameInfo

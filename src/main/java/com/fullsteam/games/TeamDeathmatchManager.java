@@ -24,10 +24,12 @@ public class TeamDeathmatchManager extends AbstractTeamBasedManager {
     @Override
     protected void killPlayer(Player victim, Player shooter) {
         super.killPlayer(victim, shooter);
-        if (shooter.getTeam() == 1) {
-            team1Score++;
-        } else {
-            team2Score++;
+        if (shooter != null) {
+            if (shooter.getTeam() == 1) {
+                team1Score++;
+            } else {
+                team2Score++;
+            }
         }
     }
 
@@ -39,6 +41,7 @@ public class TeamDeathmatchManager extends AbstractTeamBasedManager {
                 players.values(),
                 bullets,
                 obstacles,
+                hazards,
                 deathMarkers,
                 gameEvents,
                 new TeamDeathmatchInfo(

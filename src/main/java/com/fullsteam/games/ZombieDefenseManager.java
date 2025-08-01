@@ -232,6 +232,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
                 players.values(),
                 bullets,
                 obstacles,
+                hazards,
                 deathMarkers,
                 gameEvents,
                 new ZombieDefenseInfo(

@@ -18,7 +18,7 @@ public class WeaponFactory {
     static {
         addPreset(new Weapon(
                 "Assault Rifle",
-                "AR",
+                "A",
                 32, // Fire Rate: 300ms cooldown (fast)
                 20, // Damage: 50 (good)
                 6,  // Range: 500 (good)

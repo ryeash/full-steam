@@ -212,6 +212,7 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
                 players.values(),
                 bullets,
                 obstacles,
+                hazards,
                 deathMarkers,
                 gameEvents,
                 gameInfo

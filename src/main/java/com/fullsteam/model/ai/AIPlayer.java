@@ -3,11 +3,12 @@ package com.fullsteam.model.ai;
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
+import com.fullsteam.model.GameState;
+import com.fullsteam.model.Hazard;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.RandomNames;
 import com.fullsteam.model.Vector2D;
-import com.fullsteam.model.gamemodes.GameInfo;
 
 import java.util.Collection;
 import java.util.List;
@@ -66,36 +67,39 @@ public class AIPlayer extends Player {
      * The main update loop for the AI. It decouples movement from shooting, allowing the AI
      * to engage enemies while performing other actions.
      *
-     * @param allPlayers A collection of all players currently in the game.
-     * @param obstacles  A list of all obstacles on the map.
-     * @param gameInfo   The current game mode's state information.
+     * @param gameState The current game mode's state information.
      * @return An Optional containing a ShootAction if the AI decides to shoot.
      */
-    public Optional<ShootAction> update(Collection<Player> allPlayers, List<Obstacle> obstacles, GameInfo gameInfo) {
+    public Optional<ShootAction> update(GameState gameState) {
         if (isDead()) {
             setVelocity(Vector2D.ZERO);
             super.update();
             return Optional.empty();
         }
+        Collection<Player> allPlayers = gameState.players();
+        List<Obstacle> obstacles = gameState.obstacles();
+        List<Hazard> hazards = gameState.hazards();
 
         // Reset acceleration at the start of each frame
         this.acceleration = Vector2D.ZERO;
 
-        // 1. Let the strategy determine the current state, objective, and primary target
-        aiStrategy.updateAIState(this, allPlayers, gameInfo);
+        // --- Apply Steering Forces ---
+        // 1. High-priority: Avoid dangerous hazards. This force is applied first.
+        Vector2D hazardForce = calculateHazardAvoidanceForce(hazards);
+        applyForce(hazardForce);
 
-        // 2. Execute movement logic based on the current state
+        // 2. Let the strategy determine the primary objective (attack, flee, capture)
+        aiStrategy.updateAIState(this, gameState);
+
+        // 3. Execute movement logic based on the current state, which adds more forces
         performMovement(obstacles);
 
-        // 3. Independently check for and execute shooting logic against any visible enemy
+        // 4. Independently check for and execute shooting logic against any visible enemy
         Optional<ShootAction> shootAction = checkForShootingOpportunity(allPlayers, obstacles);
 
-        // 4. Update player physics (position based on velocity)
         // 4. Update player physics using steering
         // Update velocity by adding acceleration
-        setVelocity(getVelocity().add(this.acceleration));
-        // Limit velocity to max speed
-        setVelocity(getVelocity().limit(getSpeed()));
+        setVelocity(getVelocity().add(this.acceleration).limit(getSpeed()));
         // Update position based on new velocity
         super.update();
 
@@ -348,5 +352,37 @@ public class AIPlayer extends Player {
             }
         }
         return desiredDirection.multiply(-0.5);
+    }
+
+    /**
+     * Calculates a steering force to move the AI away from nearby hazards, especially damaging ones.
+     * The force is stronger the closer the AI is to the hazard's center.
+     *
+     * @param hazards A list of all hazards on the map.
+     * @return A steering force vector.
+     */
+    private Vector2D calculateHazardAvoidanceForce(List<Hazard> hazards) {
+        Vector2D totalAvoidanceForce = Vector2D.ZERO;
+        if (hazards == null) {
+            return totalAvoidanceForce;
+        }
+
+        for (Hazard hazard : hazards) {
+            // The "awareness" radius is slightly larger than the hazard itself.
+            double awarenessRadius = hazard.radius() + 40; // Be aware of it from 40px away
+            double distanceSq = getCenter().distanceSq(hazard.position());
+
+            if (distanceSq < awarenessRadius * awarenessRadius) {
+                // We are near or inside a hazard. Calculate a force to flee from it.
+                Vector2D fleeDirection = getCenter().subtract(hazard.position());
+
+                // The closer we are, the stronger the force should be.
+                double strength = 1.0 - (Math.sqrt(distanceSq) / awarenessRadius);
+                double weight = (hazard.type() == Hazard.Type.DAMAGE) ? 4.0 : 1.0;
+                Vector2D avoidanceForce = fleeDirection.normalize().multiply(strength * AI_MAX_FORCE * weight);
+                totalAvoidanceForce = totalAvoidanceForce.add(avoidanceForce);
+            }
+        }
+        return totalAvoidanceForce;
     }
 }

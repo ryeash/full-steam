@@ -1,6 +1,7 @@
 package com.fullsteam.model.ai;
 
 import com.fullsteam.Config;
+import com.fullsteam.model.GameState;
 import com.fullsteam.model.Oddball;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
@@ -17,9 +18,12 @@ public class OddballAIStrategy implements IAIStrategy {
     private static final DeathmatchAIStrategy FALLBACK_STRATEGY = new DeathmatchAIStrategy();
 
     @Override
-    public void updateAIState(AIPlayer self, Collection<Player> allPlayers, GameInfo gameInfo) {
+    public void updateAIState(AIPlayer self, GameState gameState) {
+        Collection<Player> allPlayers = gameState.players();
+        GameInfo gameInfo = gameState.info();
+
         if (!(gameInfo instanceof OddballInfo oddballInfo)) {
-            FALLBACK_STRATEGY.updateAIState(self, allPlayers, gameInfo); // Fallback
+            FALLBACK_STRATEGY.updateAIState(self, gameState); // Fallback
             return;
         }
 
