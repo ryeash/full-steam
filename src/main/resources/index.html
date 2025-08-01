@@ -979,8 +979,8 @@
 
             // Draw player body (circle)
             this.ctx.fillStyle = player.team === 1 ? '#4CAF50' : '#F44336';
-            this.ctx.strokeStyle = player.id === this.playerId ? '#6600cc' : (player.team === 1 ? '#388E3C' : '#B71C1C');
-            this.ctx.lineWidth = player.id === this.playerId ? 4 : 2;
+            this.ctx.strokeStyle = player.id === this.playerId ? '#FFD700' : (player.team === 1 ? '#388E3C' : '#B71C1C');
+            this.ctx.lineWidth = player.id === this.playerId ? 3 : 2;
             this.ctx.beginPath();
             this.ctx.arc(playerCenterX, playerCenterY, playerSize / 2, 0, 2 * Math.PI);
             this.ctx.fill();
@@ -1092,15 +1092,33 @@
                 this.ctx.textBaseline = 'alphabetic';
             }
 
-            // Draw health bar for all players
+            // --- Draw Health Arc around the player ---
             const maxHealth = player.maxHealth || 100;
             const healthPercentage = Math.max(0, player.currentHealth / maxHealth);
-            const healthBarWidth = 30;
-            const healthBarHeight = 5;
-            this.ctx.fillStyle = '#555'; // Background of health bar
-            this.ctx.fillRect(playerCenterX - healthBarWidth / 2, player.y - 8, healthBarWidth, healthBarHeight);
-            this.ctx.fillStyle = healthPercentage > 0.5 ? '#4CAF50' : (healthPercentage > 0.2 ? '#FFC107' : '#F44336');
-            this.ctx.fillRect(playerCenterX - healthBarWidth / 2, player.y - 8, healthBarWidth * healthPercentage, healthBarHeight);
+            const healthBarRadius = playerSize / 2 + 4; // Position it just outside the player circle
+            const healthBarThickness = 3;
+
+            // Define the geometry of the arc above the player
+            const arcSpan = Math.PI / 2; // A 90-degree quarter arc
+            const startAngle = -Math.PI / 2 - (arcSpan / 2); // Center it at the top. (Starts at 10:30 on a clock)
+            const endAngle = startAngle + arcSpan;           // Ends at 1:30 on a clock.
+
+            // Draw the background of the health arc (the empty part)
+            this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+            this.ctx.lineWidth = healthBarThickness + 1; // A bit thicker to create a border effect
+            this.ctx.beginPath();
+            this.ctx.arc(playerCenterX, playerCenterY, healthBarRadius, startAngle, endAngle);
+            this.ctx.stroke();
+
+            // Draw the actual health part of the arc
+            if (healthPercentage > 0) {
+                const healthEndAngle = startAngle + (healthPercentage * arcSpan);
+                this.ctx.strokeStyle = healthPercentage > 0.5 ? '#4CAF50' : (healthPercentage > 0.2 ? '#FFC107' : '#F44336');
+                this.ctx.lineWidth = healthBarThickness;
+                this.ctx.beginPath();
+                this.ctx.arc(playerCenterX, playerCenterY, healthBarRadius, startAngle, healthEndAngle);
+                this.ctx.stroke();
+            }
         }
 
         startGameLoop() {
