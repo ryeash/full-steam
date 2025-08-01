@@ -44,7 +44,7 @@ public class KingOfTheHillAIStrategy implements IAIStrategy {
         // Priority 1: An enemy is nearby. ATTACK!
         Player closestEnemy = findClosestEnemy(self, allPlayers);
         if (closestEnemy != null) {
-            self.setNewTarget(closestEnemy);
+            self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
@@ -67,7 +67,7 @@ public class KingOfTheHillAIStrategy implements IAIStrategy {
         // The Warrior's #1 priority is always to fight.
         Player closestEnemy = findClosestEnemy(self, allPlayers);
         if (closestEnemy != null) {
-            self.setNewTarget(closestEnemy);
+            self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
@@ -88,7 +88,7 @@ public class KingOfTheHillAIStrategy implements IAIStrategy {
             Player closestEnemy = findClosestEnemy(self, allPlayers);
             // Use a guard radius around the hill's center
             if (closestEnemy != null && closestEnemy.getCenter().distanceSq(koth.getHill().position()) < 400 * 400) {
-                self.setNewTarget(closestEnemy);
+                self.setCurrentTarget(closestEnemy);
                 self.setCurrentState(AIPlayer.AIState.ATTACKING);
             }
             return;
@@ -113,7 +113,7 @@ public class KingOfTheHillAIStrategy implements IAIStrategy {
         // who are a direct threat to the objective.
         Player closestEnemyOnHill = findClosestEnemyOnHill(self, allPlayers, koth);
         if (closestEnemyOnHill != null) {
-            self.setNewTarget(closestEnemyOnHill);
+            self.setCurrentTarget(closestEnemyOnHill);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }

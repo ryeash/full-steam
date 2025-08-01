@@ -17,15 +17,16 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import static com.fullsteam.Config.JUGGERNAUT_HEALTH;
+import static com.fullsteam.Config.JUGGERNAUT_SCORE_TO_WIN;
+import static com.fullsteam.Config.JUGGERNAUT_SELECTION_DELAY_MS;
+
 /**
  * A round-based game mode where each team has one "Juggernaut".
  * A team scores by eliminating the enemy Juggernaut.
  */
 public class JuggernautManager extends AbstractTeamBasedManager {
 
-    private static final int SCORE_TO_WIN = 3;
-    private static final int JUGGERNAUT_HEALTH = 1000;
-    private static final long WAIT_FOR_PLAYER_JOIN = 7000;
     private String team1Juggernaut;
     private String team2Juggernaut;
 
@@ -91,8 +92,8 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     @Override
     protected boolean checkEndConditions() {
         if (System.currentTimeMillis() > roundEndTime
-            || team1Score >= SCORE_TO_WIN
-            || team2Score >= SCORE_TO_WIN) {
+            || team1Score >= JUGGERNAUT_SCORE_TO_WIN
+            || team2Score >= JUGGERNAUT_SCORE_TO_WIN) {
             sendVictoryMessage();
             return true;
         }
@@ -131,12 +132,12 @@ public class JuggernautManager extends AbstractTeamBasedManager {
             player.setCurrentHealth(Config.DEFAULT_PLAYER_HEALTH);
         }
         sendGameEvent(GameEvent.info("Starting new round!"));
-        sendGameEvent(GameEvent.info("Will select new juggernauts in " + (WAIT_FOR_PLAYER_JOIN / 1000) + " seconds"));
+        sendGameEvent(GameEvent.info("Will select new juggernauts in " + (JUGGERNAUT_SELECTION_DELAY_MS / 1000) + " seconds"));
         players.values().forEach(this::setValidSpawnPosition);
         gameLoop.schedule(() -> {
             selectNewJuggernautForTeam(1);
             selectNewJuggernautForTeam(2);
-        }, WAIT_FOR_PLAYER_JOIN, TimeUnit.MILLISECONDS);
+        }, JUGGERNAUT_SELECTION_DELAY_MS, TimeUnit.MILLISECONDS);
     }
 
     private void selectNewJuggernautForTeam(int team) {

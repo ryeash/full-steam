@@ -50,7 +50,7 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
         // Priority 1: An enemy is nearby. ATTACK!
         Player closestEnemy = findClosestEnemy(self, allPlayers);
         if (closestEnemy != null) {
-            self.setNewTarget(closestEnemy);
+            self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
@@ -93,7 +93,7 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
         // The Warrior's #1 priority is always to fight.
         Player closestEnemy = findClosestEnemy(self, allPlayers);
         if (closestEnemy != null) {
-            self.setNewTarget(closestEnemy);
+            self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
@@ -119,7 +119,7 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
             // If an enemy gets close while we're defending, attack them.
             Player closestEnemy = findClosestEnemy(self, allPlayers);
             if (closestEnemy != null && isInRange(self, closestEnemy, 300)) { // Defend a 300-unit radius
-                self.setNewTarget(closestEnemy);
+                self.setCurrentTarget(closestEnemy);
                 self.setCurrentState(AIPlayer.AIState.ATTACKING);
             }
             return;
@@ -155,7 +155,7 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
         // If it can't go for the enemy flag, it will fight anyone directly in its way.
         Player closestEnemy = findClosestEnemy(self, allPlayers);
         if (closestEnemy != null) {
-            self.setNewTarget(closestEnemy);
+            self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }

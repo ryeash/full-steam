@@ -53,8 +53,9 @@ public class TeamDeathmatchManager extends AbstractTeamBasedManager {
             sendVictoryMessage();
             log.info("Round timer has expired. Starting a new round.");
             return true;
+        } else {
+            return false;
         }
-        return false;
     }
 
     @Override

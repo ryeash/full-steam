@@ -19,6 +19,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import static com.fullsteam.Config.KOTH_HILL_KEEP_OUT_RADIUS;
+import static com.fullsteam.Config.KOTH_HILL_RADIUS;
+import static com.fullsteam.Config.KOTH_POINTS_PER_SECOND;
+import static com.fullsteam.Config.KOTH_SCORE_TO_WIN;
 import static com.fullsteam.Config.OBSTACLE_COUNT;
 
 /**
@@ -29,18 +33,13 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
 
     private static final Logger log = LoggerFactory.getLogger(KingOfTheHillManager.class);
 
-    private static final double SCORE_TO_WIN = 100.0;
-    private static final double POINTS_PER_SECOND = 1.0;
-    private static final double HILL_RADIUS = 75.0;
-    private static final double HILL_KEEP_OUT_RADIUS = HILL_RADIUS + 50.0;
-
     private Hill hill;
 
     public KingOfTheHillManager(GameLobby gameLobby) {
         super(gameLobby);
         // Create the hill in the center of the map
         Vector2D hillPosition = new Vector2D(Config.GAME_WIDTH / 2.0, Config.GAME_HEIGHT / 2.0);
-        this.hill = new Hill(hillPosition, HILL_RADIUS, HILL_RADIUS * HILL_RADIUS, 0, false);
+        this.hill = new Hill(hillPosition, KOTH_HILL_RADIUS, KOTH_HILL_RADIUS * KOTH_HILL_RADIUS, 0, false);
     }
 
     @Override
@@ -63,17 +62,17 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
 
         // Add points if a team has uncontested control
         if (!hill.contested()) {
-            double pointsThisTick = POINTS_PER_SECOND / Config.TICK_RATE;
+            double pointsThisTick = KOTH_POINTS_PER_SECOND / Config.TICK_RATE;
             if (hill.controllingTeam() == 1) {
-                team1Score = Math.min(SCORE_TO_WIN, team1Score + pointsThisTick);
+                team1Score = Math.min(KOTH_SCORE_TO_WIN, team1Score + pointsThisTick);
             } else if (hill.controllingTeam() == 2) {
-                team2Score = Math.min(SCORE_TO_WIN, team2Score + pointsThisTick);
+                team2Score = Math.min(KOTH_SCORE_TO_WIN, team2Score + pointsThisTick);
             }
         }
 
         // Check for a winner by score or time
         boolean roundTimerExpired = System.currentTimeMillis() >= roundEndTime;
-        if (team1Score >= SCORE_TO_WIN || team2Score >= SCORE_TO_WIN || roundTimerExpired) {
+        if (team1Score >= KOTH_SCORE_TO_WIN || team2Score >= KOTH_SCORE_TO_WIN || roundTimerExpired) {
             sendVictoryMessage();
             return true;
         }
@@ -153,7 +152,7 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
                 // Check if the new obstacle intersects with the hill's keep-out zone.
                 isColliding = CollisionUtils.checkCirclePolygonCollision(
                         this.hill.position(),
-                        HILL_KEEP_OUT_RADIUS,
+                        KOTH_HILL_KEEP_OUT_RADIUS,
                         newObstacle.vertices());
                 attempts++;
             } while (isColliding && attempts < 100); // Keep trying until it's clear or we give up

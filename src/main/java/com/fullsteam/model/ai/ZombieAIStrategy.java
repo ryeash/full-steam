@@ -25,7 +25,7 @@ public class ZombieAIStrategy implements IAIStrategy {
 
                             if (isInRange(self, target, attackRange * 0.9)) {
                                 // If the target is within attack range, switch to attack mode.
-                                self.setNewTarget(target);
+                                self.setCurrentTarget(target);
                                 self.setCurrentState(AIPlayer.AIState.ATTACKING);
                             } else {
                                 // If the target is out of range, chase them.

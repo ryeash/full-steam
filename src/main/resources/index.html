@@ -183,18 +183,15 @@
 <div id="game-wrapper">
     <div id="main-content">
         <div class="info-bar">
-            <!-- Left side of the info bar -->
             <div class="game-info-left">
                 <span>Team: <b id="yourTeam">?</b></span>
                 <span>Players: <b id="playerCount">0</b></span>
             </div>
-            <!-- Center part of the info bar -->
             <div class="scoreboard-header">
                 <span id="team1Score" class="team1">0</span>
                 <span id="roundTimer" style="margin: 0 20px; color: #FFC107;">00:00</span>
                 <span id="team2Score" class="team2">0</span>
             </div>
-            <!-- Right side of the info bar -->
             <div class="game-info-right">
                 <span>Ping: <b id="latency" style="color: white;">--</b> ms</span>
                 <span>Status: <b id="status" style="color: #FFC107;">Connecting...</b></span>
@@ -210,9 +207,7 @@
             style="text-align: center; margin-top: -5px; margin-bottom: 15px; color: #ccc; font-weight: normal;">
             Loading...</h4>
 
-        <!-- NEW: Player configuration section -->
         <div id="player-config">
-            <h3>Your Setup</h3>
             <div class="config-item">
                 <label for="playerNameInput">Name:</label>
                 <input type="text" id="playerNameInput" placeholder="Your Name">
@@ -252,7 +247,7 @@
             this.canvas = document.getElementById('gameCanvas');
             this.ctx = this.canvas.getContext('2d');
             this.ws = null;
-            this.gameState = { players: [], bullets: [], obstacles: [], deathMarkers: [], events: [], info: null };
+            this.resetGameState();
             this.keys = {};
             this.mouse = { x: 0, y: 0, down: false };
             this.playerId = null;
@@ -279,6 +274,10 @@
             this.setupEventListeners();
             this.connect();
             this.startGameLoop();
+        }
+
+        resetGameState() {
+            this.gameState = { players: [], bullets: [], obstacles: [], deathMarkers: [], events: [], info: null };
         }
 
         connect() {
@@ -326,7 +325,7 @@
                     this.playerId = data.playerId;
                     this.playerTeam = data.team;
                     this.backgroundNeedsRedraw = true;
-                    this.gameState = { players: [], bullets: [], obstacles: [], deathMarkers: [], events: [], info: null };
+                    this.resetGameState();
 
                     // Update the UI with team info
                     const teamElement = document.getElementById('yourTeam');
@@ -350,7 +349,8 @@
             this.ws.onclose = () => {
                 document.getElementById('status').textContent = 'Disconnected';
                 document.getElementById('status').style.color = '#F44336';
-                // TODO: disable auto re-connect because of our AFK timeout
+                this.resetGameState();
+                // TODO: disabled auto re-connect because of our AFK timeout
                 //setTimeout(() => this.connect(), 3000);
             };
 
@@ -980,7 +980,7 @@
             // Draw player body (circle)
             this.ctx.fillStyle = player.team === 1 ? '#4CAF50' : '#F44336';
             this.ctx.strokeStyle = player.id === this.playerId ? '#6600cc' : (player.team === 1 ? '#388E3C' : '#B71C1C');
-            this.ctx.lineWidth = 2;
+            this.ctx.lineWidth = player.id === this.playerId ? 4 : 2;
             this.ctx.beginPath();
             this.ctx.arc(playerCenterX, playerCenterY, playerSize / 2, 0, 2 * Math.PI);
             this.ctx.fill();

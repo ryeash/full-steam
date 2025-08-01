@@ -38,7 +38,7 @@ public class DeathmatchAIStrategy implements IAIStrategy {
      */
     private void runBalancedLogic(AIPlayer self, Player closestEnemy) {
         if (closestEnemy != null) {
-            self.setNewTarget(closestEnemy);
+            self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
         } else {
             // No enemies in sight, so wander to find one.

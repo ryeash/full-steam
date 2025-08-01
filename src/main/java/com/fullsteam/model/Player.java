@@ -169,6 +169,11 @@ public class Player {
         this.velocityY = velocityY;
     }
 
+    @JsonIgnore
+    public Vector2D getVelocity() {
+        return new Vector2D(velocityX, velocityY);
+    }
+
     public double getSpeed() {
         return speed;
     }

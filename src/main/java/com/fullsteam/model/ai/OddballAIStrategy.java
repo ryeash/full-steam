@@ -87,7 +87,7 @@ public class OddballAIStrategy implements IAIStrategy {
 
         // Priority 2: An enemy is nearby. ATTACK!
         if (closestEnemy != null) {
-            self.setNewTarget(closestEnemy);
+            self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
@@ -122,7 +122,7 @@ public class OddballAIStrategy implements IAIStrategy {
     private void prioritizeCombat(AIPlayer self, Player closestEnemy, Oddball oddball, boolean isCarrier, Optional<Player> carrierOpt) {
         // The Warrior's #1 priority is always to fight.
         if (closestEnemy != null) {
-            self.setNewTarget(closestEnemy);
+            self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
@@ -139,7 +139,7 @@ public class OddballAIStrategy implements IAIStrategy {
 
             // If an enemy gets close to the carrier, the Guardian will engage.
             if (closestEnemy != null && closestEnemy.getCenter().distanceSq(friendlyCarrier.getCenter()) < 400 * 400) { // 400 unit guard radius
-                self.setNewTarget(closestEnemy);
+                self.setCurrentTarget(closestEnemy);
                 self.setCurrentState(AIPlayer.AIState.ATTACKING);
             }
             return;

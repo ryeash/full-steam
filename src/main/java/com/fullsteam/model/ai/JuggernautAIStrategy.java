@@ -64,7 +64,7 @@ public class JuggernautAIStrategy implements IAIStrategy {
         // Priority 1: An enemy is nearby. ATTACK!
         Player closestEnemy = findClosestEnemy(self, allPlayers);
         if (closestEnemy != null) {
-            self.setNewTarget(closestEnemy);
+            self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
@@ -81,7 +81,7 @@ public class JuggernautAIStrategy implements IAIStrategy {
         // Priority 1: An enemy is nearby. ATTACK!
         Player closestEnemy = findClosestEnemy(self, allPlayers);
         if (closestEnemy != null) {
-            self.setNewTarget(closestEnemy);
+            self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
@@ -98,7 +98,7 @@ public class JuggernautAIStrategy implements IAIStrategy {
         // Priority 1: An enemy is near our Juggernaut. INTERCEPT!
         Player closestEnemy = findClosestEnemy(self, allPlayers);
         if (closestEnemy != null && closestEnemy.getCenter().distanceSq(myJuggernaut.getCenter()) < 400 * 400) { // 400 unit guard radius
-            self.setNewTarget(closestEnemy);
+            self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }

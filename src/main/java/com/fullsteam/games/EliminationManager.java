@@ -7,8 +7,9 @@ import com.fullsteam.model.GameState;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.gamemodes.EliminationInfo;
 
-import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import static com.fullsteam.Config.ELIMINATION_SCORE_TO_WIN;
 
 /**
  * Last Team Standing game mode.
@@ -17,7 +18,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class EliminationManager extends AbstractTeamBasedManager {
 
-    private static final int SCORE_TO_WIN = 5;
     boolean roundDecided = false;
 
     public EliminationManager(GameLobby gameLobby) {
@@ -54,7 +54,7 @@ public class EliminationManager extends AbstractTeamBasedManager {
     @Override
     protected boolean checkEndConditions() {
         // First, check for the overall game win condition.
-        if (team1Score >= SCORE_TO_WIN || team2Score >= SCORE_TO_WIN || System.currentTimeMillis() > roundEndTime) {
+        if (team1Score >= ELIMINATION_SCORE_TO_WIN || team2Score >= ELIMINATION_SCORE_TO_WIN || System.currentTimeMillis() > roundEndTime) {
             sendVictoryMessage();
             return true;
         }

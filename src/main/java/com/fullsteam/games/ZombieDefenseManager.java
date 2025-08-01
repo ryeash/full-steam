@@ -17,14 +17,14 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import static com.fullsteam.Config.ZOMBIE_INITIAL_WAVE_DELAY_MS;
+import static com.fullsteam.Config.ZOMBIE_TIME_BETWEEN_WAVES_MS;
+
 /**
  * A cooperative PvE game mode where human players (Team 1) defend against
  * waves of AI-controlled zombies (Team 2).
  */
 public class ZombieDefenseManager extends AbstractGameStateManager {
-
-    private static final long TIME_BETWEEN_WAVES_MS = 15_000;
-    private static final long INITIAL_WAVE_DELAY_MS = 5_000;
 
     private int waveNumber = 0;
     private long nextWaveTime;
@@ -56,7 +56,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         roundEndTime = System.currentTimeMillis() + (Config.ROUND_DURATION_SECONDS * 1000);
         this.waveNumber = 0;
         // Schedule the first wave
-        this.nextWaveTime = System.currentTimeMillis() + INITIAL_WAVE_DELAY_MS;
+        this.nextWaveTime = System.currentTimeMillis() + ZOMBIE_INITIAL_WAVE_DELAY_MS;
         log.info("Zombie Defense match started. Survive for {} seconds.", Config.ROUND_DURATION_SECONDS);
         sendGameEvent(GameEvent.info("First wave incoming..."));
     }
@@ -80,7 +80,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         }
 
         // Schedule the next wave
-        this.nextWaveTime = System.currentTimeMillis() + TIME_BETWEEN_WAVES_MS;
+        this.nextWaveTime = System.currentTimeMillis() + ZOMBIE_TIME_BETWEEN_WAVES_MS;
     }
 
     private void spawnZombie() {

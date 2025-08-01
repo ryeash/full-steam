@@ -21,15 +21,15 @@ import java.util.concurrent.TimeUnit;
 import static com.fullsteam.Config.GAME_HEIGHT;
 import static com.fullsteam.Config.GAME_WIDTH;
 import static com.fullsteam.Config.OBSTACLE_COUNT;
+import static com.fullsteam.Config.ODDBALL_BALL_PICKUP_RADIUS;
+import static com.fullsteam.Config.ODDBALL_BALL_RESET_TIMEOUT_MS;
+import static com.fullsteam.Config.ODDBALL_KEEP_OUT_RADIUS;
+import static com.fullsteam.Config.ODDBALL_POINTS_PER_SECOND;
+import static com.fullsteam.Config.ODDBALL_SCORE_TO_WIN;
 
 public class OddballManager extends AbstractTeamBasedManager {
 
-    private static final double SCORE_TO_WIN = 150.0;
-    private static final double POINTS_PER_SECOND = 1.0;
-    private static final double BALL_PICKUP_RADIUS = 30.0;
-    private static final double BALL_PICKUP_RADIUS_SQ = BALL_PICKUP_RADIUS * BALL_PICKUP_RADIUS;
-    private static final long BALL_RESET_TIMEOUT_MS = 15_000; // 15 seconds
-    private static final double ODDBALL_KEEP_OUT_RADIUS = 150.0;
+    private static final double BALL_PICKUP_RADIUS_SQ = ODDBALL_BALL_PICKUP_RADIUS * ODDBALL_BALL_PICKUP_RADIUS;
 
     private Oddball oddball;
     private final Vector2D ballSpawnPoint = new Vector2D(Config.GAME_WIDTH / 2.0, Config.GAME_HEIGHT / 2.0);
@@ -82,11 +82,11 @@ public class OddballManager extends AbstractTeamBasedManager {
         if (oddball.state() == Oddball.OddballState.CARRIED) {
             Player carrier = players.get(oddball.carrierId());
             if (carrier != null && !carrier.isDead()) {
-                double pointsThisTick = POINTS_PER_SECOND / Config.TICK_RATE;
+                double pointsThisTick = ODDBALL_POINTS_PER_SECOND / Config.TICK_RATE;
                 if (carrier.getTeam() == 1) {
-                    team1Score = Math.min(SCORE_TO_WIN, team1Score + pointsThisTick);
+                    team1Score = Math.min(ODDBALL_SCORE_TO_WIN, team1Score + pointsThisTick);
                 } else {
-                    team2Score = Math.min(SCORE_TO_WIN, team2Score + pointsThisTick);
+                    team2Score = Math.min(ODDBALL_SCORE_TO_WIN, team2Score + pointsThisTick);
                 }
                 // Ball moves with the carrier
                 oddball = oddball.withPosition(carrier.getCenter());
@@ -97,7 +97,7 @@ public class OddballManager extends AbstractTeamBasedManager {
         }
 
         // --- Check for automatic ball reset ---
-        if (oddball.state() == Oddball.OddballState.DROPPED && System.currentTimeMillis() - oddball.dropTimestamp() > BALL_RESET_TIMEOUT_MS) {
+        if (oddball.state() == Oddball.OddballState.DROPPED && System.currentTimeMillis() - oddball.dropTimestamp() > ODDBALL_BALL_RESET_TIMEOUT_MS) {
             log.info("Oddball returned to spawn automatically.");
             oddball = oddball.asReset(ballSpawnPoint);
             sendGameEvent(GameEvent.info("Oddball reset to center."));
@@ -134,7 +134,7 @@ public class OddballManager extends AbstractTeamBasedManager {
     @Override
     protected boolean checkEndConditions() {
         boolean roundTimerExpired = System.currentTimeMillis() >= roundEndTime;
-        if (team1Score >= SCORE_TO_WIN || team2Score >= SCORE_TO_WIN || roundTimerExpired) {
+        if (team1Score >= ODDBALL_SCORE_TO_WIN || team2Score >= ODDBALL_SCORE_TO_WIN || roundTimerExpired) {
             sendVictoryMessage();
             return true;
         }

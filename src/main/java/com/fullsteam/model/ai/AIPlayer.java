@@ -63,8 +63,8 @@ public class AIPlayer extends Player {
     }
 
     /**
-     * The main update loop for the AI. It decides on a behavior, executes it,
-     * and returns an optional action for the GameStateManager to perform.
+     * The main update loop for the AI. It decouples movement from shooting, allowing the AI
+     * to engage enemies while performing other actions.
      *
      * @param allPlayers A collection of all players currently in the game.
      * @param obstacles  A list of all obstacles on the map.
@@ -73,18 +73,53 @@ public class AIPlayer extends Player {
      */
     public Optional<ShootAction> update(Collection<Player> allPlayers, List<Obstacle> obstacles, GameInfo gameInfo) {
         if (isDead()) {
-            setVelocityX(0);
-            setVelocityY(0);
+            setVelocity(Vector2D.ZERO);
             super.update();
             return Optional.empty();
         }
 
+        // 1. Let the strategy determine the current state, objective, and primary target
         aiStrategy.updateAIState(this, allPlayers, gameInfo);
 
-        Optional<ShootAction> shootAction = Optional.empty();
+        // 2. Execute movement logic based on the current state
+        performMovement(obstacles);
+
+        // 3. Independently check for and execute shooting logic against any visible enemy
+        Optional<ShootAction> shootAction = checkForShootingOpportunity(allPlayers, obstacles);
+
+        // 4. Update player physics (position based on velocity)
+        super.update();
+
+        // 5. Return the shoot action if any
+        return shootAction;
+    }
+
+    /**
+     * Handles all AI movement based on its current state (attacking, fleeing, etc.).
+     * This method sets the AI's velocity.
+     */
+    private void performMovement(List<Obstacle> obstacles) {
         switch (currentState) {
             case ATTACKING:
-                shootAction = performAttackBehavior(obstacles);
+                if (currentTarget == null) {
+                    performWanderBehavior(obstacles); // Fallback if target is lost
+                    return;
+                }
+                if (isReloading()) {
+                    moveAwayFrom(currentTarget.getCenter(), obstacles); // Retreat while reloading
+                    return;
+                }
+                // Decide whether to strafe or advance on the target
+                long currentTime = System.currentTimeMillis();
+                if (currentTime - lastStrafeTime > this.strafeInterval) {
+                    lastStrafeTime = currentTime;
+                    strafeRight = ThreadLocalRandom.current().nextBoolean();
+                }
+                if (ThreadLocalRandom.current().nextDouble() < this.strafeChance) {
+                    moveStrafe();
+                } else {
+                    moveTowardsPoint(currentTarget.getX(), currentTarget.getY(), obstacles);
+                }
                 break;
             case CAPTURING_OBJECTIVE:
                 if (this.objectiveTargetPoint != null) {
@@ -95,7 +130,6 @@ public class AIPlayer extends Player {
                 break;
             case FLEEING:
                 if (this.objectiveTargetPoint != null) {
-                    // Fleeing logic doesn't need complex avoidance, direct is fine.
                     moveAwayFrom(this.objectiveTargetPoint, obstacles);
                 } else {
                     performWanderBehavior(obstacles);
@@ -109,9 +143,62 @@ public class AIPlayer extends Player {
                 }
                 break;
         }
-        super.update();
-        return shootAction;
     }
+
+    /**
+     * Scans for any valid enemy to shoot, independent of the AI's current movement state.
+     *
+     * @return An Optional ShootAction if a valid target is found and the AI can fire.
+     */
+    private Optional<ShootAction> checkForShootingOpportunity(Collection<Player> allPlayers, List<Obstacle> obstacles) {
+        if (isReloading() || !canShoot()) {
+            return Optional.empty();
+        }
+
+        Player targetToShoot = findBestShootingTarget(allPlayers, obstacles);
+        if (targetToShoot == null) {
+            return Optional.empty();
+        }
+
+        // If the best target is our primary `currentTarget`, respect the AI's reaction time.
+        if (currentTarget == targetToShoot) {
+            if (System.currentTimeMillis() - timeTargetAcquired < this.reactionTimeMs) {
+                return Optional.empty(); // Still "reacting"
+            }
+        }
+
+        double dx = targetToShoot.getX() - getX();
+        double dy = targetToShoot.getY() - getY();
+        return Optional.of(shootWithInaccuracy(dx, dy));
+    }
+
+    /**
+     * Finds the closest enemy player that is within weapon range and has a clear line of sight.
+     *
+     * @return The best Player to target, or null if no valid target exists.
+     */
+    private Player findBestShootingTarget(Collection<Player> allPlayers, List<Obstacle> obstacles) {
+        Player bestTarget = null;
+        double minDistanceSq = Double.MAX_VALUE;
+        double attackRangeSq = getWeapon().getBulletRange() * getWeapon().getBulletRange();
+
+        for (Player potentialTarget : allPlayers) {
+            if (potentialTarget.getId().equals(this.getId()) || potentialTarget.isDead() || potentialTarget.getTeam() == this.getTeam()) {
+                continue;
+            }
+
+            double distanceSq = this.getCenter().distanceSq(potentialTarget.getCenter());
+
+            if (distanceSq < attackRangeSq && distanceSq < minDistanceSq) {
+                if (findBlockingObstacle(this.getCenter(), potentialTarget.getCenter(), obstacles) == null) {
+                    minDistanceSq = distanceSq;
+                    bestTarget = potentialTarget;
+                }
+            }
+        }
+        return bestTarget;
+    }
+
 
     public void setCurrentState(AIState state) {
         this.currentState = state;
@@ -128,135 +215,49 @@ public class AIPlayer extends Player {
         this.currentTarget = target;
     }
 
-    public void setNewTarget(Player target) {
-        if (this.currentTarget != target) {
-            this.timeTargetAcquired = System.currentTimeMillis();
-        }
-        this.currentTarget = target;
-    }
-
-
     private void performWanderNearPoint(Vector2D point, List<Obstacle> obstacles) {
         long currentTime = System.currentTimeMillis();
-        if (currentTime - lastWanderDirectionChangeTime > WANDER_DIRECTION_CHANGE_INTERVAL || (getVelocityX() == 0 && getVelocityY() == 0)) {
+        if (currentTime - lastWanderDirectionChangeTime > WANDER_DIRECTION_CHANGE_INTERVAL || getVelocity().magnitudeSq() == 0) {
             double angleToCenter = Math.atan2(point.y() - getY(), point.x() - getX());
             double randomOffset = (ThreadLocalRandom.current().nextDouble() - 0.5) * Math.PI;
             Vector2D desiredDirection = new Vector2D(Math.cos(angleToCenter + randomOffset), Math.sin(angleToCenter + randomOffset));
             Vector2D finalDirection = findClearPath(desiredDirection, obstacles);
-            setVelocityX(finalDirection.x() * getSpeed());
-            setVelocityY(finalDirection.y() * getSpeed());
+            setVelocity(finalDirection.multiply(getSpeed()));
             lastWanderDirectionChangeTime = currentTime;
         }
     }
 
     private void moveTowardsPoint(double targetX, double targetY, List<Obstacle> obstacles) {
-        double dx = targetX - getX();
-        double dy = targetY - getY();
-        double distance = Math.sqrt(dx * dx + dy * dy);
+        Vector2D targetPoint = new Vector2D(targetX, targetY);
+        double distanceSq = getCenter().distanceSq(targetPoint);
 
-        // Move until very close
-        if (distance < 10) {
-            setVelocityX(0);
-            setVelocityY(0);
+        if (distanceSq < 100) { // Stop if very close
+            setVelocity(Vector2D.ZERO);
             return;
         }
 
-        Vector2D desiredDirection = new Vector2D(dx / distance, dy / distance);
+        Vector2D desiredDirection = targetPoint.add(getCenter().multiply(-1)).normalize();
         Vector2D finalDirection = findClearPath(desiredDirection, obstacles);
-
-        setVelocityX(finalDirection.x() * getSpeed());
-        setVelocityY(finalDirection.y() * getSpeed());
-    }
-
-    private Optional<ShootAction> performAttackBehavior(List<Obstacle> obstacles) {
-        if (currentTarget == null) {
-            currentState = AIState.WANDERING;
-            return Optional.empty();
-        }
-
-        if (isReloading()) {
-            moveAwayFrom(currentTarget.getX(), currentTarget.getY(), obstacles);
-            return Optional.empty();
-        }
-
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - lastStrafeTime > this.strafeInterval) {
-            lastStrafeTime = currentTime;
-            strafeRight = ThreadLocalRandom.current().nextBoolean();
-        }
-
-        if (ThreadLocalRandom.current().nextDouble() < this.strafeChance) {
-            moveStrafe();
-        } else {
-            moveTowardsPoint(currentTarget.getX(), currentTarget.getY(), obstacles);
-        }
-
-        if (currentTime - timeTargetAcquired < this.reactionTimeMs) {
-            return Optional.empty();
-        }
-
-        if (findBlockingObstacle(getCenter(), currentTarget.getCenter(), obstacles) != null) {
-            return Optional.empty();
-        }
-
-        double dx = currentTarget.getX() - getX();
-        double dy = currentTarget.getY() - getY();
-        double distanceSq = dx * dx + dy * dy;
-        double attackRange = getWeapon().getBulletRange();
-
-        if (distanceSq < attackRange * attackRange && canShoot()) {
-            return Optional.of(shootWithInaccuracy(dx, dy));
-        }
-
-        return Optional.empty();
+        setVelocity(finalDirection.multiply(getSpeed()));
     }
 
     private void moveAwayFrom(Vector2D v, List<Obstacle> obstacles) {
-        moveAwayFrom(v.x(), v.y(), obstacles);
-    }
-
-    private void moveAwayFrom(double targetX, double targetY, List<Obstacle> obstacles) {
-        double dx = getX() - targetX;
-        double dy = getY() - targetY;
-        double distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance > 0) {
-            Vector2D desiredDirection = new Vector2D(dx / distance, dy / distance);
-            // Use the pathfinding logic to find a clear retreat path.
-            Vector2D finalDirection = findClearPath(desiredDirection, obstacles);
-            setVelocityX(finalDirection.x() * getSpeed());
-            setVelocityY(finalDirection.y() * getSpeed());
-        }
+        Vector2D desiredDirection = getCenter().add(v.multiply(-1)).normalize();
+        Vector2D finalDirection = findClearPath(desiredDirection, obstacles);
+        setVelocity(finalDirection.multiply(getSpeed()));
     }
 
     private void performWanderBehavior(List<Obstacle> obstacles) {
         long currentTime = System.currentTimeMillis();
-        if (currentTime - lastWanderDirectionChangeTime > WANDER_DIRECTION_CHANGE_INTERVAL || (getVelocityX() == 0 && getVelocityY() == 0)) {
+        if (currentTime - lastWanderDirectionChangeTime > WANDER_DIRECTION_CHANGE_INTERVAL || getVelocity().magnitudeSq() == 0) {
             double angle = ThreadLocalRandom.current().nextDouble() * 2 * Math.PI;
             Vector2D desiredDirection = new Vector2D(Math.cos(angle), Math.sin(angle));
             Vector2D finalDirection = findClearPath(desiredDirection, obstacles);
-            setVelocityX(finalDirection.x() * getSpeed());
-            setVelocityY(finalDirection.y() * getSpeed());
+            setVelocity(finalDirection.multiply(getSpeed()));
             lastWanderDirectionChangeTime = currentTime;
         }
     }
 
-    /**
-     * Helper method to set the AI's velocity to move directly away from a specific point.
-     * This is used for retreating while reloading and fleeing.
-     */
-    private void moveAwayFrom(double targetX, double targetY) {
-        double dx = getX() - targetX;
-        double dy = getY() - targetY;
-        double distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance > 0) {
-            setVelocityX((dx / distance) * getSpeed());
-            setVelocityY((dy / distance) * getSpeed());
-        }
-    }
-
-    /**
-     * Creates a ShootAction with a slight random inaccuracy based on the AI's "personality".
-     */
     private ShootAction shootWithInaccuracy(double dx, double dy) {
         double perfectAngle = Math.atan2(dy, dx);
         double inaccuracy = (ThreadLocalRandom.current().nextDouble() - 0.5) * 2 * this.aimInaccuracyRadians;
@@ -264,9 +265,6 @@ public class AIPlayer extends Player {
         return new ShootAction(Math.cos(finalAngle), Math.sin(finalAngle));
     }
 
-    /**
-     * Sets velocity to move perpendicular to the target, creating a strafing motion.
-     */
     private void moveStrafe() {
         if (currentTarget == null) {
             return;
@@ -284,19 +282,10 @@ public class AIPlayer extends Player {
 
         double length = Math.sqrt(strafeDx * strafeDx + strafeDy * strafeDy);
         if (length > 0) {
-            setVelocityX((strafeDx / length) * getSpeed());
-            setVelocityY((strafeDy / length) * getSpeed());
+            setVelocity(new Vector2D((strafeDx / length) * getSpeed(), (strafeDy / length) * getSpeed()));
         }
     }
 
-    /**
-     * Checks if a direct path to a target is blocked by any obstacle.
-     *
-     * @param start     The starting point of the path.
-     * @param end       The ending point of the path.
-     * @param obstacles The list of all obstacles.
-     * @return The first obstacle found blocking the path, or null if the path is clear.
-     */
     private Obstacle findBlockingObstacle(Vector2D start, Vector2D end, List<Obstacle> obstacles) {
         for (Obstacle obstacle : obstacles) {
             if (CollisionUtils.checkLinePolygonCollision(start, end, obstacle.vertices())) {
@@ -306,44 +295,27 @@ public class AIPlayer extends Player {
         return null;
     }
 
-    /**
-     * Finds a clear direction of movement by testing the desired direction and then
-     * incrementally steering left and right if it's blocked.
-     *
-     * @param desiredDirection The ideal direction of travel.
-     * @param obstacles        The list of all obstacles.
-     * @return A clear direction vector, or a reversed direction as a last resort.
-     */
     private Vector2D findClearPath(Vector2D desiredDirection, List<Obstacle> obstacles) {
-        // The "feeler" checks a short distance ahead.
         double feelerLength = getSpeed() * 15;
-
-        // 1. Check if the desired path is already clear.
         Vector2D feelerEnd = getCenter().add(desiredDirection.multiply(feelerLength));
         if (findBlockingObstacle(getCenter(), feelerEnd, obstacles) == null) {
             return desiredDirection;
         }
 
-        // 2. If blocked, incrementally search for a clear path by rotating the feeler.
-        // This creates a smoother "steering" behavior around obstacles.
-        double steeringAngleIncrement = Math.toRadians(15); // Try every 15 degrees
-        for (int i = 1; i <= 6; i++) { // Check up to 90 degrees left/right
-            // Try turning right
+        double steeringAngleIncrement = Math.toRadians(15);
+        for (int i = 1; i <= 6; i++) {
             Vector2D rightTurnDirection = desiredDirection.rotate(steeringAngleIncrement * i);
             feelerEnd = getCenter().add(rightTurnDirection.multiply(feelerLength));
             if (findBlockingObstacle(getCenter(), feelerEnd, obstacles) == null) {
-                return rightTurnDirection; // Found a clear path to the right
+                return rightTurnDirection;
             }
 
-            // Try turning left
             Vector2D leftTurnDirection = desiredDirection.rotate(-steeringAngleIncrement * i);
             feelerEnd = getCenter().add(leftTurnDirection.multiply(feelerLength));
             if (findBlockingObstacle(getCenter(), feelerEnd, obstacles) == null) {
-                return leftTurnDirection; // Found a clear path to the left
+                return leftTurnDirection;
             }
         }
-
-        // 3. If all forward-facing paths are blocked, move backward away from the desired direction.
         return desiredDirection.multiply(-0.5);
     }
 }
