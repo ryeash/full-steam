@@ -666,15 +666,29 @@
             // Render obstacles
             if (this.gameState.obstacles) {
                 this.gameState.obstacles.forEach(obstacle => {
-                    if (!obstacle.vertices || obstacle.vertices.length < 3) return;
-                    bCtx.fillStyle = '#888';
+                    if (!obstacle.vertices || obstacle.vertices.length < 3) {
+                       return;
+                    }
+                    bCtx.save();
+                    // By setting lineJoin to 'round' and using a thick stroke before filling,
+                    // we can create obstacles with smooth, rounded corners.
+                    const cornerRadius = 7; // The radius of the smoothed corners.
+                    bCtx.lineJoin = 'round';
+                    // The lineWidth needs to be twice the desired radius because the stroke
+                    // extends on both sides of the path.
+                    bCtx.lineWidth = cornerRadius * 2;
+                    bCtx.fillStyle = '#888'; // Color for the main body of the obstacle
+                    bCtx.strokeStyle = '#888'; // The stroke creates the rounded corners
+
                     bCtx.beginPath();
                     bCtx.moveTo(obstacle.vertices[0].x, obstacle.vertices[0].y);
                     for (let i = 1; i < obstacle.vertices.length; i++) {
                         bCtx.lineTo(obstacle.vertices[i].x, obstacle.vertices[i].y);
                     }
                     bCtx.closePath();
-                    bCtx.fill();
+                    bCtx.stroke(); // This is what creates the rounded effect
+                    bCtx.fill();   // This fills in the shape
+                    bCtx.restore();
                 });
             }
             console.log("Pre-rendered static background.");
