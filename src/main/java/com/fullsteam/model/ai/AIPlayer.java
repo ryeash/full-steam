@@ -319,7 +319,7 @@ public class AIPlayer extends Player {
         double feelerLength = getSpeed() * 15;
 
         // 1. Check if the desired path is already clear.
-        Vector2D feelerEnd = getCenter().add(desiredDirection.scale(feelerLength));
+        Vector2D feelerEnd = getCenter().add(desiredDirection.multiply(feelerLength));
         if (findBlockingObstacle(getCenter(), feelerEnd, obstacles) == null) {
             return desiredDirection;
         }
@@ -330,20 +330,20 @@ public class AIPlayer extends Player {
         for (int i = 1; i <= 6; i++) { // Check up to 90 degrees left/right
             // Try turning right
             Vector2D rightTurnDirection = desiredDirection.rotate(steeringAngleIncrement * i);
-            feelerEnd = getCenter().add(rightTurnDirection.scale(feelerLength));
+            feelerEnd = getCenter().add(rightTurnDirection.multiply(feelerLength));
             if (findBlockingObstacle(getCenter(), feelerEnd, obstacles) == null) {
                 return rightTurnDirection; // Found a clear path to the right
             }
 
             // Try turning left
             Vector2D leftTurnDirection = desiredDirection.rotate(-steeringAngleIncrement * i);
-            feelerEnd = getCenter().add(leftTurnDirection.scale(feelerLength));
+            feelerEnd = getCenter().add(leftTurnDirection.multiply(feelerLength));
             if (findBlockingObstacle(getCenter(), feelerEnd, obstacles) == null) {
                 return leftTurnDirection; // Found a clear path to the left
             }
         }
 
         // 3. If all forward-facing paths are blocked, move backward away from the desired direction.
-        return desiredDirection.scale(-0.5);
+        return desiredDirection.multiply(-0.5);
     }
 }

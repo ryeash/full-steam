@@ -98,7 +98,7 @@ public abstract class AbstractGameStateManager {
         // Assign player to the team with fewer players to keep things balanced.
         long team1Count = players.values().stream().filter(p -> p.getTeam() == 1).count();
         long team2Count = players.values().stream().filter(p -> p.getTeam() == 2).count();
-        int team = (team1Count <= team2Count) ? 1 : 2;
+        int team = (team2Count <= team1Count) ? 2 : 1;
 
         Player player = new Player(playerId, 0, 0, team);
         setValidSpawnPosition(player);
@@ -139,20 +139,31 @@ public abstract class AbstractGameStateManager {
         }
 
         // Handle movement
-        if (input.getUp()) {
-            player.setVelocityY(-player.getSpeed());
-        } else if (input.getDown()) {
-            player.setVelocityY(player.getSpeed());
-        } else {
-            player.setVelocityY(0);
+        double moveX = input.getMoveX();
+        double moveY = input.getMoveY();
+
+        Vector2D moveVector = new Vector2D(moveX, moveY);
+        double magnitude = moveVector.magnitude();
+
+        // Sanitize input: clamp magnitude to 1.0 to prevent client-side speed hacks
+        if (magnitude > 1.0) {
+            moveVector = moveVector.normalize();
+            magnitude = 1.0;
         }
 
-        if (input.getLeft()) {
-            player.setVelocityX(-player.getSpeed());
-        } else if (input.getRight()) {
-            player.setVelocityX(player.getSpeed());
+        if (magnitude > 0.01) { // Use a small deadzone to avoid micro-movements
+            // The magnitude of the input (0.0 to 1.0) scales the player's max speed.
+            // This allows for walking vs. running with a gamepad.
+            double currentSpeed = player.getSpeed() * magnitude;
+
+            // The moveVector is already normalized if magnitude was > 1.0.
+            // If not, we normalize it here to get a pure direction vector.
+            Vector2D directionVector = moveVector.normalize();
+            Vector2D velocity = directionVector.multiply(currentSpeed);
+
+            player.setVelocity(velocity);
         } else {
-            player.setVelocityX(0);
+            player.setVelocity(Vector2D.ZERO); // No input, so no movement
         }
 
         // Handle reload input before shooting
@@ -161,7 +172,7 @@ public abstract class AbstractGameStateManager {
         }
 
         // Handle shooting
-        if (input.getShooting()) {
+        if (input.isShooting()) {
             if (player.canShoot()) {
                 // Calculate bullet direction based on mouse position
                 double dx = input.getMouseX() - (player.getX() + PLAYER_SIZE / 2.0);

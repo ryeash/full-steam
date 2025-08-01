@@ -327,7 +327,7 @@
                     this.playerTeam = data.team;
                     this.backgroundNeedsRedraw = true;
                     this.gameState = { players: [], bullets: [], obstacles: [], deathMarkers: [], events: [], info: null };
-                    
+
                     // Update the UI with team info
                     const teamElement = document.getElementById('yourTeam');
                     teamElement.textContent = this.playerTeam;
@@ -412,13 +412,10 @@
             if (this.isLocalPlayerDead || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
                 return;
             }
-            // Note: This message doesn't need a "type" because the server defaults to "playerInput"
-            // if no type is specified. This maintains backward compatibility.
+
             const input = {
-                up: false,
-                down: false,
-                left: false,
-                right: false,
+                moveX: 0,
+                moveY: 0,
                 shooting: false,
                 mouseX: 0,
                 mouseY: 0,
@@ -428,47 +425,61 @@
             const deadzone = 0.25;
 
             if (this.isGamepadActive && this.gamepad) {
-                // --- Gamepad Input ---
+                // --- Gamepad Input (Analog) ---
                 const leftStickX = this.gamepad.axes[0];
                 const leftStickY = this.gamepad.axes[1];
                 const rightStickX = this.gamepad.axes[2];
                 const rightStickY = this.gamepad.axes[3];
 
-                input.up = leftStickY < -deadzone;
-                input.down = leftStickY > deadzone;
-                input.left = leftStickX < -deadzone;
-                input.right = leftStickX > deadzone;
+                // Apply deadzone to movement stick
+                if (Math.abs(leftStickX) > deadzone) input.moveX = leftStickX;
+                if (Math.abs(leftStickY) > deadzone) input.moveY = leftStickY;
+
+                // Clamp magnitude to a circle to ensure diagonal movement isn't faster
+                const moveMagnitude = Math.sqrt(input.moveX * input.moveX + input.moveY * input.moveY);
+                if (moveMagnitude > 1.0) {
+                    input.moveX /= moveMagnitude;
+                    input.moveY /= moveMagnitude;
+                }
+
                 input.shooting = this.gamepad.buttons[7] && this.gamepad.buttons[7].value > 0.5; // R2/RT
                 input.reload = this.gamepad.buttons[2] && this.gamepad.buttons[2].pressed;
 
-                // Check for weapon swap button press (Y/Triangle, which is button 3)
                 const swapButtonPressed = this.gamepad.buttons[3] && this.gamepad.buttons[3].pressed;
                 if (swapButtonPressed && !this.gamepadWeaponSwapPressed) {
-                    input.weaponCycle = true; // Send the cycle command on the first press
+                    input.weaponCycle = true;
                 }
-                this.gamepadWeaponSwapPressed = swapButtonPressed; // Update state for the next frame
+                this.gamepadWeaponSwapPressed = swapButtonPressed;
 
-                // Update aim direction from the right stick
                 const aimMagnitude = Math.sqrt(rightStickX * rightStickX + rightStickY * rightStickY);
                 if (aimMagnitude > deadzone) {
                     this.gamepadAim.x = rightStickX / aimMagnitude;
                     this.gamepadAim.y = rightStickY / aimMagnitude;
                 }
 
-                // To avoid changing the server, we simulate mouse coordinates based on the aim vector.
                 const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
                 if (localPlayer) {
-                    const playerCenterX = localPlayer.x + 10; // playerSize / 2
+                    const playerCenterX = localPlayer.x + 10;
                     const playerCenterY = localPlayer.y + 10;
-                    input.mouseX = playerCenterX + this.gamepadAim.x * 100; // Project aim point 100px away
+                    input.mouseX = playerCenterX + this.gamepadAim.x * 100;
                     input.mouseY = playerCenterY + this.gamepadAim.y * 100;
                 }
             } else {
-                // --- Keyboard & Mouse Input ---
-                input.up = this.keys['KeyW'] || this.keys['ArrowUp'];
-                input.down = this.keys['KeyS'] || this.keys['ArrowDown'];
-                input.left = this.keys['KeyA'] || this.keys['ArrowLeft'];
-                input.right = this.keys['KeyD'] || this.keys['ArrowRight'];
+                // --- Keyboard & Mouse Input (Digital) ---
+                let moveX = 0;
+                let moveY = 0;
+                if (this.keys['KeyW'] || this.keys['ArrowUp']) moveY = -1;
+                if (this.keys['KeyS'] || this.keys['ArrowDown']) moveY = 1;
+                if (this.keys['KeyA'] || this.keys['ArrowLeft']) moveX = -1;
+                if (this.keys['KeyD'] || this.keys['ArrowRight']) moveX = 1;
+
+                // For keyboard, normalize the vector to prevent faster diagonal movement.
+                const magnitude = Math.sqrt(moveX * moveX + moveY * moveY);
+                if (magnitude > 0) {
+                    input.moveX = moveX / magnitude;
+                    input.moveY = moveY / magnitude;
+                }
+
                 input.shooting = this.mouse.down;
                 input.mouseX = this.mouse.x;
                 input.mouseY = this.mouse.y;

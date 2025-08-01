@@ -148,6 +148,11 @@ public class Player {
         return new Vector2D(this.x + (Config.PLAYER_SIZE / 2.0), this.y + (Config.PLAYER_SIZE / 2.0));
     }
 
+    public void setVelocity(Vector2D velocity) {
+        setVelocityX(velocity.x());
+        setVelocityY(velocity.y());
+    }
+
     public double getVelocityX() {
         return velocityX;
     }

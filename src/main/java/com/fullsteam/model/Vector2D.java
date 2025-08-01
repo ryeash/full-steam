@@ -7,6 +7,8 @@ package com.fullsteam.model;
  */
 public record Vector2D(double x, double y) {
 
+    public static final Vector2D ZERO = new Vector2D(0, 0);
+
     /**
      * Adds another vector to this vector.
      *
@@ -18,13 +20,47 @@ public record Vector2D(double x, double y) {
     }
 
     /**
-     * Scales this vector by a scalar value.
+     * Multiplies this vector by a scalar value.
+     * An alias for the scale() method for semantic clarity in different contexts.
      *
-     * @param scalar The value to scale the vector by.
+     * @param scalar The value to multiply the vector by.
      * @return A new, scaled Vector2D.
      */
-    public Vector2D scale(double scalar) {
+    public Vector2D multiply(double scalar) {
         return new Vector2D(this.x * scalar, this.y * scalar);
+    }
+
+    /**
+     * Calculates the squared magnitude (length) of this vector.
+     * This is faster than magnitude() as it avoids a square root operation.
+     *
+     * @return The squared magnitude of the vector.
+     */
+    public double magnitudeSq() {
+        return x * x + y * y;
+    }
+
+    /**
+     * Calculates the magnitude (length) of this vector.
+     *
+     * @return The magnitude of the vector.
+     */
+    public double magnitude() {
+        return Math.sqrt(magnitudeSq());
+    }
+
+    /**
+     * Returns a new vector with the same direction but a magnitude of 1.
+     * If the vector has a magnitude of 0, it returns a zero vector to prevent division by zero errors.
+     *
+     * @return A new, normalized Vector2D.
+     */
+    public Vector2D normalize() {
+        double mag = magnitude();
+        if (mag > 1e-9) { // Use a small epsilon to avoid floating point issues
+            return new Vector2D(x / mag, y / mag);
+        }
+        return ZERO;
     }
 
     /**
