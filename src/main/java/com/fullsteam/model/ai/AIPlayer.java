@@ -14,8 +14,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static com.fullsteam.Config.AI_MAX_FORCE;
 import static com.fullsteam.Config.BASE_AIM_INACCURACY_RADIANS;
-import static com.fullsteam.Config.BASE_STRAFE_CHANCE;
 import static com.fullsteam.Config.BASE_STRAFE_INTERVAL_MS;
 import static com.fullsteam.Config.WANDER_DIRECTION_CHANGE_INTERVAL;
 
@@ -39,14 +39,12 @@ public class AIPlayer extends Player {
     private transient long lastStrafeTime;
     private transient boolean strafeRight = true;
     private transient Vector2D acceleration = Vector2D.ZERO;
-    private transient double maxForce = 0.2; // The maximum steering force, controls turning ability
     private transient long timeTargetAcquired;
 
     // --- AI "Personality" Traits ---
     private transient final long reactionTimeMs;
     private transient final double aimInaccuracyRadians;
     private transient final long strafeInterval;
-    private transient final double strafeChance;
 
     public record ShootAction(double directionX, double directionY) {
     }
@@ -58,7 +56,6 @@ public class AIPlayer extends Player {
         this.reactionTimeMs = Config.BASE_REACTION_TIME_MS + (long) (ThreadLocalRandom.current().nextGaussian() * 50);
         this.aimInaccuracyRadians = Math.max(0.01, BASE_AIM_INACCURACY_RADIANS + (ThreadLocalRandom.current().nextDouble() - 0.4) * 0.04);
         this.strafeInterval = BASE_STRAFE_INTERVAL_MS + (long) (ThreadLocalRandom.current().nextGaussian() * 300);
-        this.strafeChance = Math.max(0.1, BASE_STRAFE_CHANCE + (ThreadLocalRandom.current().nextDouble() - 0.5) * 0.2);
     }
 
     public AIArchetype archetype() {
@@ -79,12 +76,6 @@ public class AIPlayer extends Player {
             setVelocity(Vector2D.ZERO);
             super.update();
             return Optional.empty();
-        }
-
-        // High-priority check: Reload if the magazine is empty and not already reloading.
-        // This is a crucial behavior that makes the AI play by the same rules as humans.
-        if (getCurrentAmmoInMagazine() == 0 && !isReloading()) {
-            startReload();
         }
 
         // Reset acceleration at the start of each frame
@@ -160,7 +151,7 @@ public class AIPlayer extends Player {
      * @return An Optional ShootAction if a valid target is found and the AI can fire.
      */
     private Optional<ShootAction> checkForShootingOpportunity(Collection<Player> allPlayers, List<Obstacle> obstacles) {
-        if (isReloading() || !canShoot() || getCurrentAmmoInMagazine() == 0) {
+        if (isReloading() || !canShoot()) {
             return Optional.empty();
         }
 
@@ -208,10 +199,6 @@ public class AIPlayer extends Player {
         return bestTarget;
     }
 
-    // =================================================================================
-    // --- Steering Behaviors ---
-    // =================================================================================
-
     /**
      * Applies a steering force to the AI's acceleration.
      */
@@ -237,7 +224,7 @@ public class AIPlayer extends Player {
 
         // 3. Calculate the steering force (the force required to change current velocity to desired velocity)
         Vector2D steer = desiredVelocity.subtract(getVelocity());
-        steer = steer.limit(this.maxForce); // Limit the force to our turning ability
+        steer = steer.limit(AI_MAX_FORCE); // Limit the force to our turning ability
 
         // 4. Apply the force
         applyForce(steer);
@@ -257,7 +244,7 @@ public class AIPlayer extends Player {
         Vector2D desiredVelocity = avoidanceDirection.multiply(getSpeed());
 
         Vector2D steer = desiredVelocity.subtract(getVelocity());
-        steer = steer.limit(this.maxForce);
+        steer = steer.limit(AI_MAX_FORCE);
         applyForce(steer);
     }
 
@@ -327,7 +314,7 @@ public class AIPlayer extends Player {
         Vector2D desiredVelocity = avoidanceDirection.multiply(getSpeed());
 
         Vector2D steer = desiredVelocity.subtract(getVelocity());
-        applyForce(steer.limit(this.maxForce)); // Apply a strong force for responsive strafing
+        applyForce(steer.limit(AI_MAX_FORCE)); // Apply a strong force for responsive strafing
     }
 
     private Obstacle findBlockingObstacle(Vector2D start, Vector2D end, List<Obstacle> obstacles) {

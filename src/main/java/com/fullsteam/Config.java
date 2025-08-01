@@ -38,7 +38,7 @@ public class Config {
     public static final long BASE_REACTION_TIME_MS = getLong("ai.base_reaction_ms", 500);
     public static final double BASE_AIM_INACCURACY_RADIANS = getDouble("ai.base_aim_inaccuracy", 0.05);
     public static final long BASE_STRAFE_INTERVAL_MS = getLong("ai.base_strafe_interval_ms", 1500);
-    public static final double BASE_STRAFE_CHANCE = getDouble("ai.base_strafe_chance", 0.4);
+    public static final double AI_MAX_FORCE = getDouble("ai.max_force", 0.2); // The maximum steering force, controls turning ability
 
     // Lobby
     public static final long CLEANUP_INTERVAL_SECONDS = getLong("lobby.cleanup_interval_s", 10);
