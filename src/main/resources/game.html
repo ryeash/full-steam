@@ -509,7 +509,7 @@
         }
 
         resetGameState() {
-            this.gameState = { players: [], bullets: [], obstacles: [], deathMarkers: [], events: [], info: null, serverTime: 0 };
+            this.gameState = { players: [], bullets: [], obstacles: [], deathMarkers: [], events: [], powerUps: [], info: null, serverTime: 0 };
         }
 
         connect() {
@@ -840,6 +840,8 @@
                 });
             }
 
+            this.drawPowerUps();
+
             this.gameState.players.forEach(player => {
                 this.drawPlayer(player);
             });
@@ -883,6 +885,59 @@
             this.drawOddball();
             this.drawPayload();
             this.drawGameEvents();
+        }
+
+        drawPowerUps() {
+            if (!this.gameState.powerUps) return;
+
+            this.ctx.save();
+            this.ctx.font = '20px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+
+            this.gameState.powerUps.forEach(powerUp => {
+                const size = 20;
+                this.ctx.globalAlpha = 0.8;
+                this.ctx.beginPath();
+                this.ctx.arc(powerUp.position.x + size / 2, powerUp.position.y + size / 2, size, 0, 2 * Math.PI);
+
+                if (powerUp.type === 'HEALTH_PACK') {
+                    this.ctx.fillStyle = 'rgba(46, 204, 113, 0.2)';
+                } else if (powerUp.type === 'SPEED_BOOST') {
+                    this.ctx.fillStyle = 'rgba(241, 196, 15, 0.2)';
+                } else if (powerUp.type === 'ARMOR_UP') {
+                    this.ctx.fillStyle = 'rgba(52, 152, 219, 0.2)';
+                }
+                this.ctx.fill();
+
+                this.ctx.globalAlpha = 1.0;
+                if (powerUp.type === 'HEALTH_PACK') {
+                    this.ctx.fillStyle = '#2ecc71'; // Green
+                    this.ctx.fillRect(powerUp.position.x + size / 2 - 2, powerUp.position.y + size / 2 - 7, 4, 14);
+                    this.ctx.fillRect(powerUp.position.x + size / 2 - 7, powerUp.position.y + size / 2 - 2, 14, 4);
+                } else if (powerUp.type === 'SPEED_BOOST') {
+                    this.ctx.fillStyle = '#f1c40f'; // Yellow
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(powerUp.position.x + size / 2 + 6, powerUp.position.y + size / 2 - 8);
+                    this.ctx.lineTo(powerUp.position.x + size / 2 - 4, powerUp.position.y + size / 2 + 2);
+                    this.ctx.lineTo(powerUp.position.x + size / 2 + 2, powerUp.position.y + size / 2 + 2);
+                    this.ctx.lineTo(powerUp.position.x + size / 2 - 6, powerUp.position.y + size / 2 + 12);
+                    this.ctx.fill();
+                } else if (powerUp.type === 'ARMOR_UP') {
+                    this.ctx.fillStyle = '#3498db'; // Blue
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(powerUp.position.x + size / 2, powerUp.position.y + size / 2 - 8);
+                    this.ctx.lineTo(powerUp.position.x + size / 2 + 8, powerUp.position.y + size / 2 - 4);
+                    this.ctx.lineTo(powerUp.position.x + size / 2 + 8, powerUp.position.y + size / 2 + 6);
+                    this.ctx.lineTo(powerUp.position.x + size / 2, powerUp.position.y + size / 2 + 10);
+                    this.ctx.lineTo(powerUp.position.x + size / 2 - 8, powerUp.position.y + size / 2 + 6);
+                    this.ctx.lineTo(powerUp.position.x + size / 2 - 8, powerUp.position.y + size / 2 - 4);
+                    this.ctx.closePath();
+                    this.ctx.fill();
+                }
+            });
+
+            this.ctx.restore();
         }
 
         drawHill() {
@@ -966,7 +1021,7 @@
             const pos = oddball.position;
             this.ctx.save();
 
-            const pulse = Math.abs(Math.sin(Date.now() / 200));
+            const pulse = Math.abs(Math.sin(this.gameState.serverTime / 200));
             this.ctx.fillStyle = '#FFD700';
             this.ctx.strokeStyle = 'white';
             this.ctx.lineWidth = 2 + pulse * 2;
@@ -980,7 +1035,7 @@
             this.ctx.lineWidth = 3;
             this.ctx.strokeStyle = '#FFA000';
             for (let i = 0; i < 6; i++) {
-                const angle = (i * Math.PI / 3) + (Date.now() / 1000);
+                const angle = (i * Math.PI / 3) + (this.gameState.serverTime / 1000);
                 this.ctx.beginPath();
                 this.ctx.moveTo(pos.x, pos.y);
                 this.ctx.lineTo(
@@ -1015,7 +1070,7 @@
             }
 
             if (flag.state === 'DROPPED') {
-                const pulse = Math.abs(Math.sin(Date.now() / 300));
+                const pulse = Math.abs(Math.sin(this.gameState.serverTime / 300));
                 this.ctx.strokeStyle = teamColor;
                 this.ctx.lineWidth = 2 + pulse * 2;
                 this.ctx.globalAlpha = 0.5 + pulse * 0.4;
@@ -1243,7 +1298,13 @@
             this.ctx.font = '12px Arial';
             this.ctx.textAlign = 'center';
             const baseName = player.playerName || (player.id.startsWith('ai-') ? 'AI' : 'Player');
-            const displayName = `${baseName} | ${player.weapon.shortName}`;
+            let displayName = `${baseName} | ${player.weapon.shortName}`;
+            if (player.speedBoostEndTime > this.gameState.serverTime) {
+                displayName = `⚡ ${displayName}`;
+            }
+            if (player.armorUpEndTime > this.gameState.serverTime) {
+                displayName = `🛡️ ${displayName}`;
+            }
             this.ctx.fillText(displayName, playerCenterX, player.y - 15);
 
             if (player.id === this.playerId) {

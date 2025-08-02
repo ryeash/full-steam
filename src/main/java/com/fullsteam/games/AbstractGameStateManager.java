@@ -14,6 +14,8 @@ import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
+import com.fullsteam.model.PowerUp;
+import com.fullsteam.model.PowerUpType;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Weapon;
 import com.fullsteam.model.WelcomeMessage;
@@ -49,6 +51,7 @@ import static com.fullsteam.Config.HAZARD_SLOW_FACTOR;
 import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
 import static com.fullsteam.Config.OBSTACLE_COUNT;
 import static com.fullsteam.Config.PLAYER_SIZE;
+import static com.fullsteam.Config.POWER_UP_SPEED_BOOST_FACTOR;
 import static com.fullsteam.Config.RESPAWN_DELAY_MS;
 import static com.fullsteam.Config.ROUND_DURATION_SECONDS;
 import static com.fullsteam.Config.SPAWN_HORIZONTAL_PADDING;
@@ -71,6 +74,7 @@ public abstract class AbstractGameStateManager {
     protected final List<Hazard> hazards = new CopyOnWriteArrayList<>();
     protected final List<DeathMarker> deathMarkers = new CopyOnWriteArrayList<>();
     protected final List<GameEvent> gameEvents = new CopyOnWriteArrayList<>();
+    protected final List<PowerUp> powerUps = new CopyOnWriteArrayList<>();
     protected boolean isRoundOver = false;
     protected ScheduledFuture<?> scheduledFuture;
 
@@ -274,6 +278,7 @@ public abstract class AbstractGameStateManager {
             checkAndRespawnPlayers();
             updateDeathMarkers();
             updateGameEvents();
+            updatePowerUps();
             updatePlayers();
             updateBullets();
             sendGameState();
@@ -314,6 +319,7 @@ public abstract class AbstractGameStateManager {
             bullets.clear();
             deathMarkers.clear();
             gameEvents.clear();
+            powerUps.clear();
 
             generateObstacles();
             generateHazards();
@@ -391,6 +397,7 @@ public abstract class AbstractGameStateManager {
                 hazards,
                 deathMarkers,
                 gameEvents,
+                powerUps,
                 System.currentTimeMillis(),
                 null
         );
@@ -404,13 +411,23 @@ public abstract class AbstractGameStateManager {
                 log.debug("Player {} finished reloading.", player.getId());
             }
 
-            // Reset speed at the start of the check, in case they left a hazard zone
-            player.restoreSpeed();
+            // Apply movement and environmental effects.
+            player.restoreSpeed(); // Start with default speed.
+
+            // Speed boost overrides any slowing effects.
+            if (System.currentTimeMillis() < player.getSpeedBoostEndTime()) {
+                player.setSpeed(player.getDefaultSpeed() * POWER_UP_SPEED_BOOST_FACTOR);
+            }
+
+            // Process hazards for damage and (if not boosted) slowing.
             for (Hazard hazard : hazards) {
                 if (player.getCenter().distanceSq(hazard.position()) < hazard.radiusSq()) {
                     switch (hazard.type()) {
                         case SLOW:
-                            player.setSpeed(Config.DEFAULT_PLAYER_SPEED * hazard.effectValue());
+                            // Apply slow only if the player is not speed-boosted.
+                            if (System.currentTimeMillis() >= player.getSpeedBoostEndTime()) {
+                                player.setSpeed(Config.DEFAULT_PLAYER_SPEED * hazard.effectValue());
+                            }
                             break;
                         case DAMAGE:
                             if (player.takeDamage(hazard.effectValue())) {
@@ -521,6 +538,46 @@ public abstract class AbstractGameStateManager {
         double markerY = victim.getY() + (PLAYER_SIZE / 2);
         long expiration = System.currentTimeMillis() + DEATH_MARKER_DURATION_MS;
         deathMarkers.add(new DeathMarker(markerX, markerY, expiration));
+
+        if (ThreadLocalRandom.current().nextDouble() < 0.25) { // 25% chance to drop a power-up
+            spawnPowerUp(new Vector2D(victim.getX(), victim.getY()));
+        }
+    }
+
+    private void spawnPowerUp(Vector2D position) {
+        PowerUpType type = PowerUpType.values()[ThreadLocalRandom.current().nextInt(PowerUpType.values().length)];
+        PowerUp powerUp = new PowerUp(position, type);
+        powerUps.add(powerUp);
+        log.info("Spawned power-up {} at ({}, {})", type, position.x(), position.y());
+    }
+
+    protected void updatePowerUps() {
+        List<PowerUp> consumedPowerUps = new ArrayList<>();
+        for (PowerUp powerUp : powerUps) {
+            for (Player player : players.values()) {
+                if (!player.isDead() && isColliding(player, powerUp)) {
+                    applyPowerUp(player, powerUp);
+                    consumedPowerUps.add(powerUp);
+                    break; // Power-up is consumed, move to the next one
+                }
+            }
+        }
+        powerUps.removeAll(consumedPowerUps);
+    }
+
+    protected void applyPowerUp(Player player, PowerUp powerUp) {
+        log.info("Player {} picked up {}", player.getId(), powerUp.getType());
+        switch (powerUp.getType()) {
+            case HEALTH_PACK:
+                player.takeDamage(-50); // Negative damage to heal
+                break;
+            case SPEED_BOOST:
+                player.applySpeedBoost(5000); // 5-second speed boost
+                break;
+            case ARMOR_UP:
+                player.applyArmorUp(3000); // 3-second invincibility
+                break;
+        }
     }
 
     protected void checkAndRespawnPlayers() {
@@ -534,6 +591,14 @@ public abstract class AbstractGameStateManager {
                 log.info("Player {} has respawned.", player.getId());
             }
         }
+    }
+
+    protected boolean isColliding(Player player, PowerUp powerUp) {
+        double playerCenterX = player.getX() + (PLAYER_SIZE / 2);
+        double playerCenterY = player.getY() + (PLAYER_SIZE / 2);
+        // Assuming power-ups have a similar size to players for collision
+        double distanceSq = new Vector2D(playerCenterX, playerCenterY).distanceSq(powerUp.position);
+        return distanceSq < (PLAYER_SIZE * PLAYER_SIZE); // Using squared distance for efficiency
     }
 
     protected boolean isColliding(Bullet bullet, Player player) {
@@ -572,6 +637,7 @@ public abstract class AbstractGameStateManager {
                         hazards,
                         deathMarkers,
                         eventsForPlayer(playerId),
+                        powerUps,
                         System.currentTimeMillis(),
                         gameInfo
                 );

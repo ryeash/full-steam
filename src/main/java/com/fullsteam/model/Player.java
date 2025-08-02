@@ -37,6 +37,8 @@ public class Player {
     protected long reloadCompleteTime;
     @JsonIgnore
     protected long nextShotTime;
+    public long speedBoostEndTime;
+    public long armorUpEndTime;
 
     public Player(String id, double x, double y, int team) {
         this(id, id, x, y, team, WeaponFactory.getDefaultWeapon());
@@ -65,18 +67,13 @@ public class Player {
         this.isReloading = false;
         this.reloadCompleteTime = 0;
         this.nextShotTime = 0;
+        this.speedBoostEndTime = 0;
+        this.armorUpEndTime = 0;
     }
 
     public void update() {
-        // Normalize velocity if moving diagonally
-        if (velocityX != 0 && velocityY != 0) {
-            double length = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
-            x += (velocityX / length) * speed;
-            y += (velocityY / length) * speed;
-        } else {
-            x += velocityX;
-            y += velocityY;
-        }
+        x += velocityX;
+        y += velocityY;
     }
 
     public boolean canShoot() {
@@ -290,13 +287,20 @@ public class Player {
     }
 
     /**
-     * Applies damage to the player.
+     * Applies damage to the player. A negative amount will heal the player.
      *
      * @param amount The amount of damage to inflict.
      * @return {@code true} if the player's health dropped to or below zero, {@code false} otherwise.
      */
     public boolean takeDamage(double amount) {
+        // If armor is active and the player is taking damage (not being healed)
+        if (System.currentTimeMillis() < this.armorUpEndTime && amount > 0) {
+            return false; // Invincible, do not take damage
+        }
         this.currentHealth -= amount;
+        if (this.currentHealth > this.maxHealth) {
+            this.currentHealth = this.maxHealth;
+        }
         return this.currentHealth <= 0;
     }
 
@@ -318,5 +322,17 @@ public class Player {
     public void resetStats() {
         this.kills = 0;
         this.deaths = 0;
+    }
+
+    public long getSpeedBoostEndTime() {
+        return speedBoostEndTime;
+    }
+
+    public void applySpeedBoost(long durationMs) {
+        this.speedBoostEndTime = System.currentTimeMillis() + durationMs;
+    }
+
+    public void applyArmorUp(long durationMs) {
+        this.armorUpEndTime = System.currentTimeMillis() + durationMs;
     }
 }
