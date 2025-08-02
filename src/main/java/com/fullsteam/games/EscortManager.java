@@ -42,6 +42,7 @@ public class EscortManager extends AbstractTeamBasedManager {
 
     @Override
     public void startNewRound() {
+        obstacles.clear();
         super.startNewRound();
         payload = Obstacle.createRectangle(
                 (Config.GAME_WIDTH - Config.ESCORT_OBSTACLE_WIDTH) / 2,
