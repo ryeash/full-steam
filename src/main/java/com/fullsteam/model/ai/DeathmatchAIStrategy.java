@@ -10,7 +10,6 @@ public class DeathmatchAIStrategy implements IAIStrategy {
     @Override
     public void updateAIState(AIPlayer self, GameState gameState) {
         Collection<Player> allPlayers = gameState.players();
-        GameInfo gameInfo = gameState.info();
 
         // --- Pre-computation: Get key state information once ---
         Player closestEnemy = findClosestEnemy(self, allPlayers);

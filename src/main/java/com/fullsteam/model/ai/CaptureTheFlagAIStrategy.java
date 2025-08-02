@@ -28,6 +28,11 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
         Flag enemyFlag = self.getTeam() == 1 ? ctf.getTeam2Flag() : ctf.getTeam1Flag();
         boolean amICarryingFlag = self.getId().equals(enemyFlag.carrierId());
 
+        // --- Universal Priority #1: Handle flag carrier logic ---
+        if (handleFlagCarrierLogic(self, allPlayers, myFlag, amICarryingFlag)) {
+            return; // Logic is handled, no further action needed.
+        }
+
         // --- Archetype-based Decision Making ---
         // The AI's "personality" determines its priorities.
         switch (self.archetype()) {
@@ -48,6 +53,32 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
     }
 
     /**
+     * Handles the AI's behavior when it is carrying the enemy flag.
+     * The primary goal is to return to base, but it will defend itself if an enemy gets too close.
+     * @return true if the AI is carrying the flag, false otherwise.
+     */
+    private boolean handleFlagCarrierLogic(AIPlayer self, Collection<Player> allPlayers, Flag myFlag, boolean amICarryingFlag) {
+        if (!amICarryingFlag) {
+            return false;
+        }
+
+        // Default action: run to our base to score.
+        self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
+        self.setObjectiveTargetPoint(myFlag.basePosition());
+
+        // If an enemy is very close, switch from running to fighting.
+        // This is a defensive reaction to an immediate threat.
+        Player closestEnemy = findClosestEnemy(self, allPlayers);
+        if (closestEnemy != null && isInRange(self, closestEnemy, 200)) { // Defend a personal space of 200 units.
+            self.setCurrentTarget(closestEnemy);
+            self.setCurrentState(AIPlayer.AIState.ATTACKING);
+        }
+
+        return true;
+    }
+
+
+    /**
      * A well-rounded strategy that serves as the default behavior.
      */
     private void runBalancedLogic(AIPlayer self, Collection<Player> allPlayers, Flag myFlag, Flag enemyFlag, boolean amICarryingFlag) {
@@ -59,21 +90,14 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
             return;
         }
 
-        // Priority 2: I have the flag. SCORE!
-        if (amICarryingFlag) {
-            self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
-            self.setObjectiveTargetPoint(myFlag.basePosition());
-            return;
-        }
-
-        // Priority 3: Our flag is dropped. RECOVER!
+        // Priority 2: Our flag is dropped. RECOVER!
         if (myFlag.state() == Flag.FlagState.DROPPED) {
             self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
             self.setObjectiveTargetPoint(myFlag.position());
             return;
         }
 
-        // Priority 4: Enemy flag is available. STEAL!
+        // Priority 3: Enemy flag is available. STEAL!
         if (enemyFlag.state() == Flag.FlagState.AT_BASE) {
             self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
             self.setObjectiveTargetPoint(enemyFlag.basePosition());
@@ -85,7 +109,7 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
             return;
         }
 
-        // Priority 5: All is well, wander and defend our flag's general area.
+        // Priority 4: All is well, wander and defend our flag's general area.
         self.setCurrentState(AIPlayer.AIState.WANDERING);
         self.setObjectiveTargetPoint(myFlag.basePosition());
     }
@@ -137,14 +161,7 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
      * Objective Hound: Aggressively pursues the enemy flag, ignoring most combat.
      */
     private void prioritizeObjective(AIPlayer self, Collection<Player> allPlayers, Flag myFlag, Flag enemyFlag, boolean amICarryingFlag) {
-        // The Objective Hound's #1 priority is scoring if it has the flag.
-        if (amICarryingFlag) {
-            self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
-            self.setObjectiveTargetPoint(myFlag.basePosition());
-            return;
-        }
-
-        // Priority #2 is grabbing the enemy flag if it's available.
+        // Priority 1: grabbing the enemy flag if it's available.
         if (enemyFlag.state() == Flag.FlagState.AT_BASE) {
             self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
             self.setObjectiveTargetPoint(enemyFlag.basePosition());

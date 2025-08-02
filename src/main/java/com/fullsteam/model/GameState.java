@@ -11,5 +11,6 @@ public record GameState(Collection<Player> players,
                         List<Hazard> hazards,
                         List<DeathMarker> deathMarkers,
                         List<GameEvent> events,
+                        long serverTime,
                         GameInfo info) {
 }

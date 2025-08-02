@@ -391,6 +391,7 @@ public abstract class AbstractGameStateManager {
                 hazards,
                 deathMarkers,
                 gameEvents,
+                System.currentTimeMillis(),
                 null
         );
         for (Player player : players.values()) {
@@ -571,6 +572,7 @@ public abstract class AbstractGameStateManager {
                         hazards,
                         deathMarkers,
                         eventsForPlayer(playerId),
+                        System.currentTimeMillis(),
                         gameInfo
                 );
                 String json = Jackson.writeValueAsString(gameState);

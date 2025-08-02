@@ -296,6 +296,12 @@
                 <!-- Team 2 players will be populated here -->
             </ul>
         </div>
+        <div id="ffa-scoreboard" style="display: none;">
+            <h3 style="color: #FFC107;">Players</h3>
+            <ul id="ffa-players">
+                <!-- FFA players will be populated here -->
+            </ul>
+        </div>
         <details id="controls-details">
             <summary>Controls</summary>
             <div id="controls">
@@ -310,6 +316,165 @@
 </div>
 
 <script>
+    class GameUIManager {
+        constructor(gameInstance) {
+            this.game = gameInstance;
+            this.doc = document;
+            this.lastScoreboardUpdateTime = 0;
+            this.SCOREBOARD_UPDATE_INTERVAL = 1000;
+
+            this.elements = {
+                playerCount: this.doc.getElementById('playerCount'),
+                gameModeDisplay: this.doc.getElementById('gameModeDisplay'),
+                roundTimer: this.doc.getElementById('roundTimer'),
+                team1Score: this.doc.getElementById('team1Score'),
+                team2Score: this.doc.getElementById('team2Score'),
+                yourTeam: this.doc.getElementById('yourTeam').parentElement,
+                switchTeamBtn: this.doc.getElementById('switchTeamBtn'),
+                team1Scoreboard: this.doc.getElementById('team1-scoreboard'),
+                team2Scoreboard: this.doc.getElementById('team2-scoreboard'),
+                ffaScoreboard: this.doc.getElementById('ffa-scoreboard'),
+                team1List: this.doc.getElementById('team1-players'),
+                team2List: this.doc.getElementById('team2-players'),
+                ffaList: this.doc.getElementById('ffa-players'),
+                gameIdIndicator: this.doc.getElementById('gameIdIndicator'),
+                weaponSelector: this.doc.getElementById('weaponSelector')
+            };
+
+            this.infoBarUpdaters = {
+                'Free For All': (info) => {
+                    this.game.shouldDrawRespawnOverlay = true;
+                    this.elements.team1Score.style.display = 'none';
+                    this.elements.team2Score.style.display = 'none';
+                    this.elements.yourTeam.style.display = 'none';
+                    this.elements.switchTeamBtn.style.display = 'none';
+                },
+                'Zombie Defense': (info) => {
+                    this.game.shouldDrawRespawnOverlay = false;
+                    this.elements.yourTeam.style.display = 'none';
+                    this.elements.switchTeamBtn.style.display = 'none';
+                    this.elements.team1Score.style.display = 'inline';
+                    this.elements.team2Score.style.display = 'inline';
+                    this.elements.team1Score.innerHTML = `Wave: <span style="color: #FFC107;">${info.waveNumber}</span>`;
+                    this.elements.team2Score.innerHTML = `Zombies: <span style="color: #FFC107;">${info.zombiesAlive}</span>`;
+                },
+                'Elimination': (info) => {
+                    this.game.shouldDrawRespawnOverlay = false;
+                    this.elements.yourTeam.style.display = 'inline';
+                    this.elements.switchTeamBtn.style.display = 'block';
+                    this.elements.team1Score.style.display = 'inline';
+                    this.elements.team2Score.style.display = 'inline';
+                    this.elements.team1Score.innerHTML = `${info.team1Score} <span style="font-size: 0.7em; color: #ccc;">(${info.team1PlayersAlive} alive)</span>`;
+                    this.elements.team2Score.innerHTML = `${info.team2Score} <span style="font-size: 0.7em; color: #ccc;">(${info.team2PlayersAlive} alive)</span>`;
+                },
+                'default': (info) => {
+                    this.game.shouldDrawRespawnOverlay = true;
+                    this.elements.yourTeam.style.display = 'inline';
+                    this.elements.switchTeamBtn.style.display = 'block';
+                    this.elements.team1Score.style.display = 'inline';
+                    this.elements.team2Score.style.display = 'inline';
+                    this.elements.team1Score.textContent = `${Math.floor(info.team1Score)}`;
+                    this.elements.team2Score.textContent = `${Math.floor(info.team2Score)}`;
+                }
+            };
+
+            this.scoreboardUpdaters = {
+                'Free For All': (players, playerId) => {
+                    this.elements.team1Scoreboard.style.display = 'none';
+                    this.elements.team2Scoreboard.style.display = 'none';
+                    this.elements.ffaScoreboard.style.display = 'block';
+
+                    this.elements.ffaList.innerHTML = '';
+                    const sortedPlayers = [...players].sort((a, b) => b.kills - a.kills);
+                    sortedPlayers.forEach(p => this.elements.ffaList.appendChild(this.createPlayerEntry(p, playerId)));
+                },
+                'default': (players, playerId) => {
+                    this.elements.team1Scoreboard.style.display = 'block';
+                    this.elements.team2Scoreboard.style.display = 'block';
+                    this.elements.ffaScoreboard.style.display = 'none';
+
+                    this.elements.team1List.innerHTML = '';
+                    this.elements.team2List.innerHTML = '';
+
+                    const team1Players = players.filter(p => p.team === 1).sort((a, b) => b.kills - a.kills);
+                    const team2Players = players.filter(p => p.team === 2).sort((a, b) => b.kills - a.kills);
+
+                    team1Players.forEach(p => this.elements.team1List.appendChild(this.createPlayerEntry(p, playerId)));
+                    team2Players.forEach(p => this.elements.team2List.appendChild(this.createPlayerEntry(p, playerId)));
+                }
+            };
+        }
+
+        update(gameState) {
+            if (!gameState || !gameState.info) return;
+
+            this.elements.playerCount.textContent = gameState.players ? gameState.players.length : 0;
+            this.elements.gameModeDisplay.textContent = gameState.info.type;
+
+            if (gameState.info.roundTimeRemainingSeconds !== undefined) {
+                const totalSeconds = gameState.info.roundTimeRemainingSeconds;
+                const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+                const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+                this.elements.roundTimer.textContent = `${minutes}:${seconds}`;
+            }
+
+            const infoUpdater = this.infoBarUpdaters[gameState.info.type] || this.infoBarUpdaters.default;
+            infoUpdater(gameState.info);
+
+            const now = Date.now();
+            if (now - this.lastScoreboardUpdateTime > this.SCOREBOARD_UPDATE_INTERVAL) {
+                const scoreboardUpdater = this.scoreboardUpdaters[gameState.info.type] || this.scoreboardUpdaters.default;
+                if (gameState.players) {
+                    scoreboardUpdater(gameState.players, this.game.playerId);
+                }
+                this.lastScoreboardUpdateTime = now;
+            }
+
+            if (this.game.playerId) {
+                const localPlayer = gameState.players.find(p => p.id === this.game.playerId);
+                this.game.isLocalPlayerDead = localPlayer ? localPlayer.dead : false;
+                if (localPlayer && localPlayer.weapon) {
+                    // If the weapon from the server is different from the one in the UI
+                    if (this.elements.weaponSelector.value !== localPlayer.weapon.name) {
+                        this.elements.weaponSelector.value = localPlayer.weapon.name;
+                        // Save the change to localStorage so it persists
+                        localStorage.setItem('weaponName', localPlayer.weapon.name);
+                    }
+                }
+            }
+        }
+
+        updateOnWelcome(data) {
+            const teamElement = this.doc.getElementById('yourTeam');
+            teamElement.textContent = data.team;
+            teamElement.className = `team${data.team}`;
+            if (data.gameId) {
+                this.elements.gameIdIndicator.textContent = `(gameId: ${data.gameId})`;
+            }
+        }
+
+        createPlayerEntry(player, playerId) {
+            const entry = this.doc.createElement('li');
+            entry.className = 'scoreboard-player';
+            if (player.id === playerId) {
+                entry.classList.add('local-player-highlight');
+            }
+
+            const nameSpan = this.doc.createElement('span');
+            nameSpan.className = 'player-name';
+            nameSpan.textContent = player.playerName || (player.id.startsWith('ai-') ? `AI` : 'Player');
+            nameSpan.title = player.playerName || player.id;
+
+            const scoreSpan = this.doc.createElement('span');
+            scoreSpan.className = 'player-score';
+            scoreSpan.textContent = `${player.kills} / ${player.deaths}`;
+
+            entry.appendChild(nameSpan);
+            entry.appendChild(scoreSpan);
+            return entry;
+        }
+    }
+
     class Game {
         constructor() {
             this.canvas = document.getElementById('gameCanvas');
@@ -324,8 +489,8 @@
             this.shouldDrawRespawnOverlay = true;
             this.gamepad = null;
             this.isGamepadActive = false;
-            this.gamepadAim = { x: 1, y: 0 }; // Default aim direction
-            this.gamepadWeaponSwapPressed = false; // Track previous state of the gamepad swap button
+            this.gamepadAim = { x: 1, y: 0 };
+            this.gamepadWeaponSwapPressed = false;
 
             this.latency = 0;
             this.pingStartTime = 0;
@@ -333,10 +498,9 @@
             this.backgroundCanvas = document.createElement('canvas');
             this.backgroundCtx = this.backgroundCanvas.getContext('2d');
             this.currentGameType = '';
-            this.backgroundNeedsRedraw = true; // Flag to trigger a redraw
+            this.backgroundNeedsRedraw = true;
 
-            this.lastScoreboardUpdateTime = 0;
-            this.SCOREBOARD_UPDATE_INTERVAL = 1000; // Update scoreboard once a second
+            this.uiManager = new GameUIManager(this);
 
             this.loadPlayerName();
             this.setupEventListeners();
@@ -345,12 +509,11 @@
         }
 
         resetGameState() {
-            this.gameState = { players: [], bullets: [], obstacles: [], deathMarkers: [], events: [], info: null };
+            this.gameState = { players: [], bullets: [], obstacles: [], deathMarkers: [], events: [], info: null, serverTime: 0 };
         }
 
         connect() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            // --- Read query parameters to join a specific game ---
             const urlParams = new URLSearchParams(window.location.search);
             const gameId = urlParams.get('gameId') || 'null';
             const gameType = urlParams.get('gameType') || 'null';
@@ -364,9 +527,6 @@
             this.ws.onopen = () => {
                 document.getElementById('status').textContent = 'Connected';
                 document.getElementById('status').style.color = '#4CAF50';
-
-                // Start sending pings to measure latency
-                // Ping every 2 seconds
                 setInterval(() => {
                     this.pingStartTime = Date.now();
                     this.ws.send(JSON.stringify({ type: 'ping' }));
@@ -376,19 +536,16 @@
             this.ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
 
-                // Handle pong message for latency calculation
                 if (data.type === 'pong') {
                     this.latency = Date.now() - this.pingStartTime;
                     const latencyEl = document.getElementById('latency');
                     latencyEl.textContent = this.latency;
-
-                    // Change color based on latency value for quick feedback
                     if (this.latency > 150) {
-                        latencyEl.style.color = '#F44336'; // Red for high latency
+                        latencyEl.style.color = '#F44336';
                     } else if (this.latency > 80) {
-                        latencyEl.style.color = '#FFC107'; // Yellow for medium latency
+                        latencyEl.style.color = '#FFC107';
                     } else {
-                        latencyEl.style.color = 'white'; // Default color
+                        latencyEl.style.color = 'white';
                     }
                     return;
                 }
@@ -398,23 +555,13 @@
                     this.playerTeam = data.team;
                     this.backgroundNeedsRedraw = true;
                     this.resetGameState();
-
-                    // Update the UI with team info
-                    const teamElement = document.getElementById('yourTeam');
-                    teamElement.textContent = this.playerTeam;
-                    teamElement.className = `team${this.playerTeam}`;
-                    // Update the Game ID display in the scoreboard header
-                    if (data.gameId) {
-                       document.getElementById('gameIdIndicator').textContent = `(gameId: ${data.gameId})`;
-                    }
-                    // Populate weapon selector if the data is available
+                    this.uiManager.updateOnWelcome(data);
                     if (data.weaponOptions) {
                         this.populateWeaponSelector(data.weaponOptions);
                     }
                 } else {
-                    // Assume it's a game state update if no type is specified
                     this.gameState = data;
-                    this.updateUI();
+                    this.uiManager.update(this.gameState);
                 }
             };
 
@@ -422,8 +569,6 @@
                 document.getElementById('status').textContent = 'Disconnected';
                 document.getElementById('status').style.color = '#F44336';
                 this.resetGameState();
-                // TODO: disabled auto re-connect because of our AFK timeout
-                //setTimeout(() => this.connect(), 3000);
             };
 
             this.ws.onerror = (error) => {
@@ -432,11 +577,9 @@
         }
 
         setupEventListeners() {
-            // Keyboard events
             document.addEventListener('keydown', (e) => { this.keys[e.code] = true; });
             document.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
 
-            // Mouse events
             this.canvas.addEventListener('mousemove', (e) => {
                 const rect = this.canvas.getBoundingClientRect();
                 this.mouse.x = e.clientX - rect.left;
@@ -446,7 +589,6 @@
             this.canvas.addEventListener('mouseup', (e) => { if (e.button === 0) this.mouse.down = false; });
             this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-            // Player config listeners
             document.getElementById('playerNameInput').addEventListener('change', () => {
                 this.sendConfigChange();
                 this.canvas.focus();
@@ -467,17 +609,12 @@
             });
         }
 
-        /**
-         * Polls for gamepad state. The Gamepad API is not event-based,
-         * so we must check it on every frame.
-         */
         pollGamepad() {
             const gamepads = navigator.getGamepads();
             const firstGamepad = gamepads[0] || gamepads[1] || gamepads[2] || gamepads[3];
 
             if (firstGamepad) {
                 this.gamepad = firstGamepad;
-                // A stick movement or button press "activates" the gamepad mode
                 const stickMoved = Math.abs(this.gamepad.axes[0]) > 0.1 ||
                                    Math.abs(this.gamepad.axes[1]) > 0.1 ||
                                    Math.abs(this.gamepad.axes[2]) > 0.1 ||
@@ -507,24 +644,21 @@
             const deadzone = 0.25;
 
             if (this.isGamepadActive && this.gamepad) {
-                // --- Gamepad Input (Analog) ---
                 const leftStickX = this.gamepad.axes[0];
                 const leftStickY = this.gamepad.axes[1];
                 const rightStickX = this.gamepad.axes[2];
                 const rightStickY = this.gamepad.axes[3];
 
-                // Apply deadzone to movement stick
                 if (Math.abs(leftStickX) > deadzone) input.moveX = leftStickX;
                 if (Math.abs(leftStickY) > deadzone) input.moveY = leftStickY;
 
-                // Clamp magnitude to a circle to ensure diagonal movement isn't faster
                 const moveMagnitude = Math.sqrt(input.moveX * input.moveX + input.moveY * input.moveY);
                 if (moveMagnitude > 1.0) {
                     input.moveX /= moveMagnitude;
                     input.moveY /= moveMagnitude;
                 }
 
-                input.shooting = this.gamepad.buttons[7] && this.gamepad.buttons[7].value > 0.5; // R2/RT
+                input.shooting = this.gamepad.buttons[7] && this.gamepad.buttons[7].value > 0.5;
                 input.reload = this.gamepad.buttons[2] && this.gamepad.buttons[2].pressed;
 
                 const swapButtonPressed = this.gamepad.buttons[3] && this.gamepad.buttons[3].pressed;
@@ -547,7 +681,6 @@
                     input.mouseY = playerCenterY + this.gamepadAim.y * 100;
                 }
             } else {
-                // --- Keyboard & Mouse Input (Digital) ---
                 let moveX = 0;
                 let moveY = 0;
                 if (this.keys['KeyW'] || this.keys['ArrowUp']) moveY = -1;
@@ -555,7 +688,6 @@
                 if (this.keys['KeyA'] || this.keys['ArrowLeft']) moveX = -1;
                 if (this.keys['KeyD'] || this.keys['ArrowRight']) moveX = 1;
 
-                // For keyboard, normalize the vector to prevent faster diagonal movement.
                 const magnitude = Math.sqrt(moveX * moveX + moveY * moveY);
                 if (magnitude > 0) {
                     input.moveX = moveX / magnitude;
@@ -577,7 +709,6 @@
             const playerName = document.getElementById('playerNameInput').value;
             const weaponName = document.getElementById('weaponSelector').value;
 
-            // Persist the player's name in their browser for future sessions
             localStorage.setItem('playerName', playerName);
             localStorage.setItem('weaponName', weaponName);
 
@@ -613,10 +744,8 @@
             const selector = document.getElementById('weaponSelector');
             if (!selector) return;
 
-            // Clear existing options
             selector.innerHTML = '';
 
-            // Add new options from the server data
             weaponNames.forEach(name => {
                 const option = document.createElement('option');
                 option.value = name;
@@ -624,132 +753,21 @@
                 selector.appendChild(option);
             });
 
-            // Now that the options exist, try to set the value from localStorage.
             const savedWeapon = localStorage.getItem('weaponName');
             if (savedWeapon && weaponNames.includes(savedWeapon)) {
                 selector.value = savedWeapon;
             }
 
-            // After populating, send the initial config to the server
-            // to ensure client and server are in sync from the start.
             if (weaponNames.length > 0) {
                 this.sendConfigChange();
             }
         }
 
-        updateUI() {
-            document.getElementById('playerCount').textContent = this.gameState.players ? this.gameState.players.length : 0;
-
-            // --- Game Mode Specific UI Updates ---
-            const gameInfo = this.gameState.info;
-            if (gameInfo) {
-                const gameModeElement = document.getElementById('gameModeDisplay');
-                gameModeElement.textContent = gameInfo.type;
-
-                // Default to showing respawn overlay, disable for specific modes
-                this.shouldDrawRespawnOverlay = true;
-
-                // Update round timer display
-                if (gameInfo.roundTimeRemainingSeconds !== undefined) {
-                    const timerElement = document.getElementById('roundTimer');
-                    const totalSeconds = gameInfo.roundTimeRemainingSeconds;
-                    const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-                    const seconds = (totalSeconds % 60).toString().padStart(2, '0');
-                    timerElement.textContent = `${minutes}:${seconds}`;
-                }
-
-                const team1ScoreEl = document.getElementById('team1Score');
-                const team2ScoreEl = document.getElementById('team2Score');
-
-                // --- Game Mode Specific UI ---
-                switch (gameInfo.type) {
-                    case 'Zombie Defense':
-                        this.shouldDrawRespawnOverlay = false;
-                        team1ScoreEl.innerHTML = `Wave: <span style="color: #FFC107;">${gameInfo.waveNumber}</span>`;
-                        team2ScoreEl.innerHTML = `Zombies: <span style="color: #FFC107;">${gameInfo.zombiesAlive}</span>`;
-                        break;
-                    case 'Elimination':
-                        this.shouldDrawRespawnOverlay = false;
-                        team1ScoreEl.innerHTML = `${gameInfo.team1Score} <span style="font-size: 0.7em; color: #ccc;">(${gameInfo.team1PlayersAlive} alive)</span>`;
-                        team2ScoreEl.innerHTML = `${gameInfo.team2Score} <span style="font-size: 0.7em; color: #ccc;">(${gameInfo.team2PlayersAlive} alive)</span>`;
-                        break;
-                    default:
-                        // Default handling for TDM, KOTH, CTF, Oddball etc.
-                        team1ScoreEl.textContent = `${Math.floor(gameInfo.team1Score)}`;
-                        team2ScoreEl.textContent = `${Math.floor(gameInfo.team2Score)}`;
-                        break;
-                }
-            }
-
-            // Update local player info
-            if (this.playerId) {
-                const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
-                if (localPlayer) {
-                    this.isLocalPlayerDead = localPlayer.dead;
-                    // Update the current weapon display and sync the dropdown
-                    if (localPlayer.weapon) {
-                        document.getElementById('weaponSelector').value = localPlayer.weapon.name;
-                    }
-                } else {
-                    this.isLocalPlayerDead = false;
-                }
-            }
-
-            // --- Update Sidebar Scoreboard ---
-            const now = Date.now();
-            if (now - this.lastScoreboardUpdateTime > this.SCOREBOARD_UPDATE_INTERVAL) {
-                this.updateSidebarScoreboard();
-                this.lastScoreboardUpdateTime = now;
-            }
-         }
-
-        updateSidebarScoreboard() {
-            const team1List = document.getElementById('team1-players');
-            const team2List = document.getElementById('team2-players');
-            if (!team1List || !team2List) return;
-
-            // Clear previous entries
-            team1List.innerHTML = '';
-            team2List.innerHTML = '';
-
-            const players = this.gameState.players;
-
-            // Sort players by kills (descending)
-            const team1Players = players.filter(p => p.team === 1).sort((a, b) => b.kills - a.kills);
-            const team2Players = players.filter(p => p.team === 2).sort((a, b) => b.kills - a.kills);
-
-            const createPlayerEntry = (player) => {
-                const entry = document.createElement('li');
-                entry.className = 'scoreboard-player';
-                if (player.id === this.playerId) {
-                    entry.classList.add('local-player-highlight');
-                }
-
-                const nameSpan = document.createElement('span');
-                nameSpan.className = 'player-name';
-                nameSpan.textContent = player.playerName || (player.id.startsWith('ai-') ? `AI` : 'Player');
-                nameSpan.title = player.playerName || player.id; // Tooltip for long names
-
-                const scoreSpan = document.createElement('span');
-                scoreSpan.className = 'player-score';
-                scoreSpan.textContent = `${player.kills} / ${player.deaths}`;
-
-                entry.appendChild(nameSpan);
-                entry.appendChild(scoreSpan);
-                return entry;
-            };
-
-            team1Players.forEach(p => team1List.appendChild(createPlayerEntry(p)));
-            team2Players.forEach(p => team2List.appendChild(createPlayerEntry(p)));
-        }
-
-        // Add this new method to the Game class
         preRenderBackground() {
             const bCtx = this.backgroundCtx;
             bCtx.fillStyle = '#333';
             bCtx.fillRect(0, 0, this.backgroundCanvas.width, this.backgroundCanvas.height);
 
-            // Render hazards
             if (this.gameState.hazards) {
                 this.gameState.hazards.forEach(hazard => {
                     if (hazard.type === 'SLOW') {
@@ -760,7 +778,6 @@
                 });
             }
 
-            // Draw a center line to divide the field
             bCtx.save();
             bCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
             bCtx.lineWidth = 2;
@@ -771,22 +788,17 @@
             bCtx.stroke();
             bCtx.restore();
 
-            // Render obstacles
             if (this.gameState.obstacles) {
                 this.gameState.obstacles.forEach(obstacle => {
                     if (!obstacle.vertices || obstacle.vertices.length < 3) {
                        return;
                     }
                     bCtx.save();
-                    // By setting lineJoin to 'round' and using a thick stroke before filling,
-                    // we can create obstacles with smooth, rounded corners.
-                    const cornerRadius = 7; // The radius of the smoothed corners.
+                    const cornerRadius = 7;
                     bCtx.lineJoin = 'round';
-                    // The lineWidth needs to be twice the desired radius because the stroke
-                    // extends on both sides of the path.
                     bCtx.lineWidth = cornerRadius * 2;
-                    bCtx.fillStyle = '#888'; // Color for the main body of the obstacle
-                    bCtx.strokeStyle = '#888'; // The stroke creates the rounded corners
+                    bCtx.fillStyle = '#888';
+                    bCtx.strokeStyle = '#888';
 
                     bCtx.beginPath();
                     bCtx.moveTo(obstacle.vertices[0].x, obstacle.vertices[0].y);
@@ -794,38 +806,33 @@
                         bCtx.lineTo(obstacle.vertices[i].x, obstacle.vertices[i].y);
                     }
                     bCtx.closePath();
-                    bCtx.stroke(); // This is what creates the rounded effect
-                    bCtx.fill();   // This fills in the shape
+                    bCtx.stroke();
+                    bCtx.fill();
                     bCtx.restore();
                 });
             }
             console.log("Pre-rendered static background.");
         }
 
-
         render() {
-            // If the background needs to be redrawn (e.g., new game), do it once.
             if (this.backgroundNeedsRedraw && this.gameState.obstacles && this.gameState.obstacles.length > 0) {
                 this.preRenderBackground();
                 this.backgroundNeedsRedraw = false;
             }
 
-            // Clear canvas
             this.ctx.drawImage(this.backgroundCanvas, 0, 0);
 
             if (this.gameState.deathMarkers) {
-                this.ctx.strokeStyle = 'rgba(200, 0, 0, 0.6)'; // Semi-transparent red
+                this.ctx.strokeStyle = 'rgba(200, 0, 0, 0.6)';
                 this.ctx.lineWidth = 3;
-                const markerSize = 10; // The size of the 'X'
+                const markerSize = 10;
 
                 this.gameState.deathMarkers.forEach(marker => {
-                    // Draw the first line of the 'X' (\)
                     this.ctx.beginPath();
                     this.ctx.moveTo(marker.x - markerSize, marker.y - markerSize);
                     this.ctx.lineTo(marker.x + markerSize, marker.y + markerSize);
                     this.ctx.stroke();
 
-                    // Draw the second line of the 'X' (/)
                     this.ctx.beginPath();
                     this.ctx.moveTo(marker.x + markerSize, marker.y - markerSize);
                     this.ctx.lineTo(marker.x - markerSize, marker.y + markerSize);
@@ -833,12 +840,10 @@
                 });
             }
 
-            // Draw players
             this.gameState.players.forEach(player => {
                 this.drawPlayer(player);
             });
 
-            // Draw bullets
             if (this.gameState.bullets) {
                 this.gameState.bullets.forEach(bullet => {
                     this.ctx.fillStyle = bullet.team === 1 ? '#81C784' : '#E57373';
@@ -848,8 +853,6 @@
                 });
             }
 
-            // Draw crosshair at mouse position
-            // Only show the crosshair if a gamepad is not active
             if (!this.isGamepadActive && this.mouse.x && this.mouse.y) {
                 this.ctx.strokeStyle = '#fff';
                 this.ctx.lineWidth = 1;
@@ -861,11 +864,10 @@
                 this.ctx.stroke();
             }
 
-            // Draw respawn overlay if the local player is dead
             if (this.isLocalPlayerDead && this.shouldDrawRespawnOverlay) {
                 const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
-                if (localPlayer && localPlayer.respawnTime) {
-                    const remainingTime = Math.max(0, (localPlayer.respawnTime - Date.now()) / 1000);
+                if (localPlayer && localPlayer.respawnTime && this.gameState.serverTime > 0) {
+                    const remainingTime = Math.max(0, (localPlayer.respawnTime - this.gameState.serverTime) / 1000);
                     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
                     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                     this.ctx.fillStyle = 'white';
@@ -894,48 +896,41 @@
             const radius = hill.radius;
 
             this.ctx.save();
-            this.ctx.globalAlpha = 0.25; // Make the hill semi-transparent
+            this.ctx.globalAlpha = 0.25;
 
-            // Set color based on state
             if (hill.contested) {
-                this.ctx.fillStyle = '#FFC107'; // Yellow for contested
+                this.ctx.fillStyle = '#FFC107';
             } else if (hill.controllingTeam === 1) {
-                this.ctx.fillStyle = '#81C784'; // Light Green for team 1
+                this.ctx.fillStyle = '#81C784';
             } else if (hill.controllingTeam === 2) {
-                this.ctx.fillStyle = '#F44336'; // Red for team 2
+                this.ctx.fillStyle = '#F44336';
             } else {
-                this.ctx.fillStyle = '#9E9E9E'; // Gray for neutral
+                this.ctx.fillStyle = '#9E9E9E';
             }
 
-            // Draw the hill circle
             this.ctx.beginPath();
             this.ctx.arc(pos.x, pos.y, radius, 0, 2 * Math.PI);
             this.ctx.fill();
 
-            // Draw a border to make it more visible
             this.ctx.globalAlpha = 0.8;
             this.ctx.lineWidth = 3;
-            this.ctx.strokeStyle = this.ctx.fillStyle; // Use same color but more opaque
+            this.ctx.strokeStyle = this.ctx.fillStyle;
             this.ctx.stroke();
 
-            // --- Draw the flag in the center ---
-            this.ctx.globalAlpha = 1.0; // Make the flag fully opaque
+            this.ctx.globalAlpha = 1.0;
 
-            // Draw flagpole
-            this.ctx.strokeStyle = '#616161'; // Dark grey for the pole
+            this.ctx.strokeStyle = '#616161';
             this.ctx.lineWidth = 3;
             this.ctx.beginPath();
             this.ctx.moveTo(pos.x, pos.y + 15);
             this.ctx.lineTo(pos.x, pos.y - 25);
             this.ctx.stroke();
 
-            // Draw the flag cloth (triangle)
-            // The color is already set in strokeStyle from the border drawing
             this.ctx.fillStyle = this.ctx.strokeStyle;
             this.ctx.beginPath();
-            this.ctx.moveTo(pos.x + 2, pos.y - 25); // Top of the pole, slightly offset
-            this.ctx.lineTo(pos.x + 22, pos.y - 18); // Outer point
-            this.ctx.lineTo(pos.x + 2, pos.y - 11); // Bottom of the flag
+            this.ctx.moveTo(pos.x + 2, pos.y - 25);
+            this.ctx.lineTo(pos.x + 22, pos.y - 18);
+            this.ctx.lineTo(pos.x + 2, pos.y - 11);
             this.ctx.closePath();
             this.ctx.fill();
 
@@ -964,7 +959,6 @@
 
             const oddball = gameInfo.oddball;
 
-            // The ball is carried, so it will be drawn on the player, not here.
             if (oddball.state === 'CARRIED') {
                 return;
             }
@@ -972,24 +966,21 @@
             const pos = oddball.position;
             this.ctx.save();
 
-            // Draw a glowing, pulsating effect for the ball
             const pulse = Math.abs(Math.sin(Date.now() / 200));
-            this.ctx.fillStyle = '#FFD700'; // Gold color
+            this.ctx.fillStyle = '#FFD700';
             this.ctx.strokeStyle = 'white';
             this.ctx.lineWidth = 2 + pulse * 2;
             this.ctx.globalAlpha = 0.7 + pulse * 0.3;
 
-            // Draw the main ball
             this.ctx.beginPath();
             this.ctx.arc(pos.x, pos.y, 12, 0, 2 * Math.PI);
             this.ctx.fill();
             this.ctx.stroke();
 
-            // Draw some "spikes" to make it look like a skull or spiky ball
             this.ctx.lineWidth = 3;
-            this.ctx.strokeStyle = '#FFA000'; // Orange
+            this.ctx.strokeStyle = '#FFA000';
             for (let i = 0; i < 6; i++) {
-                const angle = (i * Math.PI / 3) + (Date.now() / 1000); // Rotate spikes
+                const angle = (i * Math.PI / 3) + (Date.now() / 1000);
                 this.ctx.beginPath();
                 this.ctx.moveTo(pos.x, pos.y);
                 this.ctx.lineTo(
@@ -1003,7 +994,6 @@
         }
 
         drawSingleFlag(flag) {
-            // Carried flags are drawn as an icon on the player, not here.
             if (flag.state === 'CARRIED') {
                 return;
             }
@@ -1014,7 +1004,6 @@
 
             this.ctx.save();
 
-            // Draw the base stand if the flag is at its home base
             if (flag.state === 'AT_BASE') {
                 this.ctx.fillStyle = '#444';
                 this.ctx.strokeStyle = '#666';
@@ -1025,9 +1014,8 @@
                 this.ctx.stroke();
             }
 
-            // Draw a pulsating circle for dropped flags to attract attention
             if (flag.state === 'DROPPED') {
-                const pulse = Math.abs(Math.sin(Date.now() / 300)); // Pulsates
+                const pulse = Math.abs(Math.sin(Date.now() / 300));
                 this.ctx.strokeStyle = teamColor;
                 this.ctx.lineWidth = 2 + pulse * 2;
                 this.ctx.globalAlpha = 0.5 + pulse * 0.4;
@@ -1036,10 +1024,8 @@
                 this.ctx.stroke();
             }
 
-            // --- Draw the flag model (pole and cloth) ---
             this.ctx.globalAlpha = 1.0;
 
-            // Draw flagpole
             this.ctx.strokeStyle = '#616161';
             this.ctx.lineWidth = 4;
             this.ctx.beginPath();
@@ -1047,12 +1033,11 @@
             this.ctx.lineTo(pos.x, pos.y - 25);
             this.ctx.stroke();
 
-            // Draw the flag cloth
             this.ctx.fillStyle = teamColor;
             this.ctx.beginPath();
-            this.ctx.moveTo(pos.x + 2, pos.y - 25); // Top of the pole
-            this.ctx.lineTo(pos.x + 25, pos.y - 15); // Outer point
-            this.ctx.lineTo(pos.x + 2, pos.y - 5);  // Bottom of the flag
+            this.ctx.moveTo(pos.x + 2, pos.y - 25);
+            this.ctx.lineTo(pos.x + 25, pos.y - 15);
+            this.ctx.lineTo(pos.x + 2, pos.y - 5);
             this.ctx.closePath();
             this.ctx.fill();
 
@@ -1064,21 +1049,16 @@
             const baseRadius = hazard.radius;
             bCtx.save();
 
-            // --- Create and fill the ragged, natural-looking path ---
             bCtx.beginPath();
-            const segments = 40; // More segments for a more detailed edge
+            const segments = 40;
             const angleStep = (2 * Math.PI) / segments;
-            const radiusVariation = baseRadius * 0.12; // The edge will vary by +/- 12% of the radius
+            const radiusVariation = baseRadius * 0.12;
 
-            // Move to the first point on our custom path
             for (let i = 0; i <= segments; i++) {
                 const angle = i * angleStep;
-
-                // Combine a sine wave with random noise for a more organic shape
                 const waveOffset = Math.sin(angle * 6) * radiusVariation * 0.6;
                 const randomOffset = (Math.random() - 0.5) * 2 * radiusVariation * 0.4;
                 const currentRadius = baseRadius + waveOffset + randomOffset;
-
                 const x = pos.x + Math.cos(angle) * currentRadius;
                 const y = pos.y + Math.sin(angle) * currentRadius;
 
@@ -1088,20 +1068,17 @@
                     bCtx.lineTo(x, y);
                 }
             }
-            bCtx.closePath(); // Close the path back to the first point
+            bCtx.closePath();
 
-            bCtx.fillStyle = '#A0785A'; // A sandy color
+            bCtx.fillStyle = '#A0785A';
             bCtx.fill();
 
-            // --- Add texture with darker specks ---
-            bCtx.fillStyle = 'rgba(90, 60, 40, 0.15)'; // Darker, browner speckles
+            bCtx.fillStyle = 'rgba(90, 60, 40, 0.15)';
             const speckleCount = Math.floor(baseRadius * 1.4);
 
             for (let i = 0; i < speckleCount; i++) {
-                // Get a random point within the circle, using the base radius for distribution.
-                // This is an approximation, but it's fast and looks good enough.
                 const angle = Math.random() * 2 * Math.PI;
-                const r = Math.random() * baseRadius * 0.9; // *0.9 to keep speckles from the very edge
+                const r = Math.random() * baseRadius * 0.9;
                 const speckleX = pos.x + Math.cos(angle) * r;
                 const speckleY = pos.y + Math.sin(angle) * r;
 
@@ -1117,18 +1094,16 @@
             const radius = hazard.radius;
             bCtx.save();
 
-            // Create a radial gradient for a glowing effect from the center outwards
             const gradient = bCtx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, radius);
-            gradient.addColorStop(0, 'rgba(255, 235, 59, 0.9)');  // Bright yellow center (hottest)
-            gradient.addColorStop(0.6, 'rgba(255, 87, 34, 0.8)'); // Deep orange middle
-            gradient.addColorStop(1, 'rgba(198, 40, 40, 0.6)');   // Dark red edge (cooler)
+            gradient.addColorStop(0, 'rgba(255, 235, 59, 0.9)');
+            gradient.addColorStop(0.6, 'rgba(255, 87, 34, 0.8)');
+            gradient.addColorStop(1, 'rgba(198, 40, 40, 0.6)');
 
             bCtx.fillStyle = gradient;
             bCtx.beginPath();
             bCtx.arc(pos.x, pos.y, radius, 0, 2 * Math.PI);
             bCtx.fill();
 
-            // Add some dark "cracks" to look like cooling rock or embers
             bCtx.strokeStyle = 'rgba(40, 20, 10, 0.4)';
             bCtx.lineWidth = 2;
             const crackCount = Math.floor(radius / 8);
@@ -1155,15 +1130,14 @@
             this.ctx.shadowColor = 'black';
             this.ctx.shadowBlur = 5;
 
-            // Draw events from the bottom up, near the top of the screen
             const startY = 50;
             this.gameState.events.forEach((event, index) => {
                 const yPos = startY + (index * 25);
                 switch (event.type) {
-                    case 'FLAG_CAPTURE': this.ctx.fillStyle = '#FFD700'; break; // Gold
-                    case 'FLAG_PICKUP':  this.ctx.fillStyle = '#4FC3F7'; break; // Light Blue
-                    case 'FLAG_DROP':    this.ctx.fillStyle = '#BDBDBD'; break; // Grey
-                    case 'FLAG_RETURN':  this.ctx.fillStyle = '#81C784'; break; // Light Green
+                    case 'FLAG_CAPTURE': this.ctx.fillStyle = '#FFD700'; break;
+                    case 'FLAG_PICKUP':  this.ctx.fillStyle = '#4FC3F7'; break;
+                    case 'FLAG_DROP':    this.ctx.fillStyle = '#BDBDBD'; break;
+                    case 'FLAG_RETURN':  this.ctx.fillStyle = '#81C784'; break;
                     case 'GREEN':  this.ctx.fillStyle = '#81C784'; break;
                     case 'RED':  this.ctx.fillStyle = '#F44336'; break;
                     case 'YELLOW': this.ctx.fillStyle = '#FFD700'; break;
@@ -1185,7 +1159,6 @@
             const playerCenterX = player.x + playerSize / 2;
             const playerCenterY = player.y + playerSize / 2;
 
-            // Draw player body (circle)
             this.ctx.fillStyle = player.team === 1 ? '#4CAF50' : '#F44336';
             this.ctx.strokeStyle = player.id === this.playerId ? '#FFD700' : (player.team === 1 ? '#388E3C' : '#B71C1C');
             this.ctx.lineWidth = player.id === this.playerId ? 3 : 2;
@@ -1194,7 +1167,6 @@
             this.ctx.fill();
             this.ctx.stroke();
 
-            // Draw the turret, rotated to face the aim direction
             this.ctx.save();
             this.ctx.translate(playerCenterX, playerCenterY);
 
@@ -1210,7 +1182,6 @@
             }
             this.ctx.rotate(angle);
 
-            // Draw the turret barrel
             this.ctx.fillStyle = '#9E9E9E';
             this.ctx.strokeStyle = '#616161';
             this.ctx.lineWidth = 1;
@@ -1218,17 +1189,14 @@
             this.ctx.strokeRect(0, -3, 15, 6);
             this.ctx.restore();
 
-            // --- Check if this player is carrying a flag ---
             const gameInfo = this.gameState.info;
             if (gameInfo && gameInfo.type === 'Capture the Flag') {
                 const enemyFlag = player.team === 1 ? gameInfo.team2Flag : gameInfo.team1Flag;
                 if (enemyFlag && enemyFlag.state === 'CARRIED' && enemyFlag.carrierId === player.id) {
-                    // This player is the flag carrier. Draw a flag icon above them.
-                    const flagColor = player.team === 1 ? '#F44336' : '#4CAF50'; // The *enemy* flag color
+                    const flagColor = player.team === 1 ? '#F44336' : '#4CAF50';
                     this.ctx.save();
-                    this.ctx.translate(playerCenterX, player.y - 35); // Position above the name/health bar
+                    this.ctx.translate(playerCenterX, player.y - 35);
 
-                    // Draw a small flag
                     this.ctx.strokeStyle = '#333';
                     this.ctx.lineWidth = 1;
                     this.ctx.fillStyle = flagColor;
@@ -1247,15 +1215,14 @@
             if (gameInfo && gameInfo.type === 'Oddball' && gameInfo.oddball) {
                 const oddball = gameInfo.oddball;
                 if (oddball.state === 'CARRIED' && oddball.carrierId === player.id) {
-                    // This player is the ball carrier. Draw an icon.
                     this.ctx.save();
-                    this.ctx.translate(playerCenterX, player.y - 35); // Position above name
+                    this.ctx.translate(playerCenterX, player.y - 35);
 
                     this.ctx.fillStyle = '#FFD700';
                     this.ctx.strokeStyle = 'white';
                     this.ctx.lineWidth = 1;
                     this.ctx.beginPath();
-                    this.ctx.arc(0, 0, 8, 0, 2 * Math.PI); // Draw a small ball icon
+                    this.ctx.arc(0, 0, 8, 0, 2 * Math.PI);
                     this.ctx.fill();
                     this.ctx.stroke();
 
@@ -1268,12 +1235,10 @@
                 this.ctx.save();
                 this.ctx.font = '24px Arial';
                 this.ctx.textAlign = 'center';
-                // Position the crown above the player's name and health bar
                 this.ctx.fillText('👑', playerCenterX, player.y - 30);
                 this.ctx.restore();
             }
 
-            // --- Draw text and health bar above player ---
             this.ctx.fillStyle = '#fff';
             this.ctx.font = '12px Arial';
             this.ctx.textAlign = 'center';
@@ -1281,44 +1246,36 @@
             const displayName = `${baseName} | ${player.weapon.shortName}`;
             this.ctx.fillText(displayName, playerCenterX, player.y - 15);
 
-            // --- Draw ammo count or reload indicator inside the local player's box ---
             if (player.id === this.playerId) {
                 this.ctx.font = 'bold 12px Arial';
                 this.ctx.textAlign = 'center';
-                this.ctx.textBaseline = 'middle'; // Center the text vertically
+                this.ctx.textBaseline = 'middle';
 
-                // Add a dark shadow for readability against any team color
                 this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
                 const text = player.reloading ? 'R' : player.currentAmmoInMagazine.toString();
                 this.ctx.fillText(text, playerCenterX + 1, playerCenterY + 1);
 
-                // Draw the main text
-                this.ctx.fillStyle = player.reloading ? '#FFC107' : '#FFFFFF'; // Yellow for 'R', white for ammo
+                this.ctx.fillStyle = player.reloading ? '#FFC107' : '#FFFFFF';
                 this.ctx.fillText(text, playerCenterX, playerCenterY);
 
-                // Reset baseline for other text
                 this.ctx.textBaseline = 'alphabetic';
             }
 
-            // --- Draw Health Arc around the player ---
             const maxHealth = player.maxHealth || 100;
             const healthPercentage = Math.max(0, player.currentHealth / maxHealth);
-            const healthBarRadius = playerSize / 2 + 4; // Position it just outside the player circle
+            const healthBarRadius = playerSize / 2 + 4;
             const healthBarThickness = 3;
 
-            // Define the geometry of the arc above the player
-            const arcSpan = Math.PI / 2; // A 90-degree quarter arc
-            const startAngle = -Math.PI / 2 - (arcSpan / 2); // Center it at the top. (Starts at 10:30 on a clock)
-            const endAngle = startAngle + arcSpan;           // Ends at 1:30 on a clock.
+            const arcSpan = Math.PI / 2;
+            const startAngle = -Math.PI / 2 - (arcSpan / 2);
+            const endAngle = startAngle + arcSpan;
 
-            // Draw the background of the health arc (the empty part)
             this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-            this.ctx.lineWidth = healthBarThickness + 1; // A bit thicker to create a border effect
+            this.ctx.lineWidth = healthBarThickness + 1;
             this.ctx.beginPath();
             this.ctx.arc(playerCenterX, playerCenterY, healthBarRadius, startAngle, endAngle);
             this.ctx.stroke();
 
-            // Draw the actual health part of the arc
             if (healthPercentage > 0) {
                 const healthEndAngle = startAngle + (healthPercentage * arcSpan);
                 this.ctx.strokeStyle = healthPercentage > 0.5 ? '#4CAF50' : (healthPercentage > 0.2 ? '#FFC107' : '#F44336');
@@ -1340,21 +1297,16 @@
                 return;
             }
 
-            // --- Draw Capture Zone ---
-            // Calculate payload center by averaging its vertices
             const payloadCenter = payload.vertices.reduce((acc, v) => ({ x: acc.x + v.x, y: acc.y + v.y }), { x: 0, y: 0 });
             payloadCenter.x /= payload.vertices.length;
             payloadCenter.y /= payload.vertices.length;
 
-            // This radius should match Config.ESCORT_PLAYER_PROXIMITY on the server
             const captureRadius = gameInfo.captureRadius;
 
             this.ctx.save();
             this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
             this.ctx.lineWidth = 2;
-            this.ctx.setLineDash([10, 10]); // Create the dashed effect
-            // Animate the dashes to make the zone feel active
-            this.ctx.lineDashOffset = -(Date.now() / 50);
+            this.ctx.setLineDash([10, 10]);
 
             this.ctx.beginPath();
             this.ctx.arc(payloadCenter.x, payloadCenter.y, captureRadius, 0, 2 * Math.PI);
@@ -1362,13 +1314,11 @@
             this.ctx.restore();
 
             this.ctx.save();
-            // A metallic, heavy look for the payload
-            this.ctx.fillStyle = '#B0BEC5'; // Blue Grey color
-            this.ctx.strokeStyle = '#546E7A'; // Darker Blue Grey for the border
+            this.ctx.fillStyle = '#B0BEC5';
+            this.ctx.strokeStyle = '#546E7A';
             this.ctx.lineWidth = 3;
             this.ctx.lineJoin = 'round';
 
-            // Draw the main polygon shape
             this.ctx.beginPath();
             this.ctx.moveTo(payload.vertices[0].x, payload.vertices[0].y);
             for (let i = 1; i < payload.vertices.length; i++) {
@@ -1383,7 +1333,7 @@
         startGameLoop() {
             setInterval(() => this.sendInput(), 50);
             const renderLoop = () => {
-                this.pollGamepad(); // Check for controller input every frame
+                this.pollGamepad();
                 this.render();
                 requestAnimationFrame(renderLoop);
             };
