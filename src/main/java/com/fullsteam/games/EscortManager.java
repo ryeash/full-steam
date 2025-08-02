@@ -117,7 +117,6 @@ public class EscortManager extends AbstractTeamBasedManager {
             sendGameEvent(GameEvent.red("The payload was not delivered in time"));
             return true;
         }
-        obstacles.clear();
         return false;
     }
 
