@@ -331,28 +331,91 @@ public class AIPlayer extends Player {
     }
 
     private Vector2D findClearPath(Vector2D desiredDirection, List<Obstacle> obstacles) {
-        double feelerLength = getSpeed() * 15;
+        // Use a "feeler" to detect potential collisions ahead of the AI
+        double feelerLength = 40.0 + (getSpeed() * 10); // Dynamic feeler based on speed
         Vector2D feelerEnd = getCenter().add(desiredDirection.multiply(feelerLength));
-        if (findBlockingObstacle(getCenter(), feelerEnd, obstacles) == null) {
+        Obstacle blockingObstacle = findBlockingObstacle(getCenter(), feelerEnd, obstacles);
+
+        // If the path ahead is clear, continue in the desired direction
+        if (blockingObstacle == null) {
             return desiredDirection;
         }
 
-        double steeringAngleIncrement = Math.toRadians(15);
-        for (int i = 1; i <= 6; i++) {
-            Vector2D rightTurnDirection = desiredDirection.rotate(steeringAngleIncrement * i);
-            feelerEnd = getCenter().add(rightTurnDirection.multiply(feelerLength));
-            if (findBlockingObstacle(getCenter(), feelerEnd, obstacles) == null) {
-                return rightTurnDirection;
-            }
+        // --- Wall Sliding Logic ---
+        // The path is blocked, so we need to slide along the obstacle.
 
-            Vector2D leftTurnDirection = desiredDirection.rotate(-steeringAngleIncrement * i);
-            feelerEnd = getCenter().add(leftTurnDirection.multiply(feelerLength));
-            if (findBlockingObstacle(getCenter(), feelerEnd, obstacles) == null) {
-                return leftTurnDirection;
+        // 1. Find the closest point on the obstacle's perimeter to the AI.
+        // This gives us a reference point for the collision.
+        Vector2D closestPointOnObstacle = findClosestPointOnObstacle(getCenter(), blockingObstacle);
+
+        // 2. Calculate a vector pointing away from the obstacle. This acts as the "normal" to the wall.
+        Vector2D avoidanceDirection = getCenter().subtract(closestPointOnObstacle).normalize();
+
+        // 3. Project the AI's desired direction onto the avoidance direction (the normal).
+        double projection = desiredDirection.dot(avoidanceDirection);
+
+        // 4. The slide direction is calculated by subtracting the projection from the desired direction.
+        // This effectively removes the component of movement that would go "into" the wall,
+        // leaving only the component that runs parallel to it.
+        Vector2D slideDirection = desiredDirection.subtract(avoidanceDirection.multiply(projection));
+
+        // 5. Return the normalized slide direction. This is the new direction for the AI to follow.
+        return slideDirection.normalize();
+    }
+
+    /**
+     * Finds the point on an obstacle's perimeter that is closest to a given point.
+     *
+     * @param point    The point to check from.
+     * @param obstacle The obstacle to check against.
+     * @return The closest point on the obstacle's edges.
+     */
+    private Vector2D findClosestPointOnObstacle(Vector2D point, Obstacle obstacle) {
+        Vector2D closestPoint = null;
+        double minDistanceSq = Double.MAX_VALUE;
+        List<Vector2D> vertices = obstacle.vertices();
+        for (int i = 0; i < vertices.size(); i++) {
+            Vector2D p1 = vertices.get(i);
+            Vector2D p2 = vertices.get((i + 1) % vertices.size()); // Wrap around for the last edge
+
+            Vector2D closestPointOnSegment = getClosestPointOnLineSegment(point, p1, p2);
+            double distanceSq = point.distanceSq(closestPointOnSegment);
+
+            if (distanceSq < minDistanceSq) {
+                minDistanceSq = distanceSq;
+                closestPoint = closestPointOnSegment;
             }
         }
-        return desiredDirection.multiply(-0.5);
+        return closestPoint;
     }
+
+    /**
+     * Calculates the closest point on a line segment to a given point.
+     *
+     * @param p The point.
+     * @param a The start of the line segment.
+     * @param b The end of the line segment.
+     * @return The closest point on the segment [a, b] to p.
+     */
+    private Vector2D getClosestPointOnLineSegment(Vector2D p, Vector2D a, Vector2D b) {
+        Vector2D ap = p.subtract(a);
+        Vector2D ab = b.subtract(a);
+        double ab2 = ab.x() * ab.x() + ab.y() * ab.y();
+        if (ab2 == 0.0) { // a and b are the same point
+            return a;
+        }
+        double ap_dot_ab = ap.dot(ab);
+        double t = ap_dot_ab / ab2;
+
+        // Clamp t to the range [0, 1] to stay on the segment
+        if (t < 0.0) {
+            return a;
+        } else if (t > 1.0) {
+            return b;
+        }
+        return a.add(ab.multiply(t));
+    }
+
 
     /**
      * Calculates a steering force to move the AI away from nearby hazards, especially damaging ones.

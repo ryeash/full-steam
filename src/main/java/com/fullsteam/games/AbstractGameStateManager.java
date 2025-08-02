@@ -90,7 +90,7 @@ public abstract class AbstractGameStateManager {
     }
 
     public boolean isFull() {
-        return players.values().stream().filter(p -> !(p instanceof AIPlayer)).count() >= 10;
+        return players.values().stream().filter(p -> !(p instanceof AIPlayer)).count() >= MAX_PLAYERS_PER_TEAM * 2L;
     }
 
     public boolean hasHumanPlayers() {

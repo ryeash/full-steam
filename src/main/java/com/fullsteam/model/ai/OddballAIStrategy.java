@@ -9,6 +9,7 @@ import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.OddballInfo;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -41,25 +42,39 @@ public class OddballAIStrategy implements IAIStrategy {
         // The AI's "personality" determines its priorities.
         switch (self.archetype()) {
             case WARRIOR:
-                prioritizeCombat(self, closestEnemy, oddball, isCarrier, carrierOpt);
+                prioritizeCombat(self, closestEnemy, oddball, isCarrier, carrierOpt, allPlayers);
                 break;
             case GUARDIAN:
-                prioritizeDefense(self, closestEnemy, oddball, isCarrier, carrierOpt);
+                prioritizeDefense(self, closestEnemy, oddball, isCarrier, carrierOpt, allPlayers);
                 break;
             case OBJECTIVE_HOUND:
-                prioritizeObjective(self, closestEnemy, oddball, isCarrier, carrierOpt);
+                prioritizeObjective(self, closestEnemy, oddball, isCarrier, carrierOpt, allPlayers);
                 break;
             case BALANCED:
             default:
                 // The original, balanced logic serves as the default.
-                runBalancedLogic(self, closestEnemy, oddball, isCarrier, carrierOpt);
+                runBalancedLogic(self, closestEnemy, oddball, isCarrier, carrierOpt, allPlayers);
                 break;
         }
     }
 
     /**
+     * Finds the closest living teammate to the AI player.
+     *
+     * @param self       The AI player.
+     * @param allPlayers A collection of all players in the game.
+     * @return The closest teammate, or null if none are found.
+     */
+    private Player findClosestTeammate(AIPlayer self, Collection<Player> allPlayers) {
+        return allPlayers.stream()
+                .filter(p -> p.getTeam() == self.getTeam() && !Objects.equals(p.getId(), self.getId()))
+                .min(Comparator.comparingDouble(p -> p.getCenter().distanceSq(self.getCenter())))
+                .orElse(null);
+    }
+
+    /**
      * Determines a safe point deep within a team's territory.
-     * Used by the ball carrier to decide where to run.
+     * Used by the ball carrier to decide where to run if they are alone.
      */
     private Vector2D getSafePointForTeam(int team) {
         if (team == 1) {
@@ -72,20 +87,30 @@ public class OddballAIStrategy implements IAIStrategy {
     }
 
     // --- Balanced Logic (Original Behavior) ---
-    private void runBalancedLogic(AIPlayer self, Player closestEnemy, Oddball oddball, boolean isCarrier, Optional<Player> carrierOpt) {
-        // Priority 1: I am the ball carrier. RUN TO MY SIDE OF THE MAP!
+    private void runBalancedLogic(AIPlayer self, Player closestEnemy, Oddball oddball, boolean isCarrier, Optional<Player> carrierOpt, Collection<Player> allPlayers) {
+        // Priority 1: I am the ball carrier. RUN FOR COVER!
         if (isCarrier) {
-            Vector2D safePoint = getSafePointForTeam(self.getTeam());
-            double distanceToSafePointSq = self.getCenter().distanceSq(safePoint);
+            // Find the closest teammate to run to for protection.
+            Player closestTeammate = findClosestTeammate(self, allPlayers);
 
-            // If we are already near our safe point, just wander around it to evade.
-            if (distanceToSafePointSq < 200 * 200) { // 200 unit radius
-                self.setCurrentState(AIPlayer.AIState.WANDERING);
-            } else {
-                // Otherwise, run towards the safe point.
+            if (closestTeammate != null) {
+                // If we have a teammate, run towards them for protection.
                 self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
+                self.setObjectiveTargetPoint(closestTeammate.getCenter());
+            } else {
+                // If we are alone, fall back to the original behavior of running to a safe point.
+                Vector2D safePoint = getSafePointForTeam(self.getTeam());
+                double distanceToSafePointSq = self.getCenter().distanceSq(safePoint);
+
+                // If we are already near our safe point, just wander around it to evade.
+                if (distanceToSafePointSq < 200 * 200) { // 200 unit radius
+                    self.setCurrentState(AIPlayer.AIState.WANDERING);
+                } else {
+                    // Otherwise, run towards the safe point.
+                    self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
+                }
+                self.setObjectiveTargetPoint(safePoint);
             }
-            self.setObjectiveTargetPoint(safePoint);
             return;
         }
 
@@ -123,7 +148,7 @@ public class OddballAIStrategy implements IAIStrategy {
 
     // --- Archetype-Specific Logic ---
 
-    private void prioritizeCombat(AIPlayer self, Player closestEnemy, Oddball oddball, boolean isCarrier, Optional<Player> carrierOpt) {
+    private void prioritizeCombat(AIPlayer self, Player closestEnemy, Oddball oddball, boolean isCarrier, Optional<Player> carrierOpt, Collection<Player> allPlayers) {
         // The Warrior's #1 priority is always to fight.
         if (closestEnemy != null) {
             self.setCurrentTarget(closestEnemy);
@@ -131,10 +156,10 @@ public class OddballAIStrategy implements IAIStrategy {
             return;
         }
         // If no one is around to fight, it will play the objective as a secondary goal.
-        runBalancedLogic(self, null, oddball, isCarrier, carrierOpt);
+        runBalancedLogic(self, null, oddball, isCarrier, carrierOpt, allPlayers);
     }
 
-    private void prioritizeDefense(AIPlayer self, Player closestEnemy, Oddball oddball, boolean isCarrier, Optional<Player> carrierOpt) {
+    private void prioritizeDefense(AIPlayer self, Player closestEnemy, Oddball oddball, boolean isCarrier, Optional<Player> carrierOpt, Collection<Player> allPlayers) {
         // The Guardian's #1 priority is protecting the friendly carrier.
         if (carrierOpt.isPresent() && carrierOpt.get().getTeam() == self.getTeam()) {
             Player friendlyCarrier = carrierOpt.get();
@@ -149,10 +174,10 @@ public class OddballAIStrategy implements IAIStrategy {
             return;
         }
         // If there's no friendly carrier to protect, it will play normally.
-        runBalancedLogic(self, closestEnemy, oddball, isCarrier, carrierOpt);
+        runBalancedLogic(self, closestEnemy, oddball, isCarrier, carrierOpt, allPlayers);
     }
 
-    private void prioritizeObjective(AIPlayer self, Player closestEnemy, Oddball oddball, boolean isCarrier, Optional<Player> carrierOpt) {
+    private void prioritizeObjective(AIPlayer self, Player closestEnemy, Oddball oddball, boolean isCarrier, Optional<Player> carrierOpt, Collection<Player> allPlayers) {
         // The Objective Hound's #1 priority is getting the ball if it's loose.
         if (oddball.state() == Oddball.OddballState.ON_SPAWN || oddball.state() == Oddball.OddballState.DROPPED) {
             self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
@@ -160,6 +185,6 @@ public class OddballAIStrategy implements IAIStrategy {
             return;
         }
         // If it can't get the ball, it will play normally.
-        runBalancedLogic(self, closestEnemy, oddball, isCarrier, carrierOpt);
+        runBalancedLogic(self, closestEnemy, oddball, isCarrier, carrierOpt, allPlayers);
     }
 }

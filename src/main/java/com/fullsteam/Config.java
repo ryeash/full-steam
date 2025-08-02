@@ -36,7 +36,7 @@ public class Config {
     // AI
     public static final double VISION_RANGE = getDouble("ai.vision_range", 450.0);
     public static final long WANDER_DIRECTION_CHANGE_INTERVAL = getLong("ai.wander_interval_ms", 2000); // ms
-    public static final long BASE_REACTION_TIME_MS = getLong("ai.base_reaction_ms", 500);
+    public static final long BASE_REACTION_TIME_MS = getLong("ai.base_reaction_ms", 600);
     public static final double BASE_AIM_INACCURACY_RADIANS = getDouble("ai.base_aim_inaccuracy", 0.05);
     public static final long BASE_STRAFE_INTERVAL_MS = getLong("ai.base_strafe_interval_ms", 1500);
     public static final double AI_MAX_FORCE = getDouble("ai.max_force", 0.2); // The maximum steering force, controls turning ability
@@ -52,9 +52,9 @@ public class Config {
     public static final int TICK_RATE = getInt("game.tick_rate", 60);
     public static final int OBSTACLE_COUNT = getInt("game.obstacle_count", 8);
     public static final long DEATH_MARKER_DURATION_MS = getLong("game.death_marker_duration_ms", 5000); // Marker lasts 5 seconds
-    public static final long GAME_EVENT_DURATION_MS = getLong("game.game_event_duration_ms", 4000); // 4 seconds for events to be on screen
-    public static final long NEXT_ROUND_DELAY_MS = getLong("game.next_round_delay_ms", 3000); // 3-second delay between rounds
-    public static final long RESPAWN_DELAY_MS = getLong("game.respawn_delay_ms", 3_000);
+    public static final long GAME_EVENT_DURATION_MS = getLong("game.game_event_duration_ms", 6000); // 4 seconds for events to be on screen
+    public static final long NEXT_ROUND_DELAY_MS = getLong("game.next_round_delay_ms", 6000); // 3-second delay between rounds
+    public static final long RESPAWN_DELAY_MS = getLong("game.respawn_delay_ms", 5_000);
     public static final double PLAYER_SIZE = getDouble("game.player_size", 20.0);
     public static final double DEFAULT_PLAYER_HEALTH = getDouble("game.default_player_health", 100.0);
     public static final double DEFAULT_PLAYER_SPEED = getDouble("game.default_player_speed", 3.0);

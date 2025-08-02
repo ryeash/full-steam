@@ -105,9 +105,9 @@ public class WeaponFactory {
                 5,  // Damage: 20 per pellet (medium potential)
                 2,  // Range: 200 (very short)
                 0,  // Speed: 6.0 (slow)
-                -10,  // Accuracy: 0.4 spread (max spread)
+                -20,  // Accuracy: 0.4 spread (max spread)
                 70, // Multi-shot: 7 pellets
-                4,  // Magazine Size: 14 rounds
+                14,  // Magazine Size: 14 rounds
                 2   // Reload Speed: 4.8s (very slow)
         ));
 
@@ -141,10 +141,10 @@ public class WeaponFactory {
     public static final Weapon ZOMBIE_CLAW = new Weapon(
             "Claw",
             "C",
-            10,
-            30,
-            -2,
-            28,
+            5,
+            20,
+            -1,
+            27,
             0,
             10,
             4,

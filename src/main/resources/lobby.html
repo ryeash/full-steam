@@ -135,13 +135,19 @@
             lobbyInfo.activeGames.forEach(game => {
                 const listItem = document.createElement('li');
                 listItem.className = 'game-item';
+
+                let buttonHtml = '';
+                if (game.playerCount < game.maxPlayers) {
+                    buttonHtml = `<button class="join-button" onclick="joinGame('${game.gameId}')">Join</button>`;
+                }
+
                 listItem.innerHTML = `
                     <div>
                         <span><b>${(game.gameType || '').replace('Manager', '')}</b></span>
                         <span>Players: ${game.playerCount} / ${game.maxPlayers}</span>
                         <span style="font-size: 0.8em; color: #aaa;">ID: ${game.gameId}</span>
                     </div>
-                    <button class="join-button" onclick="joinGame('${game.gameId}')">Join</button>
+                    ${buttonHtml}
                 `;
                 gamesList.appendChild(listItem);
             });

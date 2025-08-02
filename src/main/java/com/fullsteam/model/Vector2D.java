@@ -142,4 +142,16 @@ public record Vector2D(double x, double y) {
         double newY = this.x * sin + this.y * cos;
         return new Vector2D(newX, newY);
     }
+
+    /**
+     * Calculates the dot product of this vector and another.
+     * The dot product is a scalar value that represents the angular
+     * relationship between two vectors.
+     *
+     * @param other The other vector.
+     * @return The dot product of the two vectors.
+     */
+    public double dot(Vector2D other) {
+        return this.x * other.x + this.y * other.y;
+    }
 }

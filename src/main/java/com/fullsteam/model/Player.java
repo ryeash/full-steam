@@ -3,6 +3,7 @@ package com.fullsteam.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
+import org.apache.commons.lang3.StringUtils;
 
 public class Player {
     protected final String id;
@@ -128,7 +129,7 @@ public class Player {
     }
 
     public void setPlayerName(String playerName) {
-        this.playerName = playerName;
+        this.playerName = StringUtils.abbreviate(playerName, 25);
     }
 
     public double getX() {

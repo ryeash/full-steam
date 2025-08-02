@@ -12,6 +12,8 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
+import io.netty.handler.codec.http.websocketx.extensions.WebSocketServerExtensionHandler;
+import io.netty.handler.codec.http.websocketx.extensions.compression.PerMessageDeflateServerExtensionHandshaker;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +48,8 @@ public class GameServer {
                             pipeline.addLast(new HttpServerCodec());
                             pipeline.addLast(new HttpObjectAggregator(65536));
                             pipeline.addLast(new ChunkedWriteHandler());
-                            pipeline.addLast(new WebSocketServerProtocolHandler("/game", true));
+                            pipeline.addLast(new WebSocketServerExtensionHandler(new PerMessageDeflateServerExtensionHandshaker(0)));
+                            pipeline.addLast(new WebSocketServerProtocolHandler("/game", null, true, 65536, false, true, 15000));
                             pipeline.addLast(new ServerRequestHandler(gameLobby));
                             pipeline.addLast(new GameWebSocketHandler(gameLobby));
                         }
