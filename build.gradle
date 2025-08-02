@@ -40,7 +40,3 @@ shadowJar {
     archiveClassifier.set('')
     zip64 = true
 }
-
-tasks.register('stage') {
-    dependsOn shadowJar
-}

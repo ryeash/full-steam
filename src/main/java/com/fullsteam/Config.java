@@ -31,7 +31,7 @@ public class Config {
     public static final ScheduledExecutorService EXECUTOR = Executors.newScheduledThreadPool(8);
 
     // --- Server Configuration ---
-    public static final int PORT = getInt("PORT", 8080);
+    public static final int PORT = getInt("server.port", 8080);
 
     // AI
     public static final double VISION_RANGE = getDouble("ai.vision_range", 450.0);
