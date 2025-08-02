@@ -103,12 +103,12 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         long warningDelay = ZOMBIE_TIME_BETWEEN_WAVES_MS - WAVE_WARNING_TIME_MS;
         if (warningDelay > 0) {
             final int nextWaveNumber = this.waveNumber + 1;
-            gameLoop.schedule(() -> {
+            schedule(() -> {
                 // Check if the game is still running to avoid sending messages after game over
                 if (System.currentTimeMillis() < roundEndTime && !isRoundOver) {
                     sendGameEvent(GameEvent.yellow("Wave " + nextWaveNumber + " is incoming!"));
                 }
-            }, warningDelay, TimeUnit.MILLISECONDS);
+            }, warningDelay);
         }
     }
 

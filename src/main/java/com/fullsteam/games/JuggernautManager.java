@@ -64,12 +64,12 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    public void handlePlayerInput(String playerId, PlayerInput input) {
+    public void acceptPlayerInput(String playerId, PlayerInput input) {
         if (team1Juggernaut == null || team2Juggernaut == null) {
             // freeze until the juggernauts are selected
             return;
         }
-        super.handlePlayerInput(playerId, input);
+        super.acceptPlayerInput(playerId, input);
     }
 
     @Override
@@ -128,10 +128,10 @@ public class JuggernautManager extends AbstractTeamBasedManager {
         sendGameEvent(GameEvent.info("Starting new round!"));
         sendGameEvent(GameEvent.blue("Will select new juggernauts in " + (JUGGERNAUT_SELECTION_DELAY_MS / 1000) + " seconds"));
         players.values().forEach(this::setValidSpawnPosition);
-        gameLoop.schedule(() -> {
+        schedule(() -> {
             selectNewJuggernautForTeam(1);
             selectNewJuggernautForTeam(2);
-        }, JUGGERNAUT_SELECTION_DELAY_MS, TimeUnit.MILLISECONDS);
+        }, JUGGERNAUT_SELECTION_DELAY_MS);
     }
 
     private void selectNewJuggernautForTeam(int team) {

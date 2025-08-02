@@ -22,8 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -39,14 +37,13 @@ public class GameLobby {
 
     private final AtomicInteger globalPlayerCount = new AtomicInteger(0);
     private final Map<Long, AbstractGameStateManager> activeGames = new ConcurrentHashMap<>();
-    private final ScheduledExecutorService lobbyMaintenanceExecutor = Executors.newSingleThreadScheduledExecutor();
     private final List<GameMode> GAME_ROTATION = new ArrayList<>();
 
     record GameMode(Class<? extends AbstractGameStateManager> type, Supplier<AbstractGameStateManager> builder) {
     }
 
     public GameLobby() {
-        lobbyMaintenanceExecutor.scheduleAtFixedRate(this::cleanupEmptyGames, CLEANUP_INTERVAL_SECONDS, CLEANUP_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        Config.EXECUTOR.scheduleAtFixedRate(this::cleanupEmptyGames, CLEANUP_INTERVAL_SECONDS, CLEANUP_INTERVAL_SECONDS, TimeUnit.SECONDS);
         logger.info("Lobby maintenance task scheduled to run every {} seconds.", CLEANUP_INTERVAL_SECONDS);
         addGameMode(TeamDeathmatchManager.class, () -> new TeamDeathmatchManager(this));
         addGameMode(CaptureTheFlagManager.class, () -> new CaptureTheFlagManager(this));
@@ -77,10 +74,6 @@ public class GameLobby {
 
     public void addGameMode(Class<? extends AbstractGameStateManager> type, Supplier<AbstractGameStateManager> builder) {
         GAME_ROTATION.add(new GameMode(type, builder));
-    }
-
-    public void joinGame(Channel ctx) {
-        joinGame(ctx, null, null);
     }
 
     public void joinGame(Channel channel, String gameIdStr, String gameTypeStr) {
@@ -232,11 +225,6 @@ public class GameLobby {
      */
     public void playerDisconnected() {
         globalPlayerCount.decrementAndGet();
-    }
-
-    public void shutdown() {
-        logger.info("Shutting down GameLobby and all active games...");
-        lobbyMaintenanceExecutor.shutdownNow();
     }
 
     public int getGlobalPlayerCount() {

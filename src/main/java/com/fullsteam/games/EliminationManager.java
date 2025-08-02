@@ -90,7 +90,7 @@ public class EliminationManager extends AbstractTeamBasedManager {
                     sendGameEvent(GameEvent.info("The round is a draw"));
                 }
             }
-            gameLoop.schedule(this::respawnPlayers, Config.NEXT_ROUND_DELAY_MS, TimeUnit.MILLISECONDS);
+            schedule(this::respawnPlayers, Config.NEXT_ROUND_DELAY_MS);
         }
         return false;
     }

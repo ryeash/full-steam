@@ -29,7 +29,6 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 import static com.fullsteam.Config.MAX_GLOBAL_PLAYERS;
-import static io.netty.handler.codec.http.HttpHeaderNames.CACHE_CONTROL;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONNECTION;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_TYPE;
 import static io.netty.handler.codec.http.HttpHeaderNames.DATE;
@@ -48,7 +47,6 @@ public class HttpStaticFileServerHandler extends SimpleChannelInboundHandler<Ful
     private static final Logger log = LoggerFactory.getLogger(HttpStaticFileServerHandler.class);
     public static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
     public static final String HTTP_DATE_GMT_TIMEZONE = "GMT";
-    public static final int HTTP_CACHE_SECONDS = 60;
     private static final long startup = System.currentTimeMillis();
     private final GameLobby gameLobby;
 
@@ -94,7 +92,7 @@ public class HttpStaticFileServerHandler extends SimpleChannelInboundHandler<Ful
         HttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(bytes));
         HttpUtil.setContentLength(response, fileLength);
         setContentTypeHeader(response, file);
-        setDateAndCacheHeaders(response, file);
+        setDateAndCacheHeaders(response);
         if (HttpUtil.isKeepAlive(request)) {
             response.headers().set(CONNECTION, HttpHeaderValues.KEEP_ALIVE);
         }
@@ -138,10 +136,9 @@ public class HttpStaticFileServerHandler extends SimpleChannelInboundHandler<Ful
     /**
      * Sets the Date and Cache headers for the HTTP Response
      *
-     * @param response    HTTP response
-     * @param fileToCache file to extract content type
+     * @param response HTTP response
      */
-    private static void setDateAndCacheHeaders(HttpResponse response, File fileToCache) {
+    private static void setDateAndCacheHeaders(HttpResponse response) {
         SimpleDateFormat dateFormatter = new SimpleDateFormat(HTTP_DATE_FORMAT, Locale.US);
         dateFormatter.setTimeZone(TimeZone.getTimeZone(HTTP_DATE_GMT_TIMEZONE));
 
@@ -150,9 +147,7 @@ public class HttpStaticFileServerHandler extends SimpleChannelInboundHandler<Ful
         response.headers().set(DATE, dateFormatter.format(time.getTime()));
 
         // Add cache headers
-        time.add(Calendar.SECOND, HTTP_CACHE_SECONDS);
         response.headers().set(EXPIRES, dateFormatter.format(time.getTime()));
-        response.headers().set(CACHE_CONTROL, "private, max-age=" + HTTP_CACHE_SECONDS);
         response.headers().set(LAST_MODIFIED, dateFormatter.format(new Date(startup)));
     }
 

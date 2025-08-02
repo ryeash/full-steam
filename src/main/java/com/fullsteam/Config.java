@@ -1,6 +1,8 @@
 package com.fullsteam;
 
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
 public class Config {
@@ -28,6 +30,9 @@ public class Config {
                 .map(mapper)
                 .orElse(fallback);
     }
+
+    // global scheduler
+    public static final ScheduledExecutorService EXECUTOR = Executors.newScheduledThreadPool(8);
 
     // --- Server Configuration ---
     public static final int PORT = getInt("PORT", 8080);

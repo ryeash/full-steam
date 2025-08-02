@@ -62,9 +62,9 @@ public class WeaponFactory {
         addPreset(new Weapon(
                 "Minigun",
                 "M",
-                42, // Fire Rate: 50ms cooldown (max)
+                43, // Fire Rate: 50ms cooldown (max)
                 5,  // Damage: 20 (low)
-                2,  // Range: 200 (very short)
+                1,  // Range: 200 (very short)
                 12,  // Speed: 7.5 (average)
                 0,  // Accuracy: 0.4 spread (very low)
                 0,  // Multi-shot: 1 pellet
@@ -105,8 +105,8 @@ public class WeaponFactory {
                 5,  // Damage: 20 per pellet (medium potential)
                 2,  // Range: 200 (very short)
                 0,  // Speed: 6.0 (slow)
-                0,  // Accuracy: 0.4 spread (max spread)
-                60, // Multi-shot: 6 pellets
+                -10,  // Accuracy: 0.4 spread (max spread)
+                70, // Multi-shot: 7 pellets
                 4,  // Magazine Size: 14 rounds
                 2   // Reload Speed: 4.8s (very slow)
         ));

@@ -54,7 +54,7 @@ public class AIPlayer extends Player {
         super(id, "AI - " + RandomNames.randomName(), x, y, team, WeaponFactory.getRandomWeapon());
         this.aiStrategy = aiStrategy;
         this.archetype = archetype;
-        this.reactionTimeMs = Config.BASE_REACTION_TIME_MS + (long) (ThreadLocalRandom.current().nextGaussian() * 50);
+        this.reactionTimeMs = Config.BASE_REACTION_TIME_MS + (long) (ThreadLocalRandom.current().nextDouble() * 50);
         this.aimInaccuracyRadians = Math.max(0.01, BASE_AIM_INACCURACY_RADIANS + (ThreadLocalRandom.current().nextDouble() - 0.4) * 0.04);
         this.strafeInterval = BASE_STRAFE_INTERVAL_MS + (long) (ThreadLocalRandom.current().nextGaussian() * 300);
     }
@@ -155,7 +155,7 @@ public class AIPlayer extends Player {
      * @return An Optional ShootAction if a valid target is found and the AI can fire.
      */
     private Optional<ShootAction> checkForShootingOpportunity(Collection<Player> allPlayers, List<Obstacle> obstacles) {
-        if (isReloading() || !canShoot()) {
+        if (!canShoot()) {
             return Optional.empty();
         }
 

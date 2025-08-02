@@ -103,7 +103,7 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
                 break;
             case "playerInput":
                 PlayerInput input = Jackson.treeToValue(rootNode, PlayerInput.class);
-                game.handlePlayerInput(playerId, input);
+                game.acceptPlayerInput(playerId, input);
                 break;
             case "configChange":
                 PlayerConfigRequest request = Jackson.treeToValue(rootNode, PlayerConfigRequest.class);

@@ -59,8 +59,8 @@ public class Weapon {
         // Range: Base 100 units. Each point adds 50 units.
         this.bulletRange = 100 + (rangePoints * 50);
 
-        // Bullet Speed: Base 5.0 units/tick. Each point adds 0.5.
-        this.bulletSpeed = 5.0 + (speedPoints * 0.5);
+        // Bullet Speed: Base 3.0 units/tick. Each point adds 0.7.
+        this.bulletSpeed = 3.0 + (speedPoints * 0.7);
 
         // Accuracy (Spread in radians): Base 0.5. Each point reduces spread by 0.015.
         this.bulletSpread = Math.max(0.0, 0.75 - (accuracyPoints * 0.05));

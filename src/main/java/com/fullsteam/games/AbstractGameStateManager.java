@@ -34,8 +34,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -66,13 +65,15 @@ public abstract class AbstractGameStateManager {
     protected final Long gameId = gameIdGenerator.getAndIncrement();
     protected final Map<String, Player> players = new ConcurrentHashMap<>();
     protected final Map<String, Channel> playerChannels = new ConcurrentHashMap<>();
+    protected final Map<String, PlayerInput> playerInput = new ConcurrentHashMap<>();
     protected final List<Bullet> bullets = new CopyOnWriteArrayList<>();
     protected final List<Obstacle> obstacles = new CopyOnWriteArrayList<>();
     protected final List<Hazard> hazards = new CopyOnWriteArrayList<>();
     protected final List<DeathMarker> deathMarkers = new CopyOnWriteArrayList<>();
     protected final List<GameEvent> gameEvents = new CopyOnWriteArrayList<>();
-    protected final ScheduledExecutorService gameLoop = Executors.newScheduledThreadPool(2);
     protected boolean isRoundOver = false;
+    protected ScheduledFuture<?> scheduledFuture;
+
 
     public AbstractGameStateManager(GameLobby gameLobby) {
         this.gameLobby = gameLobby;
@@ -96,10 +97,14 @@ public abstract class AbstractGameStateManager {
         return !players.values().stream().allMatch(p -> p instanceof AIPlayer);
     }
 
+    public void schedule(Runnable runnable, long delayMs) {
+        Config.EXECUTOR.schedule(runnable, delayMs, TimeUnit.MILLISECONDS);
+    }
+
     public void startGameLoop() {
         startNewRound();
         // The TeamBalancer will automatically add AI players, so the initial call is no longer needed.
-        gameLoop.scheduleAtFixedRate(this::updateGame, 0, 1000 / TICK_RATE, TimeUnit.MILLISECONDS);
+        this.scheduledFuture = Config.EXECUTOR.scheduleAtFixedRate(this::updateGame, 0, 1000 / TICK_RATE, TimeUnit.MILLISECONDS);
         log.info("Game loop started at {} FPS", TICK_RATE);
     }
 
@@ -133,8 +138,13 @@ public abstract class AbstractGameStateManager {
     public void removePlayer(String playerId) {
         players.remove(playerId);
         playerChannels.remove(playerId);
+        playerInput.remove(playerId);
         log.info("Player {} left the game", playerId);
         sendGameState();
+    }
+
+    public void acceptPlayerInput(String playerId, PlayerInput input) {
+        playerInput.put(playerId, input);
     }
 
     public void handlePlayerInput(String playerId, PlayerInput input) {
@@ -225,6 +235,9 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void fireWeapon(Player player, double aimAngle) {
+        if (!player.canShoot()) {
+            return;
+        }
         Weapon weapon = player.getWeapon();
         double bulletX = player.getX() + (PLAYER_SIZE / 2.0);
         double bulletY = player.getY() + (PLAYER_SIZE / 2.0);
@@ -254,7 +267,7 @@ public abstract class AbstractGameStateManager {
                 isRoundOver = checkEndConditions();
                 if (isRoundOver) {
                     sendGameEvent(GameEvent.blue("Next round starting in %s seconds".formatted(Config.NEXT_ROUND_DELAY_MS / 1000)));
-                    gameLoop.schedule(this::startNewRound, Config.NEXT_ROUND_DELAY_MS, TimeUnit.MILLISECONDS);
+                    schedule(this::startNewRound, Config.NEXT_ROUND_DELAY_MS);
                 }
             }
             checkAfkPlayers();
@@ -421,6 +434,10 @@ public abstract class AbstractGameStateManager {
                 }
             } else {
                 // Apply velocity for human players
+                PlayerInput input = playerInput.get(player.getId());
+                if (input != null) {
+                    handlePlayerInput(player.getId(), input);
+                }
                 player.update();
             }
 
@@ -730,7 +747,9 @@ public abstract class AbstractGameStateManager {
     }
 
     public void shutdown() {
-        gameLoop.shutdown();
+        if (scheduledFuture != null) {
+            scheduledFuture.cancel(true);
+        }
     }
 
     public int getPlayerCount() {
