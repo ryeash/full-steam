@@ -670,6 +670,9 @@
                         break;
                     case 'Elimination':
                         this.shouldDrawRespawnOverlay = false;
+                        team1ScoreEl.innerHTML = `${gameInfo.team1Score} <span style="font-size: 0.7em; color: #ccc;">(${gameInfo.team1PlayersAlive} alive)</span>`;
+                        team2ScoreEl.innerHTML = `${gameInfo.team2Score} <span style="font-size: 0.7em; color: #ccc;">(${gameInfo.team2PlayersAlive} alive)</span>`;
+                        break;
                     default:
                         // Default handling for TDM, KOTH, CTF, Oddball etc.
                         team1ScoreEl.textContent = `${Math.floor(gameInfo.team1Score)}`;
