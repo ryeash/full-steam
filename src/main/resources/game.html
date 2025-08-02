@@ -255,7 +255,7 @@
             <p>🎮 Left Stick: Move | Right Stick: Aim | Y/△: Swap Weapon | X/□: Reload | RT/R2: Shoot</p>
         </div>
         <div style="text-align: center; margin-top: 20px; padding: 0 5px;">
-             <button id="leaveGameBtn">Leave Game</button>
+            <button id="leaveGameBtn">Leave Game</button>
         </div>
     </div>
 </div>
@@ -408,6 +408,9 @@
                 this.canvas.focus();
             });
             document.getElementById('leaveGameBtn').addEventListener('click', () => {
+                if (this.ws) {
+                    this.ws.close();
+                }
                 window.location.href = 'lobby.html';
             });
             document.getElementById('switchTeamBtn').addEventListener('click', () => {

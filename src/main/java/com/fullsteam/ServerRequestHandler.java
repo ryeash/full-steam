@@ -42,15 +42,15 @@ import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
-public class HttpStaticFileServerHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+public class ServerRequestHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
-    private static final Logger log = LoggerFactory.getLogger(HttpStaticFileServerHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(ServerRequestHandler.class);
     public static final String HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
     public static final String HTTP_DATE_GMT_TIMEZONE = "GMT";
     private static final long startup = System.currentTimeMillis();
     private final GameLobby gameLobby;
 
-    public HttpStaticFileServerHandler(GameLobby gameLobby) {
+    public ServerRequestHandler(GameLobby gameLobby) {
         this.gameLobby = gameLobby;
     }
 
