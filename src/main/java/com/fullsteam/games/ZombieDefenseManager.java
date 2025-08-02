@@ -196,9 +196,9 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     protected void generateObstacles() {
         obstacles.clear();
         // Create a "house" in the middle of the map.
-        double houseWidth = 300;
-        double houseHeight = 200;
-        double wallThickness = 20;
+        double houseWidth = 350;
+        double houseHeight = 250;
+        double wallThickness = 5;
         double doorSize = 60;
 
         double centerX = Config.GAME_WIDTH / 2.0;
