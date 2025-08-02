@@ -182,6 +182,53 @@
             background-color: #c7574e;
         }
 
+        /* --- Styles for collapsible controls --- */
+        #controls-details {
+            margin-top: 20px;
+            border-top: 1px solid #444;
+            padding-top: 10px;
+        }
+
+        #controls-details summary {
+            cursor: pointer;
+            font-weight: bold;
+            color: #ccc;
+            list-style: none; /* Hide the default triangle */
+            outline: none; /* Hide focus ring on click */
+        }
+
+        #controls-details summary::-webkit-details-marker {
+            display: none; /* Hide the default triangle in Chrome/Safari */
+        }
+
+        #controls-details summary:hover {
+            color: white;
+        }
+
+        #controls-details summary::before {
+            content: '▶ '; /* Right-pointing triangle for collapsed state */
+            font-size: 0.8em;
+            margin-right: 5px;
+        }
+
+        #controls-details[open] > summary::before {
+            content: '▼ '; /* Down-pointing triangle for expanded state */
+        }
+
+        #controls-details[open] > summary {
+            margin-bottom: 10px;
+        }
+
+        #controls {
+            font-size: 0.9em;
+            color: #aaa;
+            padding-left: 15px; /* Indent the controls text */
+        }
+
+        #controls p {
+            margin: 5px 0;
+        }
+
         /* --- Styles for the Redesigned Info Bar --- */
         .game-info-left, .game-info-right {
             display: flex;
@@ -249,17 +296,18 @@
                 <!-- Team 2 players will be populated here -->
             </ul>
         </div>
-        <div id="controls" style="text-align: left; padding-left: 10px;">
-            <p><strong>Controls:</strong></p>
-            <p>⌨️ WASD/Arrows: Move | R: Reload | Mouse: Aim & Shoot</p>
-            <p>🎮 Left Stick: Move | Right Stick: Aim | Y/△: Swap Weapon | X/□: Reload | RT/R2: Shoot</p>
-        </div>
+        <details id="controls-details">
+            <summary>Controls</summary>
+            <div id="controls">
+                <p>⌨️ WASD/Arrows: Move | R: Reload | Mouse: Aim & Shoot</p>
+                <p>🎮 L Stick: Move | R Stick: Aim | Y/△: Swap Weapon | X/□: Reload | RT/R2: Shoot</p>
+            </div>
+        </details>
         <div style="text-align: center; margin-top: 20px; padding: 0 5px;">
             <button id="leaveGameBtn">Leave Game</button>
         </div>
     </div>
 </div>
-
 
 <script>
     class Game {
