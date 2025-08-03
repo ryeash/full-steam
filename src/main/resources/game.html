@@ -501,6 +501,7 @@
             this.gamepad = null;
             this.isGamepadActive = false;
             this.gamepadAim = { x: 1, y: 0 };
+            this.gamepadMoveDir = { x: 0, y: 0 };
             this.gamepadWeaponSwapPressed = false;
 
             this.latency = 0;
@@ -632,9 +633,24 @@
                                    Math.abs(this.gamepad.axes[3]) > 0.1;
                 const buttonPressed = this.gamepad.buttons.some(b => b.pressed);
                 this.isGamepadActive = stickMoved || buttonPressed;
+
+                const leftStickX = this.gamepad.axes[0];
+                const leftStickY = this.gamepad.axes[1];
+                const deadzone = 0.25;
+                const moveMagnitude = Math.sqrt(leftStickX * leftStickX + leftStickY * leftStickY);
+
+                if (moveMagnitude > deadzone) {
+                    this.gamepadMoveDir.x = leftStickX / moveMagnitude;
+                    this.gamepadMoveDir.y = leftStickY / moveMagnitude;
+                } else {
+                    this.gamepadMoveDir.x = 0;
+                    this.gamepadMoveDir.y = 0;
+                }
             } else {
                 this.gamepad = null;
                 this.isGamepadActive = false;
+                this.gamepadMoveDir.x = 0;
+                this.gamepadMoveDir.y = 0;
             }
         }
 
@@ -866,7 +882,40 @@
                 });
             }
 
-            if (!this.isGamepadActive && this.mouse.x && this.mouse.y) {
+            const deadzone = 0.25;
+            const rightStickX = this.gamepad ? this.gamepad.axes[2] || 0 : 0;
+            const rightStickY = this.gamepad ? this.gamepad.axes[3] || 0 : 0;
+            const aimMagnitude = Math.sqrt(rightStickX * rightStickX + rightStickY * rightStickY);
+
+            if (this.isGamepadActive && aimMagnitude > deadzone) {
+                const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
+                if (localPlayer) {
+                    // Get the normalized direction of the stick
+                    const aimDirX = rightStickX / aimMagnitude;
+                    const aimDirY = rightStickY / aimMagnitude;
+
+                    // Remap the magnitude from [deadzone, 1.0] to [0, 1.0] for a smooth response
+                    const effectiveMagnitude = (aimMagnitude - deadzone) / (1 - deadzone);
+
+                    // This makes the crosshair appear close for small movements and move further out for larger ones.
+                    const crosshairDist = 40 + (effectiveMagnitude * 60);
+
+                    const playerCenterX = localPlayer.x + 10;
+                    const playerCenterY = localPlayer.y + 10;
+
+                    const crosshairX = playerCenterX + aimDirX * crosshairDist;
+                    const crosshairY = playerCenterY + aimDirY * crosshairDist;
+
+                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(crosshairX - 8, crosshairY);
+                    this.ctx.lineTo(crosshairX + 8, crosshairY);
+                    this.ctx.moveTo(crosshairX, crosshairY - 8);
+                    this.ctx.lineTo(crosshairX, crosshairY + 8);
+                    this.ctx.stroke();
+                }
+            } else if (!this.isGamepadActive && this.mouse.x && this.mouse.y) {
                 this.ctx.strokeStyle = '#fff';
                 this.ctx.lineWidth = 1;
                 this.ctx.beginPath();
