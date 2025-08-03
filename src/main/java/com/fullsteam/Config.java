@@ -68,6 +68,7 @@ public class Config {
     public static final double HAZARD_SLOW_FACTOR = getDouble("game.hazard.slow_factor", 0.5); // 50% speed
     public static final double HAZARD_DAMAGE_FACTOR = getDouble("game.hazard.damage_factor", 0.5); // damage per tick;
     public static final double POWER_UP_SPEED_BOOST_FACTOR = getDouble("game.powerup.speed_boost_factor", 1.5);
+    public static final double DAMAGE_BOOST_MULTIPLIER = getDouble("game.powerup.damage_boost_multiplier", 1.5);
 
     // --- Capture the Flag (CTF) Game Mode ---
     public static final int CTF_SCORE_TO_WIN = getInt("game.ctf.score_to_win", 3);
@@ -106,4 +107,7 @@ public class Config {
     public static final double ESCORT_OBSTACLE_SPEED = getDouble("game.escort.obstacle_speed", 1.0);
     public static final double ESCORT_PLAYER_PROXIMITY = getDouble("game.escort.player_proximity", 100.0);
 
+    // --- Lone Wolf Game Mode ---
+    public static final double LONE_WOLF_HEALTH_MULTIPLIER = getDouble("game.lonewolf.health_multiplier", 5.0);
+    public static final double LONE_WOLF_DAMAGE_BOOST_PER_DEATH = getDouble("game.lonewolf.damage_boost_per_death", 0.50);
 }

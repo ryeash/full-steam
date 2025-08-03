@@ -39,6 +39,8 @@ public class Player {
     protected long nextShotTime;
     public long speedBoostEndTime;
     public long armorUpEndTime;
+    public long damageBoostEndTime;
+    public double damageMultiplier;
 
     public Player(String id, double x, double y, int team) {
         this(id, id, x, y, team, WeaponFactory.getDefaultWeapon());
@@ -69,6 +71,8 @@ public class Player {
         this.nextShotTime = 0;
         this.speedBoostEndTime = 0;
         this.armorUpEndTime = 0;
+        this.damageBoostEndTime = 0;
+        this.damageMultiplier = 1.0;
     }
 
     public void update() {
@@ -322,6 +326,8 @@ public class Player {
     public void resetStats() {
         this.kills = 0;
         this.deaths = 0;
+        this.armorUpEndTime = 0;
+        this.speedBoostEndTime = 0;
     }
 
     public long getSpeedBoostEndTime() {
@@ -334,5 +340,22 @@ public class Player {
 
     public void applyArmorUp(long durationMs) {
         this.armorUpEndTime = System.currentTimeMillis() + durationMs;
+    }
+
+    public void applyDamageBoost(long durationMs) {
+        this.damageBoostEndTime = System.currentTimeMillis() + durationMs;
+        this.damageMultiplier = Config.DAMAGE_BOOST_MULTIPLIER;
+    }
+
+    public long getDamageBoostEndTime() {
+        return damageBoostEndTime;
+    }
+
+    public double getDamageMultiplier() {
+        return damageMultiplier;
+    }
+
+    public void setDamageMultiplier(double damageMultiplier) {
+        this.damageMultiplier = damageMultiplier;
     }
 }

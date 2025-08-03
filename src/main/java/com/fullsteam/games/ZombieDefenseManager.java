@@ -6,6 +6,7 @@ import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.ZombieAIStrategy;
@@ -87,6 +88,16 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         }
     }
 
+    @Override
+    protected void applyPowerUp(Player player, PowerUp powerUp) {
+        // Zombies (Team 2) cannot pick up power-ups.
+        if (player.getTeam() == 2) {
+            return; // Do nothing if a zombie touches a power-up
+        }
+        // If it's a human player, let the default logic handle it.
+        super.applyPowerUp(player, powerUp);
+    }
+
     private void spawnNextWave() {
         waveNumber++;
         int zombiesToSpawn = 5 + (waveNumber * 3); // Waves get progressively harder
@@ -143,27 +154,9 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     }
 
     private void setZombieSpawnPosition(Player zombie) {
-        // Logic to spawn zombies around the map edges, outside the house
-        double x, y;
-        int edge = ThreadLocalRandom.current().nextInt(4);
-        switch (edge) {
-            case 0: // Top edge
-                x = ThreadLocalRandom.current().nextDouble(Config.GAME_WIDTH);
-                y = 10;
-                break;
-            case 1: // Bottom edge
-                x = ThreadLocalRandom.current().nextDouble(Config.GAME_WIDTH);
-                y = Config.GAME_HEIGHT - Config.PLAYER_SIZE - 10;
-                break;
-            case 2: // Left edge
-                x = 10;
-                y = ThreadLocalRandom.current().nextDouble(Config.GAME_HEIGHT);
-                break;
-            default: // Right edge
-                x = Config.GAME_WIDTH - Config.PLAYER_SIZE - 10;
-                y = ThreadLocalRandom.current().nextDouble(Config.GAME_HEIGHT);
-                break;
-        }
+        // Zombies now only spawn along the top edge of the map.
+        double x = ThreadLocalRandom.current().nextDouble(Config.GAME_WIDTH);
+        double y = 10; // Spawn near the top
         zombie.setX(x);
         zombie.setY(y);
     }
@@ -195,43 +188,45 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     @Override
     protected void generateObstacles() {
         obstacles.clear();
-        // Create a "house" in the middle of the map.
+        // Create a "bunker" at the bottom of the map.
         double houseWidth = 350;
         double houseHeight = 250;
-        double wallThickness = 5;
+        double wallThickness = 15;
         double doorSize = 60;
 
         double centerX = Config.GAME_WIDTH / 2.0;
-        double centerY = Config.GAME_HEIGHT / 2.0;
+        // Move the house to be against the bottom of the screen
+        double bottom = Config.GAME_HEIGHT - 20;
+        double top = bottom - houseHeight;
         double left = centerX - houseWidth / 2;
         double right = centerX + houseWidth / 2;
-        double top = centerY - houseHeight / 2;
-        double bottom = centerY + houseHeight / 2;
+
 
         // Top wall (with a door gap)
         obstacles.add(Obstacle.createRectangle(left, top, (houseWidth - doorSize) / 2, wallThickness));
         obstacles.add(Obstacle.createRectangle(centerX + doorSize / 2, top, (houseWidth - doorSize) / 2, wallThickness));
 
-        // Bottom wall (with a door gap)
-        obstacles.add(Obstacle.createRectangle(left, bottom - wallThickness, (houseWidth - doorSize) / 2, wallThickness));
-        obstacles.add(Obstacle.createRectangle(centerX + doorSize / 2, bottom - wallThickness, (houseWidth - doorSize) / 2, wallThickness));
+        // Bottom wall (solid)
+        obstacles.add(Obstacle.createRectangle(left, bottom - wallThickness, houseWidth, wallThickness));
 
         // Left wall
         obstacles.add(Obstacle.createRectangle(left, top, wallThickness, houseHeight));
         // Right wall
         obstacles.add(Obstacle.createRectangle(right - wallThickness, top, wallThickness, houseHeight));
 
-        log.info("Generated a house structure for Zombie Defense.");
+        log.info("Generated a bunker structure for Zombie Defense.");
     }
 
     @Override
     protected void setValidSpawnPosition(Player player) {
-        // Human players should spawn inside the house
+        // Human players should spawn inside the bunker
         if (player.getTeam() == 1) {
             double houseWidth = 300;
             double houseHeight = 200;
             double centerX = Config.GAME_WIDTH / 2.0;
-            double centerY = Config.GAME_HEIGHT / 2.0;
+            double bottom = Config.GAME_HEIGHT - 20;
+            double centerY = bottom - houseHeight / 2.0;
+
             player.setX(centerX + (ThreadLocalRandom.current().nextDouble() - 0.5) * (houseWidth - 100));
             player.setY(centerY + (ThreadLocalRandom.current().nextDouble() - 0.5) * (houseHeight - 100));
         }

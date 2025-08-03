@@ -41,23 +41,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static com.fullsteam.Config.AFK_TIMEOUT_MS;
-import static com.fullsteam.Config.DEATH_MARKER_DURATION_MS;
-import static com.fullsteam.Config.GAME_HEIGHT;
-import static com.fullsteam.Config.GAME_WIDTH;
-import static com.fullsteam.Config.HAZARD_COUNT;
-import static com.fullsteam.Config.HAZARD_DAMAGE_FACTOR;
-import static com.fullsteam.Config.HAZARD_SLOW_FACTOR;
-import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
-import static com.fullsteam.Config.OBSTACLE_COUNT;
-import static com.fullsteam.Config.PLAYER_SIZE;
-import static com.fullsteam.Config.POWER_UP_SPEED_BOOST_FACTOR;
-import static com.fullsteam.Config.RESPAWN_DELAY_MS;
-import static com.fullsteam.Config.ROUND_DURATION_SECONDS;
-import static com.fullsteam.Config.SPAWN_HORIZONTAL_PADDING;
-import static com.fullsteam.Config.SPAWN_MIDFIELD_BUFFER;
-import static com.fullsteam.Config.SPAWN_VERTICAL_PADDING;
-import static com.fullsteam.Config.TICK_RATE;
+import static com.fullsteam.Config.*;
 
 public abstract class AbstractGameStateManager {
     protected final Logger log = LoggerFactory.getLogger(getClass());
@@ -413,10 +397,15 @@ public abstract class AbstractGameStateManager {
 
             // Apply movement and environmental effects.
             player.restoreSpeed(); // Start with default speed.
+            resetDamageMultiplier(player);
 
             // Speed boost overrides any slowing effects.
             if (System.currentTimeMillis() < player.getSpeedBoostEndTime()) {
                 player.setSpeed(player.getDefaultSpeed() * POWER_UP_SPEED_BOOST_FACTOR);
+            }
+
+            if (System.currentTimeMillis() < player.getDamageBoostEndTime()) {
+                player.setDamageMultiplier(Config.DAMAGE_BOOST_MULTIPLIER);
             }
 
             // Process hazards for damage and (if not boosted) slowing.
@@ -482,6 +471,10 @@ public abstract class AbstractGameStateManager {
             player.setX(Math.max(0, Math.min(GAME_WIDTH - PLAYER_SIZE, player.getX())));
             player.setY(Math.max(0, Math.min(GAME_HEIGHT - PLAYER_SIZE, player.getY())));
         }
+    }
+
+    protected void resetDamageMultiplier(Player player) {
+        player.setDamageMultiplier(1.0);
     }
 
     protected void updateBullets() {
@@ -576,6 +569,9 @@ public abstract class AbstractGameStateManager {
                 break;
             case ARMOR_UP:
                 player.applyArmorUp(3000); // 3-second invincibility
+                break;
+            case DAMAGE_BOOST:
+                player.applyDamageBoost(5000);
                 break;
         }
     }

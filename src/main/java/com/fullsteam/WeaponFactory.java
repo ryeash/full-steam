@@ -114,10 +114,10 @@ public class WeaponFactory {
         addPreset(new Weapon(
                 "Twin Sixes",
                 "T6s",
-                20, // Fire Rate: 500ms cooldown (medium)
+                23, // Fire Rate: 500ms cooldown (medium)
                 25, // Damage: 60 (high)
                 4,  // Range: 350 (short-medium)
-                21, // Speed: 12.5 (very fast)
+                18, // Speed: 12.5 (very fast)
                 8, // Accuracy: 0.25 spread (accurate)
                 10, // Multi-shot: 2 pellets
                 2,  // Magazine Size: 12 rounds

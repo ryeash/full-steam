@@ -7,6 +7,7 @@ import com.fullsteam.games.EscortManager;
 import com.fullsteam.games.FreeForAllManager;
 import com.fullsteam.games.JuggernautManager;
 import com.fullsteam.games.KingOfTheHillManager;
+import com.fullsteam.games.LoneWolfManager;
 import com.fullsteam.games.OddballManager;
 import com.fullsteam.games.TeamDeathmatchManager;
 import com.fullsteam.games.ZombieDefenseManager;
@@ -55,6 +56,7 @@ public class GameLobby {
         addGameMode(KingOfTheHillManager.class, () -> new KingOfTheHillManager(this));
         addGameMode(EscortManager.class, () -> new EscortManager(this));
         addGameMode(FreeForAllManager.class, () -> new FreeForAllManager(this));
+        addGameMode(LoneWolfManager.class, () -> new LoneWolfManager(this));
     }
 
     public List<ActiveGame> getActiveGames() {

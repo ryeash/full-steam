@@ -367,6 +367,17 @@
                     this.elements.team1Score.innerHTML = `${info.team1Score} <span style="font-size: 0.7em; color: #ccc;">(${info.team1PlayersAlive} alive)</span>`;
                     this.elements.team2Score.innerHTML = `${info.team2Score} <span style="font-size: 0.7em; color: #ccc;">(${info.team2PlayersAlive} alive)</span>`;
                 },
+                'LoneWolfManager': (info) => {
+                    this.game.shouldDrawRespawnOverlay = true;
+                    this.elements.yourTeam.style.display = 'inline';
+                    this.elements.switchTeamBtn.style.display = 'none';
+                    this.elements.team1Score.style.display = 'inline';
+                    this.elements.team2Score.style.display = 'inline';
+                    const lives = info.gameModeMetadata.loneWolfLives || 0;
+                    this.elements.team1Score.innerHTML = `Wolf Lives: ${'🐺'.repeat(lives)}`;
+                    const targets = info.gameModeMetadata.hunterTargets || [];
+                    this.elements.team2Score.innerHTML = `Hunters: ${targets.length}`;
+                },
                 'default': (info) => {
                     this.game.shouldDrawRespawnOverlay = true;
                     this.elements.yourTeam.style.display = 'inline';
@@ -409,7 +420,7 @@
             if (!gameState || !gameState.info) return;
 
             this.elements.playerCount.textContent = gameState.players ? gameState.players.length : 0;
-            this.elements.gameModeDisplay.textContent = gameState.info.type;
+            this.elements.gameModeDisplay.textContent = gameState.info.type.replace('Manager', '');
 
             if (gameState.info.roundTimeRemainingSeconds !== undefined) {
                 const totalSeconds = gameState.info.roundTimeRemainingSeconds;
@@ -884,6 +895,7 @@
             this.drawFlags();
             this.drawOddball();
             this.drawPayload();
+            this.drawLoneWolfHud();
             this.drawGameEvents();
         }
 
@@ -897,43 +909,37 @@
 
             this.gameState.powerUps.forEach(powerUp => {
                 const size = 20;
+                const centerX = powerUp.position.x + size / 2;
+                const centerY = powerUp.position.y + size / 2;
+
                 this.ctx.globalAlpha = 0.8;
                 this.ctx.beginPath();
-                this.ctx.arc(powerUp.position.x + size / 2, powerUp.position.y + size / 2, size, 0, 2 * Math.PI);
+                this.ctx.arc(centerX, centerY, size, 0, 2 * Math.PI);
 
-                if (powerUp.type === 'HEALTH_PACK') {
-                    this.ctx.fillStyle = 'rgba(46, 204, 113, 0.2)';
-                } else if (powerUp.type === 'SPEED_BOOST') {
-                    this.ctx.fillStyle = 'rgba(241, 196, 15, 0.2)';
-                } else if (powerUp.type === 'ARMOR_UP') {
-                    this.ctx.fillStyle = 'rgba(52, 152, 219, 0.2)';
+                let icon = '';
+                switch (powerUp.type) {
+                    case 'HEALTH_PACK':
+                        this.ctx.fillStyle = 'rgba(46, 204, 113, 0.7)';
+                        icon = '❤️';
+                        break;
+                    case 'SPEED_BOOST':
+                        this.ctx.fillStyle = 'rgba(241, 196, 15, 0.7)';
+                        icon = '⚡';
+                        break;
+                    case 'ARMOR_UP':
+                        this.ctx.fillStyle = 'rgba(52, 152, 219, 0.7)';
+                        icon = '🛡️';
+                        break;
+                    case 'DAMAGE_BOOST':
+                        this.ctx.fillStyle = 'rgba(229, 57, 53, 0.7)';
+                        icon = '⚔️';
+                        break;
                 }
                 this.ctx.fill();
 
                 this.ctx.globalAlpha = 1.0;
-                if (powerUp.type === 'HEALTH_PACK') {
-                    this.ctx.fillStyle = '#2ecc71'; // Green
-                    this.ctx.fillRect(powerUp.position.x + size / 2 - 2, powerUp.position.y + size / 2 - 7, 4, 14);
-                    this.ctx.fillRect(powerUp.position.x + size / 2 - 7, powerUp.position.y + size / 2 - 2, 14, 4);
-                } else if (powerUp.type === 'SPEED_BOOST') {
-                    this.ctx.fillStyle = '#f1c40f'; // Yellow
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(powerUp.position.x + size / 2 + 6, powerUp.position.y + size / 2 - 8);
-                    this.ctx.lineTo(powerUp.position.x + size / 2 - 4, powerUp.position.y + size / 2 + 2);
-                    this.ctx.lineTo(powerUp.position.x + size / 2 + 2, powerUp.position.y + size / 2 + 2);
-                    this.ctx.lineTo(powerUp.position.x + size / 2 - 6, powerUp.position.y + size / 2 + 12);
-                    this.ctx.fill();
-                } else if (powerUp.type === 'ARMOR_UP') {
-                    this.ctx.fillStyle = '#3498db'; // Blue
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(powerUp.position.x + size / 2, powerUp.position.y + size / 2 - 8);
-                    this.ctx.lineTo(powerUp.position.x + size / 2 + 8, powerUp.position.y + size / 2 - 4);
-                    this.ctx.lineTo(powerUp.position.x + size / 2 + 8, powerUp.position.y + size / 2 + 6);
-                    this.ctx.lineTo(powerUp.position.x + size / 2, powerUp.position.y + size / 2 + 10);
-                    this.ctx.lineTo(powerUp.position.x + size / 2 - 8, powerUp.position.y + size / 2 + 6);
-                    this.ctx.lineTo(powerUp.position.x + size / 2 - 8, powerUp.position.y + size / 2 - 4);
-                    this.ctx.closePath();
-                    this.ctx.fill();
+                if (icon) {
+                    this.ctx.fillText(icon, centerX, centerY);
                 }
             });
 
@@ -1299,6 +1305,9 @@
             this.ctx.textAlign = 'center';
             const baseName = player.playerName || (player.id.startsWith('ai-') ? 'AI' : 'Player');
             let displayName = `${baseName} | ${player.weapon.shortName}`;
+            if (player.damageBoostEndTime > this.gameState.serverTime) {
+                displayName = `⚔️ ${displayName}`;
+            }
             if (player.speedBoostEndTime > this.gameState.serverTime) {
                 displayName = `⚡ ${displayName}`;
             }
@@ -1388,6 +1397,40 @@
             this.ctx.closePath();
             this.ctx.fill();
             this.ctx.stroke();
+            this.ctx.restore();
+        }
+
+        drawLoneWolfHud() {
+            const gameInfo = this.gameState.info;
+            if (!gameInfo || gameInfo.type !== 'LoneWolfManager' || !gameInfo.gameModeMetadata) {
+                return;
+            }
+
+            const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
+            if (!localPlayer || localPlayer.team !== 1) { // Only show for the Lone Wolf
+                return;
+            }
+
+            const targets = gameInfo.gameModeMetadata.hunterTargets || [];
+            if (targets.length === 0) {
+                return;
+            }
+
+            this.ctx.save();
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            this.ctx.font = '16px Arial';
+            this.ctx.textAlign = 'left';
+            this.ctx.textBaseline = 'top';
+            this.ctx.shadowColor = 'black';
+            this.ctx.shadowBlur = 3;
+
+            this.ctx.fillText('Remaining Targets:', 10, 50);
+
+            this.ctx.font = '14px Arial';
+            targets.forEach((name, index) => {
+                this.ctx.fillText(`- ${name}`, 15, 75 + (index * 20));
+            });
+
             this.ctx.restore();
         }
 
