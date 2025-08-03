@@ -37,7 +37,7 @@ public class Config {
     public static final double VISION_RANGE = getDouble("ai.vision_range", 450.0);
     public static final long WANDER_DIRECTION_CHANGE_INTERVAL = getLong("ai.wander_interval_ms", 2000); // ms
     public static final long BASE_REACTION_TIME_MS = getLong("ai.base_reaction_ms", 600);
-    public static final double BASE_AIM_INACCURACY_RADIANS = getDouble("ai.base_aim_inaccuracy", 0.05);
+    public static final double BASE_AIM_INACCURACY_RADIANS = getDouble("ai.base_aim_inaccuracy", 0.1);
     public static final long BASE_STRAFE_INTERVAL_MS = getLong("ai.base_strafe_interval_ms", 1500);
     public static final double AI_MAX_FORCE = getDouble("ai.max_force", 0.2); // The maximum steering force, controls turning ability
 
@@ -69,6 +69,7 @@ public class Config {
     public static final double HAZARD_DAMAGE_FACTOR = getDouble("game.hazard.damage_factor", 0.5); // damage per tick;
     public static final double POWER_UP_SPEED_BOOST_FACTOR = getDouble("game.powerup.speed_boost_factor", 1.5);
     public static final double DAMAGE_BOOST_MULTIPLIER = getDouble("game.powerup.damage_boost_multiplier", 1.5);
+    public static final long RESPAWN_IMMUNITY_DURATION = getLong("game.powerup.damage_boost_multiplier", 1500);
 
     // --- Capture the Flag (CTF) Game Mode ---
     public static final int CTF_SCORE_TO_WIN = getInt("game.ctf.score_to_win", 3);

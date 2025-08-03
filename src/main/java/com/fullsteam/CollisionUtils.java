@@ -90,6 +90,21 @@ public class CollisionUtils {
     }
 
     /**
+     * Checks for collision between a line segment and a circle.
+     * This is useful for detecting collisions of fast-moving projectiles (represented as a line segment
+     * of their travel in one frame) with circular hitboxes.
+     *
+     * @param lineStart    The starting point of the line segment.
+     * @param lineEnd      The ending point of the line segment.
+     * @param circleCenter The center of the circle.
+     * @param radius       The radius of the circle.
+     * @return true if the line segment intersects the circle, false otherwise.
+     */
+    public static boolean checkLineCircleCollision(Vector2D lineStart, Vector2D lineEnd, Vector2D circleCenter, double radius) {
+        return distanceToSegment(circleCenter, lineStart, lineEnd) < radius;
+    }
+
+    /**
      * Helper method to check for intersection between two line segments (p1-p2 and p3-p4).
      */
     private static boolean checkLineLineIntersection(Vector2D p1, Vector2D p2, Vector2D p3, Vector2D p4) {

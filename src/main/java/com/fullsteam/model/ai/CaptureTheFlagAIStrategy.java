@@ -54,7 +54,7 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
 
     /**
      * Handles the AI's behavior when it is carrying the enemy flag.
-     * The primary goal is to return to base, but it will defend itself if an enemy gets too close.
+     * The primary goal is to return to base as quickly as possible to score.
      * @return true if the AI is carrying the flag, false otherwise.
      */
     private boolean handleFlagCarrierLogic(AIPlayer self, Collection<Player> allPlayers, Flag myFlag, boolean amICarryingFlag) {
@@ -62,19 +62,12 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
             return false;
         }
 
-        // Default action: run to our base to score.
+        // Priority #1 for a flag carrier is to get back to base and score.
+        // It will ignore all other distractions and sprint home.
         self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
         self.setObjectiveTargetPoint(myFlag.basePosition());
 
-        // If an enemy is very close, switch from running to fighting.
-        // This is a defensive reaction to an immediate threat.
-        Player closestEnemy = findClosestEnemy(self, allPlayers);
-        if (closestEnemy != null && isInRange(self, closestEnemy, 200)) { // Defend a personal space of 200 units.
-            self.setCurrentTarget(closestEnemy);
-            self.setCurrentState(AIPlayer.AIState.ATTACKING);
-        }
-
-        return true;
+        return true; // Logic is handled, no further action needed.
     }
 
 

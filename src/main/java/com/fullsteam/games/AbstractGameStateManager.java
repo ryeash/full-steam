@@ -235,7 +235,7 @@ public abstract class AbstractGameStateManager {
 
         for (int i = 0; i < bulletsToFire; i++) {
             // Apply random spread to each bullet individually
-            double spread = (ThreadLocalRandom.current().nextDouble() - 0.5) * weapon.getBulletSpread();
+            double spread = ThreadLocalRandom.current().nextGaussian() * (weapon.getBulletSpread() / 6.0);
             double finalAngle = aimAngle + spread;
 
             Bullet bullet = new Bullet(bulletX, bulletY,
@@ -479,27 +479,41 @@ public abstract class AbstractGameStateManager {
 
     protected void updateBullets() {
         bullets.removeIf(bullet -> {
+            // Store the previous position for line-segment collision checks
+            Vector2D oldPos = new Vector2D(bullet.getX(), bullet.getY());
             bullet.update();
+            Vector2D newPos = new Vector2D(bullet.getX(), bullet.getY());
 
             // Remove bullets that are out of bounds or have traveled max distance
-            if (bullet.getX() < 0 || bullet.getX() > GAME_WIDTH || bullet.getY() < 0 || bullet.getY() > GAME_HEIGHT || bullet.hasExceededMaxDistance()) {
+            if (newPos.x() < 0 || newPos.x() > GAME_WIDTH || newPos.y() < 0 || newPos.y() > GAME_HEIGHT || bullet.hasExceededMaxDistance()) {
                 return true;
             }
 
-            // Check bullet-obstacle collisions
-            if (isColliding(bullet, obstacles)) {
-                return true;
+            // Check bullet-obstacle collisions using the line segment
+            for (Obstacle obstacle : obstacles) {
+                if (CollisionUtils.checkLinePolygonCollision(oldPos, newPos, obstacle.vertices())) {
+                    return true;
+                }
             }
 
-            // Check bullet-player collisions
+            // Check bullet-player collisions using the line segment
             for (Player player : players.values()) {
                 // Check for collision with an enemy player
-                if (!player.isDead() && player.getTeam() != bullet.getTeam() && isColliding(bullet, player)) {
-                    // Apply damage and check if it was a kill
-                    if (player.takeDamage(bullet.getDamage())) {
-                        killPlayer(player, players.get(bullet.getShooterId()));
+                if (!player.isDead() && player.getTeam() != bullet.getTeam()) {
+                    Vector2D playerCenter = new Vector2D(player.getX() + PLAYER_SIZE / 2, player.getY() + PLAYER_SIZE / 2);
+                    if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, playerCenter, PLAYER_SIZE / 2)) {
+                        Player shooter = players.get(bullet.getShooterId());
+                        double finalDamage = bullet.getDamage();
+                        if (shooter != null) {
+                            finalDamage *= shooter.getDamageMultiplier();
+                        }
+
+                        // Apply damage and check if it was a kill
+                        if (player.takeDamage(finalDamage)) {
+                            killPlayer(player, shooter);
+                        }
+                        return true; // Remove bullet on hit
                     }
-                    return true; // Remove bullet on hit
                 }
             }
 
@@ -583,6 +597,7 @@ public abstract class AbstractGameStateManager {
                 player.setDead(false);
                 player.resetHealth();
                 player.finishReload();
+                player.applyArmorUp(RESPAWN_IMMUNITY_DURATION);
                 setValidSpawnPosition(player);
                 log.info("Player {} has respawned.", player.getId());
             }
@@ -595,15 +610,6 @@ public abstract class AbstractGameStateManager {
         // Assuming power-ups have a similar size to players for collision
         double distanceSq = new Vector2D(playerCenterX, playerCenterY).distanceSq(powerUp.position);
         return distanceSq < (PLAYER_SIZE * PLAYER_SIZE); // Using squared distance for efficiency
-    }
-
-    protected boolean isColliding(Bullet bullet, Player player) {
-        if (player.isDead()) return false; // Cannot collide with dead players
-        double playerCenterX = player.getX() + (PLAYER_SIZE / 2);
-        double playerCenterY = player.getY() + (PLAYER_SIZE / 2);
-        double dx = bullet.getX() - playerCenterX;
-        double dy = bullet.getY() - playerCenterY;
-        return Math.sqrt(dx * dx + dy * dy) < (PLAYER_SIZE / 2); // Simple circle collision
     }
 
     /**
@@ -723,19 +729,6 @@ public abstract class AbstractGameStateManager {
     protected boolean isColliding(Player player, Obstacle obstacle) {
         return CollisionUtils.checkCirclePolygonCollision(
                 new Vector2D(player.getX() + PLAYER_SIZE / 2, player.getY() + PLAYER_SIZE / 2), PLAYER_SIZE / 2, obstacle.vertices());
-    }
-
-    protected boolean isColliding(Bullet bullet, List<Obstacle> checkObstacles) {
-        for (Obstacle obstacle : checkObstacles) {
-            if (isColliding(bullet, obstacle)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    protected boolean isColliding(Bullet bullet, Obstacle obstacle) {
-        return CollisionUtils.isPointInsidePolygon(new Vector2D(bullet.getX(), bullet.getY()), obstacle.vertices());
     }
 
     /**

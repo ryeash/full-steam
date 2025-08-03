@@ -115,13 +115,13 @@ public class WeaponFactory {
                 "Twin Sixes",
                 "T6s",
                 23, // Fire Rate: 500ms cooldown (medium)
-                25, // Damage: 60 (high)
+                20, // Damage: 60 (high)
                 4,  // Range: 350 (short-medium)
                 18, // Speed: 12.5 (very fast)
                 8, // Accuracy: 0.25 spread (accurate)
                 10, // Multi-shot: 2 pellets
                 2,  // Magazine Size: 12 rounds
-                10   // Reload Speed: 4.5s (slow)
+                15   // Reload Speed: 4.5s (slow)
         ));
 
         // Pre-sort the weapon names for faster access.
