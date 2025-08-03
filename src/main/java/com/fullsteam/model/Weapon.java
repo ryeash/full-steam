@@ -24,7 +24,7 @@ public class Weapon {
     /**
      * Creates a new Weapon by converting stat points into game values.
      *
-     * @param name               The name of the weapon preset (e.g., "Assault Rifle").
+     * @param name               The name of the weapon preset (e.g., "Assault").
      * @param fireRatePoints     Points for fire rate (0-30). More points = lower cooldown.
      * @param damagePoints       Points for damage (0-40). More points = more damage.
      * @param rangePoints        Points for range (0-10). More points = longer bullet travel distance.
@@ -59,8 +59,8 @@ public class Weapon {
         // Range: Base 100 units. Each point adds 50 units.
         this.bulletRange = 100 + (rangePoints * 50);
 
-        // Bullet Speed: Base 5.0 units/tick. Each point adds 0.5.
-        this.bulletSpeed = 5.0 + (speedPoints * 0.5);
+        // Bullet Speed: Base 3.0 units/tick. Each point adds 0.7.
+        this.bulletSpeed = 3.0 + (speedPoints * 0.7);
 
         // Accuracy (Spread in radians): Base 0.5. Each point reduces spread by 0.015.
         this.bulletSpread = Math.max(0.0, 0.75 - (accuracyPoints * 0.05));

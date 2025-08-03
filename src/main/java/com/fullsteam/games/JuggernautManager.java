@@ -3,11 +3,12 @@ package com.fullsteam.games;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.GameState;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
+import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.JuggernautAIStrategy;
+import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.JuggernautInfo;
 
 import java.util.List;
@@ -16,15 +17,16 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import static com.fullsteam.Config.JUGGERNAUT_HEALTH;
+import static com.fullsteam.Config.JUGGERNAUT_SCORE_TO_WIN;
+import static com.fullsteam.Config.JUGGERNAUT_SELECTION_DELAY_MS;
+
 /**
  * A round-based game mode where each team has one "Juggernaut".
  * A team scores by eliminating the enemy Juggernaut.
  */
 public class JuggernautManager extends AbstractTeamBasedManager {
 
-    private static final int SCORE_TO_WIN = 3;
-    private static final int JUGGERNAUT_HEALTH = 1000;
-    private static final long WAIT_FOR_PLAYER_JOIN = 7000;
     private String team1Juggernaut;
     private String team2Juggernaut;
 
@@ -40,7 +42,7 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     @Override
     public void addAIPlayer(int team) {
         String playerId = "ai-" + UUID.randomUUID();
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new JuggernautAIStrategy());
+        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new JuggernautAIStrategy(), AIArchetype.randomArchetype());
         setValidSpawnPosition(player);
         players.put(playerId, player);
         log.info("AI Player {} (Juggernaut Strategy) joined team {}", playerId, team);
@@ -62,12 +64,12 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    public void handlePlayerInput(String playerId, PlayerInput input) {
+    public void acceptPlayerInput(String playerId, PlayerInput input) {
         if (team1Juggernaut == null || team2Juggernaut == null) {
             // freeze until the juggernauts are selected
             return;
         }
-        super.handlePlayerInput(playerId, input);
+        super.acceptPlayerInput(playerId, input);
     }
 
     @Override
@@ -75,13 +77,17 @@ public class JuggernautManager extends AbstractTeamBasedManager {
         super.killPlayer(victim, shooter);
         if (Objects.equals(victim.getId(), team1Juggernaut)
             || Objects.equals(victim.getId(), team2Juggernaut)) {
-            sendGameEvent(GameEvent.info("Team %s Juggernaut %s was eliminated by %s!".formatted(victim.getTeam(), victim.getPlayerName(), shooter.getPlayerName())));
+            if (shooter != null) {
+                sendGameEvent(GameEvent.info("Team %s Juggernaut %s was eliminated by %s!".formatted(victim.getTeam(), victim.getPlayerName(), shooter.getPlayerName())));
+            } else {
+                sendGameEvent(GameEvent.info("Team %s Juggernaut %s was eliminated!".formatted(victim.getTeam(), victim.getPlayerName())));
+            }
             team1Juggernaut = null;
             team2Juggernaut = null;
-            if (shooter.getTeam() == 1) {
-                team1Score++;
-            } else {
+            if (victim.getTeam() == 1) {
                 team2Score++;
+            } else {
+                team1Score++;
             }
             triggerJuggernautReset();
         }
@@ -90,8 +96,8 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     @Override
     protected boolean checkEndConditions() {
         if (System.currentTimeMillis() > roundEndTime
-            || team1Score >= SCORE_TO_WIN
-            || team2Score >= SCORE_TO_WIN) {
+            || team1Score >= JUGGERNAUT_SCORE_TO_WIN
+            || team2Score >= JUGGERNAUT_SCORE_TO_WIN) {
             sendVictoryMessage();
             return true;
         }
@@ -99,25 +105,15 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected GameState buildGameState() {
+    protected GameInfo buildGameState() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
-
-        JuggernautInfo gameInfo = new JuggernautInfo(
+        return new JuggernautInfo(
                 (int) this.team1Score,
                 (int) this.team2Score,
                 team1Juggernaut,
                 team2Juggernaut,
                 roundTimeRemainingSeconds
-        );
-
-        return new GameState(
-                List.copyOf(players.values()),
-                List.copyOf(bullets),
-                List.copyOf(obstacles),
-                List.copyOf(deathMarkers),
-                List.copyOf(gameEvents),
-                gameInfo
         );
     }
 
@@ -130,12 +126,12 @@ public class JuggernautManager extends AbstractTeamBasedManager {
             player.setCurrentHealth(Config.DEFAULT_PLAYER_HEALTH);
         }
         sendGameEvent(GameEvent.info("Starting new round!"));
-        sendGameEvent(GameEvent.info("Will select new juggernauts in " + (WAIT_FOR_PLAYER_JOIN / 1000) + " seconds"));
+        sendGameEvent(GameEvent.blue("Will select new juggernauts in " + (JUGGERNAUT_SELECTION_DELAY_MS / 1000) + " seconds"));
         players.values().forEach(this::setValidSpawnPosition);
-        gameLoop.schedule(() -> {
+        schedule(() -> {
             selectNewJuggernautForTeam(1);
             selectNewJuggernautForTeam(2);
-        }, WAIT_FOR_PLAYER_JOIN, TimeUnit.MILLISECONDS);
+        }, JUGGERNAUT_SELECTION_DELAY_MS);
     }
 
     private void selectNewJuggernautForTeam(int team) {
@@ -152,7 +148,7 @@ public class JuggernautManager extends AbstractTeamBasedManager {
             }
             juggernaut.setCurrentHealth(JUGGERNAUT_HEALTH);
             juggernaut.setMaxHealth(JUGGERNAUT_HEALTH);
-            sendGameEvent(GameEvent.info("%s is Team %d's Juggernaut!".formatted(juggernaut.getPlayerName(), team)));
+            sendGameEvent(GameEvent.team(team, "%s is Team %d's Juggernaut!".formatted(juggernaut.getPlayerName(), team)));
             log.info("{} is the new Juggernaut for team {}", juggernaut.getPlayerName(), team);
         } else {
             log.warn("Cannot select Juggernaut for team {}: no players on team.", team);

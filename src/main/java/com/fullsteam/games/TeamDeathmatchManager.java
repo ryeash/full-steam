@@ -1,16 +1,11 @@
 package com.fullsteam.games;
 
-import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.TeamBalancer;
-import com.fullsteam.model.Bullet;
-import com.fullsteam.model.DeathMarker;
-import com.fullsteam.model.GameState;
-import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.TeamDeathmatchInfo;
 
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class TeamDeathmatchManager extends AbstractTeamBasedManager {
@@ -29,28 +24,23 @@ public class TeamDeathmatchManager extends AbstractTeamBasedManager {
     @Override
     protected void killPlayer(Player victim, Player shooter) {
         super.killPlayer(victim, shooter);
-        if (shooter.getTeam() == 1) {
-            team1Score++;
-        } else {
-            team2Score++;
+        if (shooter != null) {
+            if (shooter.getTeam() == 1) {
+                team1Score++;
+            } else {
+                team2Score++;
+            }
         }
     }
 
     @Override
-    protected GameState buildGameState() {
-        List<Player> playerList = List.copyOf(players.values());
-        List<Bullet> bulletList = List.copyOf(bullets);
-        List<Obstacle> obstacleList = List.copyOf(obstacles);
-        List<DeathMarker> deathMarkerList = List.copyOf(deathMarkers);
-
+    protected GameInfo buildGameState() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
-        return new GameState(playerList,
-                bulletList,
-                obstacleList,
-                deathMarkerList,
-                List.copyOf(gameEvents),
-                new TeamDeathmatchInfo(team1Score, team2Score, roundTimeRemainingSeconds));
+        return new TeamDeathmatchInfo(
+                team1Score,
+                team2Score,
+                roundTimeRemainingSeconds);
     }
 
     @Override
@@ -59,8 +49,9 @@ public class TeamDeathmatchManager extends AbstractTeamBasedManager {
             sendVictoryMessage();
             log.info("Round timer has expired. Starting a new round.");
             return true;
+        } else {
+            return false;
         }
-        return false;
     }
 
     @Override

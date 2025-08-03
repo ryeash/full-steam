@@ -1,64 +1,36 @@
 package com.fullsteam.model;
 
 public class PlayerInput {
-    private boolean up;
-    private boolean down;
-    private boolean left;
-    private boolean right;
+    private double moveX; // Represents the horizontal axis (-1.0 for left, 1.0 for right)
+    private double moveY; // Represents the vertical axis (-1.0 for up, 1.0 for down)
+
     private boolean shooting;
     private double mouseX;
     private double mouseY;
     private boolean reload;
+    private boolean weaponCycle;
 
     public PlayerInput() {
     }
 
-    public PlayerInput(boolean up, boolean down, boolean left, boolean right,
-                       boolean shooting, double mouseX, double mouseY, boolean reload) {
-        this.up = up;
-        this.down = down;
-        this.left = left;
-        this.right = right;
-        this.shooting = shooting;
-        this.mouseX = mouseX;
-        this.mouseY = mouseY;
-        this.reload = reload;
-    }
-
     // Getters and setters
-    public boolean getUp() {
-        return up;
+    public double getMoveX() {
+        return moveX;
     }
 
-    public void setUp(boolean up) {
-        this.up = up;
+    public void setMoveX(double moveX) {
+        this.moveX = moveX;
     }
 
-    public boolean getDown() {
-        return down;
+    public double getMoveY() {
+        return moveY;
     }
 
-    public void setDown(boolean down) {
-        this.down = down;
+    public void setMoveY(double moveY) {
+        this.moveY = moveY;
     }
 
-    public boolean getLeft() {
-        return left;
-    }
-
-    public void setLeft(boolean left) {
-        this.left = left;
-    }
-
-    public boolean getRight() {
-        return right;
-    }
-
-    public void setRight(boolean right) {
-        this.right = right;
-    }
-
-    public boolean getShooting() {
+    public boolean isShooting() {
         return shooting;
     }
 
@@ -88,5 +60,13 @@ public class PlayerInput {
 
     public void setReload(boolean reload) {
         this.reload = reload;
+    }
+
+    public boolean isWeaponCycle() {
+        return weaponCycle;
+    }
+
+    public void setWeaponCycle(boolean weaponCycle) {
+        this.weaponCycle = weaponCycle;
     }
 }

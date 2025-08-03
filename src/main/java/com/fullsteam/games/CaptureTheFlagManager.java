@@ -4,21 +4,25 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.Flag;
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.GameState;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
+import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.CaptureTheFlagAIStrategy;
 import com.fullsteam.model.gamemodes.CaptureTheFlagInfo;
+import com.fullsteam.model.gamemodes.GameInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import static com.fullsteam.Config.CTF_BASE_AREA_PADDING;
+import static com.fullsteam.Config.CTF_FLAG_PICKUP_RADIUS;
+import static com.fullsteam.Config.CTF_FLAG_RETURN_TIMEOUT_MS;
+import static com.fullsteam.Config.CTF_SCORE_TO_WIN;
 import static com.fullsteam.Config.GAME_EVENT_DURATION_MS;
 import static com.fullsteam.Config.GAME_HEIGHT;
 import static com.fullsteam.Config.GAME_WIDTH;
@@ -28,11 +32,7 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
 
     private static final Logger log = LoggerFactory.getLogger(CaptureTheFlagManager.class);
 
-    private static final int SCORE_TO_WIN = 3;
-    private static final double FLAG_PICKUP_RADIUS = 30.0;
-    private static final double FLAG_PICKUP_RADIUS_SQ = FLAG_PICKUP_RADIUS * FLAG_PICKUP_RADIUS;
-    private static final long FLAG_RETURN_TIMEOUT_MS = 15_000; // 15 seconds
-    private static final double BASE_AREA_PADDING = 100.0; // Padding from map edges and center line
+    private static final double FLAG_PICKUP_RADIUS_SQ = CTF_FLAG_PICKUP_RADIUS * CTF_FLAG_PICKUP_RADIUS;
 
     private Flag team1Flag;
     private Flag team2Flag;
@@ -52,7 +52,7 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
     public void addAIPlayer(int team) {
         String playerId = "ai-" + UUID.randomUUID();
         // Inject the CTF-specific strategy when creating the AI
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new CaptureTheFlagAIStrategy());
+        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new CaptureTheFlagAIStrategy(), AIArchetype.randomArchetype());
         setValidSpawnPosition(player);
         players.put(playerId, player);
         log.info("AI Player {} (CTF Strategy) joined team {}", playerId, team);
@@ -92,12 +92,12 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
         }
 
         // Check for automatic flag returns
-        if (team1Flag.state() == Flag.FlagState.DROPPED && System.currentTimeMillis() - team1Flag.dropTimestamp() > FLAG_RETURN_TIMEOUT_MS) {
+        if (team1Flag.state() == Flag.FlagState.DROPPED && System.currentTimeMillis() - team1Flag.dropTimestamp() > CTF_FLAG_RETURN_TIMEOUT_MS) {
             log.info("Team 1's flag returned to base automatically.");
             team1Flag = team1Flag.asReturned();
             addGameEvent("Team 1 flag returned", GameEvent.EventType.FLAG_RETURN, GAME_EVENT_DURATION_MS);
         }
-        if (team2Flag.state() == Flag.FlagState.DROPPED && System.currentTimeMillis() - team2Flag.dropTimestamp() > FLAG_RETURN_TIMEOUT_MS) {
+        if (team2Flag.state() == Flag.FlagState.DROPPED && System.currentTimeMillis() - team2Flag.dropTimestamp() > CTF_FLAG_RETURN_TIMEOUT_MS) {
             log.info("Team 2's flag returned to base automatically.");
             team2Flag = team2Flag.asReturned();
             addGameEvent("Team 2 flag returned", GameEvent.EventType.FLAG_RETURN, GAME_EVENT_DURATION_MS);
@@ -189,7 +189,7 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
     @Override
     protected boolean checkEndConditions() {
         boolean roundTimerExpired = System.currentTimeMillis() >= roundEndTime;
-        if (team1Score >= SCORE_TO_WIN || team2Score >= SCORE_TO_WIN || roundTimerExpired) {
+        if (team1Score >= CTF_SCORE_TO_WIN || team2Score >= CTF_SCORE_TO_WIN || roundTimerExpired) {
             sendVictoryMessage();
             return true;
         } else {
@@ -198,23 +198,15 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected GameState buildGameState() {
+    protected GameInfo buildGameState() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
-        CaptureTheFlagInfo gameInfo = new CaptureTheFlagInfo(
+        return new CaptureTheFlagInfo(
                 this.team1Flag,
                 this.team2Flag,
                 this.team1Score,
                 this.team2Score,
                 roundTimeRemainingSeconds
-        );
-        return new GameState(
-                List.copyOf(players.values()),
-                bullets,
-                obstacles,
-                deathMarkers,
-                gameEvents,
-                gameInfo
         );
     }
 
@@ -228,14 +220,14 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
             do {
                 newObstacle = Obstacle.createRandomPolygonObstacle();
                 // Check collision with both flag bases
-                isColliding = CollisionUtils.checkCirclePolygonCollision(team1Flag.basePosition(), FLAG_PICKUP_RADIUS, newObstacle.vertices()) ||
-                              CollisionUtils.checkCirclePolygonCollision(team2Flag.basePosition(), FLAG_PICKUP_RADIUS, newObstacle.vertices());
+                isColliding = CollisionUtils.checkCirclePolygonCollision(team1Flag.basePosition(), CTF_FLAG_PICKUP_RADIUS, newObstacle.vertices()) ||
+                              CollisionUtils.checkCirclePolygonCollision(team2Flag.basePosition(), CTF_FLAG_PICKUP_RADIUS, newObstacle.vertices());
                 attempts++;
             } while (isColliding && attempts < 100);
 
             if (!isColliding) {
                 obstacles.add(newObstacle);
-                obstacles.add(newObstacle.createMirrorClone());
+                obstacles.add(newObstacle.create180Clone());
             } else {
                 log.warn("Could not place an obstacle without colliding with a flag base after 100 attempts.");
             }
@@ -247,8 +239,8 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
         // --- Randomize flag base positions with point symmetry ---
         // Generate a random position for Team 1's base in the left half of the map,
         // respecting the defined padding to avoid placing it too close to the edges or center.
-        double team1X = ThreadLocalRandom.current().nextDouble(BASE_AREA_PADDING, (GAME_WIDTH / 2.0) - BASE_AREA_PADDING);
-        double team1Y = ThreadLocalRandom.current().nextDouble(BASE_AREA_PADDING, GAME_HEIGHT - BASE_AREA_PADDING);
+        double team1X = ThreadLocalRandom.current().nextDouble(CTF_BASE_AREA_PADDING, (GAME_WIDTH / 2.0) - CTF_BASE_AREA_PADDING);
+        double team1Y = ThreadLocalRandom.current().nextDouble(CTF_BASE_AREA_PADDING, GAME_HEIGHT - CTF_BASE_AREA_PADDING);
         Vector2D team1Base = new Vector2D(team1X, team1Y);
 
         // Team 2's base is a mirror image of Team 1's base through the center of the map,

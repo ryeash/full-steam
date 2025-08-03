@@ -12,6 +12,8 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
+import io.netty.handler.codec.http.websocketx.extensions.WebSocketServerExtensionHandler;
+import io.netty.handler.codec.http.websocketx.extensions.compression.PerMessageDeflateServerExtensionHandshaker;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +22,10 @@ import static com.fullsteam.Config.PORT;
 
 public class GameServer {
     private static final Logger logger = LoggerFactory.getLogger(GameServer.class);
+
+    public static void main(String[] args) throws InterruptedException {
+        new GameServer().start();
+    }
 
     private final GameLobby gameLobby;
 
@@ -42,23 +48,19 @@ public class GameServer {
                             pipeline.addLast(new HttpServerCodec());
                             pipeline.addLast(new HttpObjectAggregator(65536));
                             pipeline.addLast(new ChunkedWriteHandler());
-                            pipeline.addLast(new HttpStaticFileServerHandler());
-                            pipeline.addLast(new WebSocketServerProtocolHandler("/game"));
+                            pipeline.addLast(new WebSocketServerExtensionHandler(new PerMessageDeflateServerExtensionHandshaker(0)));
+                            pipeline.addLast(new WebSocketServerProtocolHandler("/game", null, true, 65536, false, true, 15000));
+                            pipeline.addLast(new ServerRequestHandler(gameLobby));
                             pipeline.addLast(new GameWebSocketHandler(gameLobby));
                         }
                     });
 
             ChannelFuture future = bootstrap.bind(PORT).sync();
             logger.info("Game server started on port {}", PORT);
-
             future.channel().closeFuture().sync();
         } finally {
             bossGroup.shutdownGracefully();
             workerGroup.shutdownGracefully();
         }
-    }
-
-    public static void main(String[] args) throws InterruptedException {
-        new GameServer().start();
     }
 }

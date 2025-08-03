@@ -1,7 +1,7 @@
 package com.fullsteam.model.ai;
 
+import com.fullsteam.model.GameState;
 import com.fullsteam.model.Player;
-import com.fullsteam.model.gamemodes.GameInfo;
 
 import java.util.Collection;
 
@@ -14,11 +14,10 @@ public interface IAIStrategy {
     /**
      * Analyzes the game state and tells the AI what to do.
      *
-     * @param self       The AIPlayer instance being controlled.
-     * @param allPlayers All players in the game.
-     * @param gameInfo   The current game mode's state.
+     * @param self      The AIPlayer instance being controlled.
+     * @param gameState The current game mode's state.
      */
-    void updateAIState(AIPlayer self, Collection<Player> allPlayers, GameInfo gameInfo);
+    void updateAIState(AIPlayer self, GameState gameState);
 
     default Player findClosestEnemy(AIPlayer self, Collection<Player> allPlayers) {
         Player closestEnemy = null;

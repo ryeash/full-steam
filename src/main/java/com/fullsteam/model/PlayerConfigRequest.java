@@ -3,6 +3,7 @@ package com.fullsteam.model;
 public class PlayerConfigRequest {
     private String playerName;
     private String weaponName;
+    private boolean requestTeamChange;
 
     public PlayerConfigRequest() {
     }
@@ -21,5 +22,13 @@ public class PlayerConfigRequest {
 
     public void setWeaponName(String weaponName) {
         this.weaponName = weaponName;
+    }
+
+    public boolean isRequestTeamChange() {
+        return requestTeamChange;
+    }
+
+    public void setRequestTeamChange(boolean requestTeamChange) {
+        this.requestTeamChange = requestTeamChange;
     }
 }

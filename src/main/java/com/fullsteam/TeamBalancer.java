@@ -34,29 +34,29 @@ public class TeamBalancer {
         long team2Count = players.values().stream().filter(p -> p.getTeam() == 2).count();
 
         // Balance Team 1
-        balanceTeam(1, team1Count, players);
+        balanceTeam(1, team1Count, MAX_PLAYERS_PER_TEAM, players);
 
         // Balance Team 2
-        balanceTeam(2, team2Count, players);
+        balanceTeam(2, team2Count, MAX_PLAYERS_PER_TEAM, players);
     }
 
-    private void balanceTeam(int teamId, long currentTeamSize, Map<String, Player> players) {
-        if (currentTeamSize < MAX_PLAYERS_PER_TEAM) {
+    public void balanceTeam(int teamId, long currentTeamSize, long targetTeamSize, Map<String, Player> players) {
+        if (currentTeamSize < targetTeamSize) {
             // Add AI players to fill the team
-            long playersToAdd = MAX_PLAYERS_PER_TEAM - currentTeamSize;
+            long playersToAdd = targetTeamSize - currentTeamSize;
             if (playersToAdd > 0) {
                 logger.debug("Team {} is under capacity. Adding {} AI player(s).", teamId, playersToAdd);
                 for (int i = 0; i < playersToAdd; i++) {
                     gameStateManager.addAIPlayer(teamId);
                 }
             }
-        } else if (currentTeamSize > MAX_PLAYERS_PER_TEAM) {
+        } else if (currentTeamSize > targetTeamSize) {
             // Remove AI players if team is over capacity (e.g., a human joined)
             List<Player> aiPlayersOnTeam = players.values().stream()
                     .filter(p -> p.getTeam() == teamId && p instanceof AIPlayer)
                     .toList();
 
-            long playersToRemove = currentTeamSize - MAX_PLAYERS_PER_TEAM;
+            long playersToRemove = currentTeamSize - targetTeamSize;
             if (playersToRemove > 0 && !aiPlayersOnTeam.isEmpty()) {
                 logger.debug("Team {} is over capacity. Removing {} AI player(s) to make room.", teamId, playersToRemove);
                 for (int i = 0; i < playersToRemove && i < aiPlayersOnTeam.size(); i++) {

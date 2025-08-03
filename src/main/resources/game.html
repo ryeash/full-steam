@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top-Down Shooter</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #222;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center; /* Center the main wrapper */
+        }
+
+        #game-wrapper {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        #main-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #gameCanvas {
+            border: 2px solid #444;
+            background-color: #333;
+            cursor: crosshair;
+        }
+
+        .info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 1000px;
+            padding: 5px 0;
+            font-size: 1.1em;
+        }
+
+        .scoreboard-header {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .team1 { color: #4CAF50; }
+        .team2 { color: #F44336; }
+
+        .player-stats, .game-info {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        #controls {
+            margin-top: 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        #playerNameInput, #weaponSelector {
+            background-color: #444;
+            color: white;
+            border: 1px solid #666;
+            padding: 3px;
+            border-radius: 3px;
+        }
+
+        #playerNameInput {
+            width: 120px;
+        }
+
+        /* --- New Scoreboard Styles --- */
+        #scoreboard-container {
+            width: 280px;
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 850px;
+            overflow-y: auto;
+        }
+
+        #scoreboard-container h2 {
+            text-align: center;
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #555;
+        }
+
+        #scoreboard-container h3 {
+            margin-top: 20px;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #555;
+        }
+
+        #scoreboard-container ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .scoreboard-player {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 4px;
+            border-bottom: 1px solid #3a3a3a;
+            font-size: 0.9em;
+        }
+
+        .scoreboard-player:last-child {
+            border-bottom: none;
+        }
+
+        .player-name {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-right: 10px;
+        }
+
+        .player-score {
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .local-player-highlight {
+            font-weight: bold;
+            color: #FFC107; /* Highlight color for the local player */
+        }
+
+        #player-config {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #444;
+        }
+
+        #player-config h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #ccc;
+            font-size: 1.1em;
+            border-bottom: none; /* Override general h3 style */
+        }
+
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .config-item label {
+            margin-right: 10px;
+            color: #aaa;
+        }
+
+        #playerNameInput, #weaponSelector {
+            flex-grow: 1; /* Make them fill the available space */
+        }
+
+        #leaveGameBtn, #switchTeamBtn {
+            background-color: #a1322a;
+            color: white;
+            border: 1px solid #c7574e;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 10px;
+        }
+        #leaveGameBtn:hover, #switchTeamBtn:hover {
+            background-color: #c7574e;
+        }
+
+        /* --- Styles for collapsible controls --- */
+        #controls-details {
+            margin-top: 20px;
+            border-top: 1px solid #444;
+            padding-top: 10px;
+        }
+
+        #controls-details summary {
+            cursor: pointer;
+            font-weight: bold;
+            color: #ccc;
+            list-style: none; /* Hide the default triangle */
+            outline: none; /* Hide focus ring on click */
+        }
+
+        #controls-details summary::-webkit-details-marker {
+            display: none; /* Hide the default triangle in Chrome/Safari */
+        }
+
+        #controls-details summary:hover {
+            color: white;
+        }
+
+        #controls-details summary::before {
+            content: '▶ '; /* Right-pointing triangle for collapsed state */
+            font-size: 0.8em;
+            margin-right: 5px;
+        }
+
+        #controls-details[open] > summary::before {
+            content: '▼ '; /* Down-pointing triangle for expanded state */
+        }
+
+        #controls-details[open] > summary {
+            margin-bottom: 10px;
+        }
+
+        #controls {
+            font-size: 0.9em;
+            color: #aaa;
+            padding-left: 15px; /* Indent the controls text */
+        }
+
+        #controls p {
+            margin: 5px 0;
+        }
+
+        /* --- Styles for the Redesigned Info Bar --- */
+        .game-info-left, .game-info-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex: 1; /* Allow sections to grow and shrink */
+        }
+
+        .game-info-right {
+            justify-content: flex-end; /* Align items to the right */
+        }
+    </style>
+</head>
+<body>
+<div id="game-wrapper">
+    <div id="main-content">
+        <div class="info-bar">
+            <div class="game-info-left">
+                <span>Team: <b id="yourTeam">?</b></span>
+                <span>Players: <b id="playerCount">0</b></span>
+            </div>
+            <div class="scoreboard-header">
+                <span id="team1Score" class="team1">0</span>
+                <span id="roundTimer" style="margin: 0 20px; color: #FFC107;">00:00</span>
+                <span id="team2Score" class="team2">0</span>
+            </div>
+            <div class="game-info-right">
+                <span>Ping: <b id="latency" style="color: white;">--</b> ms</span>
+                <span>Status: <b id="status" style="color: #FFC107;">Connecting...</b></span>
+            </div>
+        </div>
+        <canvas id="gameCanvas" width="1000" height="800" tabindex="-1" style="outline: none;"></canvas>
+    </div>
+
+    <div id="scoreboard-container">
+        <h2>Scoreboard <span id="gameIdIndicator" style="font-size: 0.6em; color: #aaa; font-weight: normal;"></span>
+        </h2>
+        <h4 id="gameModeDisplay"
+            style="text-align: center; margin-top: -5px; margin-bottom: 15px; color: #ccc; font-weight: normal;">
+            Loading...</h4>
+
+        <div id="player-config">
+            <div class="config-item">
+                <label for="playerNameInput">Name:</label>
+                <input type="text" id="playerNameInput" placeholder="Your Name">
+            </div>
+            <div class="config-item">
+                <label for="weaponSelector">Weapon:</label>
+                <select id="weaponSelector">
+                    <option>Loading...</option>
+                </select>
+            </div>
+            <button id="switchTeamBtn">Switch Team</button>
+        </div>
+
+        <div id="team1-scoreboard">
+            <h3 class="team1">Team 1</h3>
+            <ul id="team1-players">
+                <!-- Team 1 players will be populated here -->
+            </ul>
+        </div>
+        <div id="team2-scoreboard">
+            <h3 class="team2">Team 2</h3>
+            <ul id="team2-players">
+                <!-- Team 2 players will be populated here -->
+            </ul>
+        </div>
+        <div id="ffa-scoreboard" style="display: none;">
+            <h3 style="color: #FFC107;">Players</h3>
+            <ul id="ffa-players">
+                <!-- FFA players will be populated here -->
+            </ul>
+        </div>
+        <details id="controls-details">
+            <summary>Controls</summary>
+            <div id="controls">
+                <p>⌨️ WASD/Arrows: Move | R: Reload | Mouse: Aim & Shoot</p>
+                <p>🎮 L Stick: Move | R Stick: Aim | Y/△: Swap Weapon | X/□: Reload | RT/R2: Shoot</p>
+            </div>
+        </details>
+        <div style="text-align: center; margin-top: 20px; padding: 0 5px;">
+            <button id="leaveGameBtn">Leave Game</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    class GameUIManager {
+        constructor(gameInstance) {
+            this.game = gameInstance;
+            this.doc = document;
+            this.lastScoreboardUpdateTime = 0;
+            this.SCOREBOARD_UPDATE_INTERVAL = 1000;
+
+            this.elements = {
+                playerCount: this.doc.getElementById('playerCount'),
+                gameModeDisplay: this.doc.getElementById('gameModeDisplay'),
+                roundTimer: this.doc.getElementById('roundTimer'),
+                team1Score: this.doc.getElementById('team1Score'),
+                team2Score: this.doc.getElementById('team2Score'),
+                yourTeam: this.doc.getElementById('yourTeam').parentElement,
+                switchTeamBtn: this.doc.getElementById('switchTeamBtn'),
+                team1Scoreboard: this.doc.getElementById('team1-scoreboard'),
+                team2Scoreboard: this.doc.getElementById('team2-scoreboard'),
+                ffaScoreboard: this.doc.getElementById('ffa-scoreboard'),
+                team1List: this.doc.getElementById('team1-players'),
+                team2List: this.doc.getElementById('team2-players'),
+                ffaList: this.doc.getElementById('ffa-players'),
+                gameIdIndicator: this.doc.getElementById('gameIdIndicator'),
+                weaponSelector: this.doc.getElementById('weaponSelector')
+            };
+
+            this.infoBarUpdaters = {
+                'Free For All': (info) => {
+                    this.game.shouldDrawRespawnOverlay = true;
+                    this.elements.team1Score.style.display = 'none';
+                    this.elements.team2Score.style.display = 'none';
+                    this.elements.yourTeam.style.display = 'none';
+                    this.elements.switchTeamBtn.style.display = 'none';
+                },
+                'Zombie Defense': (info) => {
+                    this.game.shouldDrawRespawnOverlay = false;
+                    this.elements.yourTeam.style.display = 'none';
+                    this.elements.switchTeamBtn.style.display = 'none';
+                    this.elements.team1Score.style.display = 'inline';
+                    this.elements.team2Score.style.display = 'inline';
+                    this.elements.team1Score.innerHTML = `Wave: <span style="color: #FFC107;">${info.waveNumber}</span>`;
+                    this.elements.team2Score.innerHTML = `Zombies: <span style="color: #FFC107;">${info.zombiesAlive}</span>`;
+                },
+                'Elimination': (info) => {
+                    this.game.shouldDrawRespawnOverlay = false;
+                    this.elements.yourTeam.style.display = 'inline';
+                    this.elements.switchTeamBtn.style.display = 'block';
+                    this.elements.team1Score.style.display = 'inline';
+                    this.elements.team2Score.style.display = 'inline';
+                    this.elements.team1Score.innerHTML = `${info.team1Score} <span style="font-size: 0.7em; color: #ccc;">(${info.team1PlayersAlive} alive)</span>`;
+                    this.elements.team2Score.innerHTML = `${info.team2Score} <span style="font-size: 0.7em; color: #ccc;">(${info.team2PlayersAlive} alive)</span>`;
+                },
+                'LoneWolfManager': (info) => {
+                    this.game.shouldDrawRespawnOverlay = true;
+                    this.elements.yourTeam.style.display = 'inline';
+                    this.elements.switchTeamBtn.style.display = 'none';
+                    this.elements.team1Score.style.display = 'inline';
+                    this.elements.team2Score.style.display = 'inline';
+                    const lives = info.gameModeMetadata.loneWolfLives || 0;
+                    this.elements.team1Score.innerHTML = `Wolf Lives: ${'🐺'.repeat(lives)}`;
+                    const targets = info.gameModeMetadata.hunterTargets || [];
+                    this.elements.team2Score.innerHTML = `Hunters: ${targets.length}`;
+                },
+                'default': (info) => {
+                    this.game.shouldDrawRespawnOverlay = true;
+                    this.elements.yourTeam.style.display = 'inline';
+                    this.elements.switchTeamBtn.style.display = 'block';
+                    this.elements.team1Score.style.display = 'inline';
+                    this.elements.team2Score.style.display = 'inline';
+                    this.elements.team1Score.textContent = `${Math.floor(info.team1Score)}`;
+                    this.elements.team2Score.textContent = `${Math.floor(info.team2Score)}`;
+                }
+            };
+
+            this.scoreboardUpdaters = {
+                'Free For All': (players, playerId) => {
+                    this.elements.team1Scoreboard.style.display = 'none';
+                    this.elements.team2Scoreboard.style.display = 'none';
+                    this.elements.ffaScoreboard.style.display = 'block';
+
+                    this.elements.ffaList.innerHTML = '';
+                    const sortedPlayers = [...players].sort((a, b) => b.kills - a.kills);
+                    sortedPlayers.forEach(p => this.elements.ffaList.appendChild(this.createPlayerEntry(p, playerId)));
+                },
+                'default': (players, playerId) => {
+                    this.elements.team1Scoreboard.style.display = 'block';
+                    this.elements.team2Scoreboard.style.display = 'block';
+                    this.elements.ffaScoreboard.style.display = 'none';
+
+                    this.elements.team1List.innerHTML = '';
+                    this.elements.team2List.innerHTML = '';
+
+                    const team1Players = players.filter(p => p.team === 1).sort((a, b) => b.kills - a.kills);
+                    const team2Players = players.filter(p => p.team === 2).sort((a, b) => b.kills - a.kills);
+
+                    team1Players.forEach(p => this.elements.team1List.appendChild(this.createPlayerEntry(p, playerId)));
+                    team2Players.forEach(p => this.elements.team2List.appendChild(this.createPlayerEntry(p, playerId)));
+                }
+            };
+        }
+
+        update(gameState) {
+            if (!gameState || !gameState.info) return;
+
+            this.elements.playerCount.textContent = gameState.players ? gameState.players.length : 0;
+            this.elements.gameModeDisplay.textContent = gameState.info.type.replace('Manager', '');
+
+            if (gameState.info.roundTimeRemainingSeconds !== undefined) {
+                const totalSeconds = gameState.info.roundTimeRemainingSeconds;
+                const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+                const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+                this.elements.roundTimer.textContent = `${minutes}:${seconds}`;
+            }
+
+            const infoUpdater = this.infoBarUpdaters[gameState.info.type] || this.infoBarUpdaters.default;
+            infoUpdater(gameState.info);
+
+            const now = Date.now();
+            if (now - this.lastScoreboardUpdateTime > this.SCOREBOARD_UPDATE_INTERVAL) {
+                const scoreboardUpdater = this.scoreboardUpdaters[gameState.info.type] || this.scoreboardUpdaters.default;
+                if (gameState.players) {
+                    scoreboardUpdater(gameState.players, this.game.playerId);
+                }
+                this.lastScoreboardUpdateTime = now;
+            }
+
+            if (this.game.playerId) {
+                const localPlayer = gameState.players.find(p => p.id === this.game.playerId);
+                this.game.isLocalPlayerDead = localPlayer ? localPlayer.dead : false;
+                if (localPlayer && localPlayer.weapon) {
+                    // If the weapon from the server is different from the one in the UI
+                    if (this.elements.weaponSelector.value !== localPlayer.weapon.name) {
+                        this.elements.weaponSelector.value = localPlayer.weapon.name;
+                        // Save the change to localStorage so it persists
+                        localStorage.setItem('weaponName', localPlayer.weapon.name);
+                    }
+                }
+            }
+        }
+
+        updateOnWelcome(data) {
+            const teamElement = this.doc.getElementById('yourTeam');
+            teamElement.textContent = data.team;
+            teamElement.className = `team${data.team}`;
+            if (data.gameId) {
+                this.elements.gameIdIndicator.textContent = `(gameId: ${data.gameId})`;
+            }
+        }
+
+        createPlayerEntry(player, playerId) {
+            const entry = this.doc.createElement('li');
+            entry.className = 'scoreboard-player';
+            if (player.id === playerId) {
+                entry.classList.add('local-player-highlight');
+            }
+
+            const nameSpan = this.doc.createElement('span');
+            nameSpan.className = 'player-name';
+            nameSpan.textContent = player.playerName || (player.id.startsWith('ai-') ? `AI` : 'Player');
+            nameSpan.title = player.playerName || player.id;
+
+            const scoreSpan = this.doc.createElement('span');
+            scoreSpan.className = 'player-score';
+            scoreSpan.textContent = `${player.kills} / ${player.deaths}`;
+
+            entry.appendChild(nameSpan);
+            entry.appendChild(scoreSpan);
+            return entry;
+        }
+    }
+
+    class Game {
+        constructor() {
+            this.canvas = document.getElementById('gameCanvas');
+            this.ctx = this.canvas.getContext('2d');
+            this.ws = null;
+            this.resetGameState();
+            this.keys = {};
+            this.mouse = { x: 0, y: 0, down: false };
+            this.playerId = null;
+            this.playerTeam = null;
+            this.isLocalPlayerDead = false;
+            this.shouldDrawRespawnOverlay = true;
+            this.gamepad = null;
+            this.isGamepadActive = false;
+            this.gamepadAim = { x: 1, y: 0 };
+            this.gamepadMoveDir = { x: 0, y: 0 };
+            this.gamepadWeaponSwapPressed = false;
+
+            this.latency = 0;
+            this.pingStartTime = 0;
+
+            this.backgroundCanvas = document.createElement('canvas');
+            this.backgroundCtx = this.backgroundCanvas.getContext('2d');
+            this.currentGameType = '';
+            this.backgroundNeedsRedraw = true;
+
+            this.uiManager = new GameUIManager(this);
+
+            this.loadPlayerName();
+            this.setupEventListeners();
+            this.connect();
+            this.startGameLoop();
+        }
+
+        resetGameState() {
+            this.gameState = { players: [], bullets: [], obstacles: [], deathMarkers: [], events: [], powerUps: [], info: null, serverTime: 0 };
+        }
+
+        connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const urlParams = new URLSearchParams(window.location.search);
+            const gameId = urlParams.get('gameId') || 'null';
+            const gameType = urlParams.get('gameType') || 'null';
+            let wsUrl = `${protocol}//${location.hostname}:${location.port}/game/${gameId}/${gameType}`;
+
+            this.ws = new WebSocket(wsUrl);
+
+            this.backgroundCanvas.width = this.canvas.width;
+            this.backgroundCanvas.height = this.canvas.height;
+
+            this.ws.onopen = () => {
+                document.getElementById('status').textContent = 'Connected';
+                document.getElementById('status').style.color = '#4CAF50';
+                setInterval(() => {
+                    this.pingStartTime = Date.now();
+                    this.ws.send(JSON.stringify({ type: 'ping' }));
+                }, 2000);
+            };
+
+            this.ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'pong') {
+                    this.latency = Date.now() - this.pingStartTime;
+                    const latencyEl = document.getElementById('latency');
+                    latencyEl.textContent = this.latency;
+                    if (this.latency > 150) {
+                        latencyEl.style.color = '#F44336';
+                    } else if (this.latency > 80) {
+                        latencyEl.style.color = '#FFC107';
+                    } else {
+                        latencyEl.style.color = 'white';
+                    }
+                    return;
+                }
+
+                if (data.type === 'welcome') {
+                    this.playerId = data.playerId;
+                    this.playerTeam = data.team;
+                    this.backgroundNeedsRedraw = true;
+                    this.resetGameState();
+                    this.uiManager.updateOnWelcome(data);
+                    if (data.weaponOptions) {
+                        this.populateWeaponSelector(data.weaponOptions);
+                    }
+                } else {
+                    this.gameState = data;
+                    this.uiManager.update(this.gameState);
+                }
+            };
+
+            this.ws.onclose = () => {
+                document.getElementById('status').textContent = 'Disconnected';
+                document.getElementById('status').style.color = '#F44336';
+                this.resetGameState();
+            };
+
+            this.ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        setupEventListeners() {
+            document.addEventListener('keydown', (e) => { this.keys[e.code] = true; });
+            document.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
+
+            this.canvas.addEventListener('mousemove', (e) => {
+                const rect = this.canvas.getBoundingClientRect();
+                this.mouse.x = e.clientX - rect.left;
+                this.mouse.y = e.clientY - rect.top;
+            });
+            this.canvas.addEventListener('mousedown', (e) => { if (e.button === 0) this.mouse.down = true; });
+            this.canvas.addEventListener('mouseup', (e) => { if (e.button === 0) this.mouse.down = false; });
+            this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+            document.getElementById('playerNameInput').addEventListener('change', () => {
+                this.sendConfigChange();
+                this.canvas.focus();
+            });
+            document.getElementById('weaponSelector').addEventListener('change', () => {
+                this.sendConfigChange();
+                this.canvas.focus();
+            });
+            document.getElementById('leaveGameBtn').addEventListener('click', () => {
+                if (this.ws) {
+                    this.ws.close();
+                }
+                window.location.href = 'lobby.html';
+            });
+            document.getElementById('switchTeamBtn').addEventListener('click', () => {
+                this.sendTeamChangeRequest();
+                this.canvas.focus();
+            });
+        }
+
+        pollGamepad() {
+            const gamepads = navigator.getGamepads();
+            const firstGamepad = gamepads[0] || gamepads[1] || gamepads[2] || gamepads[3];
+
+            if (firstGamepad) {
+                this.gamepad = firstGamepad;
+                const stickMoved = Math.abs(this.gamepad.axes[0]) > 0.1 ||
+                                   Math.abs(this.gamepad.axes[1]) > 0.1 ||
+                                   Math.abs(this.gamepad.axes[2]) > 0.1 ||
+                                   Math.abs(this.gamepad.axes[3]) > 0.1;
+                const buttonPressed = this.gamepad.buttons.some(b => b.pressed);
+                this.isGamepadActive = stickMoved || buttonPressed;
+
+                const leftStickX = this.gamepad.axes[0];
+                const leftStickY = this.gamepad.axes[1];
+                const deadzone = 0.25;
+                const moveMagnitude = Math.sqrt(leftStickX * leftStickX + leftStickY * leftStickY);
+
+                if (moveMagnitude > deadzone) {
+                    this.gamepadMoveDir.x = leftStickX / moveMagnitude;
+                    this.gamepadMoveDir.y = leftStickY / moveMagnitude;
+                } else {
+                    this.gamepadMoveDir.x = 0;
+                    this.gamepadMoveDir.y = 0;
+                }
+            } else {
+                this.gamepad = null;
+                this.isGamepadActive = false;
+                this.gamepadMoveDir.x = 0;
+                this.gamepadMoveDir.y = 0;
+            }
+        }
+
+        sendInput() {
+            if (this.isLocalPlayerDead || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            const input = {
+                moveX: 0,
+                moveY: 0,
+                shooting: false,
+                mouseX: 0,
+                mouseY: 0,
+                reload: false,
+                weaponCycle: false
+            };
+            const deadzone = 0.25;
+
+            if (this.isGamepadActive && this.gamepad) {
+                const leftStickX = this.gamepad.axes[0];
+                const leftStickY = this.gamepad.axes[1];
+                const rightStickX = this.gamepad.axes[2];
+                const rightStickY = this.gamepad.axes[3];
+
+                if (Math.abs(leftStickX) > deadzone) input.moveX = leftStickX;
+                if (Math.abs(leftStickY) > deadzone) input.moveY = leftStickY;
+
+                const moveMagnitude = Math.sqrt(input.moveX * input.moveX + input.moveY * input.moveY);
+                if (moveMagnitude > 1.0) {
+                    input.moveX /= moveMagnitude;
+                    input.moveY /= moveMagnitude;
+                }
+
+                input.shooting = this.gamepad.buttons[7] && this.gamepad.buttons[7].value > 0.5;
+                input.reload = this.gamepad.buttons[2] && this.gamepad.buttons[2].pressed;
+
+                const swapButtonPressed = this.gamepad.buttons[3] && this.gamepad.buttons[3].pressed;
+                if (swapButtonPressed && !this.gamepadWeaponSwapPressed) {
+                    input.weaponCycle = true;
+                }
+                this.gamepadWeaponSwapPressed = swapButtonPressed;
+
+                const aimMagnitude = Math.sqrt(rightStickX * rightStickX + rightStickY * rightStickY);
+                if (aimMagnitude > deadzone) {
+                    this.gamepadAim.x = rightStickX / aimMagnitude;
+                    this.gamepadAim.y = rightStickY / aimMagnitude;
+                }
+
+                const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
+                if (localPlayer) {
+                    const playerCenterX = localPlayer.x + 10;
+                    const playerCenterY = localPlayer.y + 10;
+                    input.mouseX = playerCenterX + this.gamepadAim.x * 100;
+                    input.mouseY = playerCenterY + this.gamepadAim.y * 100;
+                }
+            } else {
+                let moveX = 0;
+                let moveY = 0;
+                if (this.keys['KeyW'] || this.keys['ArrowUp']) moveY = -1;
+                if (this.keys['KeyS'] || this.keys['ArrowDown']) moveY = 1;
+                if (this.keys['KeyA'] || this.keys['ArrowLeft']) moveX = -1;
+                if (this.keys['KeyD'] || this.keys['ArrowRight']) moveX = 1;
+
+                const magnitude = Math.sqrt(moveX * moveX + moveY * moveY);
+                if (magnitude > 0) {
+                    input.moveX = moveX / magnitude;
+                    input.moveY = moveY / magnitude;
+                }
+
+                input.shooting = this.mouse.down;
+                input.mouseX = this.mouse.x;
+                input.mouseY = this.mouse.y;
+                input.reload = !!this.keys['KeyR'];
+            }
+            this.ws.send(JSON.stringify(input));
+        }
+
+        sendConfigChange() {
+            if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+            const playerName = document.getElementById('playerNameInput').value;
+            const weaponName = document.getElementById('weaponSelector').value;
+
+            localStorage.setItem('playerName', playerName);
+            localStorage.setItem('weaponName', weaponName);
+
+            const message = {
+                type: 'configChange',
+                playerName: playerName,
+                weaponName: weaponName
+            };
+            this.ws.send(JSON.stringify(message));
+            console.log(`Sent player config: Name=${playerName}, Weapon=${weaponName}`);
+        }
+
+        sendTeamChangeRequest() {
+            if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+            const message = {
+                type: 'configChange',
+                requestTeamChange: true
+            };
+            this.ws.send(JSON.stringify(message));
+            console.log('Sent team change request.');
+        }
+
+        loadPlayerName() {
+            const savedName = localStorage.getItem('playerName');
+            if (savedName) {
+                document.getElementById('playerNameInput').value = savedName;
+            }
+        }
+
+        populateWeaponSelector(weaponNames) {
+            const selector = document.getElementById('weaponSelector');
+            if (!selector) return;
+
+            selector.innerHTML = '';
+
+            weaponNames.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                selector.appendChild(option);
+            });
+
+            const savedWeapon = localStorage.getItem('weaponName');
+            if (savedWeapon && weaponNames.includes(savedWeapon)) {
+                selector.value = savedWeapon;
+            }
+
+            if (weaponNames.length > 0) {
+                this.sendConfigChange();
+            }
+        }
+
+        preRenderBackground() {
+            const bCtx = this.backgroundCtx;
+            bCtx.fillStyle = '#333';
+            bCtx.fillRect(0, 0, this.backgroundCanvas.width, this.backgroundCanvas.height);
+
+            if (this.gameState.hazards) {
+                this.gameState.hazards.forEach(hazard => {
+                    if (hazard.type === 'SLOW') {
+                        this.drawSandPit(bCtx, hazard);
+                    } else if (hazard.type === 'DAMAGE') {
+                        this.drawFirePit(bCtx, hazard);
+                    }
+                });
+            }
+
+            bCtx.save();
+            bCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            bCtx.lineWidth = 2;
+            bCtx.setLineDash([15, 15]);
+            bCtx.beginPath();
+            bCtx.moveTo(this.backgroundCanvas.width / 2, 0);
+            bCtx.lineTo(this.backgroundCanvas.width / 2, this.backgroundCanvas.height);
+            bCtx.stroke();
+            bCtx.restore();
+
+            if (this.gameState.obstacles) {
+                this.gameState.obstacles.forEach(obstacle => {
+                    if (!obstacle.vertices || obstacle.vertices.length < 3) {
+                       return;
+                    }
+                    bCtx.save();
+                    const cornerRadius = 7;
+                    bCtx.lineJoin = 'round';
+                    bCtx.lineWidth = cornerRadius * 2;
+                    bCtx.fillStyle = '#888';
+                    bCtx.strokeStyle = '#888';
+
+                    bCtx.beginPath();
+                    bCtx.moveTo(obstacle.vertices[0].x, obstacle.vertices[0].y);
+                    for (let i = 1; i < obstacle.vertices.length; i++) {
+                        bCtx.lineTo(obstacle.vertices[i].x, obstacle.vertices[i].y);
+                    }
+                    bCtx.closePath();
+                    bCtx.stroke();
+                    bCtx.fill();
+                    bCtx.restore();
+                });
+            }
+            console.log("Pre-rendered static background.");
+        }
+
+        render() {
+            if (this.backgroundNeedsRedraw && this.gameState.obstacles && this.gameState.obstacles.length > 0) {
+                this.preRenderBackground();
+                this.backgroundNeedsRedraw = false;
+            }
+
+            this.ctx.drawImage(this.backgroundCanvas, 0, 0);
+
+            if (this.gameState.deathMarkers) {
+                this.ctx.strokeStyle = 'rgba(200, 0, 0, 0.6)';
+                this.ctx.lineWidth = 3;
+                const markerSize = 10;
+
+                this.gameState.deathMarkers.forEach(marker => {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(marker.x - markerSize, marker.y - markerSize);
+                    this.ctx.lineTo(marker.x + markerSize, marker.y + markerSize);
+                    this.ctx.stroke();
+
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(marker.x + markerSize, marker.y - markerSize);
+                    this.ctx.lineTo(marker.x - markerSize, marker.y + markerSize);
+                    this.ctx.stroke();
+                });
+            }
+
+            this.drawPowerUps();
+
+            this.gameState.players.forEach(player => {
+                this.drawPlayer(player);
+            });
+
+            if (this.gameState.bullets) {
+                this.gameState.bullets.forEach(bullet => {
+                    this.ctx.fillStyle = bullet.team === 1 ? '#81C784' : '#E57373';
+                    this.ctx.beginPath();
+                    this.ctx.arc(bullet.x, bullet.y, 3, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                });
+            }
+
+            const deadzone = 0.25;
+            const rightStickX = this.gamepad ? this.gamepad.axes[2] || 0 : 0;
+            const rightStickY = this.gamepad ? this.gamepad.axes[3] || 0 : 0;
+            const aimMagnitude = Math.sqrt(rightStickX * rightStickX + rightStickY * rightStickY);
+
+            if (this.isGamepadActive && aimMagnitude > deadzone) {
+                const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
+                if (localPlayer) {
+                    // Get the normalized direction of the stick
+                    const aimDirX = rightStickX / aimMagnitude;
+                    const aimDirY = rightStickY / aimMagnitude;
+
+                    // Remap the magnitude from [deadzone, 1.0] to [0, 1.0] for a smooth response
+                    const effectiveMagnitude = (aimMagnitude - deadzone) / (1 - deadzone);
+
+                    // This makes the crosshair appear close for small movements and move further out for larger ones.
+                    const crosshairDist = 40 + (effectiveMagnitude * 60);
+
+                    const playerCenterX = localPlayer.x + 10;
+                    const playerCenterY = localPlayer.y + 10;
+
+                    const crosshairX = playerCenterX + aimDirX * crosshairDist;
+                    const crosshairY = playerCenterY + aimDirY * crosshairDist;
+
+                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(crosshairX - 8, crosshairY);
+                    this.ctx.lineTo(crosshairX + 8, crosshairY);
+                    this.ctx.moveTo(crosshairX, crosshairY - 8);
+                    this.ctx.lineTo(crosshairX, crosshairY + 8);
+                    this.ctx.stroke();
+                }
+            } else if (!this.isGamepadActive && this.mouse.x && this.mouse.y) {
+                this.ctx.strokeStyle = '#fff';
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.mouse.x - 10, this.mouse.y);
+                this.ctx.lineTo(this.mouse.x + 10, this.mouse.y);
+                this.ctx.moveTo(this.mouse.x, this.mouse.y - 10);
+                this.ctx.lineTo(this.mouse.x, this.mouse.y + 10);
+                this.ctx.stroke();
+            }
+
+            if (this.isLocalPlayerDead && this.shouldDrawRespawnOverlay) {
+                const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
+                if (localPlayer && localPlayer.respawnTime && this.gameState.serverTime > 0) {
+                    const remainingTime = Math.max(0, (localPlayer.respawnTime - this.gameState.serverTime) / 1000);
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.font = '48px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'middle';
+                    this.ctx.fillText(`Respawning in ${remainingTime.toFixed(1)}s`, this.canvas.width / 2, this.canvas.height / 2);
+                }
+            }
+
+            this.drawHill();
+            this.drawFlags();
+            this.drawOddball();
+            this.drawPayload();
+            this.drawLoneWolfHud();
+            this.drawGameEvents();
+        }
+
+        drawPowerUps() {
+            if (!this.gameState.powerUps) return;
+
+            this.ctx.save();
+            this.ctx.font = '20px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+
+            this.gameState.powerUps.forEach(powerUp => {
+                const size = 20;
+                const centerX = powerUp.position.x + size / 2;
+                const centerY = powerUp.position.y + size / 2;
+
+                this.ctx.globalAlpha = 0.8;
+                this.ctx.beginPath();
+                this.ctx.arc(centerX, centerY, size, 0, 2 * Math.PI);
+
+                let icon = '';
+                switch (powerUp.type) {
+                    case 'HEALTH_PACK':
+                        this.ctx.fillStyle = 'rgba(46, 204, 113, 0.7)';
+                        icon = '❤️';
+                        break;
+                    case 'SPEED_BOOST':
+                        this.ctx.fillStyle = 'rgba(241, 196, 15, 0.7)';
+                        icon = '⚡';
+                        break;
+                    case 'ARMOR_UP':
+                        this.ctx.fillStyle = 'rgba(52, 152, 219, 0.7)';
+                        icon = '🛡️';
+                        break;
+                    case 'DAMAGE_BOOST':
+                        this.ctx.fillStyle = 'rgba(229, 57, 53, 0.7)';
+                        icon = '⚔️';
+                        break;
+                }
+                this.ctx.fill();
+
+                this.ctx.globalAlpha = 1.0;
+                if (icon) {
+                    this.ctx.fillText(icon, centerX, centerY);
+                }
+            });
+
+            this.ctx.restore();
+        }
+
+        drawHill() {
+            const gameInfo = this.gameState.info;
+            if (!gameInfo || !gameInfo.hill) {
+                return;
+            }
+
+            const hill = gameInfo.hill;
+            const pos = hill.position;
+            const radius = hill.radius;
+
+            this.ctx.save();
+            this.ctx.globalAlpha = 0.25;
+
+            if (hill.contested) {
+                this.ctx.fillStyle = '#FFC107';
+            } else if (hill.controllingTeam === 1) {
+                this.ctx.fillStyle = '#81C784';
+            } else if (hill.controllingTeam === 2) {
+                this.ctx.fillStyle = '#F44336';
+            } else {
+                this.ctx.fillStyle = '#9E9E9E';
+            }
+
+            this.ctx.beginPath();
+            this.ctx.arc(pos.x, pos.y, radius, 0, 2 * Math.PI);
+            this.ctx.fill();
+
+            this.ctx.globalAlpha = 0.8;
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeStyle = this.ctx.fillStyle;
+            this.ctx.stroke();
+
+            this.ctx.globalAlpha = 1.0;
+
+            this.ctx.strokeStyle = '#616161';
+            this.ctx.lineWidth = 3;
+            this.ctx.beginPath();
+            this.ctx.moveTo(pos.x, pos.y + 15);
+            this.ctx.lineTo(pos.x, pos.y - 25);
+            this.ctx.stroke();
+
+            this.ctx.fillStyle = this.ctx.strokeStyle;
+            this.ctx.beginPath();
+            this.ctx.moveTo(pos.x + 2, pos.y - 25);
+            this.ctx.lineTo(pos.x + 22, pos.y - 18);
+            this.ctx.lineTo(pos.x + 2, pos.y - 11);
+            this.ctx.closePath();
+            this.ctx.fill();
+
+            this.ctx.restore();
+        }
+
+        drawFlags() {
+            const gameInfo = this.gameState.info;
+            if (!gameInfo || gameInfo.type !== 'Capture the Flag') {
+                return;
+            }
+
+            if (gameInfo.team1Flag) {
+                this.drawSingleFlag(gameInfo.team1Flag);
+            }
+            if (gameInfo.team2Flag) {
+                this.drawSingleFlag(gameInfo.team2Flag);
+            }
+        }
+
+        drawOddball() {
+            const gameInfo = this.gameState.info;
+            if (!gameInfo || gameInfo.type !== 'Oddball' || !gameInfo.oddball) {
+                return;
+            }
+
+            const oddball = gameInfo.oddball;
+
+            if (oddball.state === 'CARRIED') {
+                return;
+            }
+
+            const pos = oddball.position;
+            this.ctx.save();
+
+            const pulse = Math.abs(Math.sin(this.gameState.serverTime / 200));
+            this.ctx.fillStyle = '#FFD700';
+            this.ctx.strokeStyle = 'white';
+            this.ctx.lineWidth = 2 + pulse * 2;
+            this.ctx.globalAlpha = 0.7 + pulse * 0.3;
+
+            this.ctx.beginPath();
+            this.ctx.arc(pos.x, pos.y, 12, 0, 2 * Math.PI);
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeStyle = '#FFA000';
+            for (let i = 0; i < 6; i++) {
+                const angle = (i * Math.PI / 3) + (this.gameState.serverTime / 1000);
+                this.ctx.beginPath();
+                this.ctx.moveTo(pos.x, pos.y);
+                this.ctx.lineTo(
+                    pos.x + Math.cos(angle) * 20,
+                    pos.y + Math.sin(angle) * 20
+                );
+                this.ctx.stroke();
+            }
+
+            this.ctx.restore();
+        }
+
+        drawSingleFlag(flag) {
+            if (flag.state === 'CARRIED') {
+                return;
+            }
+
+            const pos = flag.position;
+            const basePos = flag.basePosition;
+            const teamColor = flag.team === 1 ? '#4CAF50' : '#F44336';
+
+            this.ctx.save();
+
+            if (flag.state === 'AT_BASE') {
+                this.ctx.fillStyle = '#444';
+                this.ctx.strokeStyle = '#666';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.rect(basePos.x - 10, basePos.y - 10, 20, 20);
+                this.ctx.fill();
+                this.ctx.stroke();
+            }
+
+            if (flag.state === 'DROPPED') {
+                const pulse = Math.abs(Math.sin(this.gameState.serverTime / 300));
+                this.ctx.strokeStyle = teamColor;
+                this.ctx.lineWidth = 2 + pulse * 2;
+                this.ctx.globalAlpha = 0.5 + pulse * 0.4;
+                this.ctx.beginPath();
+                this.ctx.arc(pos.x, pos.y, 15 + pulse * 5, 0, 2 * Math.PI);
+                this.ctx.stroke();
+            }
+
+            this.ctx.globalAlpha = 1.0;
+
+            this.ctx.strokeStyle = '#616161';
+            this.ctx.lineWidth = 4;
+            this.ctx.beginPath();
+            this.ctx.moveTo(pos.x, pos.y + 15);
+            this.ctx.lineTo(pos.x, pos.y - 25);
+            this.ctx.stroke();
+
+            this.ctx.fillStyle = teamColor;
+            this.ctx.beginPath();
+            this.ctx.moveTo(pos.x + 2, pos.y - 25);
+            this.ctx.lineTo(pos.x + 25, pos.y - 15);
+            this.ctx.lineTo(pos.x + 2, pos.y - 5);
+            this.ctx.closePath();
+            this.ctx.fill();
+
+            this.ctx.restore();
+        }
+
+        drawSandPit(bCtx, hazard) {
+            const pos = hazard.position;
+            const baseRadius = hazard.radius;
+            bCtx.save();
+
+            bCtx.beginPath();
+            const segments = 40;
+            const angleStep = (2 * Math.PI) / segments;
+            const radiusVariation = baseRadius * 0.12;
+
+            for (let i = 0; i <= segments; i++) {
+                const angle = i * angleStep;
+                const waveOffset = Math.sin(angle * 6) * radiusVariation * 0.6;
+                const randomOffset = (Math.random() - 0.5) * 2 * radiusVariation * 0.4;
+                const currentRadius = baseRadius + waveOffset + randomOffset;
+                const x = pos.x + Math.cos(angle) * currentRadius;
+                const y = pos.y + Math.sin(angle) * currentRadius;
+
+                if (i === 0) {
+                    bCtx.moveTo(x, y);
+                } else {
+                    bCtx.lineTo(x, y);
+                }
+            }
+            bCtx.closePath();
+
+            bCtx.fillStyle = '#A0785A';
+            bCtx.fill();
+
+            bCtx.fillStyle = 'rgba(90, 60, 40, 0.15)';
+            const speckleCount = Math.floor(baseRadius * 1.4);
+
+            for (let i = 0; i < speckleCount; i++) {
+                const angle = Math.random() * 2 * Math.PI;
+                const r = Math.random() * baseRadius * 0.9;
+                const speckleX = pos.x + Math.cos(angle) * r;
+                const speckleY = pos.y + Math.sin(angle) * r;
+
+                bCtx.beginPath();
+                bCtx.arc(speckleX, speckleY, Math.random() * 1.3 + 1, 0, 2 * Math.PI);
+                bCtx.fill();
+            }
+            bCtx.restore();
+        }
+
+        drawFirePit(bCtx, hazard) {
+            const pos = hazard.position;
+            const radius = hazard.radius;
+            bCtx.save();
+
+            const gradient = bCtx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, radius);
+            gradient.addColorStop(0, 'rgba(255, 235, 59, 0.9)');
+            gradient.addColorStop(0.6, 'rgba(255, 87, 34, 0.8)');
+            gradient.addColorStop(1, 'rgba(198, 40, 40, 0.6)');
+
+            bCtx.fillStyle = gradient;
+            bCtx.beginPath();
+            bCtx.arc(pos.x, pos.y, radius, 0, 2 * Math.PI);
+            bCtx.fill();
+
+            bCtx.strokeStyle = 'rgba(40, 20, 10, 0.4)';
+            bCtx.lineWidth = 2;
+            const crackCount = Math.floor(radius / 8);
+            for (let i = 0; i < crackCount; i++) {
+                const startAngle = Math.random() * 2 * Math.PI;
+                const endAngle = startAngle + (Math.random() - 0.5) * 0.8;
+                const crackRadius = Math.random() * radius * 0.9;
+                bCtx.beginPath();
+                bCtx.arc(pos.x, pos.y, crackRadius, startAngle, endAngle);
+                bCtx.stroke();
+            }
+
+            bCtx.restore();
+        }
+
+        drawGameEvents() {
+            if (!this.gameState.events || this.gameState.events.length === 0) {
+                return;
+            }
+
+            this.ctx.save();
+            this.ctx.textAlign = 'center';
+            this.ctx.font = 'bold 18px Arial';
+            this.ctx.shadowColor = 'black';
+            this.ctx.shadowBlur = 5;
+
+            const startY = 50;
+            this.gameState.events.forEach((event, index) => {
+                const yPos = startY + (index * 25);
+                switch (event.type) {
+                    case 'FLAG_CAPTURE': this.ctx.fillStyle = '#FFD700'; break;
+                    case 'FLAG_PICKUP':  this.ctx.fillStyle = '#4FC3F7'; break;
+                    case 'FLAG_DROP':    this.ctx.fillStyle = '#BDBDBD'; break;
+                    case 'FLAG_RETURN':  this.ctx.fillStyle = '#81C784'; break;
+                    case 'GREEN':  this.ctx.fillStyle = '#81C784'; break;
+                    case 'RED':  this.ctx.fillStyle = '#F44336'; break;
+                    case 'YELLOW': this.ctx.fillStyle = '#FFD700'; break;
+                    case 'BLUE': this.ctx.fillStyle = '#4FC3F7'; break;
+                    default: this.ctx.fillStyle = '#FFFFFF'; break;
+                }
+                this.ctx.fillText(event.message, this.canvas.width / 2, yPos);
+            });
+
+            this.ctx.restore();
+        }
+
+        drawPlayer(player) {
+            if (player.dead) {
+                return;
+            }
+
+            const playerSize = 20;
+            const playerCenterX = player.x + playerSize / 2;
+            const playerCenterY = player.y + playerSize / 2;
+
+            this.ctx.fillStyle = player.team === 1 ? '#4CAF50' : '#F44336';
+            this.ctx.strokeStyle = player.id === this.playerId ? '#FFD700' : (player.team === 1 ? '#388E3C' : '#B71C1C');
+            this.ctx.lineWidth = player.id === this.playerId ? 3 : 2;
+            this.ctx.beginPath();
+            this.ctx.arc(playerCenterX, playerCenterY, playerSize / 2, 0, 2 * Math.PI);
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            this.ctx.save();
+            this.ctx.translate(playerCenterX, playerCenterY);
+
+            let angle = 0;
+            if (player.id === this.playerId) {
+                if (this.isGamepadActive) {
+                    angle = Math.atan2(this.gamepadAim.y, this.gamepadAim.x);
+                } else {
+                    angle = Math.atan2(this.mouse.y - playerCenterY, this.mouse.x - playerCenterX);
+                }
+            } else {
+                angle = player.lastBulletAngle || 0;
+            }
+            this.ctx.rotate(angle);
+
+            this.ctx.fillStyle = '#9E9E9E';
+            this.ctx.strokeStyle = '#616161';
+            this.ctx.lineWidth = 1;
+            this.ctx.fillRect(0, -3, 15, 6);
+            this.ctx.strokeRect(0, -3, 15, 6);
+            this.ctx.restore();
+
+            const gameInfo = this.gameState.info;
+            if (gameInfo && gameInfo.type === 'Capture the Flag') {
+                const enemyFlag = player.team === 1 ? gameInfo.team2Flag : gameInfo.team1Flag;
+                if (enemyFlag && enemyFlag.state === 'CARRIED' && enemyFlag.carrierId === player.id) {
+                    const flagColor = player.team === 1 ? '#F44336' : '#4CAF50';
+                    this.ctx.save();
+                    this.ctx.translate(playerCenterX, player.y - 35);
+
+                    this.ctx.strokeStyle = '#333';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.fillStyle = flagColor;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, 0);
+                    this.ctx.lineTo(12, -6);
+                    this.ctx.lineTo(0, -12);
+                    this.ctx.closePath();
+                    this.ctx.fill();
+                    this.ctx.stroke();
+
+                    this.ctx.restore();
+                }
+            }
+
+            if (gameInfo && gameInfo.type === 'Oddball' && gameInfo.oddball) {
+                const oddball = gameInfo.oddball;
+                if (oddball.state === 'CARRIED' && oddball.carrierId === player.id) {
+                    this.ctx.save();
+                    this.ctx.translate(playerCenterX, player.y - 35);
+
+                    this.ctx.fillStyle = '#FFD700';
+                    this.ctx.strokeStyle = 'white';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.beginPath();
+                    this.ctx.arc(0, 0, 8, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                    this.ctx.stroke();
+
+                    this.ctx.restore();
+                }
+            }
+
+            if (gameInfo && gameInfo.type === 'Juggernaut'
+                    && (gameInfo.team1Juggernaut === player.id || gameInfo.team2Juggernaut == player.id)) {
+                this.ctx.save();
+                this.ctx.font = '24px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText('👑', playerCenterX, player.y - 30);
+                this.ctx.restore();
+            }
+
+            this.ctx.fillStyle = '#fff';
+            this.ctx.font = '12px Arial';
+            this.ctx.textAlign = 'center';
+            const baseName = player.playerName || (player.id.startsWith('ai-') ? 'AI' : 'Player');
+            let displayName = `${baseName} | ${player.weapon.shortName}`;
+            if (player.damageBoostEndTime > this.gameState.serverTime) {
+                displayName = `⚔️ ${displayName}`;
+            }
+            if (player.speedBoostEndTime > this.gameState.serverTime) {
+                displayName = `⚡ ${displayName}`;
+            }
+            if (player.armorUpEndTime > this.gameState.serverTime) {
+                displayName = `🛡️ ${displayName}`;
+            }
+            this.ctx.fillText(displayName, playerCenterX, player.y - 15);
+
+            if (player.id === this.playerId) {
+                this.ctx.font = 'bold 12px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                const text = player.reloading ? 'R' : player.currentAmmoInMagazine.toString();
+                this.ctx.fillText(text, playerCenterX + 1, playerCenterY + 1);
+
+                this.ctx.fillStyle = player.reloading ? '#FFC107' : '#FFFFFF';
+                this.ctx.fillText(text, playerCenterX, playerCenterY);
+
+                this.ctx.textBaseline = 'alphabetic';
+            }
+
+            const maxHealth = player.maxHealth || 100;
+            const healthPercentage = Math.max(0, player.currentHealth / maxHealth);
+            const healthBarRadius = playerSize / 2 + 4;
+            const healthBarThickness = 3;
+
+            const arcSpan = Math.PI / 2;
+            const startAngle = -Math.PI / 2 - (arcSpan / 2);
+            const endAngle = startAngle + arcSpan;
+
+            this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+            this.ctx.lineWidth = healthBarThickness + 1;
+            this.ctx.beginPath();
+            this.ctx.arc(playerCenterX, playerCenterY, healthBarRadius, startAngle, endAngle);
+            this.ctx.stroke();
+
+            if (healthPercentage > 0) {
+                const healthEndAngle = startAngle + (healthPercentage * arcSpan);
+                this.ctx.strokeStyle = healthPercentage > 0.5 ? '#4CAF50' : (healthPercentage > 0.2 ? '#FFC107' : '#F44336');
+                this.ctx.lineWidth = healthBarThickness;
+                this.ctx.beginPath();
+                this.ctx.arc(playerCenterX, playerCenterY, healthBarRadius, startAngle, healthEndAngle);
+                this.ctx.stroke();
+            }
+        }
+
+        drawPayload() {
+            const gameInfo = this.gameState.info;
+            if (!gameInfo || gameInfo.type !== 'Escort' || !gameInfo.obstacle) {
+                return;
+            }
+
+            const payload = gameInfo.obstacle;
+            if (!payload.vertices || payload.vertices.length < 3) {
+                return;
+            }
+
+            const payloadCenter = payload.vertices.reduce((acc, v) => ({ x: acc.x + v.x, y: acc.y + v.y }), { x: 0, y: 0 });
+            payloadCenter.x /= payload.vertices.length;
+            payloadCenter.y /= payload.vertices.length;
+
+            const captureRadius = gameInfo.captureRadius;
+
+            this.ctx.save();
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([10, 10]);
+
+            this.ctx.beginPath();
+            this.ctx.arc(payloadCenter.x, payloadCenter.y, captureRadius, 0, 2 * Math.PI);
+            this.ctx.stroke();
+            this.ctx.restore();
+
+            this.ctx.save();
+            this.ctx.fillStyle = '#B0BEC5';
+            this.ctx.strokeStyle = '#546E7A';
+            this.ctx.lineWidth = 3;
+            this.ctx.lineJoin = 'round';
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(payload.vertices[0].x, payload.vertices[0].y);
+            for (let i = 1; i < payload.vertices.length; i++) {
+                this.ctx.lineTo(payload.vertices[i].x, payload.vertices[i].y);
+            }
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+            this.ctx.restore();
+        }
+
+        drawLoneWolfHud() {
+            const gameInfo = this.gameState.info;
+            if (!gameInfo || gameInfo.type !== 'LoneWolfManager' || !gameInfo.gameModeMetadata) {
+                return;
+            }
+
+            const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
+            if (!localPlayer || localPlayer.team !== 1) { // Only show for the Lone Wolf
+                return;
+            }
+
+            const targets = gameInfo.gameModeMetadata.hunterTargets || [];
+            if (targets.length === 0) {
+                return;
+            }
+
+            this.ctx.save();
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            this.ctx.font = '16px Arial';
+            this.ctx.textAlign = 'left';
+            this.ctx.textBaseline = 'top';
+            this.ctx.shadowColor = 'black';
+            this.ctx.shadowBlur = 3;
+
+            this.ctx.fillText('Remaining Targets:', 10, 50);
+
+            this.ctx.font = '14px Arial';
+            targets.forEach((name, index) => {
+                this.ctx.fillText(`- ${name}`, 15, 75 + (index * 20));
+            });
+
+            this.ctx.restore();
+        }
+
+        startGameLoop() {
+            setInterval(() => this.sendInput(), 50);
+            const renderLoop = () => {
+                this.pollGamepad();
+                this.render();
+                requestAnimationFrame(renderLoop);
+            };
+            renderLoop();
+        }
+    }
+
+    window.addEventListener('load', () => {
+        new Game();
+    });
+</script>
+</body>
+</html>

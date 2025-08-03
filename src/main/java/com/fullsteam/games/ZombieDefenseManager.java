@@ -4,18 +4,23 @@ import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.GameState;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.PowerUp;
+import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.ZombieAIStrategy;
+import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.ZombieDefenseInfo;
 import io.netty.channel.Channel;
 
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+
+import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
+import static com.fullsteam.Config.ZOMBIE_INITIAL_WAVE_DELAY_MS;
+import static com.fullsteam.Config.ZOMBIE_TIME_BETWEEN_WAVES_MS;
 
 /**
  * A cooperative PvE game mode where human players (Team 1) defend against
@@ -23,9 +28,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class ZombieDefenseManager extends AbstractGameStateManager {
 
-    private static final long TIME_BETWEEN_WAVES_MS = 15_000;
-    private static final long INITIAL_WAVE_DELAY_MS = 5_000;
-
+    private static final long WAVE_WARNING_TIME_MS = 5_000; // 5 seconds before the wave hits
     private int waveNumber = 0;
     private long nextWaveTime;
     private long roundEndTime;
@@ -53,11 +56,20 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     @Override
     protected void startNewRound() {
         super.startNewRound();
+        roundEndTime = System.currentTimeMillis() + (Config.ROUND_DURATION_SECONDS * 1000);
         this.waveNumber = 0;
+
+        // clear the zombies from the previous round
+        players.values()
+                .stream()
+                .filter(p -> p.getTeam() == 2)
+                .map(Player::getId)
+                .toList()
+                .forEach(this::removePlayer);
         // Schedule the first wave
-        this.nextWaveTime = System.currentTimeMillis() + INITIAL_WAVE_DELAY_MS;
+        this.nextWaveTime = System.currentTimeMillis() + ZOMBIE_INITIAL_WAVE_DELAY_MS;
         log.info("Zombie Defense match started. Survive for {} seconds.", Config.ROUND_DURATION_SECONDS);
-        sendGameEvent(GameEvent.info("First wave incoming..."));
+        sendGameEvent(GameEvent.yellow("First wave incoming..."));
     }
 
     @Override
@@ -68,57 +80,83 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         }
     }
 
+    @Override
+    protected void killPlayer(Player victim, Player shooter) {
+        super.killPlayer(victim, shooter);
+        if (victim.getTeam() == 2) {
+            removePlayer(victim.getId());
+        }
+    }
+
+    @Override
+    protected void applyPowerUp(Player player, PowerUp powerUp) {
+        // Zombies (Team 2) cannot pick up power-ups.
+        if (player.getTeam() == 2) {
+            return; // Do nothing if a zombie touches a power-up
+        }
+        // If it's a human player, let the default logic handle it.
+        super.applyPowerUp(player, powerUp);
+    }
+
     private void spawnNextWave() {
         waveNumber++;
         int zombiesToSpawn = 5 + (waveNumber * 3); // Waves get progressively harder
         log.info("Spawning Wave {} with {} zombies.", waveNumber, zombiesToSpawn);
-        sendGameEvent(GameEvent.info("Wave " + waveNumber + " has arrived!"));
+        sendGameEvent(GameEvent.red("Wave " + waveNumber + " has arrived!"));
 
         for (int i = 0; i < zombiesToSpawn; i++) {
             spawnZombie();
         }
 
         // Schedule the next wave
-        this.nextWaveTime = System.currentTimeMillis() + TIME_BETWEEN_WAVES_MS;
+        this.nextWaveTime = System.currentTimeMillis() + ZOMBIE_TIME_BETWEEN_WAVES_MS;
+        // Schedule a warning message to appear before the next wave
+        long warningDelay = ZOMBIE_TIME_BETWEEN_WAVES_MS - WAVE_WARNING_TIME_MS;
+        if (warningDelay > 0) {
+            final int nextWaveNumber = this.waveNumber + 1;
+            schedule(() -> {
+                // Check if the game is still running to avoid sending messages after game over
+                if (System.currentTimeMillis() < roundEndTime && !isRoundOver) {
+                    sendGameEvent(GameEvent.yellow("Wave " + nextWaveNumber + " is incoming!"));
+                }
+            }, warningDelay);
+        }
     }
 
     private void spawnZombie() {
         String playerId = "zombie-" + UUID.randomUUID();
         // Zombies are on Team 2
-        AIPlayer zombie = new AIPlayer(playerId, 0, 0, 2, new ZombieAIStrategy());
-        zombie.setWeapon(WeaponFactory.ZOMBIE_CLAW);
-        zombie.setPlayerName("Zombie");
-        zombie.setMaxHealth(50);
-        zombie.resetHealth();
-        zombie.setSpeed(Config.ZOMBIE_SPEED);
+        AIPlayer zombie = new AIPlayer(playerId, 0, 0, 2, new ZombieAIStrategy(), AIArchetype.randomArchetype());
+        double random = ThreadLocalRandom.current().nextDouble();
 
+        // Introduce special zombies in later waves
+        if (waveNumber > 5 && random < 0.15) { // 15% chance for a Brute
+            zombie.setPlayerName("Brute");
+            zombie.setWeapon(WeaponFactory.HEAVY_ZOMBIE_CLAW);
+            zombie.setMaxHealth(300);
+            zombie.setSpeed(Config.ZOMBIE_SPEED - .6);
+        } else if (waveNumber > 3 && random < 0.30) { // 30% chance for a Runner
+            zombie.setPlayerName("Runner");
+            zombie.setWeapon(WeaponFactory.ZOMBIE_CLAW);
+            zombie.setMaxHealth(50);
+            zombie.setSpeed(Config.ZOMBIE_SPEED + .6);
+        } else {
+            zombie.setPlayerName("Zombie");
+            zombie.setWeapon(WeaponFactory.ZOMBIE_CLAW);
+            zombie.setMaxHealth(50);
+            zombie.setSpeed(Config.ZOMBIE_SPEED);
+        }
+        zombie.setDefaultSpeed(zombie.getSpeed());
+        zombie.resetHealth();
         // Spawn zombies at the edges of the map
         setZombieSpawnPosition(zombie);
         players.put(playerId, zombie);
     }
 
     private void setZombieSpawnPosition(Player zombie) {
-        // Logic to spawn zombies around the map edges, outside the house
-        double x, y;
-        int edge = ThreadLocalRandom.current().nextInt(4);
-        switch (edge) {
-            case 0: // Top edge
-                x = ThreadLocalRandom.current().nextDouble(Config.GAME_WIDTH);
-                y = 10;
-                break;
-            case 1: // Bottom edge
-                x = ThreadLocalRandom.current().nextDouble(Config.GAME_WIDTH);
-                y = Config.GAME_HEIGHT - Config.PLAYER_SIZE - 10;
-                break;
-            case 2: // Left edge
-                x = 10;
-                y = ThreadLocalRandom.current().nextDouble(Config.GAME_HEIGHT);
-                break;
-            default: // Right edge
-                x = Config.GAME_WIDTH - Config.PLAYER_SIZE - 10;
-                y = ThreadLocalRandom.current().nextDouble(Config.GAME_HEIGHT);
-                break;
-        }
+        // Zombies now only spawn along the top edge of the map.
+        double x = ThreadLocalRandom.current().nextDouble(Config.GAME_WIDTH);
+        double y = 10; // Spawn near the top
         zombie.setX(x);
         zombie.setY(y);
     }
@@ -150,72 +188,66 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     @Override
     protected void generateObstacles() {
         obstacles.clear();
-        // Create a "house" in the middle of the map.
-        double houseWidth = 300;
-        double houseHeight = 200;
-        double wallThickness = 20;
+        // Create a "bunker" at the bottom of the map.
+        double houseWidth = 350;
+        double houseHeight = 250;
+        double wallThickness = 15;
         double doorSize = 60;
 
         double centerX = Config.GAME_WIDTH / 2.0;
-        double centerY = Config.GAME_HEIGHT / 2.0;
+        // Move the house to be against the bottom of the screen
+        double bottom = Config.GAME_HEIGHT - 20;
+        double top = bottom - houseHeight;
         double left = centerX - houseWidth / 2;
         double right = centerX + houseWidth / 2;
-        double top = centerY - houseHeight / 2;
-        double bottom = centerY + houseHeight / 2;
+
 
         // Top wall (with a door gap)
         obstacles.add(Obstacle.createRectangle(left, top, (houseWidth - doorSize) / 2, wallThickness));
         obstacles.add(Obstacle.createRectangle(centerX + doorSize / 2, top, (houseWidth - doorSize) / 2, wallThickness));
 
-        // Bottom wall (with a door gap)
-        obstacles.add(Obstacle.createRectangle(left, bottom - wallThickness, (houseWidth - doorSize) / 2, wallThickness));
-        obstacles.add(Obstacle.createRectangle(centerX + doorSize / 2, bottom - wallThickness, (houseWidth - doorSize) / 2, wallThickness));
+        // Bottom wall (solid)
+        obstacles.add(Obstacle.createRectangle(left, bottom - wallThickness, houseWidth, wallThickness));
 
         // Left wall
         obstacles.add(Obstacle.createRectangle(left, top, wallThickness, houseHeight));
         // Right wall
         obstacles.add(Obstacle.createRectangle(right - wallThickness, top, wallThickness, houseHeight));
 
-        log.info("Generated a house structure for Zombie Defense.");
+        log.info("Generated a bunker structure for Zombie Defense.");
     }
 
     @Override
     protected void setValidSpawnPosition(Player player) {
-        // Human players should spawn inside the house
+        // Human players should spawn inside the bunker
         if (player.getTeam() == 1) {
             double houseWidth = 300;
             double houseHeight = 200;
             double centerX = Config.GAME_WIDTH / 2.0;
-            double centerY = Config.GAME_HEIGHT / 2.0;
+            double bottom = Config.GAME_HEIGHT - 20;
+            double centerY = bottom - houseHeight / 2.0;
+
             player.setX(centerX + (ThreadLocalRandom.current().nextDouble() - 0.5) * (houseWidth - 100));
             player.setY(centerY + (ThreadLocalRandom.current().nextDouble() - 0.5) * (houseHeight - 100));
         }
-        // This case is for zombies, who have their own spawn logic.
-        // This method will be called from super.startNewRound(), but we can ignore it
-        // as setZombieSpawnPosition() will be used for actual zombie placement.
     }
 
     @Override
-    protected GameState buildGameState() {
+    public int getMaxPlayers() {
+        return MAX_PLAYERS_PER_TEAM; // Only 5 humans allowed in this game
+    }
+
+    @Override
+    protected GameInfo buildGameState() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
         long timeToNextWave = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(nextWaveTime - System.currentTimeMillis()));
         long zombiesAlive = players.values().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
-
-        ZombieDefenseInfo gameInfo = new ZombieDefenseInfo(
+        return new ZombieDefenseInfo(
                 this.waveNumber,
                 zombiesAlive,
                 timeToNextWave,
                 roundTimeRemainingSeconds
-        );
-
-        return new GameState(
-                List.copyOf(players.values()),
-                List.copyOf(bullets),
-                List.copyOf(obstacles),
-                List.copyOf(deathMarkers),
-                List.copyOf(gameEvents),
-                gameInfo
         );
     }
 }

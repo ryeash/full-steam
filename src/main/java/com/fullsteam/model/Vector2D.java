@@ -7,6 +7,8 @@ package com.fullsteam.model;
  */
 public record Vector2D(double x, double y) {
 
+    public static final Vector2D ZERO = new Vector2D(0, 0);
+
     /**
      * Adds another vector to this vector.
      *
@@ -18,13 +20,71 @@ public record Vector2D(double x, double y) {
     }
 
     /**
-     * Scales this vector by a scalar value.
+     * Subtracts another vector from this vector.
      *
-     * @param scalar The value to scale the vector by.
+     * @param other The vector to subtract.
+     * @return A new Vector2D representing the difference.
+     */
+    public Vector2D subtract(Vector2D other) {
+        return new Vector2D(this.x - other.x, this.y - other.y);
+    }
+
+    /**
+     * Multiplies this vector by a scalar value.
+     * An alias for the scale() method for semantic clarity in different contexts.
+     *
+     * @param scalar The value to multiply the vector by.
      * @return A new, scaled Vector2D.
      */
-    public Vector2D scale(double scalar) {
+    public Vector2D multiply(double scalar) {
         return new Vector2D(this.x * scalar, this.y * scalar);
+    }
+
+    /**
+     * Calculates the squared magnitude (length) of this vector.
+     * This is faster than magnitude() as it avoids a square root operation.
+     *
+     * @return The squared magnitude of the vector.
+     */
+    public double magnitudeSq() {
+        return x * x + y * y;
+    }
+
+    /**
+     * Calculates the magnitude (length) of this vector.
+     *
+     * @return The magnitude of the vector.
+     */
+    public double magnitude() {
+        return Math.sqrt(magnitudeSq());
+    }
+
+    /**
+     * Returns a new vector with the same direction but a magnitude of 1.
+     * If the vector has a magnitude of 0, it returns a zero vector to prevent division by zero errors.
+     *
+     * @return A new, normalized Vector2D.
+     */
+    public Vector2D normalize() {
+        double mag = magnitude();
+        if (mag > 1e-9) { // Use a small epsilon to avoid floating point issues
+            return new Vector2D(x / mag, y / mag);
+        }
+        return ZERO;
+    }
+
+    /**
+     * Limits the magnitude of this vector to a maximum value.
+     * If the magnitude is already less than the max, it returns a copy of this vector.
+     *
+     * @param max The maximum magnitude.
+     * @return A new Vector2D with a magnitude no greater than max.
+     */
+    public Vector2D limit(double max) {
+        if (magnitudeSq() > max * max) {
+            return normalize().multiply(max);
+        }
+        return this;
     }
 
     /**
@@ -81,5 +141,17 @@ public record Vector2D(double x, double y) {
         double newX = this.x * cos - this.y * sin;
         double newY = this.x * sin + this.y * cos;
         return new Vector2D(newX, newY);
+    }
+
+    /**
+     * Calculates the dot product of this vector and another.
+     * The dot product is a scalar value that represents the angular
+     * relationship between two vectors.
+     *
+     * @param other The other vector.
+     * @return The dot product of the two vectors.
+     */
+    public double dot(Vector2D other) {
+        return this.x * other.x + this.y * other.y;
     }
 }

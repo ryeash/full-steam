@@ -2,6 +2,7 @@ package com.fullsteam;
 
 import com.fullsteam.model.Weapon;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,11 +15,14 @@ import java.util.concurrent.ThreadLocalRandom;
 public class WeaponFactory {
 
     private static final Map<String, Weapon> weaponPresets = new ConcurrentHashMap<>();
+    private static final List<String> weaponNames;
+    private static final Weapon[] weaponArray;
+
 
     static {
         addPreset(new Weapon(
-                "Assault Rifle",
-                "AR",
+                "Assault",
+                "A",
                 32, // Fire Rate: 300ms cooldown (fast)
                 20, // Damage: 50 (good)
                 6,  // Range: 500 (good)
@@ -58,10 +62,10 @@ public class WeaponFactory {
         addPreset(new Weapon(
                 "Minigun",
                 "M",
-                46, // Fire Rate: 50ms cooldown (max)
+                43, // Fire Rate: 50ms cooldown (max)
                 5,  // Damage: 20 (low)
-                2,  // Range: 200 (very short)
-                8,  // Speed: 7.5 (average)
+                1,  // Range: 200 (very short)
+                12,  // Speed: 7.5 (average)
                 0,  // Accuracy: 0.4 spread (very low)
                 0,  // Multi-shot: 1 pellet
                 31, // Magazine Size: >100 rounds (huge)
@@ -86,56 +90,76 @@ public class WeaponFactory {
                 "S",
                 4,  // Fire Rate: 900ms cooldown (slow)
                 10, // Damage: 30 per pellet (high potential)
-                3,  // Range: 250 (very short)
+                4,  // Range: 250 (very short)
                 10,  // Speed: 7.5 (average)
-                1,  // Accuracy: 0.385 spread (very wide)
+                2,  // Accuracy: 0.385 spread (very wide)
                 50, // Multi-shot: 5 pellets
                 10,  // Magazine Size: 15 rounds
-                12  // Reload Speed: 3.8s (slow)
+                10  // Reload Speed: 3.8s (slow)
         ));
 
         addPreset(new Weapon(
                 "Street Sweeper",
                 "SW",
-                37,  // Fire Rate: 875ms cooldown (slow)
+                27,  // Fire Rate: 875ms cooldown (slow)
                 5,  // Damage: 20 per pellet (medium potential)
                 2,  // Range: 200 (very short)
                 0,  // Speed: 6.0 (slow)
-                0,  // Accuracy: 0.4 spread (max spread)
-                50, // Multi-shot: 6 pellets
-                4,  // Magazine Size: 14 rounds
+                -20,  // Accuracy: 0.4 spread (max spread)
+                70, // Multi-shot: 7 pellets
+                14,  // Magazine Size: 14 rounds
                 2   // Reload Speed: 4.8s (very slow)
         ));
 
         addPreset(new Weapon(
                 "Twin Sixes",
                 "T6s",
-                20, // Fire Rate: 500ms cooldown (medium)
-                30, // Damage: 60 (high)
+                23, // Fire Rate: 500ms cooldown (medium)
+                20, // Damage: 60 (high)
                 4,  // Range: 350 (short-medium)
-                21, // Speed: 12.5 (very fast)
+                18, // Speed: 12.5 (very fast)
                 8, // Accuracy: 0.25 spread (accurate)
                 10, // Multi-shot: 2 pellets
                 2,  // Magazine Size: 12 rounds
-                5   // Reload Speed: 4.5s (slow)
+                15   // Reload Speed: 4.5s (slow)
         ));
+
+        // Pre-sort the weapon names for faster access.
+        weaponNames = Collections.unmodifiableList(
+                weaponPresets.keySet().stream().sorted().toList()
+        );
+
+        // Cache the weapon array for faster random access.
+        weaponArray = weaponPresets.values().toArray(new Weapon[0]);
     }
 
     /**
-     * This is the zombie specific weapon, it is not included in
-     * the preset list because we don't want it to be selectable
+     * These are the zombie specific weapons, they are not included in
+     * the preset list because we don't want them to be selectable
      * or randomly assigned to non-zombie AIs.
      */
     public static final Weapon ZOMBIE_CLAW = new Weapon(
             "Claw",
             "C",
+            5,
+            20,
+            -1,
+            27,
+            0,
+            10,
+            4,
+            20
+    );
+    public static final Weapon HEAVY_ZOMBIE_CLAW = new Weapon(
+            "HeavyClaw",
+            "HC",
             10,
             50,
             -1,
             7,
             0,
             10,
-            2,
+            4,
             20
     );
 
@@ -147,14 +171,14 @@ public class WeaponFactory {
     }
 
     public static List<String> weaponOptions() {
-        return weaponPresets.keySet().stream().sorted().toList();
+        return weaponNames;
     }
 
     /**
      * Retrieves a weapon preset by name.
      *
      * @param name The name of the weapon (e.g., "Sniper Rifle").
-     * @return The requested Weapon, or the default "Assault Rifle" if not found.
+     * @return The requested Weapon, or the default "Assault" if not found.
      */
     public static Weapon getWeapon(String name) {
         return weaponPresets.getOrDefault(name, getDefaultWeapon());
@@ -163,14 +187,13 @@ public class WeaponFactory {
     /**
      * Gets the default weapon for new players.
      *
-     * @return The default "Assault Rifle".
+     * @return The default "Assault".
      */
     public static Weapon getDefaultWeapon() {
-        return weaponPresets.get("Assault Rifle");
+        return weaponPresets.get("Assault");
     }
 
     public static Weapon getRandomWeapon() {
-        Object[] values = weaponPresets.values().toArray();
-        return (Weapon) values[ThreadLocalRandom.current().nextInt(values.length)];
+        return weaponArray[ThreadLocalRandom.current().nextInt(weaponArray.length)];
     }
 }

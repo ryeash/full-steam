@@ -3,6 +3,7 @@ package com.fullsteam.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
+import org.apache.commons.lang3.StringUtils;
 
 public class Player {
     protected final String id;
@@ -15,7 +16,9 @@ public class Player {
     protected double velocityY;
     @JsonIgnore
     protected double speed;
-    protected final int team;
+    @JsonIgnore
+    protected double defaultSpeed;
+    protected int team;
     protected Weapon weapon;
     protected double currentHealth;
     protected double maxHealth;
@@ -34,6 +37,10 @@ public class Player {
     protected long reloadCompleteTime;
     @JsonIgnore
     protected long nextShotTime;
+    public long speedBoostEndTime;
+    public long armorUpEndTime;
+    public long damageBoostEndTime;
+    public double damageMultiplier;
 
     public Player(String id, double x, double y, int team) {
         this(id, id, x, y, team, WeaponFactory.getDefaultWeapon());
@@ -46,6 +53,7 @@ public class Player {
         this.y = y;
         this.team = team;
         this.speed = Config.DEFAULT_PLAYER_SPEED;
+        this.defaultSpeed = Config.DEFAULT_PLAYER_SPEED;
         setWeapon(weapon);
         this.currentHealth = Config.DEFAULT_PLAYER_HEALTH;
         this.maxHealth = Config.DEFAULT_PLAYER_HEALTH;
@@ -61,18 +69,15 @@ public class Player {
         this.isReloading = false;
         this.reloadCompleteTime = 0;
         this.nextShotTime = 0;
+        this.speedBoostEndTime = 0;
+        this.armorUpEndTime = 0;
+        this.damageBoostEndTime = 0;
+        this.damageMultiplier = 1.0;
     }
 
     public void update() {
-        // Normalize velocity if moving diagonally
-        if (velocityX != 0 && velocityY != 0) {
-            double length = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
-            x += (velocityX / length) * speed;
-            y += (velocityY / length) * speed;
-        } else {
-            x += velocityX;
-            y += velocityY;
-        }
+        x += velocityX;
+        y += velocityY;
     }
 
     public boolean canShoot() {
@@ -125,7 +130,7 @@ public class Player {
     }
 
     public void setPlayerName(String playerName) {
-        this.playerName = playerName;
+        this.playerName = StringUtils.abbreviate(playerName, 25);
     }
 
     public double getX() {
@@ -148,6 +153,11 @@ public class Player {
         return new Vector2D(this.x + (Config.PLAYER_SIZE / 2.0), this.y + (Config.PLAYER_SIZE / 2.0));
     }
 
+    public void setVelocity(Vector2D velocity) {
+        setVelocityX(velocity.x());
+        setVelocityY(velocity.y());
+    }
+
     public double getVelocityX() {
         return velocityX;
     }
@@ -164,6 +174,11 @@ public class Player {
         this.velocityY = velocityY;
     }
 
+    @JsonIgnore
+    public Vector2D getVelocity() {
+        return new Vector2D(velocityX, velocityY);
+    }
+
     public double getSpeed() {
         return speed;
     }
@@ -172,8 +187,24 @@ public class Player {
         this.speed = speed;
     }
 
+    public double getDefaultSpeed() {
+        return defaultSpeed;
+    }
+
+    public void setDefaultSpeed(double defaultSpeed) {
+        this.defaultSpeed = defaultSpeed;
+    }
+
+    public void restoreSpeed() {
+        setSpeed(getDefaultSpeed());
+    }
+
     public int getTeam() {
         return team;
+    }
+
+    public void setTeam(int team) {
+        this.team = team;
     }
 
     // The setter for team is removed as it is now final.
@@ -260,13 +291,20 @@ public class Player {
     }
 
     /**
-     * Applies damage to the player.
+     * Applies damage to the player. A negative amount will heal the player.
      *
      * @param amount The amount of damage to inflict.
      * @return {@code true} if the player's health dropped to or below zero, {@code false} otherwise.
      */
     public boolean takeDamage(double amount) {
+        // If armor is active and the player is taking damage (not being healed)
+        if (System.currentTimeMillis() < this.armorUpEndTime && amount > 0) {
+            return false; // Invincible, do not take damage
+        }
         this.currentHealth -= amount;
+        if (this.currentHealth > this.maxHealth) {
+            this.currentHealth = this.maxHealth;
+        }
         return this.currentHealth <= 0;
     }
 
@@ -288,5 +326,36 @@ public class Player {
     public void resetStats() {
         this.kills = 0;
         this.deaths = 0;
+        this.armorUpEndTime = 0;
+        this.speedBoostEndTime = 0;
+    }
+
+    public long getSpeedBoostEndTime() {
+        return speedBoostEndTime;
+    }
+
+    public void applySpeedBoost(long durationMs) {
+        this.speedBoostEndTime = System.currentTimeMillis() + durationMs;
+    }
+
+    public void applyArmorUp(long durationMs) {
+        this.armorUpEndTime = System.currentTimeMillis() + durationMs;
+    }
+
+    public void applyDamageBoost(long durationMs) {
+        this.damageBoostEndTime = System.currentTimeMillis() + durationMs;
+        this.damageMultiplier = Config.DAMAGE_BOOST_MULTIPLIER;
+    }
+
+    public long getDamageBoostEndTime() {
+        return damageBoostEndTime;
+    }
+
+    public double getDamageMultiplier() {
+        return damageMultiplier;
+    }
+
+    public void setDamageMultiplier(double damageMultiplier) {
+        this.damageMultiplier = damageMultiplier;
     }
 }

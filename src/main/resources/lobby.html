@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Game Lobby</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 40px;
+            background-color: #222;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+        }
+        #lobby-wrapper {
+            width: 100%;
+            max-width: 800px;
+        }
+        h1, h2 {
+            text-align: center;
+            border-bottom: 2px solid #555;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        h2 {
+            font-size: 1.5em;
+            border-bottom: 1px solid #444;
+        }
+        #player-count {
+            text-align: center;
+            font-size: 1.2em;
+            color: #ccc;
+            margin-bottom: 30px;
+        }
+        #games-list {
+            list-style: none;
+            padding: 0;
+        }
+        .game-item {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+        .game-item:hover {
+            background-color: #333;
+        }
+        .game-item span {
+            margin-right: 20px;
+        }
+        .join-button, #create-buttons button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 1em;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .join-button:hover, #create-buttons button:hover {
+            background-color: #45a049;
+        }
+        #create-buttons {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        #create-buttons button {
+            margin: 5px;
+            background-color: #008CBA;
+        }
+        #create-buttons button:hover {
+            background-color: #007B9E;
+        }
+    </style>
+</head>
+<body>
+<div id="lobby-wrapper">
+    <h1>Game Lobby</h1>
+
+    <div id="player-count">Global Players: 0/0</div>
+
+    <h2>Create a New Game</h2>
+    <div id="create-buttons">
+        <!-- "Create Game" buttons will be populated by JavaScript -->
+    </div>
+
+    <h2>Active Games</h2>
+    <ul id="games-list">
+        <!-- Game list will be populated by JavaScript -->
+    </ul>
+</div>
+
+<script>
+    const gamesList = document.getElementById('games-list');
+    const createButtons = document.getElementById('create-buttons');
+    const playerCount = document.getElementById('player-count');
+
+    function fetchLobbyInfo() {
+        fetch('/api/games')
+            .then(response => response.json())
+            .then(lobbyInfo => {
+                updateLobby(lobbyInfo);
+            })
+            .catch(error => {
+                console.error('Error fetching lobby info:', error);
+                playerCount.textContent = "Error loading lobby data. Is the server running?";
+            });
+    }
+
+    function updateLobby(lobbyInfo) {
+        // Update player count
+        playerCount.textContent = `Global Players: ${lobbyInfo.globalPlayerCount} / ${lobbyInfo.maxGlobalPlayers}`;
+
+        // Update "Create Game" buttons
+        createButtons.innerHTML = ''; // Clear existing buttons
+        if (lobbyInfo.gameTypes) {
+            lobbyInfo.gameTypes.forEach(gameType => {
+                const button = document.createElement('button');
+                button.textContent = `Create ${(gameType || '').replace('Manager', '')}`;
+                button.onclick = () => createGame(gameType);
+                createButtons.appendChild(button);
+            });
+        }
+
+        // Update active games list
+        gamesList.innerHTML = ''; // Clear existing list
+        if (lobbyInfo.activeGames) {
+            lobbyInfo.activeGames.forEach(game => {
+                const listItem = document.createElement('li');
+                listItem.className = 'game-item';
+
+                let buttonHtml = '';
+                if (game.playerCount < game.maxPlayers) {
+                    buttonHtml = `<button class="join-button" onclick="joinGame('${game.gameId}')">Join</button>`;
+                }
+
+                listItem.innerHTML = `
+                    <div>
+                        <span><b>${(game.gameType || '').replace('Manager', '')}</b></span>
+                        <span>Players: ${game.playerCount} / ${game.maxPlayers}</span>
+                        <span style="font-size: 0.8em; color: #aaa;">ID: ${game.gameId}</span>
+                    </div>
+                    ${buttonHtml}
+                `;
+                gamesList.appendChild(listItem);
+            });
+        }
+    }
+
+    function joinGame(gameId) {
+        window.location.href = `/game.html?gameId=${gameId}`;
+    }
+
+    function createGame(gameType) {
+        window.location.href = `/game.html?gameType=${gameType}`;
+    }
+
+    // Fetch lobby info when the page loads and then every 5 seconds
+    fetchLobbyInfo();
+    setInterval(fetchLobbyInfo, 5000);
+</script>
+</body>
+</html>

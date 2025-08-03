@@ -3,12 +3,13 @@ package com.fullsteam.games;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.GameState;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.gamemodes.EliminationInfo;
+import com.fullsteam.model.gamemodes.GameInfo;
 
-import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import static com.fullsteam.Config.ELIMINATION_SCORE_TO_WIN;
 
 /**
  * Last Team Standing game mode.
@@ -17,7 +18,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class EliminationManager extends AbstractTeamBasedManager {
 
-    private static final int SCORE_TO_WIN = 5;
     boolean roundDecided = false;
 
     public EliminationManager(GameLobby gameLobby) {
@@ -54,7 +54,7 @@ public class EliminationManager extends AbstractTeamBasedManager {
     @Override
     protected boolean checkEndConditions() {
         // First, check for the overall game win condition.
-        if (team1Score >= SCORE_TO_WIN || team2Score >= SCORE_TO_WIN || System.currentTimeMillis() > roundEndTime) {
+        if (team1Score >= ELIMINATION_SCORE_TO_WIN || team2Score >= ELIMINATION_SCORE_TO_WIN || System.currentTimeMillis() > roundEndTime) {
             sendVictoryMessage();
             return true;
         }
@@ -85,12 +85,12 @@ public class EliminationManager extends AbstractTeamBasedManager {
         if (roundDecided) {
             if (!sentVictoryMessage) {
                 if (winningTeam > 0) {
-                    sendGameEvent(GameEvent.info("Team %d wins the round!".formatted(winningTeam)));
+                    sendGameEvent(GameEvent.team(winningTeam, "Team %d wins the round!".formatted(winningTeam)));
                 } else {
                     sendGameEvent(GameEvent.info("The round is a draw"));
                 }
             }
-            gameLoop.schedule(this::respawnPlayers, Config.NEXT_ROUND_DELAY_MS, TimeUnit.MILLISECONDS);
+            schedule(this::respawnPlayers, Config.NEXT_ROUND_DELAY_MS);
         }
         return false;
     }
@@ -107,28 +107,19 @@ public class EliminationManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected GameState buildGameState() {
+    protected GameInfo buildGameState() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
 
         long team1Alive = players.values().stream().filter(p -> p.getTeam() == 1 && !p.isDead()).count();
         long team2Alive = players.values().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
 
-        EliminationInfo gameInfo = new EliminationInfo(
+        return new EliminationInfo(
                 this.team1Score,
                 this.team2Score,
                 team1Alive,
                 team2Alive,
                 roundTimeRemainingSeconds
-        );
-
-        return new GameState(
-                List.copyOf(players.values()),
-                List.copyOf(bullets),
-                List.copyOf(obstacles),
-                List.copyOf(deathMarkers),
-                List.copyOf(gameEvents),
-                gameInfo
         );
     }
 }
