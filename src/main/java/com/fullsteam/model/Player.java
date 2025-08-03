@@ -358,4 +358,8 @@ public class Player {
     public void setDamageMultiplier(double damageMultiplier) {
         this.damageMultiplier = damageMultiplier;
     }
+
+    public double getAngle() {
+        return lastBulletAngle;
+    }
 }

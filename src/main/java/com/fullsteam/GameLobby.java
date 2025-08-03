@@ -1,6 +1,7 @@
 package com.fullsteam;
 
 import com.fullsteam.games.AbstractGameStateManager;
+import com.fullsteam.games.BuilderManager;
 import com.fullsteam.games.CaptureTheFlagManager;
 import com.fullsteam.games.EliminationManager;
 import com.fullsteam.games.EscortManager;
@@ -57,6 +58,7 @@ public class GameLobby {
         addGameMode(EscortManager.class, () -> new EscortManager(this));
         addGameMode(FreeForAllManager.class, () -> new FreeForAllManager(this));
         addGameMode(LoneWolfManager.class, () -> new LoneWolfManager(this));
+        addGameMode(BuilderManager.class, () -> new BuilderManager(this));
     }
 
     public List<ActiveGame> getActiveGames() {

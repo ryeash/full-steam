@@ -2,6 +2,7 @@ package com.fullsteam;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fullsteam.games.AbstractGameStateManager;
+import com.fullsteam.games.BuilderManager;
 import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
 import io.netty.channel.Channel;
@@ -108,6 +109,11 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
             case "configChange":
                 PlayerConfigRequest request = Jackson.treeToValue(rootNode, PlayerConfigRequest.class);
                 game.handlePlayerConfigChange(playerId, request);
+                break;
+            case "place_obstacle":
+                if (game instanceof BuilderManager) {
+                    ((BuilderManager) game).placeObstacle(playerId);
+                }
                 break;
             default:
                 log.warn("Received unknown message type '{}' from player {}", type, playerId);

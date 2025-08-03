@@ -305,7 +305,7 @@
         <details id="controls-details">
             <summary>Controls</summary>
             <div id="controls">
-                <p>⌨️ WASD/Arrows: Move | R: Reload | Mouse: Aim & Shoot</p>
+                <p>⌨️ WASD/Arrows: Move | R: Reload | B: Build | Mouse: Aim & Shoot</p>
                 <p>🎮 L Stick: Move | R Stick: Aim | Y/△: Swap Weapon | X/□: Reload | RT/R2: Shoot</p>
             </div>
         </details>
@@ -589,7 +589,12 @@
         }
 
         setupEventListeners() {
-            document.addEventListener('keydown', (e) => { this.keys[e.code] = true; });
+            document.addEventListener('keydown', (e) => {
+                this.keys[e.code] = true;
+                if (e.code === 'KeyB' && this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({ type: 'place_obstacle' }));
+                }
+            });
             document.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
 
             this.canvas.addEventListener('mousemove', (e) => {

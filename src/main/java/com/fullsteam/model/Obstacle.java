@@ -6,11 +6,41 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Represents a polygonal obstacle defined by a list of vertices.
- */
-public record Obstacle(List<Vector2D> vertices) {
+public class Obstacle {
+
+    private static final AtomicLong idCounter = new AtomicLong(0);
+
+    private final long id;
+    private final String ownerId;
+    private final List<Vector2D> vertices;
+
+    public Obstacle(List<Vector2D> vertices) {
+        this(vertices, null);
+    }
+
+    public Obstacle(List<Vector2D> vertices, String ownerId) {
+        this.id = idCounter.incrementAndGet();
+        this.vertices = vertices;
+        this.ownerId = ownerId;
+    }
+
+    public long getId() {
+        return id;
+    }
+
+    public String getOwnerId() {
+        return ownerId;
+    }
+
+    public List<Vector2D> getVertices() {
+        return vertices;
+    }
+
+    public List<Vector2D> vertices() {
+        return vertices;
+    }
 
     public static Obstacle createRandomPolygonObstacle() {
         int vertexCount = 3 + ThreadLocalRandom.current().nextInt(5); // Polygons with 3 to 7 vertices
@@ -29,48 +59,34 @@ public record Obstacle(List<Vector2D> vertices) {
         return new Obstacle(points);
     }
 
-    /**
-     * Creates a single, symmetrical obstacle centered on the vertical axis of the game world.
-     * This is useful for creating fair and balanced maps.
-     *
-     * @return A new Obstacle instance that is horizontally symmetrical.
-     */
     public static Obstacle createSymmetricPolygonObstacle() {
-        // Determine the center line and random dimensions for one half
         final double centerX = Config.GAME_WIDTH / 2.0;
         final double centerY = 100 + ThreadLocalRandom.current().nextInt(Config.GAME_HEIGHT - 200);
         final double halfWidth = 20 + ThreadLocalRandom.current().nextInt(80);
         final double halfHeight = 30 + ThreadLocalRandom.current().nextInt(100);
 
-        // Define the top and bottom points that lie on the center line, forming the seam
         final Vector2D topPoint = new Vector2D(centerX, centerY - halfHeight);
         final Vector2D bottomPoint = new Vector2D(centerX, centerY + halfHeight);
 
-        // Generate a few random mid-points for the right side
-        int midPointsCount = 1 + ThreadLocalRandom.current().nextInt(3); // 1 to 3 mid-points
+        int midPointsCount = 1 + ThreadLocalRandom.current().nextInt(3);
         List<Vector2D> rightSideMidPoints = new ArrayList<>();
         for (int i = 0; i < midPointsCount; i++) {
-            // X is offset from the center, Y is within the vertical bounds
             double pointX = centerX + (ThreadLocalRandom.current().nextDouble() * halfWidth);
             double pointY = (centerY - halfHeight) + (ThreadLocalRandom.current().nextDouble() * (halfHeight * 2));
             rightSideMidPoints.add(new Vector2D(pointX, pointY));
         }
 
-        // Combine the right-side points and sort them vertically to ensure a valid polygon edge
         List<Vector2D> rightSideVertices = new ArrayList<>();
         rightSideVertices.add(topPoint);
         rightSideVertices.addAll(rightSideMidPoints);
         rightSideVertices.add(bottomPoint);
         rightSideVertices.sort(Comparator.comparingDouble(Vector2D::y));
 
-        // Create the mirrored left-side points (excluding top and bottom which are already on the line)
-        // Sort them in reverse to create a continuous path for the polygon
         List<Vector2D> leftSideVertices = rightSideMidPoints.stream()
                 .map(v -> new Vector2D(Config.GAME_WIDTH - v.x(), v.y()))
                 .sorted(Comparator.comparingDouble(Vector2D::y).reversed())
                 .toList();
 
-        // Combine both lists to form the final, closed polygon
         List<Vector2D> allVertices = new ArrayList<>(rightSideVertices);
         allVertices.addAll(leftSideVertices);
 
@@ -84,13 +100,6 @@ public record Obstacle(List<Vector2D> vertices) {
         return new Obstacle(mirroredVertices);
     }
 
-    /**
-     * Creates a new obstacle that is a 180-degree rotation of this one around the center of the game world.
-     * This is equivalent to mirroring it across both the horizontal and vertical center lines.
-     * Useful for creating maps with rotational symmetry.
-     *
-     * @return A new, rotated Obstacle instance.
-     */
     public Obstacle create180Clone() {
         List<Vector2D> rotatedVertices = this.vertices.stream()
                 .map(vertex -> new Vector2D(Config.GAME_WIDTH - vertex.x(), Config.GAME_HEIGHT - vertex.y()))
@@ -99,11 +108,15 @@ public record Obstacle(List<Vector2D> vertices) {
     }
 
     public static Obstacle createRectangle(double x, double y, double width, double height) {
+        return createRectangle(x, y, width, height, null);
+    }
+
+    public static Obstacle createRectangle(double x, double y, double width, double height, String ownerId) {
         List<Vector2D> vertices = new ArrayList<>();
         vertices.add(new Vector2D(x, y));
         vertices.add(new Vector2D(x + width, y));
         vertices.add(new Vector2D(x + width, y + height));
         vertices.add(new Vector2D(x, y + height));
-        return new Obstacle(vertices);
+        return new Obstacle(vertices, ownerId);
     }
 }
