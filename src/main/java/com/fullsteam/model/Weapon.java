@@ -2,6 +2,8 @@ package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import java.util.function.Function;
+
 /**
  * Represents a weapon with customizable stats based on a point system.
  * Each stat's effectiveness is determined by the number of points allocated to it,
@@ -32,6 +34,8 @@ public class Weapon {
     private final int roundsPerMagazine; // Number of shots before reloading
     @JsonIgnore
     private final long reloadTime; // Time in ms to reload
+    @JsonIgnore
+    private final Function<Bullet, BulletEffect> onBulletDestruction;
 
     /**
      * Creates a new Weapon by converting stat points into game values.
@@ -47,12 +51,13 @@ public class Weapon {
      * @param magazineSizePoints Points for magazine size. More points = more rounds.
      * @param reloadSpeedPoints  Points for reload speed. More points = less reload time.
      */
-    public Weapon(String name, String shortName, int fireRatePoints, int damagePoints, int rangePoints, int speedPoints, int speedDecayPoints, int accuracyPoints, int multiShotPoints, int magazineSizePoints, int reloadSpeedPoints) {
+    public Weapon(String name, String shortName, int fireRatePoints, int damagePoints, int rangePoints, int speedPoints, int speedDecayPoints, int accuracyPoints, int multiShotPoints, int magazineSizePoints, int reloadSpeedPoints, Function<Bullet, BulletEffect> onBulletDestruction) {
         this.name = name;
         this.shortName = shortName;
 
-        int totalPoints = fireRatePoints + damagePoints + rangePoints + speedPoints + speedDecayPoints + accuracyPoints + multiShotPoints + magazineSizePoints + reloadSpeedPoints;
+        int totalPoints = fireRatePoints + damagePoints + rangePoints + speedPoints + speedDecayPoints + accuracyPoints + multiShotPoints + magazineSizePoints + reloadSpeedPoints + (onBulletDestruction == null ? 0 : 60);
         if (totalPoints > MAX_TOTAL_POINTS) {
+            System.out.println("over allocated: " + name + " " + totalPoints);
             throw new IllegalArgumentException(
                     String.format("Weapon '%s' exceeds max points. Has %d, max is %d.", name, totalPoints, MAX_TOTAL_POINTS)
             );
@@ -85,10 +90,13 @@ public class Weapon {
         this.bulletsPerShot = 1 + (multiShotPoints / 10);
 
         // Magazine Size: Base 6 rounds. Each point adds 3 rounds.
-        this.roundsPerMagazine = 6 + (magazineSizePoints * 3);
+        this.roundsPerMagazine = Math.max(1, 6 + (magazineSizePoints * 3));
 
         // Reload Time (ms): Base 5000ms. Each point reduces time by 200ms. Minimum of 500ms.
         this.reloadTime = Math.max(500L, 4000L - (reloadSpeedPoints * 200L));
+
+        // TODO: fix the points for destruction
+        this.onBulletDestruction = onBulletDestruction;
     }
 
     public String getName() {
@@ -133,5 +141,9 @@ public class Weapon {
 
     public long getReloadTime() {
         return reloadTime;
+    }
+
+    public Function<Bullet, BulletEffect> getOnBulletDestruction() {
+        return onBulletDestruction;
     }
 }

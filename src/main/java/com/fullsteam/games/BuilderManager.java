@@ -40,12 +40,7 @@ public class BuilderManager extends AbstractGameStateManager {
 
     @Override
     protected void generateObstacles() {
-//        obstacles.add(Obstacle.createRectangle(
-//                (Config.GAME_WIDTH - Config.ESCORT_OBSTACLE_WIDTH) / 2,
-//                (Config.GAME_HEIGHT - Config.ESCORT_OBSTACLE_WIDTH) / 2,
-//                Config.ESCORT_OBSTACLE_WIDTH,
-//                Config.ESCORT_OBSTACLE_WIDTH));
-
+        // builders make their own
     }
 
     @Override

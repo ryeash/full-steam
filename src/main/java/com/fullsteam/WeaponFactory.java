@@ -1,5 +1,6 @@
 package com.fullsteam;
 
+import com.fullsteam.model.Explosion;
 import com.fullsteam.model.Weapon;
 
 import java.util.List;
@@ -29,7 +30,8 @@ public class WeaponFactory {
                 10, // Accuracy
                 0,  // Multi-shot
                 8, // Magazine Size
-                10  // Reload Speed
+                10,  // Reload Speed
+                null
         ));
 
         addPreset(new Weapon(
@@ -43,7 +45,8 @@ public class WeaponFactory {
                 16, // Accuracy
                 0,  // Multi-shot
                 0,  // Magazine Size
-                6   // Reload Speed
+                6,  // Reload Speed
+                null
         ));
 
         addPreset(new Weapon(
@@ -57,7 +60,8 @@ public class WeaponFactory {
                 5,  // Accuracy
                 0,  // Multi-shot
                 17, // Magazine Size
-                14  // Reload Speed
+                14,  // Reload Speed
+                null
         ));
 
         addPreset(new Weapon(
@@ -71,7 +75,8 @@ public class WeaponFactory {
                 0,  // Accuracy
                 0,  // Multi-shot
                 30, // Magazine Size
-                8  // Reload Speed
+                8,  // Reload Speed
+                null
         ));
 
         addPreset(new Weapon(
@@ -85,7 +90,8 @@ public class WeaponFactory {
                 5,  // Accuracy
                 0,  // Multi-shot
                 31, // Magazine Size
-                14  // Reload Speed
+                14,  // Reload Speed
+                null
         ));
 
         addPreset(new Weapon(
@@ -99,7 +105,8 @@ public class WeaponFactory {
                 2,  // Accuracy
                 50, // Multi-shot
                 8,  // Magazine Size
-                10  // Reload Speed
+                10,  // Reload Speed
+                null
         ));
 
         addPreset(new Weapon(
@@ -113,7 +120,8 @@ public class WeaponFactory {
                 -20, // Accuracy
                 70, // Multi-shot
                 14,  // Magazine Size
-                2   // Reload Speed
+                2,  // Reload Speed
+                null
         ));
 
         addPreset(new Weapon(
@@ -127,7 +135,38 @@ public class WeaponFactory {
                 8,  // Accuracy
                 10, // Multi-shot
                 2,  // Magazine Size
-                15   // Reload Speed
+                15,  // Reload Speed
+                null
+        ));
+
+        addPreset(new Weapon(
+                "Rocket",
+                "R",
+                5, // Fire Rate
+                -5, // Damage
+                18,  // Range
+                18, // Speed
+                10,  // Speed Decay
+                1,  // Accuracy
+                0, // Multi-shot
+                -2,  // Magazine Size
+                -5,  // Reload Speed
+                Explosion::rocket
+        ));
+
+        addPreset(new Weapon(
+                "Grenade Launcher",
+                "GR",
+                1, // Fire Rate
+                0, // Damage
+                20,  // Range
+                9, // Speed
+                0,  // Speed Decay
+                0,  // Accuracy
+                0, // Multi-shot
+                0,  // Magazine Size
+                10,  // Reload Speed
+                Explosion::grenade
         ));
 
         // Pre-sort the weapon names for faster access.
@@ -149,11 +188,12 @@ public class WeaponFactory {
             20,
             -1,
             27,
-            0, // Speed Decay
+            0,
             0,
             10,
             4,
-            20
+            20,
+            null
     );
     public static final Weapon HEAVY_ZOMBIE_CLAW = new Weapon(
             "HeavyClaw",
@@ -162,11 +202,12 @@ public class WeaponFactory {
             50,
             -1,
             7,
-            0, // Speed Decay
+            0,
             0,
             10,
             4,
-            20
+            20,
+            null
     );
 
     public static void addPreset(Weapon weapon) {

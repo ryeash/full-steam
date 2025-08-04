@@ -6,7 +6,9 @@ import com.fullsteam.GameLobby;
 import com.fullsteam.Jackson;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.Bullet;
+import com.fullsteam.model.BulletEffect;
 import com.fullsteam.model.DeathMarker;
+import com.fullsteam.model.Explosion;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.Hazard;
@@ -71,6 +73,7 @@ public abstract class AbstractGameStateManager {
     protected final Map<String, Channel> playerChannels = new ConcurrentHashMap<>();
     protected final Map<String, PlayerInput> playerInput = new ConcurrentHashMap<>();
     protected final List<Bullet> bullets = new CopyOnWriteArrayList<>();
+    protected final List<Explosion> explosions = new CopyOnWriteArrayList<>();
     protected final List<Obstacle> obstacles = new CopyOnWriteArrayList<>();
     protected final List<Hazard> hazards = new CopyOnWriteArrayList<>();
     protected final List<DeathMarker> deathMarkers = new CopyOnWriteArrayList<>();
@@ -269,7 +272,8 @@ public abstract class AbstractGameStateManager {
                     weapon.getBulletDamage(),
                     weapon.getBulletSpeed(),
                     weapon.getBulletRange(),
-                    weapon.getBulletSpeedDecay());
+                    weapon.getBulletSpeedDecay(),
+                    weapon.getOnBulletDestruction());
             bullets.add(bullet);
         }
 
@@ -293,10 +297,46 @@ public abstract class AbstractGameStateManager {
             updatePowerUps();
             updatePlayers();
             updateBullets();
+            updateExplosions();
             sendGameState();
         } catch (Throwable t) {
             log.error("error executing game loop", t);
         }
+    }
+
+    /**
+     * Handles the lifecycle of explosions, applying damage and removing them when expired.
+     */
+    protected void updateExplosions() {
+        // First, apply damage for any new explosions that haven't dealt it yet.
+        for (Explosion explosion : explosions) {
+            if (!explosion.hasDamageBeenApplied()) {
+                Vector2D explosionCenter = new Vector2D(explosion.getX(), explosion.getY());
+                double radiusSq = explosion.getSize() * explosion.getSize();
+                Player shooter = players.get(explosion.getShooterId());
+
+                for (Player p : players.values()) {
+                    if (p.isDead()) {
+                        continue;
+                    }
+
+                    // Prevent friendly fire, but allow self-damage
+                    if (shooter != null && p.getTeam() == shooter.getTeam() && !p.getId().equals(shooter.getId())) {
+                        continue;
+                    }
+
+                    if (p.getCenter().distanceSq(explosionCenter) < radiusSq) {
+                        if (p.takeDamage(explosion.getDamage())) {
+                            killPlayer(p, shooter);
+                        }
+                    }
+                }
+                explosion.markDamageApplied(); // Mark it so damage isn't applied again.
+            }
+        }
+
+        // Next, remove any explosions that have exceeded their visual duration.
+        explosions.removeIf(Explosion::isExpired);
     }
 
     /**
@@ -405,6 +445,7 @@ public abstract class AbstractGameStateManager {
         GameState gameState = new GameState(
                 players.values(),
                 bullets,
+                explosions,
                 obstacles,
                 hazards,
                 deathMarkers,
@@ -514,14 +555,24 @@ public abstract class AbstractGameStateManager {
 
             // Remove bullets that are out of bounds or have traveled max distance
             if (newPos.x() < 0 || newPos.x() > GAME_WIDTH
-                || newPos.y() < 0 || newPos.y() > GAME_HEIGHT
-                || bullet.hasExceededMaxDistance()) {
+                || newPos.y() < 0 || newPos.y() > GAME_HEIGHT) {
+                return true;
+            }
+
+            if (bullet.hasExceededMaxDistance()) {
+                bullet.getOnDestructionAction()
+                        .map(action -> action.apply(bullet))
+                        .ifPresent(this::applyBulletEffect);
                 return true;
             }
 
             // Check bullet-obstacle collisions using the line segment
             for (Obstacle obstacle : obstacles) {
                 if (CollisionUtils.checkLinePolygonCollision(oldPos, newPos, obstacle.vertices())) {
+                    // When a bullet hits an obstacle, trigger its on-destruction effect.
+                    bullet.getOnDestructionAction()
+                            .map(action -> action.apply(bullet))
+                            .ifPresent(this::applyBulletEffect);
                     return true;
                 }
             }
@@ -542,6 +593,9 @@ public abstract class AbstractGameStateManager {
                         if (player.takeDamage(finalDamage)) {
                             killPlayer(player, shooter);
                         }
+                        bullet.getOnDestructionAction()
+                                .map(action -> action.apply(bullet))
+                                .ifPresent(this::applyBulletEffect);
                         return true; // Remove bullet on hit
                     }
                 }
@@ -549,6 +603,14 @@ public abstract class AbstractGameStateManager {
 
             return false;
         });
+    }
+
+    protected void applyBulletEffect(BulletEffect bulletEffect) {
+        if (bulletEffect instanceof Explosion e) {
+            explosions.add(e);
+        } else {
+            throw new UnsupportedOperationException("unknown effect: " + bulletEffect);
+        }
     }
 
     protected void killPlayer(Player victim, Player shooter) {
@@ -665,6 +727,7 @@ public abstract class AbstractGameStateManager {
                 GameState gameState = new GameState(
                         players.values(),
                         bullets,
+                        explosions,
                         obstacles,
                         hazards,
                         deathMarkers,

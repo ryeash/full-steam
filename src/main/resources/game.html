@@ -888,6 +888,8 @@
 
             this.drawPowerUps();
             this.drawCrates();
+            this.drawExplosions();
+
 
             this.gameState.players.forEach(player => {
                 this.drawPlayer(player);
@@ -1050,6 +1052,45 @@
                     this.ctx.lineWidth = 1;
                     this.ctx.strokeRect(barX, barY, barWidth, barHeight);
                 }
+            });
+            this.ctx.restore();
+        }
+
+        drawExplosions() {
+            if (!this.gameState.explosions) return;
+
+            this.ctx.save();
+            this.gameState.explosions.forEach(explosion => {
+                const now = this.gameState.serverTime;
+                if (!now) return; // Don't draw if we don't have a server time yet
+
+                const age = now - explosion.creationTime;
+                const lifetime = explosion.duration;
+
+                if (age < 0 || age > lifetime) return;
+
+                const progress = age / lifetime; // 0.0 to 1.0
+
+                // Animate the radius to expand quickly
+                const peakTime = 0.3; // Time to reach max size
+                const radiusProgress = Math.min(1.0, progress / peakTime);
+                const currentRadius = explosion.size * radiusProgress;
+
+                // Fade out over the whole duration
+                const alpha = 1.0 - progress;
+
+                const gradient = this.ctx.createRadialGradient(
+                    explosion.x, explosion.y, 0,
+                    explosion.x, explosion.y, currentRadius
+                );
+                gradient.addColorStop(0, `rgba(255, 255, 150, ${alpha * 0.9})`);
+                gradient.addColorStop(0.5, `rgba(255, 100, 0, ${alpha * 0.7})`);
+                gradient.addColorStop(1, `rgba(200, 0, 0, 0)`); // Fade to fully transparent at the edge
+
+                this.ctx.fillStyle = gradient;
+                this.ctx.beginPath();
+                this.ctx.arc(explosion.x, explosion.y, currentRadius, 0, 2 * Math.PI);
+                this.ctx.fill();
             });
             this.ctx.restore();
         }
