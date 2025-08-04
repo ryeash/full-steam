@@ -195,8 +195,12 @@ public abstract class AbstractGameStateManager {
             }
         }
 
+        // Handle weapon cycle with a 500ms cooldown
         if (input.isWeaponCycle()) {
-            cyclePlayerWeapon(player);
+            if (System.currentTimeMillis() - player.getLastWeaponChangeTime() > 500) {
+                cyclePlayerWeapon(player);
+                player.setLastWeaponChangeTime(System.currentTimeMillis());
+            }
         }
     }
 

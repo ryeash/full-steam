@@ -112,7 +112,7 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
                 break;
             case "place_obstacle":
                 if (game instanceof BuilderManager) {
-                    ((BuilderManager) game).placeObstacle(playerId);
+                    ((BuilderManager) game).placeCrate(playerId);
                 }
                 break;
             default:

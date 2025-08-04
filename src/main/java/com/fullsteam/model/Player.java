@@ -41,6 +41,8 @@ public class Player {
     public long armorUpEndTime;
     public long damageBoostEndTime;
     public double damageMultiplier;
+    @JsonIgnore
+    private long lastWeaponChangeTime;
 
     public Player(String id, double x, double y, int team) {
         this(id, id, x, y, team, WeaponFactory.getDefaultWeapon());
@@ -73,6 +75,7 @@ public class Player {
         this.armorUpEndTime = 0;
         this.damageBoostEndTime = 0;
         this.damageMultiplier = 1.0;
+        this.lastWeaponChangeTime = 0;
     }
 
     public void update() {
@@ -347,6 +350,8 @@ public class Player {
         this.damageMultiplier = Config.DAMAGE_BOOST_MULTIPLIER;
     }
 
+
+
     public long getDamageBoostEndTime() {
         return damageBoostEndTime;
     }
@@ -361,5 +366,14 @@ public class Player {
 
     public double getAngle() {
         return lastBulletAngle;
+    }
+
+    @JsonIgnore
+    public long getLastWeaponChangeTime() {
+        return lastWeaponChangeTime;
+    }
+
+    public void setLastWeaponChangeTime(long lastWeaponChangeTime) {
+        this.lastWeaponChangeTime = lastWeaponChangeTime;
     }
 }
