@@ -1,5 +1,7 @@
 package com.fullsteam.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 /**
  * Represents a weapon with customizable stats based on a point system.
  * Each stat's effectiveness is determined by the number of points allocated to it,
@@ -12,13 +14,23 @@ public class Weapon {
     // Weapon Stats
     private final String name;
     private final String shortName;
+    @JsonIgnore
     private final long fireRateCooldown; // Cooldown in ms, lower is faster
+    @JsonIgnore
     private final double bulletDamage;
+    @JsonIgnore
     private final double bulletRange;
+    @JsonIgnore
     private final double bulletSpeed;
+    @JsonIgnore
+    private final double bulletSpeedDecay; // Multiplier per tick, closer to 1.0 is better
+    @JsonIgnore
     private final double bulletSpread; // Inaccuracy in radians, lower is better
+    @JsonIgnore
     private final int bulletsPerShot; // For shotgun-style weapons
+    @JsonIgnore
     private final int roundsPerMagazine; // Number of shots before reloading
+    @JsonIgnore
     private final long reloadTime; // Time in ms to reload
 
     /**
@@ -29,16 +41,17 @@ public class Weapon {
      * @param damagePoints       Points for damage (0-40). More points = more damage.
      * @param rangePoints        Points for range (0-10). More points = longer bullet travel distance.
      * @param speedPoints        Points for bullet speed (0-10). More points = faster bullets.
+     * @param speedDecayPoints   Points for speed decay (0-10). More points = less speed loss over time.
      * @param accuracyPoints     Points for accuracy (0-10). More points = less bullet spread.
      * @param multiShotPoints    Points for multi-shot. More points = more bullets per shot.
      * @param magazineSizePoints Points for magazine size. More points = more rounds.
      * @param reloadSpeedPoints  Points for reload speed. More points = less reload time.
      */
-    public Weapon(String name, String shortName, int fireRatePoints, int damagePoints, int rangePoints, int speedPoints, int accuracyPoints, int multiShotPoints, int magazineSizePoints, int reloadSpeedPoints) {
+    public Weapon(String name, String shortName, int fireRatePoints, int damagePoints, int rangePoints, int speedPoints, int speedDecayPoints, int accuracyPoints, int multiShotPoints, int magazineSizePoints, int reloadSpeedPoints) {
         this.name = name;
         this.shortName = shortName;
 
-        int totalPoints = fireRatePoints + damagePoints + rangePoints + speedPoints + accuracyPoints + multiShotPoints + magazineSizePoints + reloadSpeedPoints;
+        int totalPoints = fireRatePoints + damagePoints + rangePoints + speedPoints + speedDecayPoints + accuracyPoints + multiShotPoints + magazineSizePoints + reloadSpeedPoints;
         if (totalPoints > MAX_TOTAL_POINTS) {
             throw new IllegalArgumentException(
                     String.format("Weapon '%s' exceeds max points. Has %d, max is %d.", name, totalPoints, MAX_TOTAL_POINTS)
@@ -61,6 +74,9 @@ public class Weapon {
 
         // Bullet Speed: Base 3.0 units/tick. Each point adds 0.7.
         this.bulletSpeed = 3.0 + (speedPoints * 0.7);
+
+        // Bullet Speed Decay: Base 0.98 (2% decay). Each point adds 0.002, up to 1.0 (no decay).
+        this.bulletSpeedDecay = 0.98 + (speedDecayPoints * 0.002);
 
         // Accuracy (Spread in radians): Base 0.5. Each point reduces spread by 0.015.
         this.bulletSpread = Math.max(0.0, 0.75 - (accuracyPoints * 0.05));
@@ -97,6 +113,10 @@ public class Weapon {
 
     public double getBulletSpeed() {
         return bulletSpeed;
+    }
+
+    public double getBulletSpeedDecay() {
+        return bulletSpeedDecay;
     }
 
     public double getBulletSpread() {

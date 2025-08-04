@@ -349,6 +349,13 @@
                     this.elements.yourTeam.style.display = 'none';
                     this.elements.switchTeamBtn.style.display = 'none';
                 },
+                'Builder': (info) => {
+                    this.game.shouldDrawRespawnOverlay = true;
+                    this.elements.team1Score.style.display = 'none';
+                    this.elements.team2Score.style.display = 'none';
+                    this.elements.yourTeam.style.display = 'none';
+                    this.elements.switchTeamBtn.style.display = 'none';
+                },
                 'Zombie Defense': (info) => {
                     this.game.shouldDrawRespawnOverlay = false;
                     this.elements.yourTeam.style.display = 'none';
@@ -395,6 +402,14 @@
                     this.elements.team2Scoreboard.style.display = 'none';
                     this.elements.ffaScoreboard.style.display = 'block';
 
+                    this.elements.ffaList.innerHTML = '';
+                    const sortedPlayers = [...players].sort((a, b) => b.kills - a.kills);
+                    sortedPlayers.forEach(p => this.elements.ffaList.appendChild(this.createPlayerEntry(p, playerId)));
+                },
+                'Builder': (players, playerId) => {
+                    this.elements.team1Scoreboard.style.display = 'none';
+                    this.elements.team2Scoreboard.style.display = 'none';
+                    this.elements.ffaScoreboard.style.display = 'block';
                     this.elements.ffaList.innerHTML = '';
                     const sortedPlayers = [...players].sort((a, b) => b.kills - a.kills);
                     sortedPlayers.forEach(p => this.elements.ffaList.appendChild(this.createPlayerEntry(p, playerId)));
@@ -591,9 +606,6 @@
         setupEventListeners() {
             document.addEventListener('keydown', (e) => {
                 this.keys[e.code] = true;
-                if (e.code === 'KeyB' && this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    this.ws.send(JSON.stringify({ type: 'place_obstacle' }));
-                }
             });
             document.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
 
@@ -618,7 +630,7 @@
                 if (this.ws) {
                     this.ws.close();
                 }
-                window.location.href = 'lobby.html';
+                window.location.href = '/';
             });
             document.getElementById('switchTeamBtn').addEventListener('click', () => {
                 this.sendTeamChangeRequest();
@@ -671,7 +683,8 @@
                 mouseX: 0,
                 mouseY: 0,
                 reload: false,
-                weaponCycle: false
+                weaponCycle: false,
+                placingObstacle: false
             };
             const deadzone = 0.25;
 
@@ -692,6 +705,7 @@
 
                 input.shooting = this.gamepad.buttons[7] && this.gamepad.buttons[7].value > 0.5;
                 input.reload = this.gamepad.buttons[2] && this.gamepad.buttons[2].pressed;
+                input.placingObstacle = this.gamepad.buttons[0] && this.gamepad.buttons[0].pressed; // A button
 
                 const swapButtonPressed = this.gamepad.buttons[3] && this.gamepad.buttons[3].pressed;
                 if (swapButtonPressed && !this.gamepadWeaponSwapPressed) {
@@ -730,6 +744,7 @@
                 input.mouseX = this.mouse.x;
                 input.mouseY = this.mouse.y;
                 input.reload = !!this.keys['KeyR'];
+                input.placingObstacle = !!this.keys['KeyB'];
             }
             this.ws.send(JSON.stringify(input));
         }
@@ -847,8 +862,7 @@
         }
 
         render() {
-            if (this.backgroundNeedsRedraw && this.gameState.obstacles && this.gameState.obstacles.length > 0) {
-                this.preRenderBackground();
+            if (this.backgroundNeedsRedraw && this.gameState.info) {                this.preRenderBackground();
                 this.backgroundNeedsRedraw = false;
             }
 
@@ -873,6 +887,7 @@
             }
 
             this.drawPowerUps();
+            this.drawCrates();
 
             this.gameState.players.forEach(player => {
                 this.drawPlayer(player);
@@ -997,6 +1012,45 @@
                 }
             });
 
+            this.ctx.restore();
+        }
+
+        drawCrates() {
+            if (!this.gameState.info || this.gameState.info.type !== 'Builder' || !this.gameState.info.crates) {
+                return;
+            }
+
+            this.ctx.save();
+            this.gameState.info.crates.forEach(crate => {
+                // Draw crate body
+                this.ctx.fillStyle = '#8B4513'; // SaddleBrown
+                this.ctx.strokeStyle = '#5D2906'; // Darker brown for border
+                this.ctx.lineWidth = 2;
+                this.ctx.fillRect(crate.x, crate.y, crate.size, crate.size);
+                this.ctx.strokeRect(crate.x, crate.y, crate.size, crate.size);
+
+                // Draw health bar if damaged
+                if (crate.hp < crate.maxHp) {
+                    const healthPercentage = Math.max(0, crate.hp / crate.maxHp);
+                    const barWidth = crate.size;
+                    const barHeight = 5;
+                    const barX = crate.x;
+                    const barY = crate.y - 10;
+
+                    // Background of health bar
+                    this.ctx.fillStyle = '#333';
+                    this.ctx.fillRect(barX, barY, barWidth, barHeight);
+
+                    // Foreground of health bar
+                    this.ctx.fillStyle = healthPercentage > 0.5 ? '#4CAF50' : (healthPercentage > 0.2 ? '#FFC107' : '#F44336');
+                    this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
+
+                    // Border for the health bar
+                    this.ctx.strokeStyle = '#111';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+                }
+            });
             this.ctx.restore();
         }
 

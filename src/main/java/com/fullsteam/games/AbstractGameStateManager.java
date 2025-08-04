@@ -41,7 +41,24 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static com.fullsteam.Config.*;
+import static com.fullsteam.Config.AFK_TIMEOUT_MS;
+import static com.fullsteam.Config.DEATH_MARKER_DURATION_MS;
+import static com.fullsteam.Config.GAME_HEIGHT;
+import static com.fullsteam.Config.GAME_WIDTH;
+import static com.fullsteam.Config.HAZARD_COUNT;
+import static com.fullsteam.Config.HAZARD_DAMAGE_FACTOR;
+import static com.fullsteam.Config.HAZARD_SLOW_FACTOR;
+import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
+import static com.fullsteam.Config.OBSTACLE_COUNT;
+import static com.fullsteam.Config.PLAYER_SIZE;
+import static com.fullsteam.Config.POWER_UP_SPEED_BOOST_FACTOR;
+import static com.fullsteam.Config.RESPAWN_DELAY_MS;
+import static com.fullsteam.Config.RESPAWN_IMMUNITY_DURATION;
+import static com.fullsteam.Config.ROUND_DURATION_SECONDS;
+import static com.fullsteam.Config.SPAWN_HORIZONTAL_PADDING;
+import static com.fullsteam.Config.SPAWN_MIDFIELD_BUFFER;
+import static com.fullsteam.Config.SPAWN_VERTICAL_PADDING;
+import static com.fullsteam.Config.TICK_RATE;
 
 public abstract class AbstractGameStateManager {
     protected final Logger log = LoggerFactory.getLogger(getClass());
@@ -242,10 +259,17 @@ public abstract class AbstractGameStateManager {
             double spread = ThreadLocalRandom.current().nextGaussian() * (weapon.getBulletSpread() / 6.0);
             double finalAngle = aimAngle + spread;
 
-            Bullet bullet = new Bullet(bulletX, bulletY,
-                    Math.cos(finalAngle), Math.sin(finalAngle),
-                    player.getId(), player.getTeam(),
-                    weapon.getBulletDamage(), weapon.getBulletSpeed(), weapon.getBulletRange());
+            Bullet bullet = new Bullet(
+                    bulletX,
+                    bulletY,
+                    Math.cos(finalAngle),
+                    Math.sin(finalAngle),
+                    player.getId(),
+                    player.getTeam(),
+                    weapon.getBulletDamage(),
+                    weapon.getBulletSpeed(),
+                    weapon.getBulletRange(),
+                    weapon.getBulletSpeedDecay());
             bullets.add(bullet);
         }
 
@@ -489,7 +513,9 @@ public abstract class AbstractGameStateManager {
             Vector2D newPos = new Vector2D(bullet.getX(), bullet.getY());
 
             // Remove bullets that are out of bounds or have traveled max distance
-            if (newPos.x() < 0 || newPos.x() > GAME_WIDTH || newPos.y() < 0 || newPos.y() > GAME_HEIGHT || bullet.hasExceededMaxDistance()) {
+            if (newPos.x() < 0 || newPos.x() > GAME_WIDTH
+                || newPos.y() < 0 || newPos.y() > GAME_HEIGHT
+                || bullet.hasExceededMaxDistance()) {
                 return true;
             }
 
@@ -756,8 +782,6 @@ public abstract class AbstractGameStateManager {
             && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
-            player.setCurrentAmmoInMagazine(0); // force a reload
-            player.startReload();
         }
 
         if (request.isRequestTeamChange()) {

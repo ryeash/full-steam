@@ -7,6 +7,8 @@ import com.fullsteam.model.GameState;
 import com.fullsteam.model.Hazard;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.PowerUp;
+import com.fullsteam.model.PowerUpType;
 import com.fullsteam.model.RandomNames;
 import com.fullsteam.model.Vector2D;
 
@@ -83,27 +85,31 @@ public class AIPlayer extends Player {
         // Reset acceleration at the start of each frame
         this.acceleration = Vector2D.ZERO;
 
-        // --- Apply Steering Forces ---
-        // 1. High-priority: Avoid dangerous hazards. This force is applied first.
+        // --- Apply Steering Forces (in order of priority) ---
+        // 1. High-priority: Avoid dangerous hazards.
         Vector2D hazardForce = calculateHazardAvoidanceForce(hazards);
         applyForce(hazardForce);
 
-        // 2. Let the strategy determine the primary objective (attack, flee, capture)
+        // 2. Mid-priority: React to power-ups (avoid powered-up enemies, seek useful items).
+        Vector2D powerUpForce = calculatePowerUpInfluenceForce(gameState);
+        applyForce(powerUpForce);
+
+        // 3. Let the strategy determine the primary objective (attack, flee, capture)
         aiStrategy.updateAIState(this, gameState);
 
-        // 3. Execute movement logic based on the current state, which adds more forces
+        // 4. Execute movement logic based on the current state, which adds more forces
         performMovement(obstacles);
 
-        // 4. Independently check for and execute shooting logic against any visible enemy
+        // 5. Independently check for and execute shooting logic against any visible enemy
         Optional<ShootAction> shootAction = checkForShootingOpportunity(allPlayers, obstacles);
 
-        // 4. Update player physics using steering
+        // 6. Update player physics using steering
         // Update velocity by adding acceleration
         setVelocity(getVelocity().add(this.acceleration).limit(getSpeed()));
         // Update position based on new velocity
         super.update();
 
-        // 5. Return the shoot action if any
+        // 7. Return the shoot action if any
         return shootAction;
     }
 
@@ -447,5 +453,65 @@ public class AIPlayer extends Player {
             }
         }
         return totalAvoidanceForce;
+    }
+
+    /**
+     * Calculates a steering force based on nearby power-ups and powered-up enemies.
+     * - It creates an avoidance force to flee from enemies with ARMOR or DAMAGE_BOOST.
+     * - It creates an attraction force to seek out valuable power-ups.
+     *
+     * @param gameState The current state of the game.
+     * @return A steering force vector representing the influence of power-ups.
+     */
+    private Vector2D calculatePowerUpInfluenceForce(GameState gameState) {
+        Vector2D totalInfluenceForce = Vector2D.ZERO;
+        long currentTime = System.currentTimeMillis();
+
+        // 1. Avoid powered-up enemies
+        for (Player player : gameState.players()) {
+            if (player.getTeam() == this.getTeam() || player.isDead()) {
+                continue;
+            }
+
+            boolean isThreat = player.getArmorUpEndTime() > currentTime || player.getDamageBoostEndTime() > currentTime;
+            if (isThreat) {
+                double distanceSq = getCenter().distanceSq(player.getCenter());
+                double threatRadius = 400; // Start avoiding from 400px away
+                if (distanceSq < threatRadius * threatRadius) {
+                    Vector2D fleeDirection = getCenter().subtract(player.getCenter());
+                    // The closer the threat, the stronger the force
+                    double strength = 1.0 - (Math.sqrt(distanceSq) / threatRadius);
+                    // This is a high-priority action, so give it a strong weight
+                    Vector2D avoidanceForce = fleeDirection.normalize().multiply(strength * AI_MAX_FORCE * 2.5);
+                    totalInfluenceForce = totalInfluenceForce.add(avoidanceForce);
+                }
+            }
+        }
+
+        // 2. Seek valuable power-ups
+        if (gameState.powerUps() != null) {
+            for (PowerUp powerUp : gameState.powerUps()) {
+                double distanceSq = getCenter().distanceSq(powerUp.getPosition());
+                double seekRadius = 500; // Only consider power-ups within 500px
+                if (distanceSq < seekRadius * seekRadius) {
+                    double weight = 1.0; // Default attraction
+                    if (powerUp.getType() == PowerUpType.HEALTH_PACK) {
+                        // Very attractive if health is low
+                        weight = 2.5 * (1.0 - (getCurrentHealth() / getMaxHealth()));
+                    } else if (powerUp.getType() == PowerUpType.ARMOR_UP || powerUp.getType() == PowerUpType.DAMAGE_BOOST) {
+                        weight = 1.5; // Always attractive
+                    }
+
+                    if (weight > 0.1) { // Only bother if it's somewhat attractive
+                        Vector2D seekDirection = powerUp.getPosition().subtract(getCenter());
+                        double strength = 1.0 - (Math.sqrt(distanceSq) / seekRadius);
+                        Vector2D attractionForce = seekDirection.normalize().multiply(strength * AI_MAX_FORCE * weight);
+                        totalInfluenceForce = totalInfluenceForce.add(attractionForce);
+                    }
+                }
+            }
+        }
+
+        return totalInfluenceForce;
     }
 }

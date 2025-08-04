@@ -8,10 +8,10 @@ public class Crate {
     private final double x;
     private final double y;
     private final double size;
-    private int hp;
-    private final int maxHp;
+    private double hp;
+    private final double maxHp;
 
-    public Crate(String ownerId, double x, double y, double size, int hp) {
+    public Crate(String ownerId, double x, double y, double size, double hp) {
         this.id = UUID.randomUUID().toString();
         this.ownerId = ownerId;
         this.x = x;
@@ -41,15 +41,15 @@ public class Crate {
         return size;
     }
 
-    public int getHp() {
+    public double getHp() {
         return hp;
     }
 
-    public int getMaxHp() {
+    public double getMaxHp() {
         return maxHp;
     }
 
-    public void takeDamage(int damage) {
+    public void takeDamage(double damage) {
         this.hp -= damage;
     }
 
