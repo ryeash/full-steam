@@ -7,17 +7,17 @@ import com.fullsteam.Jackson;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.Bullet;
 import com.fullsteam.model.BulletEffect;
+import com.fullsteam.model.DeathMarker;
 import com.fullsteam.model.Explosion;
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.DeathMarker;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.Hazard;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
-import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.PoisonCloud;
+import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.PowerUpType;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Weapon;
@@ -80,7 +80,6 @@ public abstract class AbstractGameStateManager {
     protected final List<Obstacle> obstacles = new CopyOnWriteArrayList<>();
     protected final List<Hazard> hazards = new CopyOnWriteArrayList<>();
     protected final List<DeathMarker> deathMarkers = new CopyOnWriteArrayList<>();
-    protected final List<GameEvent> gameEvents = new CopyOnWriteArrayList<>();
     protected final List<PowerUp> powerUps = new CopyOnWriteArrayList<>();
     protected boolean isRoundOver = false;
     protected ScheduledFuture<?> scheduledFuture;
@@ -96,8 +95,30 @@ public abstract class AbstractGameStateManager {
         return gameId;
     }
 
+    public void sendGameEvent(String message, GameEvent.EventType type) {
+        sendGameEvent(new GameEvent(message, type, Config.GAME_EVENT_DURATION_MS, null));
+    }
+
     public void sendGameEvent(GameEvent gameEvent) {
-        gameEvents.add(gameEvent);
+        Map<String, Object> message = Map.of(
+                "type", "gameEvent",
+                "event", gameEvent
+        );
+        String json = Jackson.writeValueAsString(message);
+        TextWebSocketFrame frame = new TextWebSocketFrame(json);
+
+        if (gameEvent.playerId() != null) {
+            // Private message for one player
+            Channel channel = playerChannels.get(gameEvent.playerId());
+            if (channel != null && channel.isActive()) {
+                channel.writeAndFlush(frame.retainedDuplicate());
+            }
+        } else {
+            // Broadcast to all players and spectators
+            playerChannels.values().forEach(ch -> ch.writeAndFlush(frame.retainedDuplicate()));
+            spectatorChannels.forEach(ch -> ch.writeAndFlush(frame.retainedDuplicate()));
+        }
+        frame.release();
     }
 
     public boolean isFull() {
@@ -169,8 +190,10 @@ public abstract class AbstractGameStateManager {
         if (player == null) {
             return;
         }
-        player.setLastInputTime(System.currentTimeMillis());
-        playerInput.put(playerId, input);
+        PlayerInput previousInput = playerInput.put(playerId, input);
+        if (!Objects.equals(previousInput, input)) {
+            player.setLastInputTime(System.currentTimeMillis());
+        }
     }
 
     public void handlePlayerInput(String playerId, PlayerInput input) {
@@ -284,7 +307,6 @@ public abstract class AbstractGameStateManager {
             checkAfkPlayers();
             checkAndRespawnPlayers();
             updateDeathMarkers();
-            updateGameEvents();
             updatePowerUps();
             updatePlayers();
             updateBullets();
@@ -329,26 +351,6 @@ public abstract class AbstractGameStateManager {
 
         // Next, remove any explosions that have exceeded their visual duration.
         explosions.removeIf(Explosion::isExpired);
-    }
-
-    /**
-     * Removes events that have expired.
-     */
-    protected void updateGameEvents() {
-        gameEvents.removeIf(event -> System.currentTimeMillis() >= event.expirationTime());
-    }
-
-    /**
-     * Adds a new event to be displayed to clients.
-     *
-     * @param message    The text to display.
-     * @param type       The type of event.
-     * @param durationMs How long the event should stay on screen.
-     */
-    protected void addGameEvent(String message, GameEvent.EventType type, long durationMs) {
-        long expiration = System.currentTimeMillis() + durationMs;
-        gameEvents.add(new GameEvent(message, type, null, expiration));
-        log.info("New Game Event: {}", message);
     }
 
     /**
@@ -397,7 +399,6 @@ public abstract class AbstractGameStateManager {
             // Clear transient game objects
             bullets.clear();
             deathMarkers.clear();
-            gameEvents.clear();
             poisonClouds.clear();
             powerUps.clear();
 
@@ -426,8 +427,7 @@ public abstract class AbstractGameStateManager {
 
 
     protected void updateDeathMarkers() {
-        long currentTime = System.currentTimeMillis();
-        deathMarkers.removeIf(marker -> currentTime >= marker.expirationTime());
+        deathMarkers.removeIf(marker -> System.currentTimeMillis() >= marker.expirationTime());
     }
 
     /**
@@ -472,7 +472,6 @@ public abstract class AbstractGameStateManager {
                 obstacles,
                 hazards,
                 deathMarkers,
-                gameEvents,
                 powerUps,
                 System.currentTimeMillis(),
                 null
@@ -751,54 +750,28 @@ public abstract class AbstractGameStateManager {
      */
     protected abstract GameInfo buildGameState();
 
-    protected List<GameEvent> eventsForPlayer(String playerId) {
-        return gameEvents.stream()
-                .filter(ge -> ge.playerId() == null || Objects.equals(ge.playerId(), playerId))
-                .toList();
-    }
-
     protected void sendGameState() {
         GameInfo gameInfo = buildGameState();
 
-        // Optimization: Pre-serialize the game state for spectators and players with no private events.
-        // This avoids re-serializing the same data for every connection.
-        GameState publicState = new GameState(
+        GameState state = new GameState(
                 players.values(),
                 bullets,
                 explosions,
                 poisonClouds,
                 obstacles,
                 hazards,
-                deathMarkers,
-                eventsForPlayer(null), // null playerId gets only public events
+                deathMarkers, // null playerId gets only public events
                 powerUps,
                 System.currentTimeMillis(),
                 gameInfo
         );
-        String publicJson = Jackson.writeValueAsString(publicState);
-        TextWebSocketFrame publicFrame = new TextWebSocketFrame(publicJson);
+        String json = Jackson.writeValueAsString(state);
+        TextWebSocketFrame frame = new TextWebSocketFrame(json);
 
         // Send state to all players
         playerChannels.forEach((playerId, channel) -> {
             if (channel.isActive() && channel.isOpen()) {
-                // Check if this player has any private events. If not, we can send the pre-serialized public frame.
-                boolean hasPrivateEvents = gameEvents.stream().anyMatch(e -> playerId.equals(e.playerId()));
-
-                final TextWebSocketFrame frameToSend;
-                if (hasPrivateEvents) {
-                    // This player has private events, so we must build and serialize a custom state.
-                    GameState privateState = new GameState(
-                            players.values(), bullets, explosions, poisonClouds, obstacles, hazards,
-                            deathMarkers, eventsForPlayer(playerId), powerUps, publicState.serverTime(), gameInfo
-                    );
-                    String privateJson = Jackson.writeValueAsString(privateState);
-                    frameToSend = new TextWebSocketFrame(privateJson);
-                } else {
-                    // No private events, send the shared public frame.
-                    frameToSend = publicFrame.retainedDuplicate();
-                }
-
-                channel.writeAndFlush(frameToSend).addListener(future -> {
+                channel.writeAndFlush(frame.retainedDuplicate()).addListener(future -> {
                     if (!future.isSuccess()) {
                         log.error("Failed to send game state to player {}. Closing channel.", playerId, future.cause());
                         channel.close();
@@ -807,11 +780,11 @@ public abstract class AbstractGameStateManager {
             }
         });
 
-        // Send the public state to all spectators
+        // Send to all spectators
         if (!spectatorChannels.isEmpty()) {
             for (Channel spectatorChannel : spectatorChannels) {
                 if (spectatorChannel.isActive() && spectatorChannel.isOpen()) {
-                    spectatorChannel.writeAndFlush(publicFrame.retainedDuplicate()).addListener(future -> {
+                    spectatorChannel.writeAndFlush(frame.retainedDuplicate()).addListener(future -> {
                         if (!future.isSuccess()) {
                             log.error("Failed to send game state to spectator {}. Closing channel.", spectatorChannel.id().asShortText(), future.cause());
                             spectatorChannel.close();
@@ -822,7 +795,7 @@ public abstract class AbstractGameStateManager {
         }
 
         // Release the original frame after all sends are initiated.
-        publicFrame.release();
+        frame.release();
     }
 
     protected void generateObstacles() {

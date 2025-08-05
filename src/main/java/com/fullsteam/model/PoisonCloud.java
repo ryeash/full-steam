@@ -40,21 +40,42 @@ public class PoisonCloud implements BulletEffect {
                 bullet.getY(),
                 bullet.getShooterId(),
                 bullet.getTeam(),
-                60,    // radius
-                5,     // damage per tick
+                80,    // radius
+                6,     // damage per tick
                 5000); // 5 seconds duration
     }
 
-    // --- Getters ---
+    public double getX() {
+        return x;
+    }
 
-    public double getX() { return x; }
-    public double getY() { return y; }
-    public String getShooterId() { return shooterId; }
-    public int getTeam() { return team; }
-    public double getRadius() { return radius; }
-    public double getDamagePerTick() { return damagePerTick; }
-    public long getDuration() { return duration; }
-    public long getCreationTime() { return creationTime; }
+    public double getY() {
+        return y;
+    }
+
+    public String getShooterId() {
+        return shooterId;
+    }
+
+    public int getTeam() {
+        return team;
+    }
+
+    public double getRadius() {
+        return radius;
+    }
+
+    public double getDamagePerTick() {
+        return damagePerTick;
+    }
+
+    public long getDuration() {
+        return duration;
+    }
+
+    public long getCreationTime() {
+        return creationTime;
+    }
 
     @JsonIgnore
     public boolean isExpired() {

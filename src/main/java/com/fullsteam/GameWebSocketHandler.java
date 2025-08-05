@@ -55,8 +55,7 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
                 } else {
                     throw new IllegalArgumentException("Invalid connection URI: " + uri);
                 }
-            } catch (Exception e) {
-                // If anything goes wrong during setup, make sure to decrement the player count.
+            } catch (Throwable e) {
                 gameLobby.playerDisconnected();
                 log.error("Error during connection setup for URI {}. Reverting player count.", uri, e);
                 ctx.close();
@@ -68,8 +67,6 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        // channelActive is called when the TCP connection is established, before the
-        // WebSocket handshake. We'll let userEventTriggered handle the logic.
         log.info("Channel {} became active, awaiting handshake.", ctx.channel().id());
         super.channelActive(ctx);
     }

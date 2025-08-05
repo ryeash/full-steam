@@ -529,6 +529,7 @@
             this.isLocalPlayerDead = false;
             this.shouldDrawRespawnOverlay = true;
             this.isSpectator = false;
+            this.gameEvents = [];
             this.gamepad = null;
             this.isGamepadActive = false;
             this.gamepadAim = { x: 1, y: 0 };
@@ -553,7 +554,8 @@
         }
 
         resetGameState() {
-            this.gameState = { players: [], bullets: [], explosions: [], poisonClouds: [], obstacles: [], deathMarkers: [], events: [], powerUps: [], info: null, serverTime: 0 };
+            this.gameState = { players: [], bullets: [], explosions: [], poisonClouds: [], obstacles: [], deathMarkers: [], powerUps: [], info: null, serverTime: 0 };
+            this.gameEvents = [];
         }
 
         connect() {
@@ -613,6 +615,9 @@
                     if (data.weaponOptions) {
                         this.populateWeaponSelector(data.weaponOptions);
                     }
+                } else if (data.type === 'gameEvent') {
+                    const event = data.event;
+                    this.gameEvents.push(event);
                 } else {
                     this.gameState = data;
                     this.uiManager.update(this.gameState);
@@ -632,9 +637,20 @@
 
         setupEventListeners() {
             document.addEventListener('keydown', (e) => {
+                // Don't register game key-presses if the user is typing in an input field.
+                const activeEl = document.activeElement;
+                if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+                    return;
+                }
                 this.keys[e.code] = true;
             });
-            document.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
+            document.addEventListener('keyup', (e) => {
+                const activeEl = document.activeElement;
+                if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+                    return;
+                }
+                this.keys[e.code] = false;
+            });
 
             this.canvas.addEventListener('mousemove', (e) => {
                 const rect = this.canvas.getBoundingClientRect();
@@ -644,6 +660,13 @@
             this.canvas.addEventListener('mousedown', (e) => { if (e.button === 0) this.mouse.down = true; });
             this.canvas.addEventListener('mouseup', (e) => { if (e.button === 0) this.mouse.down = false; });
             this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+            // When the window loses focus, clear all input state to prevent the player
+            // from getting stuck moving in one direction.
+            window.addEventListener('blur', () => {
+                this.keys = {};
+                this.mouse.down = false;
+            });
 
             document.getElementById('playerNameInput').addEventListener('change', () => {
                 this.sendConfigChange();
@@ -1141,7 +1164,9 @@
         }
 
         drawPoisonClouds() {
-            if (!this.gameState.poisonClouds) return;
+            if (!this.gameState.poisonClouds) {
+                return;
+            }
 
             this.ctx.save();
             this.gameState.poisonClouds.forEach(cloud => {
@@ -1414,7 +1439,16 @@
         }
 
         drawGameEvents() {
-            if (!this.gameState.events || this.gameState.events.length === 0) {
+            const now = Date.now();
+            // Filter out expired events in-place for performance
+            let i = this.gameEvents.length;
+            while (i--) {
+                if (now >= this.gameEvents[i].expirationTime) {
+                    this.gameEvents.splice(i, 1);
+                }
+            }
+
+            if (this.gameEvents.length === 0) {
                 return;
             }
 
@@ -1425,17 +1459,17 @@
             this.ctx.shadowBlur = 5;
 
             const startY = 50;
-            this.gameState.events.forEach((event, index) => {
+            this.gameEvents.forEach((event, index) => {
                 const yPos = startY + (index * 25);
                 switch (event.type) {
                     case 'FLAG_CAPTURE': this.ctx.fillStyle = '#FFD700'; break;
                     case 'FLAG_PICKUP':  this.ctx.fillStyle = '#4FC3F7'; break;
                     case 'FLAG_DROP':    this.ctx.fillStyle = '#BDBDBD'; break;
                     case 'FLAG_RETURN':  this.ctx.fillStyle = '#81C784'; break;
-                    case 'GREEN':  this.ctx.fillStyle = '#81C784'; break;
-                    case 'RED':  this.ctx.fillStyle = '#F44336'; break;
-                    case 'YELLOW': this.ctx.fillStyle = '#FFD700'; break;
-                    case 'BLUE': this.ctx.fillStyle = '#4FC3F7'; break;
+                    case 'GREEN':        this.ctx.fillStyle = '#81C784'; break;
+                    case 'RED':          this.ctx.fillStyle = '#F44336'; break;
+                    case 'YELLOW':       this.ctx.fillStyle = '#FFD700'; break;
+                    case 'BLUE':         this.ctx.fillStyle = '#4FC3F7'; break;
                     default: this.ctx.fillStyle = '#FFFFFF'; break;
                 }
                 this.ctx.fillText(event.message, this.canvas.width / 2, yPos);

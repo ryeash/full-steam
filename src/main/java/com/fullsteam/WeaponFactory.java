@@ -186,8 +186,8 @@ public class WeaponFactory {
         ));
 
         addPreset(new Weapon(
-                "DMR",
-                "DMR",
+                "Marksman Rifle",
+                "MR",
                 10, // Fire Rate
                 30, // Damage
                 15, // Range
