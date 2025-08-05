@@ -64,6 +64,13 @@
             cursor: pointer;
             transition: background-color 0.2s;
         }
+        .spectate-button {
+            background-color: #3f51b5;
+        }
+        .spectate-button:hover {
+            background-color: #36469e;
+        }
+        .game-item div:last-child button + button { margin-left: 10px; }
         .join-button:hover, #create-buttons button:hover {
             background-color: #45a049;
         }
@@ -136,10 +143,13 @@
                 const listItem = document.createElement('li');
                 listItem.className = 'game-item';
 
-                let buttonHtml = '';
+                let buttonsHtml = '';
                 if (game.playerCount < game.maxPlayers) {
-                    buttonHtml = `<button class="join-button" onclick="joinGame('${game.gameId}')">Join</button>`;
+                    buttonsHtml += `<button class="join-button" onclick="joinGame('${game.gameId}')">Join</button>`;
                 }
+
+                // Always add a spectate button
+                buttonsHtml += `<button class="join-button spectate-button" onclick="spectateGame('${game.gameId}')">Spectate</button>`;
 
                 listItem.innerHTML = `
                     <div>
@@ -147,7 +157,7 @@
                         <span>Players: ${game.playerCount} / ${game.maxPlayers}</span>
                         <span style="font-size: 0.8em; color: #aaa;">ID: ${game.gameId}</span>
                     </div>
-                    ${buttonHtml}
+                    <div>${buttonsHtml}</div>
                 `;
                 gamesList.appendChild(listItem);
             });
@@ -160,6 +170,10 @@
 
     function createGame(gameType) {
         window.location.href = `/game.html?gameType=${gameType}`;
+    }
+
+    function spectateGame(gameId) {
+        window.location.href = `/game.html?spectate=true&gameId=${gameId}`;
     }
 
     // Fetch lobby info when the page loads and then every 5 seconds

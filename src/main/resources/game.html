@@ -511,6 +511,7 @@
             this.playerTeam = null;
             this.isLocalPlayerDead = false;
             this.shouldDrawRespawnOverlay = true;
+            this.isSpectator = false;
             this.gamepad = null;
             this.isGamepadActive = false;
             this.gamepadAim = { x: 1, y: 0 };
@@ -540,9 +541,17 @@
         connect() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const urlParams = new URLSearchParams(window.location.search);
+            const isSpectator = urlParams.get('spectate') === 'true';
             const gameId = urlParams.get('gameId') || 'null';
             const gameType = urlParams.get('gameType') || 'null';
-            let wsUrl = `${protocol}//${location.hostname}:${location.port}/game/${gameId}/${gameType}`;
+            let wsUrl;
+
+            if (isSpectator) {
+                wsUrl = `${protocol}//${location.hostname}:${location.port}/game/${gameId}/spectate`;
+                this.enterSpectatorMode();
+            } else {
+                wsUrl = `${protocol}//${location.hostname}:${location.port}/game/${gameId}/${gameType}`;
+            }
 
             this.ws = new WebSocket(wsUrl);
 
@@ -550,8 +559,10 @@
             this.backgroundCanvas.height = this.canvas.height;
 
             this.ws.onopen = () => {
-                document.getElementById('status').textContent = 'Connected';
-                document.getElementById('status').style.color = '#4CAF50';
+                if (!this.isSpectator) {
+                    document.getElementById('status').textContent = 'Connected';
+                    document.getElementById('status').style.color = '#4CAF50';
+                }
                 setInterval(() => {
                     this.pingStartTime = Date.now();
                     this.ws.send(JSON.stringify({ type: 'ping' }));
@@ -636,6 +647,16 @@
             });
         }
 
+        enterSpectatorMode() {
+            this.isSpectator = true;
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = 'Spectating';
+            statusEl.style.color = '#4FC3F7'; // A nice blue for spectator mode
+            document.getElementById('player-config').style.display = 'none';
+            document.getElementById('yourTeam').parentElement.style.display = 'none';
+            this.canvas.style.cursor = 'default';
+        }
+
         pollGamepad() {
             const gamepads = navigator.getGamepads();
             const firstGamepad = gamepads[0] || gamepads[1] || gamepads[2] || gamepads[3];
@@ -670,7 +691,7 @@
         }
 
         sendInput() {
-            if (this.isLocalPlayerDead || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            if (this.isSpectator || this.isLocalPlayerDead || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
                 return;
             }
 
@@ -907,7 +928,7 @@
             const rightStickY = this.gamepad ? this.gamepad.axes[3] || 0 : 0;
             const aimMagnitude = Math.sqrt(rightStickX * rightStickX + rightStickY * rightStickY);
 
-            if (this.isGamepadActive && aimMagnitude > deadzone) {
+            if (!this.isSpectator && this.isGamepadActive && aimMagnitude > deadzone) {
                 const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
                 if (localPlayer) {
                     // Get the normalized direction of the stick
@@ -935,7 +956,7 @@
                     this.ctx.lineTo(crosshairX, crosshairY + 8);
                     this.ctx.stroke();
                 }
-            } else if (!this.isGamepadActive && this.mouse.x && this.mouse.y) {
+            } else if (!this.isSpectator && !this.isGamepadActive && this.mouse.x && this.mouse.y) {
                 this.ctx.strokeStyle = '#fff';
                 this.ctx.lineWidth = 1;
                 this.ctx.beginPath();

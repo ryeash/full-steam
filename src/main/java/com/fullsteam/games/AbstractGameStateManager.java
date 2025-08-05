@@ -71,6 +71,7 @@ public abstract class AbstractGameStateManager {
     protected final Long gameId = gameIdGenerator.getAndIncrement();
     protected final Map<String, Player> players = new ConcurrentHashMap<>();
     protected final Map<String, Channel> playerChannels = new ConcurrentHashMap<>();
+    protected final List<Channel> spectatorChannels = new CopyOnWriteArrayList<>();
     protected final Map<String, PlayerInput> playerInput = new ConcurrentHashMap<>();
     protected final List<Bullet> bullets = new CopyOnWriteArrayList<>();
     protected final List<Explosion> explosions = new CopyOnWriteArrayList<>();
@@ -128,6 +129,16 @@ public abstract class AbstractGameStateManager {
         playerChannels.put(playerId, channel);
         log.info("Player {} joined team {} at position ({}, {})", playerId, team, player.getX(), player.getY());
         return player;
+    }
+
+    public void addSpectator(Channel channel) {
+        spectatorChannels.add(channel);
+        log.info("Spectator {} joined game {}", channel.id().asShortText(), gameId);
+    }
+
+    public void removeSpectator(Channel channel) {
+        spectatorChannels.remove(channel);
+        log.info("Spectator {} left game {}", channel.id().asShortText(), gameId);
     }
 
     /**
@@ -417,12 +428,6 @@ public abstract class AbstractGameStateManager {
             Player player = entry.getValue();
             // We don't want to kick AI players
             if (player instanceof AIPlayer) {
-                continue;
-            }
-
-            // don't expect dead players to do anything
-            if (player.isDead()) {
-                player.setLastInputTime(System.currentTimeMillis());
                 continue;
             }
 
@@ -738,8 +743,6 @@ public abstract class AbstractGameStateManager {
 
     protected void sendGameState() {
         GameInfo gameInfo = buildGameState();
-
-        // Iterate over the entry set to have access to both the playerId and the channel
         playerChannels.forEach((playerId, channel) -> {
             if (channel.isActive() && channel.isOpen()) {
                 GameState gameState = new GameState(
@@ -758,12 +761,41 @@ public abstract class AbstractGameStateManager {
                 channel.writeAndFlush(new TextWebSocketFrame(json)).addListener(future -> {
                     if (!future.isSuccess()) {
                         log.error("Failed to send game state to player {}. Closing channel.", playerId, future.cause());
-                        channel.close(); // This will trigger removal in the handler
+                        channel.close();
                     }
                 });
             }
-            // Removing inactive channels here is better handled by the channelInactive handler in GameWebSocketHandler
         });
+
+        // Send the same state to all spectators, but with only public events
+        if (!spectatorChannels.isEmpty()) {
+            GameState spectatorState = new GameState(
+                    players.values(),
+                    bullets,
+                    explosions,
+                    obstacles,
+                    hazards,
+                    deathMarkers,
+                    eventsForPlayer(null), // null playerId gets public events
+                    powerUps,
+                    System.currentTimeMillis(),
+                    gameInfo
+            );
+            String json = Jackson.writeValueAsString(spectatorState);
+            TextWebSocketFrame frame = new TextWebSocketFrame(json);
+
+            for (Channel spectatorChannel : spectatorChannels) {
+                if (spectatorChannel.isActive() && spectatorChannel.isOpen()) {
+                    spectatorChannel.writeAndFlush(frame.retainedDuplicate()).addListener(future -> {
+                        if (!future.isSuccess()) {
+                            log.error("Failed to send game state to spectator {}. Closing channel.", spectatorChannel.id().asShortText(), future.cause());
+                            spectatorChannel.close();
+                        }
+                    });
+                }
+            }
+            frame.release(); // Release the original frame
+        }
     }
 
     protected void generateObstacles() {

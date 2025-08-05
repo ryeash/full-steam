@@ -46,7 +46,6 @@ public class Config {
     public static final int MAX_GLOBAL_PLAYERS = getInt("lobby.max_global_players", 50);
 
     // Game
-    public static final long AFK_TIMEOUT_MS = getLong("game.afk_timeout_ms", 30_000);
     public static final int GAME_WIDTH = getInt("game.width", 1000);
     public static final int GAME_HEIGHT = getInt("game.height", 800);
     public static final int TICK_RATE = getInt("game.tick_rate", 60);
@@ -60,6 +59,7 @@ public class Config {
     public static final double DEFAULT_PLAYER_SPEED = getDouble("game.default_player_speed", 3.0);
     public static final double ZOMBIE_SPEED = getDouble("game.zombie_speed", 1.2); // Slower than players
     public static final long ROUND_DURATION_SECONDS = getLong("game.round_duration_s", 180);
+    public static final long AFK_TIMEOUT_MS = getLong("game.afk_timeout_ms", (ROUND_DURATION_SECONDS * 1000) + 10_000L);
     public static final double SPAWN_HORIZONTAL_PADDING = getDouble("game.spawn_padding_h", 50.0);
     public static final double SPAWN_VERTICAL_PADDING = getDouble("game.spawn_padding_v", 50.0);
     public static final double SPAWN_MIDFIELD_BUFFER = getDouble("game.spawn_midfield_buffer", 100.0);

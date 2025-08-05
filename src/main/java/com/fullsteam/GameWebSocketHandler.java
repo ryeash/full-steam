@@ -20,6 +20,7 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
     private static final Logger log = LoggerFactory.getLogger(GameWebSocketHandler.class);
     public static final AttributeKey<AbstractGameStateManager> GAME_STATE_MANAGER_KEY = AttributeKey.valueOf("gameStateManager");
     public static final AttributeKey<String> PLAYER_ID_KEY = AttributeKey.valueOf("playerId");
+    public static final AttributeKey<Boolean> IS_SPECTATOR_KEY = AttributeKey.valueOf("isSpectator");
 
     private final GameLobby gameLobby;
 
@@ -31,9 +32,9 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
         if (evt instanceof WebSocketServerProtocolHandler.HandshakeComplete handshake) {
             String uri = handshake.requestUri();
-            String[] split = StringUtils.split(uri, '/');
-            String gameId = split[1];
-            String gameType = split[2];
+            // URI format for players: /game/{gameId}/{gameType}
+            // URI format for spectators: /game/spectate/{gameId}
+            String[] parts = StringUtils.split(uri, '/');
 
             // 1. Check with the lobby if a new player can be accepted.
             if (!gameLobby.tryAcceptNewPlayer()) {
@@ -43,13 +44,21 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
                 return;
             }
 
-            // --- If accepted, proceed as normal ---
             try {
-                gameLobby.joinGame(ctx.channel(), gameId, gameType);
+                if (parts.length > 2 && "spectate".equals(parts[2])) {
+                    String gameId = parts[1];
+                    gameLobby.spectateGame(ctx.channel(), gameId);
+                } else if (parts.length > 0 && "game".equals(parts[0]) && parts.length > 2) {
+                    String gameId = parts[1];
+                    String gameType = parts[2];
+                    gameLobby.joinGame(ctx.channel(), gameId, gameType);
+                } else {
+                    throw new IllegalArgumentException("Invalid connection URI: " + uri);
+                }
             } catch (Exception e) {
                 // If anything goes wrong during setup, make sure to decrement the player count.
                 gameLobby.playerDisconnected();
-                log.error("Error during player setup. Reverting player count.", e);
+                log.error("Error during connection setup for URI {}. Reverting player count.", uri, e);
                 ctx.close();
             }
         } else {
@@ -69,12 +78,18 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         // Clean up the player from their specific game
         AbstractGameStateManager game = ctx.channel().attr(GAME_STATE_MANAGER_KEY).get();
-        String playerId = ctx.channel().attr(PLAYER_ID_KEY).get();
-        if (game != null && playerId != null) {
-            game.removePlayer(playerId);
-            gameLobby.playerDisconnected(); // Decrement the global count
-            log.info("Player {} disconnected from game {}. Global count: {}",
-                    playerId, game.getGameId(), gameLobby.getGlobalPlayerCount()); // Assuming you add a getter
+        if (game != null) {
+            Boolean isSpectator = ctx.channel().attr(IS_SPECTATOR_KEY).get();
+            if (isSpectator != null && isSpectator) {
+                game.removeSpectator(ctx.channel());
+            } else {
+                String playerId = ctx.channel().attr(PLAYER_ID_KEY).get();
+                if (playerId != null) {
+                    game.removePlayer(playerId);
+                }
+            }
+            gameLobby.playerDisconnected();
+            log.info("Connection from {} closed. Global players: {}", ctx.channel().remoteAddress(), gameLobby.getGlobalPlayerCount());
         }
     }
 
@@ -82,6 +97,9 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
     protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) throws Exception {
         // Retrieve the correct GameStateManager and Player ID from the channel's attributes
         AbstractGameStateManager game = ctx.channel().attr(GAME_STATE_MANAGER_KEY).get();
+        if (ctx.channel().hasAttr(IS_SPECTATOR_KEY)) {
+            return; // Spectators don't send input
+        }
         String playerId = ctx.channel().attr(PLAYER_ID_KEY).get();
 
         if (game == null || playerId == null) {
