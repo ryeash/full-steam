@@ -7,9 +7,9 @@ import com.fullsteam.Jackson;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.Bullet;
 import com.fullsteam.model.BulletEffect;
-import com.fullsteam.model.DeathMarker;
 import com.fullsteam.model.Explosion;
 import com.fullsteam.model.GameEvent;
+import com.fullsteam.model.DeathMarker;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.Hazard;
 import com.fullsteam.model.Obstacle;
@@ -17,6 +17,7 @@ import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.PowerUp;
+import com.fullsteam.model.PoisonCloud;
 import com.fullsteam.model.PowerUpType;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Weapon;
@@ -75,6 +76,7 @@ public abstract class AbstractGameStateManager {
     protected final Map<String, PlayerInput> playerInput = new ConcurrentHashMap<>();
     protected final List<Bullet> bullets = new CopyOnWriteArrayList<>();
     protected final List<Explosion> explosions = new CopyOnWriteArrayList<>();
+    protected final List<PoisonCloud> poisonClouds = new CopyOnWriteArrayList<>();
     protected final List<Obstacle> obstacles = new CopyOnWriteArrayList<>();
     protected final List<Hazard> hazards = new CopyOnWriteArrayList<>();
     protected final List<DeathMarker> deathMarkers = new CopyOnWriteArrayList<>();
@@ -287,6 +289,7 @@ public abstract class AbstractGameStateManager {
             updatePlayers();
             updateBullets();
             updateExplosions();
+            updatePoisonClouds();
             sendGameState();
         } catch (Throwable t) {
             log.error("error executing game loop", t);
@@ -348,6 +351,41 @@ public abstract class AbstractGameStateManager {
         log.info("New Game Event: {}", message);
     }
 
+    /**
+     * Handles the lifecycle of poison clouds, applying damage over time and removing them when expired.
+     */
+    protected void updatePoisonClouds() {
+        long currentTime = System.currentTimeMillis();
+        for (PoisonCloud cloud : poisonClouds) {
+            // Damage players inside the cloud, ticking every 500ms
+            if (currentTime > cloud.getLastDamageTickTime() + 500) {
+                Vector2D cloudCenter = new Vector2D(cloud.getX(), cloud.getY());
+                double radiusSq = cloud.getRadius() * cloud.getRadius();
+                Player shooter = players.get(cloud.getShooterId());
+
+                for (Player p : players.values()) {
+                    if (p.isDead()) {
+                        continue;
+                    }
+                    // Prevent friendly fire, but allow self-damage
+                    if (shooter != null && p.getTeam() == shooter.getTeam() && !p.getId().equals(shooter.getId())) {
+                        continue;
+                    }
+
+                    if (p.getCenter().distanceSq(cloudCenter) < radiusSq) {
+                        if (p.takeDamage(cloud.getDamagePerTick())) {
+                            killPlayer(p, shooter);
+                        }
+                    }
+                }
+                cloud.setLastDamageTickTime(currentTime);
+            }
+        }
+
+        // Remove any clouds that have exceeded their visual duration.
+        poisonClouds.removeIf(PoisonCloud::isExpired);
+    }
+
     protected abstract boolean checkEndConditions();
 
     /**
@@ -360,6 +398,7 @@ public abstract class AbstractGameStateManager {
             bullets.clear();
             deathMarkers.clear();
             gameEvents.clear();
+            poisonClouds.clear();
             powerUps.clear();
 
             generateObstacles();
@@ -429,6 +468,7 @@ public abstract class AbstractGameStateManager {
                 players.values(),
                 bullets,
                 explosions,
+                poisonClouds,
                 obstacles,
                 hazards,
                 deathMarkers,
@@ -591,6 +631,8 @@ public abstract class AbstractGameStateManager {
     protected void applyBulletEffect(BulletEffect bulletEffect) {
         if (bulletEffect instanceof Explosion e) {
             explosions.add(e);
+        } else if (bulletEffect instanceof PoisonCloud pc) {
+            poisonClouds.add(pc);
         } else {
             throw new UnsupportedOperationException("unknown effect: " + bulletEffect);
         }
@@ -723,6 +765,7 @@ public abstract class AbstractGameStateManager {
                         players.values(),
                         bullets,
                         explosions,
+                        poisonClouds,
                         obstacles,
                         hazards,
                         deathMarkers,
@@ -747,6 +790,7 @@ public abstract class AbstractGameStateManager {
                     players.values(),
                     bullets,
                     explosions,
+                    poisonClouds,
                     obstacles,
                     hazards,
                     deathMarkers,

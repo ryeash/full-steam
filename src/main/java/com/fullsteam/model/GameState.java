@@ -8,6 +8,7 @@ import java.util.List;
 public record GameState(Collection<Player> players,
                         List<Bullet> bullets,
                         List<Explosion> explosions,
+                        List<PoisonCloud> poisonClouds,
                         List<Obstacle> obstacles,
                         List<Hazard> hazards,
                         List<DeathMarker> deathMarkers,

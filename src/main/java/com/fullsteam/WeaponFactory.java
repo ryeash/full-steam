@@ -1,6 +1,7 @@
 package com.fullsteam;
 
 import com.fullsteam.model.Explosion;
+import com.fullsteam.model.PoisonCloud;
 import com.fullsteam.model.Weapon;
 
 import java.util.List;
@@ -167,6 +168,21 @@ public class WeaponFactory {
                 0,  // Magazine Size
                 10,  // Reload Speed
                 Explosion::grenade
+        ));
+
+        addPreset(new Weapon(
+                "Poison Launcher",
+                "P",
+                2, // Fire Rate
+                0, // Damage (damage is from the cloud)
+                15,  // Range
+                8, // Speed
+                2,  // Speed Decay
+                5,  // Accuracy
+                0, // Multi-shot
+                -1,  // Magazine Size
+                9,  // Reload Speed
+                PoisonCloud::create
         ));
 
         addPreset(new Weapon(

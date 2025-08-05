@@ -553,7 +553,7 @@
         }
 
         resetGameState() {
-            this.gameState = { players: [], bullets: [], obstacles: [], deathMarkers: [], events: [], powerUps: [], info: null, serverTime: 0 };
+            this.gameState = { players: [], bullets: [], explosions: [], poisonClouds: [], obstacles: [], deathMarkers: [], events: [], powerUps: [], info: null, serverTime: 0 };
         }
 
         connect() {
@@ -933,6 +933,7 @@
             this.drawPowerUps();
             this.drawCrates();
             this.drawExplosions();
+            this.drawPoisonClouds();
 
 
             this.gameState.players.forEach(player => {
@@ -1134,6 +1135,45 @@
                 this.ctx.fillStyle = gradient;
                 this.ctx.beginPath();
                 this.ctx.arc(explosion.x, explosion.y, currentRadius, 0, 2 * Math.PI);
+                this.ctx.fill();
+            });
+            this.ctx.restore();
+        }
+
+        drawPoisonClouds() {
+            if (!this.gameState.poisonClouds) return;
+
+            this.ctx.save();
+            this.gameState.poisonClouds.forEach(cloud => {
+                const now = this.gameState.serverTime;
+                if (!now) return;
+
+                const age = now - cloud.creationTime;
+                const lifetime = cloud.duration;
+
+                if (age < 0 || age > lifetime) return;
+
+                const progress = age / lifetime; // 0.0 to 1.0
+
+                // Let the cloud expand to full size then linger
+                const expandTime = 0.2; // 20% of lifetime to expand
+                const radiusProgress = Math.min(1.0, progress / expandTime);
+                const currentRadius = cloud.radius * radiusProgress;
+
+                // Fade out over the whole duration
+                const alpha = (1.0 - progress) * 0.6; // Max alpha 0.6
+
+                const gradient = this.ctx.createRadialGradient(
+                    cloud.x, cloud.y, 0,
+                    cloud.x, cloud.y, currentRadius
+                );
+                gradient.addColorStop(0, `rgba(129, 199, 132, ${alpha})`); // Light green
+                gradient.addColorStop(0.7, `rgba(56, 142, 60, ${alpha * 0.8})`); // Darker green
+                gradient.addColorStop(1, `rgba(27, 94, 32, 0)`); // Fade to transparent
+
+                this.ctx.fillStyle = gradient;
+                this.ctx.beginPath();
+                this.ctx.arc(cloud.x, cloud.y, currentRadius, 0, 2 * Math.PI);
                 this.ctx.fill();
             });
             this.ctx.restore();
