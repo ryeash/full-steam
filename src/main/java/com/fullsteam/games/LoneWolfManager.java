@@ -19,7 +19,6 @@ import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
 public class LoneWolfManager extends AbstractGameStateManager {
 
     private static final long AI_FILL_CHECK_INTERVAL_MS = 5000; // 5 seconds
-    private static final int LONE_WOLF_LIVES = 3;
     private long lastAIFillCheckTime = 0;
 
     private String loneWolfId;
@@ -136,7 +135,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
         if (victim.getId().equals(loneWolfId)) {
             loneWolfDeaths++;
             Player loneWolf = players.get(loneWolfId);
-            if (loneWolf != null && loneWolfDeaths < LONE_WOLF_LIVES) {
+            if (loneWolf != null && loneWolfDeaths < Config.LONE_WOLF_LIVES) {
                 double newDamageMultiplier = 1.0 + (loneWolfDeaths * Config.LONE_WOLF_DAMAGE_BOOST_PER_DEATH);
                 loneWolf.setDamageMultiplier(newDamageMultiplier);
                 loneWolf.setDamageBoostEndTime(Long.MAX_VALUE);
@@ -159,7 +158,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
             roundOver = true;
         }
 
-        if (loneWolfDeaths >= LONE_WOLF_LIVES) {
+        if (loneWolfDeaths >= Config.LONE_WOLF_LIVES) {
             sendGameEvent(GameEvent.blue("The Hunters have slain the Lone Wolf! The Hunters win!"));
             log.info("Game {} ended: Lone Wolf defeated.", gameId);
             roundOver = true;
@@ -201,7 +200,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
 
     @Override
     protected GameInfo buildGameState() {
-        return new LoneWolfInfo(LONE_WOLF_LIVES - loneWolfDeaths);
+        return new LoneWolfInfo(Config.LONE_WOLF_LIVES - loneWolfDeaths);
     }
 
     @Override

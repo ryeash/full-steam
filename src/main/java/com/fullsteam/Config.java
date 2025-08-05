@@ -110,6 +110,7 @@ public class Config {
 
     // --- Lone Wolf Game Mode ---
     public static final double LONE_WOLF_HEALTH_MULTIPLIER = getDouble("game.lonewolf.health_multiplier", 5.0);
+    public static final int LONE_WOLF_LIVES = getInt("game.lonewolf.lives", 3);
     public static final double LONE_WOLF_DAMAGE_BOOST_PER_DEATH = getDouble("game.lonewolf.damage_boost_per_death", 0.50);
 
     // --- Builder Game Mode ---

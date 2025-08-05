@@ -636,6 +636,20 @@ public abstract class AbstractGameStateManager {
             log.info("Player {} was eliminated by a disconnected player or a hazard.", victim.getId());
         }
 
+        // If an AI player's performance is unbalanced, give it a new random weapon.
+        // This helps prevent an AI from getting stuck with a weapon it's ineffective
+        // with or dominating too easily with one it's very good with.
+        if (victim instanceof AIPlayer) {
+            int kills = victim.getKills();
+            int deaths = victim.getDeaths();
+            // After at least 3 deaths, check if the kill-death difference is significant.
+            if (deaths >= 3 && Math.abs(kills - deaths) > 5) {
+                Weapon oldWeapon = victim.getWeapon();
+                victim.setWeapon(WeaponFactory.getRandomWeapon());
+                log.info("AI {} performance (K/D: {}/{}) triggered a weapon change from {} to {}.", victim.getPlayerName(), kills, deaths, oldWeapon.getName(), victim.getWeapon().getName());
+            }
+        }
+
         // Add the death marker
         double markerX = victim.getX() + (PLAYER_SIZE / 2); // Center of the player
         double markerY = victim.getY() + (PLAYER_SIZE / 2);

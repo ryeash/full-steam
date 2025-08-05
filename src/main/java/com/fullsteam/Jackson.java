@@ -30,6 +30,14 @@ public class Jackson {
         }
     }
 
+    public static byte[] writeValueAsBytes(Object obj) {
+        try {
+            return objectMapper.writeValueAsBytes(obj);
+        } catch (JsonProcessingException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     public static JsonNode readTree(String text) {
         try {
             return objectMapper.readTree(text);

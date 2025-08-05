@@ -86,6 +86,11 @@ public class AIPlayer extends Player {
         this.acceleration = Vector2D.ZERO;
 
         // --- Apply Steering Forces (in order of priority) ---
+        // 0. Highest priority: Get away from walls you are touching or about to touch.
+        // This acts as a "last resort" to prevent getting stuck.
+        Vector2D separationForce = calculateObstacleSeparationForce(obstacles);
+        applyForce(separationForce);
+
         // 1. High-priority: Avoid dangerous hazards.
         Vector2D hazardForce = calculateHazardAvoidanceForce(hazards);
         applyForce(hazardForce);
@@ -453,6 +458,36 @@ public class AIPlayer extends Player {
             }
         }
         return totalAvoidanceForce;
+    }
+
+    /**
+     * Calculates a strong, short-range repulsive force from nearby obstacles.
+     * This is a high-priority behavior designed to prevent the AI from getting
+     * stuck on walls or in corners. It creates a "personal space" bubble.
+     *
+     * @param obstacles A list of all obstacles on the map.
+     * @return A steering force vector pushing the AI away from close obstacles.
+     */
+    private Vector2D calculateObstacleSeparationForce(List<Obstacle> obstacles) {
+        Vector2D totalSeparationForce = Vector2D.ZERO;
+        double separationRadius = 50.0; // The "personal space" bubble radius.
+
+        for (Obstacle obstacle : obstacles) {
+            Vector2D closestPoint = findClosestPointOnObstacle(getCenter(), obstacle);
+            double distanceSq = getCenter().distanceSq(closestPoint);
+
+            // Only apply force if within the separation radius.
+            if (distanceSq < separationRadius * separationRadius) {
+                // Direction of the force is away from the closest point on the obstacle.
+                Vector2D fleeDirection = getCenter().subtract(closestPoint);
+
+                // The force is stronger the closer the AI is to the obstacle.
+                double strength = 1.0 - (Math.sqrt(distanceSq) / separationRadius);
+                Vector2D separationForce = fleeDirection.normalize().multiply(strength * AI_MAX_FORCE * 5.0); // High weight to override other behaviors.
+                totalSeparationForce = totalSeparationForce.add(separationForce);
+            }
+        }
+        return totalSeparationForce;
     }
 
     /**
