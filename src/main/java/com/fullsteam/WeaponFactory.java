@@ -1,8 +1,8 @@
 package com.fullsteam;
 
+import com.fullsteam.model.Explosion;
 import com.fullsteam.model.Weapon;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,116 +18,159 @@ public class WeaponFactory {
     private static final List<String> weaponNames;
     private static final Weapon[] weaponArray;
 
-
     static {
         addPreset(new Weapon(
                 "Assault",
                 "A",
-                32, // Fire Rate: 300ms cooldown (fast)
-                20, // Damage: 50 (good)
-                6,  // Range: 500 (good)
-                8,  // Speed: 9.0 (fast)
-                12, // Accuracy: 0.25 spread (accurate)
-                0,  // Multi-shot: 1 pellet
-                8, // Magazine Size: 20 rounds
-                14  // Reload Speed: 3.4s (average)
+                30, // Fire Rate
+                20, // Damage
+                6,  // Range
+                8,  // Speed
+                8,  // Speed Decay
+                10, // Accuracy
+                0,  // Multi-shot
+                8, // Magazine Size
+                10,  // Reload Speed
+                null
         ));
 
         addPreset(new Weapon(
                 "Sniper Rifle",
                 "SR",
-                0,  // Fire Rate: 1000ms cooldown (very slow)
-                40, // Damage: 90 (very high)
-                18, // Range: 1000 (max)
-                15, // Speed: 12.5 (very fast)
-                21, // Accuracy: 0.13 spread (very accurate)
-                0,  // Multi-shot: 1 pellet
-                0,  // Magazine Size: 10 rounds (base)
-                6   // Reload Speed: 4.1s (slow)
+                0,  // Fire Rate
+                35, // Damage
+                18, // Range
+                15, // Speed
+                10, // Speed Decay (no decay)
+                16, // Accuracy
+                0,  // Multi-shot
+                0,  // Magazine Size
+                6,  // Reload Speed
+                null
         ));
 
         addPreset(new Weapon(
                 "SMG",
                 "SMG",
-                36, // Fire Rate: 125ms cooldown (very fast)
-                11, // Damage: 34 (low-medium)
-                4,  // Range: 300 (short)
-                10, // Speed: 10.0 (fast)
-                5,  // Accuracy: 0.325 spread (low)
-                0,  // Multi-shot: 1 pellet
-                20, // Magazine Size: 30 rounds (large)
-                14  // Reload Speed: 3.6s (fast)
+                34, // Fire Rate
+                11, // Damage
+                4,  // Range
+                10, // Speed
+                5,  // Speed Decay
+                5,  // Accuracy
+                0,  // Multi-shot
+                17, // Magazine Size
+                14,  // Reload Speed
+                null
         ));
 
         addPreset(new Weapon(
                 "Minigun",
                 "M",
-                43, // Fire Rate: 50ms cooldown (max)
-                5,  // Damage: 20 (low)
-                1,  // Range: 200 (very short)
-                12,  // Speed: 7.5 (average)
-                0,  // Accuracy: 0.4 spread (very low)
-                0,  // Multi-shot: 1 pellet
-                31, // Magazine Size: >100 rounds (huge)
-                8  // Reload Speed: 4.0s (slow)
+                40, // Fire Rate
+                6,  // Damage
+                1,  // Range
+                12, // Speed
+                2,  // Speed Decay
+                0,  // Accuracy
+                0,  // Multi-shot
+                31, // Magazine Size
+                8,  // Reload Speed
+                null
         ));
 
         addPreset(new Weapon(
                 "Flamethrower",
                 "F",
-                38, // Fire Rate: 50ms cooldown (max)
-                10, // Damage: 30 (low)
-                1,  // Range: 150 (extremely short)
-                1,  // Speed: 6.0 (slow)
-                5,  // Accuracy: 0.325 spread (low)
-                0,  // Multi-shot: 1 pellet
-                31, // Magazine Size: 40 "ammo"
-                14  // Reload Speed: 3.6s (fast)
+                38, // Fire Rate
+                10, // Damage
+                1,  // Range
+                1,  // Speed
+                0,  // Speed Decay (max decay)
+                5,  // Accuracy
+                0,  // Multi-shot
+                31, // Magazine Size
+                14,  // Reload Speed
+                null
         ));
 
         addPreset(new Weapon(
                 "Shotgun",
                 "S",
-                4,  // Fire Rate: 900ms cooldown (slow)
-                10, // Damage: 30 per pellet (high potential)
-                4,  // Range: 250 (very short)
-                10,  // Speed: 7.5 (average)
-                2,  // Accuracy: 0.385 spread (very wide)
-                50, // Multi-shot: 5 pellets
-                10,  // Magazine Size: 15 rounds
-                10  // Reload Speed: 3.8s (slow)
+                4,  // Fire Rate
+                10, // Damage
+                4,  // Range
+                10, // Speed
+                2,  // Speed Decay
+                2,  // Accuracy
+                50, // Multi-shot
+                8,  // Magazine Size
+                10,  // Reload Speed
+                null
         ));
 
         addPreset(new Weapon(
                 "Street Sweeper",
                 "SW",
-                27,  // Fire Rate: 875ms cooldown (slow)
-                5,  // Damage: 20 per pellet (medium potential)
-                2,  // Range: 200 (very short)
-                0,  // Speed: 6.0 (slow)
-                -20,  // Accuracy: 0.4 spread (max spread)
-                70, // Multi-shot: 7 pellets
-                14,  // Magazine Size: 14 rounds
-                2   // Reload Speed: 4.8s (very slow)
+                27,  // Fire Rate
+                5,  // Damage
+                2,  // Range
+                0,  // Speed
+                0,  // Speed Decay
+                -20, // Accuracy
+                70, // Multi-shot
+                14,  // Magazine Size
+                2,  // Reload Speed
+                null
         ));
 
         addPreset(new Weapon(
                 "Twin Sixes",
                 "T6s",
-                23, // Fire Rate: 500ms cooldown (medium)
-                20, // Damage: 60 (high)
-                4,  // Range: 350 (short-medium)
-                18, // Speed: 12.5 (very fast)
-                8, // Accuracy: 0.25 spread (accurate)
-                10, // Multi-shot: 2 pellets
-                2,  // Magazine Size: 12 rounds
-                15   // Reload Speed: 4.5s (slow)
+                19, // Fire Rate
+                15, // Damage
+                4,  // Range
+                18, // Speed
+                9,  // Speed Decay
+                8,  // Accuracy
+                10, // Multi-shot
+                2,  // Magazine Size
+                15,  // Reload Speed
+                null
+        ));
+
+        addPreset(new Weapon(
+                "Rocket",
+                "R",
+                5, // Fire Rate
+                -5, // Damage
+                18,  // Range
+                18, // Speed
+                10,  // Speed Decay
+                1,  // Accuracy
+                0, // Multi-shot
+                -2,  // Magazine Size
+                -5,  // Reload Speed
+                Explosion::rocket
+        ));
+
+        addPreset(new Weapon(
+                "Grenade Launcher",
+                "GR",
+                1, // Fire Rate
+                0, // Damage
+                20,  // Range
+                9, // Speed
+                0,  // Speed Decay
+                0,  // Accuracy
+                0, // Multi-shot
+                0,  // Magazine Size
+                10,  // Reload Speed
+                Explosion::grenade
         ));
 
         // Pre-sort the weapon names for faster access.
-        weaponNames = Collections.unmodifiableList(
-                weaponPresets.keySet().stream().sorted().toList()
-        );
+        weaponNames = weaponPresets.keySet().stream().sorted().toList();
 
         // Cache the weapon array for faster random access.
         weaponArray = weaponPresets.values().toArray(new Weapon[0]);
@@ -146,9 +189,11 @@ public class WeaponFactory {
             -1,
             27,
             0,
+            0,
             10,
             4,
-            20
+            20,
+            null
     );
     public static final Weapon HEAVY_ZOMBIE_CLAW = new Weapon(
             "HeavyClaw",
@@ -158,9 +203,11 @@ public class WeaponFactory {
             -1,
             7,
             0,
+            0,
             10,
             4,
-            20
+            20,
+            null
     );
 
     public static void addPreset(Weapon weapon) {
@@ -190,7 +237,7 @@ public class WeaponFactory {
      * @return The default "Assault".
      */
     public static Weapon getDefaultWeapon() {
-        return weaponPresets.get("Assault");
+        return weaponArray[0];
     }
 
     public static Weapon getRandomWeapon() {

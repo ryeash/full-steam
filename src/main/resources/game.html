@@ -305,7 +305,7 @@
         <details id="controls-details">
             <summary>Controls</summary>
             <div id="controls">
-                <p>⌨️ WASD/Arrows: Move | R: Reload | Mouse: Aim & Shoot</p>
+                <p>⌨️ WASD/Arrows: Move | R: Reload | B: Build | Mouse: Aim & Shoot</p>
                 <p>🎮 L Stick: Move | R Stick: Aim | Y/△: Swap Weapon | X/□: Reload | RT/R2: Shoot</p>
             </div>
         </details>
@@ -349,6 +349,13 @@
                     this.elements.yourTeam.style.display = 'none';
                     this.elements.switchTeamBtn.style.display = 'none';
                 },
+                'Builder': (info) => {
+                    this.game.shouldDrawRespawnOverlay = true;
+                    this.elements.team1Score.style.display = 'none';
+                    this.elements.team2Score.style.display = 'none';
+                    this.elements.yourTeam.style.display = 'none';
+                    this.elements.switchTeamBtn.style.display = 'none';
+                },
                 'Zombie Defense': (info) => {
                     this.game.shouldDrawRespawnOverlay = false;
                     this.elements.yourTeam.style.display = 'none';
@@ -367,16 +374,14 @@
                     this.elements.team1Score.innerHTML = `${info.team1Score} <span style="font-size: 0.7em; color: #ccc;">(${info.team1PlayersAlive} alive)</span>`;
                     this.elements.team2Score.innerHTML = `${info.team2Score} <span style="font-size: 0.7em; color: #ccc;">(${info.team2PlayersAlive} alive)</span>`;
                 },
-                'LoneWolfManager': (info) => {
-                    this.game.shouldDrawRespawnOverlay = true;
+                'Lone Wolf': (info) => {
+                    this.game.shouldDrawRespawnOverlay = false;
                     this.elements.yourTeam.style.display = 'inline';
-                    this.elements.switchTeamBtn.style.display = 'none';
+                    this.elements.switchTeamBtn.style.display = 'block';
                     this.elements.team1Score.style.display = 'inline';
-                    this.elements.team2Score.style.display = 'inline';
-                    const lives = info.gameModeMetadata.loneWolfLives || 0;
-                    this.elements.team1Score.innerHTML = `Wolf Lives: ${'🐺'.repeat(lives)}`;
-                    const targets = info.gameModeMetadata.hunterTargets || [];
-                    this.elements.team2Score.innerHTML = `Hunters: ${targets.length}`;
+                    this.elements.team2Score.style.display = 'none';
+                    const lives = info.loneWolfLives || 0;
+                    this.elements.team1Score.innerHTML = lives + "🐺";
                 },
                 'default': (info) => {
                     this.game.shouldDrawRespawnOverlay = true;
@@ -395,6 +400,14 @@
                     this.elements.team2Scoreboard.style.display = 'none';
                     this.elements.ffaScoreboard.style.display = 'block';
 
+                    this.elements.ffaList.innerHTML = '';
+                    const sortedPlayers = [...players].sort((a, b) => b.kills - a.kills);
+                    sortedPlayers.forEach(p => this.elements.ffaList.appendChild(this.createPlayerEntry(p, playerId)));
+                },
+                'Builder': (players, playerId) => {
+                    this.elements.team1Scoreboard.style.display = 'none';
+                    this.elements.team2Scoreboard.style.display = 'none';
+                    this.elements.ffaScoreboard.style.display = 'block';
                     this.elements.ffaList.innerHTML = '';
                     const sortedPlayers = [...players].sort((a, b) => b.kills - a.kills);
                     sortedPlayers.forEach(p => this.elements.ffaList.appendChild(this.createPlayerEntry(p, playerId)));
@@ -589,7 +602,9 @@
         }
 
         setupEventListeners() {
-            document.addEventListener('keydown', (e) => { this.keys[e.code] = true; });
+            document.addEventListener('keydown', (e) => {
+                this.keys[e.code] = true;
+            });
             document.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
 
             this.canvas.addEventListener('mousemove', (e) => {
@@ -613,7 +628,7 @@
                 if (this.ws) {
                     this.ws.close();
                 }
-                window.location.href = 'lobby.html';
+                window.location.href = '/';
             });
             document.getElementById('switchTeamBtn').addEventListener('click', () => {
                 this.sendTeamChangeRequest();
@@ -666,7 +681,8 @@
                 mouseX: 0,
                 mouseY: 0,
                 reload: false,
-                weaponCycle: false
+                weaponCycle: false,
+                placingObstacle: false
             };
             const deadzone = 0.25;
 
@@ -687,6 +703,7 @@
 
                 input.shooting = this.gamepad.buttons[7] && this.gamepad.buttons[7].value > 0.5;
                 input.reload = this.gamepad.buttons[2] && this.gamepad.buttons[2].pressed;
+                input.placingObstacle = this.gamepad.buttons[0] && this.gamepad.buttons[0].pressed; // A button
 
                 const swapButtonPressed = this.gamepad.buttons[3] && this.gamepad.buttons[3].pressed;
                 if (swapButtonPressed && !this.gamepadWeaponSwapPressed) {
@@ -725,6 +742,7 @@
                 input.mouseX = this.mouse.x;
                 input.mouseY = this.mouse.y;
                 input.reload = !!this.keys['KeyR'];
+                input.placingObstacle = !!this.keys['KeyB'];
             }
             this.ws.send(JSON.stringify(input));
         }
@@ -842,8 +860,7 @@
         }
 
         render() {
-            if (this.backgroundNeedsRedraw && this.gameState.obstacles && this.gameState.obstacles.length > 0) {
-                this.preRenderBackground();
+            if (this.backgroundNeedsRedraw && this.gameState.info) {                this.preRenderBackground();
                 this.backgroundNeedsRedraw = false;
             }
 
@@ -868,6 +885,9 @@
             }
 
             this.drawPowerUps();
+            this.drawCrates();
+            this.drawExplosions();
+
 
             this.gameState.players.forEach(player => {
                 this.drawPlayer(player);
@@ -992,6 +1012,84 @@
                 }
             });
 
+            this.ctx.restore();
+        }
+
+        drawCrates() {
+            if (!this.gameState.info || this.gameState.info.type !== 'Builder' || !this.gameState.info.crates) {
+                return;
+            }
+
+            this.ctx.save();
+            this.gameState.info.crates.forEach(crate => {
+                // Draw crate body
+                this.ctx.fillStyle = '#8B4513'; // SaddleBrown
+                this.ctx.strokeStyle = '#5D2906'; // Darker brown for border
+                this.ctx.lineWidth = 2;
+                this.ctx.fillRect(crate.x, crate.y, crate.size, crate.size);
+                this.ctx.strokeRect(crate.x, crate.y, crate.size, crate.size);
+
+                // Draw health bar if damaged
+                if (crate.hp < crate.maxHp) {
+                    const healthPercentage = Math.max(0, crate.hp / crate.maxHp);
+                    const barWidth = crate.size;
+                    const barHeight = 5;
+                    const barX = crate.x;
+                    const barY = crate.y - 10;
+
+                    // Background of health bar
+                    this.ctx.fillStyle = '#333';
+                    this.ctx.fillRect(barX, barY, barWidth, barHeight);
+
+                    // Foreground of health bar
+                    this.ctx.fillStyle = healthPercentage > 0.5 ? '#4CAF50' : (healthPercentage > 0.2 ? '#FFC107' : '#F44336');
+                    this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
+
+                    // Border for the health bar
+                    this.ctx.strokeStyle = '#111';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+                }
+            });
+            this.ctx.restore();
+        }
+
+        drawExplosions() {
+            if (!this.gameState.explosions) return;
+
+            this.ctx.save();
+            this.gameState.explosions.forEach(explosion => {
+                const now = this.gameState.serverTime;
+                if (!now) return; // Don't draw if we don't have a server time yet
+
+                const age = now - explosion.creationTime;
+                const lifetime = explosion.duration;
+
+                if (age < 0 || age > lifetime) return;
+
+                const progress = age / lifetime; // 0.0 to 1.0
+
+                // Animate the radius to expand quickly
+                const peakTime = 0.3; // Time to reach max size
+                const radiusProgress = Math.min(1.0, progress / peakTime);
+                const currentRadius = explosion.size * radiusProgress;
+
+                // Fade out over the whole duration
+                const alpha = 1.0 - progress;
+
+                const gradient = this.ctx.createRadialGradient(
+                    explosion.x, explosion.y, 0,
+                    explosion.x, explosion.y, currentRadius
+                );
+                gradient.addColorStop(0, `rgba(255, 255, 150, ${alpha * 0.9})`);
+                gradient.addColorStop(0.5, `rgba(255, 100, 0, ${alpha * 0.7})`);
+                gradient.addColorStop(1, `rgba(200, 0, 0, 0)`); // Fade to fully transparent at the edge
+
+                this.ctx.fillStyle = gradient;
+                this.ctx.beginPath();
+                this.ctx.arc(explosion.x, explosion.y, currentRadius, 0, 2 * Math.PI);
+                this.ctx.fill();
+            });
             this.ctx.restore();
         }
 

@@ -4,6 +4,7 @@ import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.DeathmatchAIStrategy;
@@ -11,20 +12,18 @@ import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.LoneWolfInfo;
 import io.netty.channel.Channel;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
+
+import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
 
 public class LoneWolfManager extends AbstractGameStateManager {
 
     private static final long AI_FILL_CHECK_INTERVAL_MS = 5000; // 5 seconds
+    private static final int LONE_WOLF_LIVES = 3;
     private long lastAIFillCheckTime = 0;
 
     private String loneWolfId;
     private int loneWolfDeaths = 0;
-    private final Set<String> huntersToKill = new HashSet<>();
 
     public LoneWolfManager(GameLobby gameLobby) {
         super(gameLobby);
@@ -37,9 +36,17 @@ public class LoneWolfManager extends AbstractGameStateManager {
 
     @Override
     protected void startNewRound() {
-        // This is called when the game starts
+        loneWolfDeaths = 0;
         balanceTeams();
         super.startNewRound();
+    }
+
+    /**
+     * Disables mid-round respawning. Players will only be brought back to life
+     * at the beginning of a new round via startNewRound().
+     */
+    @Override
+    protected void checkAndRespawnPlayers() {
     }
 
     @Override
@@ -53,12 +60,28 @@ public class LoneWolfManager extends AbstractGameStateManager {
     }
 
     private void balanceTeams() {
-        if (players.size() >= getMaxPlayers()) {
-            return; // Game is full
-        }
         int huntersNeeded = (getMaxPlayers() - 1) - (int) players.values().stream().filter(p -> p.getTeam() == 2).count();
         for (int i = 0; i < huntersNeeded; i++) {
             addAIPlayer(2); // Add AI to team 2
+        }
+        int wolvesNeeded = 1 - (int) players.values().stream().filter(p -> p.getTeam() == 1).count();
+        if (wolvesNeeded > 0) {
+            // try to promote a hunter to be the wolf
+            // preferentially move a human
+            Player toMove = null;
+            for (Player value : players.values()) {
+                if (value.getTeam() == 2) {
+                    toMove = value;
+                    if (!(toMove instanceof AIPlayer)) {
+                        break;
+                    }
+                }
+            }
+            if (toMove != null) {
+                killPlayer(toMove, null);
+                loneWolfId = toMove.getId();
+                applyLoneWolfStatus();
+            }
         }
     }
 
@@ -69,7 +92,6 @@ public class LoneWolfManager extends AbstractGameStateManager {
         AIPlayer player = new AIPlayer(playerId, 0, 0, 2, new DeathmatchAIStrategy(), AIArchetype.randomArchetype());
         setValidSpawnPosition(player);
         players.put(playerId, player);
-        huntersToKill.add(playerId); // Add AI to the target list
         log.info("AI Hunter {} joined at position ({}, {})", playerId, player.getX(), player.getY());
     }
 
@@ -80,13 +102,10 @@ public class LoneWolfManager extends AbstractGameStateManager {
         if (loneWolfId == null) {
             this.loneWolfId = playerId;
             player = new Player(playerId, 0, 0, 1); // Team 1
-            player.setMaxHealth(Config.DEFAULT_PLAYER_HEALTH * Config.LONE_WOLF_HEALTH_MULTIPLIER);
-            player.resetHealth();
-            sendGameEvent(GameEvent.red(player.getPlayerName() + " is the Lone Wolf!"));
+            applyLoneWolfStatus();
         } else {
             // Subsequent players are Hunters
             player = new Player(playerId, 0, 0, 2); // Team 2
-            huntersToKill.add(playerId);
         }
 
         setValidSpawnPosition(player);
@@ -97,16 +116,17 @@ public class LoneWolfManager extends AbstractGameStateManager {
     }
 
     @Override
-    public void removePlayer(String playerId) {
+    public void handlePlayerConfigChange(String playerId, PlayerConfigRequest request) {
         Player player = players.get(playerId);
-        if (player != null) {
-            // If a hunter leaves, remove them from the target list.
-            if (!player.getId().equals(loneWolfId)) {
-                huntersToKill.remove(player.getId());
+        if (player != null && request.isRequestTeamChange()) {
+            if (player.getTeam() == 1) {
+                sendGameEvent(GameEvent.team(player.getTeam(), "You may not switch teams! The Wolf must hunt..."));
+            } else {
+                sendGameEvent(GameEvent.team(player.getTeam(), "You may not switch teams! The Wolf draws near..."));
             }
-            // Now, call the parent method to handle the actual removal from the game.
-            super.removePlayer(playerId);
+            return;
         }
+        super.handlePlayerConfigChange(playerId, request);
     }
 
     @Override
@@ -116,41 +136,58 @@ public class LoneWolfManager extends AbstractGameStateManager {
         if (victim.getId().equals(loneWolfId)) {
             loneWolfDeaths++;
             Player loneWolf = players.get(loneWolfId);
-            if (loneWolf != null) {
+            if (loneWolf != null && loneWolfDeaths < LONE_WOLF_LIVES) {
                 double newDamageMultiplier = 1.0 + (loneWolfDeaths * Config.LONE_WOLF_DAMAGE_BOOST_PER_DEATH);
                 loneWolf.setDamageMultiplier(newDamageMultiplier);
+                loneWolf.setDamageBoostEndTime(Long.MAX_VALUE);
                 sendGameEvent(GameEvent.red("The Lone Wolf grows stronger! Damage is now " + (int) (newDamageMultiplier * 100) + "%."));
+                schedule(super::checkAndRespawnPlayers, Config.RESPAWN_DELAY_MS);
             }
         } else if (shooter != null && shooter.getId().equals(loneWolfId)) {
             // A hunter was killed by the lone wolf
-            if (huntersToKill.remove(victim.getId())) {
-                sendGameEvent(GameEvent.green("The Lone Wolf has eliminated " + victim.getPlayerName()));
-            }
+            sendGameEvent(GameEvent.green("The Lone Wolf has eliminated " + victim.getPlayerName()));
         }
     }
 
     @Override
     protected boolean checkEndConditions() {
+        boolean roundOver = false;
         // Check if the lone wolf has left the game
         if (loneWolfId != null && !players.containsKey(loneWolfId)) {
             sendGameEvent(GameEvent.blue("The Lone Wolf has fled! The Hunters win!"));
             log.info("Game {} ended: Lone Wolf left the game.", gameId);
-            return true;
+            roundOver = true;
         }
 
-        if (loneWolfDeaths >= 3) {
+        if (loneWolfDeaths >= LONE_WOLF_LIVES) {
             sendGameEvent(GameEvent.blue("The Hunters have slain the Lone Wolf! The Hunters win!"));
             log.info("Game {} ended: Lone Wolf defeated.", gameId);
-            return true;
+            roundOver = true;
         }
 
-        if (huntersToKill.isEmpty() && players.size() > 1) {
+        boolean allHuntersDown = players.values()
+                .stream()
+                .filter(p -> p.getTeam() == 2)
+                .allMatch(Player::isDead);
+        if (allHuntersDown && players.size() > 1) {
             sendGameEvent(GameEvent.red("The Lone Wolf has eliminated all Hunters! The Lone Wolf wins!"));
             log.info("Game {} ended: Lone Wolf wins.", gameId);
-            return true;
+            roundOver = true;
         }
 
-        return false;
+        if (roundOver) {
+            // randomize the wolf again
+            if (loneWolfId != null) {
+                Player player = players.get(loneWolfId);
+                if (player != null) {
+                    player.setDamageBoostEndTime(0);
+                    player.setMaxHealth(Config.DEFAULT_PLAYER_HEALTH);
+                    player.setTeam(2);
+                }
+            }
+        }
+
+        return roundOver;
     }
 
     @Override
@@ -164,10 +201,23 @@ public class LoneWolfManager extends AbstractGameStateManager {
 
     @Override
     protected GameInfo buildGameState() {
-        List<String> remainingTargetNames = players.values().stream()
-                .filter(p -> huntersToKill.contains(p.getId()))
-                .map(Player::getPlayerName)
-                .collect(Collectors.toList());
-        return new LoneWolfInfo(3 - loneWolfDeaths, remainingTargetNames);
+        return new LoneWolfInfo(LONE_WOLF_LIVES - loneWolfDeaths);
+    }
+
+    @Override
+    public int getMaxPlayers() {
+        return MAX_PLAYERS_PER_TEAM + 1;
+    }
+
+    public void applyLoneWolfStatus() {
+        Player player = players.get(loneWolfId);
+        if (player != null) {
+            player.setTeam(1);
+            player.setMaxHealth(Config.DEFAULT_PLAYER_HEALTH * Config.LONE_WOLF_HEALTH_MULTIPLIER);
+            player.setDamageMultiplier(1 + (loneWolfDeaths * Config.LONE_WOLF_DAMAGE_BOOST_PER_DEATH));
+            player.setDamageBoostEndTime(Long.MAX_VALUE);
+            player.resetHealth();
+            sendGameEvent(GameEvent.red(player.getPlayerName() + " is the Lone Wolf!"));
+        }
     }
 }

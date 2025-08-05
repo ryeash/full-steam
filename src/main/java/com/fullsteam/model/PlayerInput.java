@@ -9,6 +9,7 @@ public class PlayerInput {
     private double mouseY;
     private boolean reload;
     private boolean weaponCycle;
+    public boolean placingObstacle;
 
     public PlayerInput() {
     }
@@ -68,5 +69,13 @@ public class PlayerInput {
 
     public void setWeaponCycle(boolean weaponCycle) {
         this.weaponCycle = weaponCycle;
+    }
+
+    public boolean isPlacingObstacle() {
+        return placingObstacle;
+    }
+
+    public void setPlacingObstacle(boolean placingObstacle) {
+        this.placingObstacle = placingObstacle;
     }
 }
