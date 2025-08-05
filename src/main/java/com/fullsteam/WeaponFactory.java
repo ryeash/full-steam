@@ -175,13 +175,13 @@ public class WeaponFactory {
                 "P",
                 2, // Fire Rate
                 0, // Damage (damage is from the cloud)
-                14,  // Range
+                14,// Range
                 8, // Speed
-                2,  // Speed Decay
-                5,  // Accuracy
+                2, // Speed Decay
+                5, // Accuracy
                 0, // Multi-shot
-                0,  // Magazine Size
-                9,  // Reload Speed
+                0, // Magazine Size
+                9, // Reload Speed
                 PoisonCloud::create
         ));
 

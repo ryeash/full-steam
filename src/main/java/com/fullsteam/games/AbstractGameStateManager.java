@@ -759,23 +759,46 @@ public abstract class AbstractGameStateManager {
 
     protected void sendGameState() {
         GameInfo gameInfo = buildGameState();
+
+        // Optimization: Pre-serialize the game state for spectators and players with no private events.
+        // This avoids re-serializing the same data for every connection.
+        GameState publicState = new GameState(
+                players.values(),
+                bullets,
+                explosions,
+                poisonClouds,
+                obstacles,
+                hazards,
+                deathMarkers,
+                eventsForPlayer(null), // null playerId gets only public events
+                powerUps,
+                System.currentTimeMillis(),
+                gameInfo
+        );
+        String publicJson = Jackson.writeValueAsString(publicState);
+        TextWebSocketFrame publicFrame = new TextWebSocketFrame(publicJson);
+
+        // Send state to all players
         playerChannels.forEach((playerId, channel) -> {
             if (channel.isActive() && channel.isOpen()) {
-                GameState gameState = new GameState(
-                        players.values(),
-                        bullets,
-                        explosions,
-                        poisonClouds,
-                        obstacles,
-                        hazards,
-                        deathMarkers,
-                        eventsForPlayer(playerId),
-                        powerUps,
-                        System.currentTimeMillis(),
-                        gameInfo
-                );
-                String json = Jackson.writeValueAsString(gameState);
-                channel.writeAndFlush(new TextWebSocketFrame(json)).addListener(future -> {
+                // Check if this player has any private events. If not, we can send the pre-serialized public frame.
+                boolean hasPrivateEvents = gameEvents.stream().anyMatch(e -> playerId.equals(e.playerId()));
+
+                final TextWebSocketFrame frameToSend;
+                if (hasPrivateEvents) {
+                    // This player has private events, so we must build and serialize a custom state.
+                    GameState privateState = new GameState(
+                            players.values(), bullets, explosions, poisonClouds, obstacles, hazards,
+                            deathMarkers, eventsForPlayer(playerId), powerUps, publicState.serverTime(), gameInfo
+                    );
+                    String privateJson = Jackson.writeValueAsString(privateState);
+                    frameToSend = new TextWebSocketFrame(privateJson);
+                } else {
+                    // No private events, send the shared public frame.
+                    frameToSend = publicFrame.retainedDuplicate();
+                }
+
+                channel.writeAndFlush(frameToSend).addListener(future -> {
                     if (!future.isSuccess()) {
                         log.error("Failed to send game state to player {}. Closing channel.", playerId, future.cause());
                         channel.close();
@@ -784,27 +807,11 @@ public abstract class AbstractGameStateManager {
             }
         });
 
-        // Send the same state to all spectators, but with only public events
+        // Send the public state to all spectators
         if (!spectatorChannels.isEmpty()) {
-            GameState spectatorState = new GameState(
-                    players.values(),
-                    bullets,
-                    explosions,
-                    poisonClouds,
-                    obstacles,
-                    hazards,
-                    deathMarkers,
-                    eventsForPlayer(null), // null playerId gets public events
-                    powerUps,
-                    System.currentTimeMillis(),
-                    gameInfo
-            );
-            String json = Jackson.writeValueAsString(spectatorState);
-            TextWebSocketFrame frame = new TextWebSocketFrame(json);
-
             for (Channel spectatorChannel : spectatorChannels) {
                 if (spectatorChannel.isActive() && spectatorChannel.isOpen()) {
-                    spectatorChannel.writeAndFlush(frame.retainedDuplicate()).addListener(future -> {
+                    spectatorChannel.writeAndFlush(publicFrame.retainedDuplicate()).addListener(future -> {
                         if (!future.isSuccess()) {
                             log.error("Failed to send game state to spectator {}. Closing channel.", spectatorChannel.id().asShortText(), future.cause());
                             spectatorChannel.close();
@@ -812,8 +819,10 @@ public abstract class AbstractGameStateManager {
                     });
                 }
             }
-            frame.release(); // Release the original frame
         }
+
+        // Release the original frame after all sends are initiated.
+        publicFrame.release();
     }
 
     protected void generateObstacles() {
