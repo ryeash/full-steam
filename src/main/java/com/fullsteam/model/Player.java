@@ -43,8 +43,6 @@ public class Player {
     public long damageBoostEndTime;
     public double damageMultiplier;
     @JsonIgnore
-    private long lastWeaponChangeTime;
-    @JsonIgnore
     private long alternateActionCooldown;
 
     public Player(String id, double x, double y, int team) {
@@ -79,7 +77,6 @@ public class Player {
         this.armorUpEndTime = 0;
         this.damageBoostEndTime = 0;
         this.damageMultiplier = 1.0;
-        this.lastWeaponChangeTime = 0;
         this.alternateActionCooldown = 0;
     }
 
@@ -386,15 +383,6 @@ public class Player {
 
     public void setDamageMultiplier(double damageMultiplier) {
         this.damageMultiplier = damageMultiplier;
-    }
-
-    @JsonIgnore
-    public long getLastWeaponChangeTime() {
-        return lastWeaponChangeTime;
-    }
-
-    public void setLastWeaponChangeTime(long lastWeaponChangeTime) {
-        this.lastWeaponChangeTime = lastWeaponChangeTime;
     }
 
     public long getAlternateActionCooldown() {

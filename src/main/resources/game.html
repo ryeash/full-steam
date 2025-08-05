@@ -533,6 +533,7 @@
             this.isGamepadActive = false;
             this.gamepadAim = { x: 1, y: 0 };
             this.gamepadMoveDir = { x: 0, y: 0 };
+            this.weaponNames = [];
             this.gamepadWeaponSwapPressed = false;
 
             this.latency = 0;
@@ -719,7 +720,6 @@
                 mouseX: 0,
                 mouseY: 0,
                 reload: false,
-                weaponCycle: false,
                 placingObstacle: false
             };
             const deadzone = 0.25;
@@ -743,9 +743,17 @@
                 input.reload = this.gamepad.buttons[2] && this.gamepad.buttons[2].pressed;
                 input.placingObstacle = this.gamepad.buttons[0] && this.gamepad.buttons[0].pressed; // A button
 
-                const swapButtonPressed = this.gamepad.buttons[3] && this.gamepad.buttons[3].pressed;
+                const swapButtonPressed = this.gamepad.buttons[3] && this.gamepad.buttons[3].pressed; // Y or Triangle
                 if (swapButtonPressed && !this.gamepadWeaponSwapPressed) {
-                    input.weaponCycle = true;
+                    const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
+                    if (localPlayer && localPlayer.weapon && this.weaponNames.length > 0) {
+                        const currentWeaponName = localPlayer.weapon.name;
+                        const currentIndex = this.weaponNames.indexOf(currentWeaponName);
+                        if (currentIndex !== -1) {
+                            const nextIndex = (currentIndex + 1) % this.weaponNames.length;
+                            this.sendConfigChange(this.weaponNames[nextIndex]);
+                        }
+                    }
                 }
                 this.gamepadWeaponSwapPressed = swapButtonPressed;
 
@@ -785,16 +793,15 @@
             this.ws.send(JSON.stringify(input));
         }
 
-        sendConfigChange() {
+        sendConfigChange(weaponNameToSet) {
             if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
                 return;
             }
             const playerName = document.getElementById('playerNameInput').value;
-            const weaponName = document.getElementById('weaponSelector').value;
+            const weaponName = weaponNameToSet || document.getElementById('weaponSelector').value;
 
             localStorage.setItem('playerName', playerName);
             localStorage.setItem('weaponName', weaponName);
-
             const message = {
                 type: 'configChange',
                 playerName: playerName,
@@ -827,6 +834,7 @@
             const selector = document.getElementById('weaponSelector');
             if (!selector) return;
 
+            this.weaponNames = weaponNames;
             selector.innerHTML = '';
 
             weaponNames.forEach(name => {
