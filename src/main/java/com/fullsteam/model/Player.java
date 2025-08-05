@@ -24,13 +24,14 @@ public class Player {
     protected double maxHealth;
     @JsonIgnore
     protected transient long lastShotTime;
+    protected double mouseX;
+    protected double mouseY;
     @JsonIgnore
     protected transient long lastInputTime;
     protected boolean isDead;
     protected long respawnTime;
     protected int kills;
     protected int deaths;
-    protected double lastBulletAngle; // The angle of the last shot in radians
     protected int currentAmmoInMagazine;
     protected boolean isReloading;
     @JsonIgnore
@@ -67,8 +68,9 @@ public class Player {
         this.isDead = false;
         this.respawnTime = 0;
         this.kills = 0;
-        this.deaths = 0;
-        this.lastBulletAngle = 0.0; // Default angle (pointing right)
+        this.deaths = 0;        
+        this.mouseX = x;
+        this.mouseY = y;
         this.currentAmmoInMagazine = weapon.getRoundsPerMagazine();
         this.isReloading = false;
         this.reloadCompleteTime = 0;
@@ -101,7 +103,6 @@ public class Player {
             return;
         }
         this.nextShotTime = System.currentTimeMillis() + weapon.getFireRateCooldown();
-        this.lastBulletAngle = aimAngle;
         this.lastShotTime = System.currentTimeMillis();
         this.currentAmmoInMagazine -= weapon.getBulletsPerShot();
     }
@@ -153,6 +154,22 @@ public class Player {
 
     public void setY(double y) {
         this.y = y;
+    }
+
+    public double getMouseX() {
+        return mouseX;
+    }
+
+    public void setMouseX(double mouseX) {
+        this.mouseX = mouseX;
+    }
+
+    public double getMouseY() {
+        return mouseY;
+    }
+
+    public void setMouseY(double mouseY) {
+        this.mouseY = mouseY;
     }
 
     public Vector2D getCenter() {
@@ -254,10 +271,6 @@ public class Player {
 
     public void incrementDeaths() {
         this.deaths++;
-    }
-
-    public double getLastBulletAngle() {
-        return lastBulletAngle;
     }
 
     public Weapon getWeapon() {
@@ -373,10 +386,6 @@ public class Player {
 
     public void setDamageMultiplier(double damageMultiplier) {
         this.damageMultiplier = damageMultiplier;
-    }
-
-    public double getAngle() {
-        return lastBulletAngle;
     }
 
     @JsonIgnore

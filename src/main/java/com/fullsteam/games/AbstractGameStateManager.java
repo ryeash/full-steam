@@ -180,6 +180,10 @@ public abstract class AbstractGameStateManager {
             return;
         }
 
+        // Update the player's aim direction from the input
+        player.setMouseX(input.getMouseX());
+        player.setMouseY(input.getMouseY());
+
         // Handle movement
         double moveX = input.getMoveX();
         double moveY = input.getMoveY();
@@ -945,6 +949,7 @@ public abstract class AbstractGameStateManager {
     }
 
     public void shutdown() {
+        spectatorChannels.forEach(Channel::close);
         if (scheduledFuture != null) {
             scheduledFuture.cancel(true);
         }

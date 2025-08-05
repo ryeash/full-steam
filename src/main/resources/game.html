@@ -1400,14 +1400,14 @@
             this.ctx.translate(playerCenterX, playerCenterY);
 
             let angle = 0;
-            if (player.id === this.playerId) {
-                if (this.isGamepadActive) {
-                    angle = Math.atan2(this.gamepadAim.y, this.gamepadAim.x);
-                } else {
-                    angle = Math.atan2(this.mouse.y - playerCenterY, this.mouse.x - playerCenterX);
-                }
+            if (player.id === this.playerId && this.isGamepadActive) {
+                angle = Math.atan2(this.gamepadAim.y, this.gamepadAim.x);
+            } else if (player.id === this.playerId && !this.isGamepadActive) {
+                // For the local player, use the live mouse position for maximum responsiveness.
+                angle = Math.atan2(this.mouse.y - playerCenterY, this.mouse.x - playerCenterX);
             } else {
-                angle = player.lastBulletAngle || 0;
+                // For other players (human or AI), use the server-replicated mouse position.
+                angle = Math.atan2(player.mouseY - playerCenterY, player.mouseX - playerCenterX);
             }
             this.ctx.rotate(angle);
 

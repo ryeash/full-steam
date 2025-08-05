@@ -105,12 +105,47 @@ public class AIPlayer extends Player {
         // 4. Execute movement logic based on the current state, which adds more forces
         performMovement(obstacles);
 
-        // 5. Independently check for and execute shooting logic against any visible enemy
-        Optional<ShootAction> shootAction = checkForShootingOpportunity(allPlayers, obstacles);
+        // 5. Aiming and Shooting Logic
+        Player targetToShoot = findBestShootingTarget(allPlayers, obstacles);
+        Optional<ShootAction> shootAction = Optional.empty();
+
+        if (targetToShoot != null) {
+            // The AI has a target, so it should aim at it. This updates the visual angle.
+            double dx = targetToShoot.getX() - getX();
+            double dy = targetToShoot.getY() - getY();
+            double aimAngle = Math.atan2(dy, dx);
+            setMouseX(getCenter().x() + Math.cos(aimAngle) * 100);
+            setMouseY(getCenter().y() + Math.sin(aimAngle) * 100);
+
+            // Now, decide if we can actually shoot this frame.
+            if (canShoot()) {
+                boolean canFire = true;
+                // If the best target is our primary `currentTarget`, respect the AI's reaction time.
+                if (currentTarget == targetToShoot) {
+                    if (System.currentTimeMillis() - timeTargetAcquired < this.reactionTimeMs) {
+                        canFire = false; // Still "reacting"
+                    }
+                }
+
+                if (canFire) {
+                    // Use the shootWithInaccuracy method for the actual shot action
+                    shootAction = Optional.of(shootWithInaccuracy(dx, dy));
+                }
+            }
+        }
 
         // 6. Update player physics using steering
         // Update velocity by adding acceleration
-        setVelocity(getVelocity().add(this.acceleration).limit(getSpeed()));
+        Vector2D newVelocity = getVelocity().add(this.acceleration).limit(getSpeed());
+        setVelocity(newVelocity);
+
+        // If the AI has no target and is moving, make it "look" in the direction it's moving.
+        if (targetToShoot == null && newVelocity.magnitudeSq() > 0.01) {
+            double moveAngle = Math.atan2(newVelocity.y(), newVelocity.x());
+            setMouseX(getCenter().x() + Math.cos(moveAngle) * 100);
+            setMouseY(getCenter().y() + Math.sin(moveAngle) * 100);
+        }
+
         // Update position based on new velocity
         super.update();
 
@@ -158,33 +193,6 @@ public class AIPlayer extends Player {
                 }
                 break;
         }
-    }
-
-    /**
-     * Scans for any valid enemy to shoot, independent of the AI's current movement state.
-     *
-     * @return An Optional ShootAction if a valid target is found and the AI can fire.
-     */
-    private Optional<ShootAction> checkForShootingOpportunity(Collection<Player> allPlayers, List<Obstacle> obstacles) {
-        if (!canShoot()) {
-            return Optional.empty();
-        }
-
-        Player targetToShoot = findBestShootingTarget(allPlayers, obstacles);
-        if (targetToShoot == null) {
-            return Optional.empty();
-        }
-
-        // If the best target is our primary `currentTarget`, respect the AI's reaction time.
-        if (currentTarget == targetToShoot) {
-            if (System.currentTimeMillis() - timeTargetAcquired < this.reactionTimeMs) {
-                return Optional.empty(); // Still "reacting"
-            }
-        }
-
-        double dx = targetToShoot.getX() - getX();
-        double dy = targetToShoot.getY() - getY();
-        return Optional.of(shootWithInaccuracy(dx, dy));
     }
 
     /**
