@@ -67,14 +67,14 @@ public class WeaponFactory {
         addPreset(new Weapon(
                 "Minigun",
                 "M",
-                42, // Fire Rate
-                5,  // Damage
+                40, // Fire Rate
+                6,  // Damage
                 1,  // Range
                 12, // Speed
                 2,  // Speed Decay
                 0,  // Accuracy
                 0,  // Multi-shot
-                30, // Magazine Size
+                31, // Magazine Size
                 8,  // Reload Speed
                 null
         ));

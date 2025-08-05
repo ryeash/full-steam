@@ -363,6 +363,10 @@ public class Player {
         return damageBoostEndTime;
     }
 
+    public void setDamageBoostEndTime(long damageBoostEndTime) {
+        this.damageBoostEndTime = damageBoostEndTime;
+    }
+
     public double getDamageMultiplier() {
         return damageMultiplier;
     }

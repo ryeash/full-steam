@@ -152,6 +152,11 @@ public abstract class AbstractGameStateManager {
     }
 
     public void acceptPlayerInput(String playerId, PlayerInput input) {
+        Player player = players.get(playerId);
+        if (player == null) {
+            return;
+        }
+        player.setLastInputTime(System.currentTimeMillis());
         playerInput.put(playerId, input);
     }
 
@@ -160,7 +165,6 @@ public abstract class AbstractGameStateManager {
         if (player == null) {
             return;
         }
-        player.setLastInputTime(System.currentTimeMillis());
         if (player.isDead()) {
             return;
         }

@@ -374,16 +374,14 @@
                     this.elements.team1Score.innerHTML = `${info.team1Score} <span style="font-size: 0.7em; color: #ccc;">(${info.team1PlayersAlive} alive)</span>`;
                     this.elements.team2Score.innerHTML = `${info.team2Score} <span style="font-size: 0.7em; color: #ccc;">(${info.team2PlayersAlive} alive)</span>`;
                 },
-                'LoneWolfManager': (info) => {
-                    this.game.shouldDrawRespawnOverlay = true;
+                'Lone Wolf': (info) => {
+                    this.game.shouldDrawRespawnOverlay = false;
                     this.elements.yourTeam.style.display = 'inline';
-                    this.elements.switchTeamBtn.style.display = 'none';
+                    this.elements.switchTeamBtn.style.display = 'block';
                     this.elements.team1Score.style.display = 'inline';
-                    this.elements.team2Score.style.display = 'inline';
-                    const lives = info.gameModeMetadata.loneWolfLives || 0;
-                    this.elements.team1Score.innerHTML = `Wolf Lives: ${'🐺'.repeat(lives)}`;
-                    const targets = info.gameModeMetadata.hunterTargets || [];
-                    this.elements.team2Score.innerHTML = `Hunters: ${targets.length}`;
+                    this.elements.team2Score.style.display = 'none';
+                    const lives = info.loneWolfLives || 0;
+                    this.elements.team1Score.innerHTML = lives + "🐺";
                 },
                 'default': (info) => {
                     this.game.shouldDrawRespawnOverlay = true;

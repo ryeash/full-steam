@@ -169,6 +169,9 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
 
     @Override
     protected boolean checkEndConditions() {
+        if (players.isEmpty()) {
+            return false;
+        }
         long humansAlive = players.values().stream()
                 .filter(p -> p.getTeam() == 1 && !p.isDead())
                 .count();
