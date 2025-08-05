@@ -356,6 +356,14 @@
                     this.elements.yourTeam.style.display = 'none';
                     this.elements.switchTeamBtn.style.display = 'none';
                 },
+                'Gun Master': (info) => {
+                    this.game.shouldDrawRespawnOverlay = true;
+                    this.elements.team1Score.style.display = 'none';
+                    this.elements.team2Score.style.display = 'none';
+                    this.elements.yourTeam.style.display = 'none';
+                    this.elements.switchTeamBtn.style.display = 'none';
+                    this.doc.getElementById('weaponSelector').parentElement.style.display = 'none';
+                },
                 'Zombie Defense': (info) => {
                     this.game.shouldDrawRespawnOverlay = false;
                     this.elements.yourTeam.style.display = 'none';
@@ -408,6 +416,15 @@
                     this.elements.team1Scoreboard.style.display = 'none';
                     this.elements.team2Scoreboard.style.display = 'none';
                     this.elements.ffaScoreboard.style.display = 'block';
+                    this.elements.ffaList.innerHTML = '';
+                    const sortedPlayers = [...players].sort((a, b) => b.kills - a.kills);
+                    sortedPlayers.forEach(p => this.elements.ffaList.appendChild(this.createPlayerEntry(p, playerId)));
+                },
+                'Gun Master': (players, playerId) => {
+                    this.elements.team1Scoreboard.style.display = 'none';
+                    this.elements.team2Scoreboard.style.display = 'none';
+                    this.elements.ffaScoreboard.style.display = 'block';
+
                     this.elements.ffaList.innerHTML = '';
                     const sortedPlayers = [...players].sort((a, b) => b.kills - a.kills);
                     sortedPlayers.forEach(p => this.elements.ffaList.appendChild(this.createPlayerEntry(p, playerId)));
