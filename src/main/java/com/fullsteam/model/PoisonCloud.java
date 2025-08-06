@@ -1,12 +1,14 @@
 package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fullsteam.Config;
 
 /**
  * Represents a lingering cloud that applies damage over time to players within its radius.
  * This is a type of {@link BulletEffect} that is created upon a bullet's destruction.
  */
 public class PoisonCloud implements BulletEffect {
+    private final long id;
     private final double x;
     private final double y;
     private final String shooterId;
@@ -20,6 +22,7 @@ public class PoisonCloud implements BulletEffect {
     private transient long lastDamageTickTime;
 
     public PoisonCloud(double x, double y, String shooterId, int team, double radius, double damagePerTick, long duration) {
+        this.id = Config.ID_COUNTER.incrementAndGet();
         this.x = x;
         this.y = y;
         this.shooterId = shooterId;
@@ -43,6 +46,11 @@ public class PoisonCloud implements BulletEffect {
                 80,    // radius
                 6,     // damage per tick
                 5000); // 5 seconds duration
+    }
+
+    @Override
+    public long id() {
+        return id;
     }
 
     public double getX() {

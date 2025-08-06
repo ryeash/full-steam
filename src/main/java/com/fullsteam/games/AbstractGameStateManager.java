@@ -54,6 +54,7 @@ import static com.fullsteam.Config.GAME_WIDTH;
 import static com.fullsteam.Config.HAZARD_COUNT;
 import static com.fullsteam.Config.HAZARD_DAMAGE_FACTOR;
 import static com.fullsteam.Config.HAZARD_SLOW_FACTOR;
+import static com.fullsteam.Config.ID_COUNTER;
 import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
 import static com.fullsteam.Config.OBSTACLE_COUNT;
 import static com.fullsteam.Config.PLAYER_SIZE;
@@ -557,7 +558,6 @@ public abstract class AbstractGameStateManager {
             if (isColliding(player, obstacles)) {
                 // Player's new position is invalid. Attempt to slide along the obstacle.
                 // This is done by testing movement on each axis independently.
-                // ... (the rest of the sliding logic)
                 // First, try moving only on the Y axis.
                 player.setX(oldX);
                 if (isColliding(player, obstacles)) {
@@ -694,7 +694,7 @@ public abstract class AbstractGameStateManager {
         double markerX = victim.getX() + (PLAYER_SIZE / 2); // Center of the player
         double markerY = victim.getY() + (PLAYER_SIZE / 2);
         long expiration = System.currentTimeMillis() + DEATH_MARKER_DURATION_MS;
-        deathMarkers.add(new DeathMarker(markerX, markerY, expiration));
+        deathMarkers.add(new DeathMarker(ID_COUNTER.incrementAndGet(), markerX, markerY, expiration));
 
         if (ThreadLocalRandom.current().nextDouble() < 0.25) { // 25% chance to drop a power-up
             spawnPowerUp(new Vector2D(victim.getX(), victim.getY()));

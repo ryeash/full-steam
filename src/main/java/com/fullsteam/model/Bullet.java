@@ -3,10 +3,12 @@ package com.fullsteam.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
-public class Bullet {
+import static com.fullsteam.Config.ID_COUNTER;
+
+public class Bullet implements HasId{
+    private final long id = ID_COUNTER.incrementAndGet();
     private double x;
     private double y;
     private final int team;
@@ -69,6 +71,11 @@ public class Bullet {
     @JsonIgnore
     public Optional<Function<Bullet, BulletEffect>> getOnDestructionAction() {
         return Optional.ofNullable(onDestructionAction);
+    }
+
+    @Override
+    public long id() {
+        return id;
     }
 
     public double getX() {

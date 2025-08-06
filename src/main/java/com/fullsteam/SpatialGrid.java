@@ -1,9 +1,11 @@
 package com.fullsteam;
 
-import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A spatial partitioning grid to optimize collision detection and proximity queries.
@@ -17,28 +19,18 @@ public class SpatialGrid<T> {
     private final int rows;
     private final double cellWidth;
     private final double cellHeight;
-    private final List<T>[][] grid;
+    private final Map<Long, List<T>> sparseMatrix;
 
-    @SuppressWarnings("unchecked")
     public SpatialGrid(double worldWidth, double worldHeight, double cellWidth, double cellHeight) {
         this.cellWidth = cellWidth;
         this.cellHeight = cellHeight;
         this.cols = (int) Math.ceil(worldWidth / cellWidth);
         this.rows = (int) Math.ceil(worldHeight / cellHeight);
-        this.grid = (List<T>[][]) new List[cols][rows];
-        for (int i = 0; i < cols; i++) {
-            for (int j = 0; j < rows; j++) {
-                grid[i][j] = new ArrayList<>();
-            }
-        }
+        this.sparseMatrix = new ConcurrentHashMap<>(20, 1, 1);
     }
 
     public void clear() {
-        for (int i = 0; i < cols; i++) {
-            for (int j = 0; j < rows; j++) {
-                grid[i][j].clear();
-            }
-        }
+        sparseMatrix.clear();
     }
 
     public void insert(T object, double x, double y, double width, double height) {
@@ -49,7 +41,7 @@ public class SpatialGrid<T> {
 
         for (int i = Math.max(0, startCol); i <= Math.min(cols - 1, endCol); i++) {
             for (int j = Math.max(0, startRow); j <= Math.min(rows - 1, endRow); j++) {
-                grid[i][j].add(object);
+                sparseMatrix.computeIfAbsent(toKey(i, j), v -> new LinkedList<>()).add(object);
             }
         }
     }
@@ -63,9 +55,24 @@ public class SpatialGrid<T> {
 
         for (int i = Math.max(0, startCol); i <= Math.min(cols - 1, endCol); i++) {
             for (int j = Math.max(0, startRow); j <= Math.min(rows - 1, endRow); j++) {
-                nearbyObjects.addAll(grid[i][j]);
+                List<T> t = sparseMatrix.get(toKey(i, j));
+                if (t != null) {
+                    nearbyObjects.addAll(t);
+                }
             }
         }
         return nearbyObjects;
+    }
+
+    /**
+     * Creates a unique 64-bit key from a 2D grid coordinate.
+     * This is more memory-efficient than using a String or a custom Point object as a key.
+     *
+     * @param col The grid column.
+     * @param row The grid row.
+     * @return A unique long key representing the cell.
+     */
+    private long toKey(int col, int row) {
+        return ((long) col << 32) | (row & 0xFFFFFFFFL);
     }
 }

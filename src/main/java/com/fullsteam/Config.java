@@ -3,6 +3,7 @@ package com.fullsteam;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 public class Config {
@@ -29,6 +30,10 @@ public class Config {
 
     // global scheduler
     public static final ScheduledExecutorService EXECUTOR = Executors.newScheduledThreadPool(8);
+
+    // global ID assignment
+    public static final AtomicLong ID_COUNTER = new AtomicLong();
+
 
     // --- Server Configuration ---
     public static final int PORT = getInt("server.port", 8080);
@@ -92,7 +97,7 @@ public class Config {
     public static final double KOTH_HILL_KEEP_OUT_RADIUS = getDouble("game.koth.hill_keep_out_radius", 125.0);
 
     // --- Oddball Game Mode ---
-    public static final double ODDBALL_SCORE_TO_WIN = getDouble("game.oddball.score_to_win", 150.0);
+    public static final double ODDBALL_SCORE_TO_WIN = getDouble("game.oddball.score_to_win", (double) ROUND_DURATION_SECONDS / 2);
     public static final double ODDBALL_POINTS_PER_SECOND = getDouble("game.oddball.points_per_second", 1.0);
     public static final double ODDBALL_BALL_PICKUP_RADIUS = getDouble("game.oddball.ball_pickup_radius", 30.0);
     public static final long ODDBALL_BALL_RESET_TIMEOUT_MS = getLong("game.oddball.ball_reset_timeout_ms", 15_000);
