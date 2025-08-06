@@ -51,16 +51,16 @@ public class GameLobby {
         log.info("Lobby maintenance task scheduled to run every {} seconds.", CLEANUP_INTERVAL_SECONDS);
         addGameMode(TeamDeathmatchManager.class, () -> new TeamDeathmatchManager(this));
         addGameMode(CaptureTheFlagManager.class, () -> new CaptureTheFlagManager(this));
-        addGameMode(JuggernautManager.class, () -> new JuggernautManager(this));
-        addGameMode(ZombieDefenseManager.class, () -> new ZombieDefenseManager(this));
-        addGameMode(OddballManager.class, () -> new OddballManager(this));
-        addGameMode(EliminationManager.class, () -> new EliminationManager(this));
         addGameMode(KingOfTheHillManager.class, () -> new KingOfTheHillManager(this));
+        addGameMode(EliminationManager.class, () -> new EliminationManager(this));
+        addGameMode(OddballManager.class, () -> new OddballManager(this));
+        addGameMode(GunMasterManager.class, () -> new GunMasterManager(this));
+        addGameMode(JuggernautManager.class, () -> new JuggernautManager(this));
         addGameMode(EscortManager.class, () -> new EscortManager(this));
         addGameMode(FreeForAllManager.class, () -> new FreeForAllManager(this));
         addGameMode(LoneWolfManager.class, () -> new LoneWolfManager(this));
         addGameMode(BuilderManager.class, () -> new BuilderManager(this));
-        addGameMode(GunMasterManager.class, () -> new GunMasterManager(this));
+        addGameMode(ZombieDefenseManager.class, () -> new ZombieDefenseManager(this));
     }
 
     public List<ActiveGame> getActiveGames() {

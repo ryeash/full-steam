@@ -102,16 +102,6 @@ public record Vector2D(double x, double y) {
     }
 
     /**
-     * Calculates the actual Euclidean distance between this vector and another.
-     *
-     * @param other The other vector.
-     * @return The distance between the two vectors.
-     */
-    public double distance(Vector2D other) {
-        return Math.sqrt(this.distanceSq(other));
-    }
-
-    /**
      * A static helper to calculate the squared Euclidean distance between two vectors.
      *
      * @param v1 The first vector.
@@ -122,25 +112,6 @@ public record Vector2D(double x, double y) {
         double dx = v1.x() - v2.x();
         double dy = v1.y() - v2.y();
         return dx * dx + dy * dy;
-    }
-
-    /**
-     * A static helper to calculate the actual Euclidean distance between two vectors.
-     *
-     * @param v1 The first vector.
-     * @param v2 The second vector.
-     * @return The distance between the two vectors.
-     */
-    public static double distance(Vector2D v1, Vector2D v2) {
-        return Math.sqrt(distanceSq(v1, v2));
-    }
-
-    public Vector2D rotate(double radians) {
-        double cos = Math.cos(radians);
-        double sin = Math.sin(radians);
-        double newX = this.x * cos - this.y * sin;
-        double newY = this.x * sin + this.y * cos;
-        return new Vector2D(newX, newY);
     }
 
     /**

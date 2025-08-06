@@ -4,6 +4,7 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.Jackson;
+import com.fullsteam.SpatialGrid;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.Bullet;
 import com.fullsteam.model.BulletEffect;
@@ -38,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
@@ -82,12 +84,13 @@ public abstract class AbstractGameStateManager {
     protected final List<Hazard> hazards = Collections.synchronizedList(new LinkedList<>());
     protected final List<DeathMarker> deathMarkers = Collections.synchronizedList(new LinkedList<>());
     protected final List<PowerUp> powerUps = Collections.synchronizedList(new LinkedList<>());
+    protected final SpatialGrid<Player> playerGrid;
     protected boolean isRoundOver = false;
-    protected ScheduledFuture<?> scheduledFuture;
-
+    protected ScheduledFuture<?> gameLoopHook;
 
     public AbstractGameStateManager(GameLobby gameLobby) {
         this.gameLobby = gameLobby;
+        this.playerGrid = new SpatialGrid<>(GAME_WIDTH, GAME_HEIGHT, 100, 100);
     }
 
     public abstract String gameType();
@@ -137,7 +140,7 @@ public abstract class AbstractGameStateManager {
     public void startGameLoop() {
         startNewRound();
         // The TeamBalancer will automatically add AI players, so the initial call is no longer needed.
-        this.scheduledFuture = Config.EXECUTOR.scheduleAtFixedRate(this::updateGame, 0, 1000 / TICK_RATE, TimeUnit.MILLISECONDS);
+        this.gameLoopHook = Config.EXECUTOR.scheduleAtFixedRate(this::updateGame, 0, 1000 / TICK_RATE, TimeUnit.MILLISECONDS);
         log.info("Game loop started at {} FPS", TICK_RATE);
     }
 
@@ -298,6 +301,7 @@ public abstract class AbstractGameStateManager {
 
     protected void updateGame() {
         try {
+            populateSpatialGrids();
             if (!isRoundOver) {
                 isRoundOver = checkEndConditions();
                 if (isRoundOver) {
@@ -319,6 +323,13 @@ public abstract class AbstractGameStateManager {
         }
     }
 
+    private void populateSpatialGrids() {
+        playerGrid.clear();
+        for (Player player : players.values()) {
+            playerGrid.insert(player, player.getX(), player.getY(), PLAYER_SIZE, PLAYER_SIZE);
+        }
+    }
+
     /**
      * Handles the lifecycle of explosions, applying damage and removing them when expired.
      */
@@ -330,7 +341,8 @@ public abstract class AbstractGameStateManager {
                 double radiusSq = explosion.getSize() * explosion.getSize();
                 Player shooter = players.get(explosion.getShooterId());
 
-                for (Player p : players.values()) {
+                Set<Player> nearbyPlayers = playerGrid.getNearby(explosion.getX() - explosion.getSize(), explosion.getY() - explosion.getSize(), explosion.getSize() * 2, explosion.getSize() * 2);
+                for (Player p : nearbyPlayers) {
                     if (p.isDead()) {
                         continue;
                     }
@@ -366,7 +378,8 @@ public abstract class AbstractGameStateManager {
                 double radiusSq = cloud.getRadius() * cloud.getRadius();
                 Player shooter = players.get(cloud.getShooterId());
 
-                for (Player p : players.values()) {
+                Set<Player> nearbyPlayers = playerGrid.getNearby(cloud.getX() - cloud.getRadius(), cloud.getY() - cloud.getRadius(), cloud.getRadius() * 2, cloud.getRadius() * 2);
+                for (Player p : nearbyPlayers) {
                     if (p.isDead()) {
                         continue;
                     }
@@ -521,7 +534,7 @@ public abstract class AbstractGameStateManager {
 
             // Let the AI make its decisions first, then apply movement
             if (player instanceof AIPlayer ai) {
-                Optional<AIPlayer.ShootAction> shootAction = ai.update(gameState);
+                Optional<AIPlayer.ShootAction> shootAction = ai.update(gameState, playerGrid);
                 if (shootAction.isPresent()) {
                     if (ai.canShoot()) {
                         AIPlayer.ShootAction action = shootAction.get();
@@ -601,7 +614,13 @@ public abstract class AbstractGameStateManager {
             }
 
             // Check bullet-player collisions using the line segment
-            for (Player player : players.values()) {
+            double sx = Math.min(oldPos.x(), newPos.x());
+            double sy = Math.min(oldPos.y(), newPos.y());
+            double w = Math.abs(oldPos.x() - newPos.x());
+            double h = Math.abs(oldPos.y() - newPos.y());
+            Set<Player> nearbyPlayers = playerGrid.getNearby(sx, sy, w, h);
+
+            for (Player player : nearbyPlayers) {
                 // Check for collision with an enemy player
                 if (!player.isDead() && player.getTeam() != bullet.getTeam()) {
                     Vector2D playerCenter = new Vector2D(player.getX() + PLAYER_SIZE / 2, player.getY() + PLAYER_SIZE / 2);
@@ -692,7 +711,8 @@ public abstract class AbstractGameStateManager {
     protected void updatePowerUps() {
         List<PowerUp> consumedPowerUps = new ArrayList<>();
         for (PowerUp powerUp : powerUps) {
-            for (Player player : players.values()) {
+            Set<Player> nearbyPlayers = playerGrid.getNearby(powerUp.getPosition().x() - PLAYER_SIZE, powerUp.getPosition().y() - PLAYER_SIZE, PLAYER_SIZE * 2, PLAYER_SIZE * 2);
+            for (Player player : nearbyPlayers) {
                 if (!player.isDead() && isColliding(player, powerUp)) {
                     applyPowerUp(player, powerUp);
                     consumedPowerUps.add(powerUp);
@@ -947,8 +967,8 @@ public abstract class AbstractGameStateManager {
 
     public void shutdown() {
         spectatorChannels.forEach(Channel::close);
-        if (scheduledFuture != null) {
-            scheduledFuture.cancel(true);
+        if (gameLoopHook != null) {
+            gameLoopHook.cancel(true);
         }
     }
 

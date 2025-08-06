@@ -2,6 +2,7 @@ package com.fullsteam.model.ai;
 
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
+import com.fullsteam.SpatialGrid;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.Hazard;
@@ -14,6 +15,7 @@ import com.fullsteam.model.Vector2D;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -70,15 +72,15 @@ public class AIPlayer extends Player {
      * to engage enemies while performing other actions.
      *
      * @param gameState The current game mode's state information.
+     * @param playerGrid The spatial grid for proximity queries.
      * @return An Optional containing a ShootAction if the AI decides to shoot.
      */
-    public Optional<ShootAction> update(GameState gameState) {
+    public Optional<ShootAction> update(GameState gameState, SpatialGrid<Player> playerGrid) {
         if (isDead()) {
             setVelocity(Vector2D.ZERO);
             super.update();
             return Optional.empty();
         }
-        Collection<Player> allPlayers = gameState.players();
         List<Obstacle> obstacles = gameState.obstacles();
         List<Hazard> hazards = gameState.hazards();
 
@@ -106,7 +108,7 @@ public class AIPlayer extends Player {
         performMovement(obstacles);
 
         // 5. Aiming and Shooting Logic
-        Player targetToShoot = findBestShootingTarget(allPlayers, obstacles);
+        Player targetToShoot = findBestShootingTarget(playerGrid, obstacles);
         Optional<ShootAction> shootAction = Optional.empty();
 
         if (targetToShoot != null) {
@@ -200,12 +202,16 @@ public class AIPlayer extends Player {
      *
      * @return The best Player to target, or null if no valid target exists.
      */
-    private Player findBestShootingTarget(Collection<Player> allPlayers, List<Obstacle> obstacles) {
+    private Player findBestShootingTarget(SpatialGrid<Player> playerGrid, List<Obstacle> obstacles) {
         Player bestTarget = null;
         double minDistanceSq = Double.MAX_VALUE;
-        double attackRangeSq = getWeapon().getBulletRange() * getWeapon().getBulletRange();
+        double attackRange = getWeapon().getBulletRange();
+        double attackRangeSq = attackRange * attackRange;
 
-        for (Player potentialTarget : allPlayers) {
+        // Query the grid for players within a box defined by the weapon's range
+        Set<Player> nearbyPlayers = playerGrid.getNearby(getX() - attackRange, getY() - attackRange, attackRange * 2, attackRange * 2);
+
+        for (Player potentialTarget : nearbyPlayers) {
             if (potentialTarget.getId().equals(this.getId()) || potentialTarget.isDead() || potentialTarget.getTeam() == this.getTeam()) {
                 continue;
             }
@@ -507,11 +513,14 @@ public class AIPlayer extends Player {
      * @return A steering force vector representing the influence of power-ups.
      */
     private Vector2D calculatePowerUpInfluenceForce(GameState gameState) {
+        // Note: This method still iterates all players because it's checking for a status (power-up effect)
+        // rather than pure proximity. The number of powered-up players is usually very small, so this is acceptable.
+        // A more advanced implementation could use a separate list for powered-up players.
         Vector2D totalInfluenceForce = Vector2D.ZERO;
         long currentTime = System.currentTimeMillis();
 
         // 1. Avoid powered-up enemies
-        for (Player player : gameState.players()) {
+        for (Player player : gameState.players()) { // Iterating all players here is okay, as we check a status flag.
             if (player.getTeam() == this.getTeam() || player.isDead()) {
                 continue;
             }
