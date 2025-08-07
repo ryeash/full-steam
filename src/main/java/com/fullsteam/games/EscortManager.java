@@ -44,11 +44,11 @@ public class EscortManager extends AbstractTeamBasedManager {
     public void startNewRound() {
         obstacles.clear();
         super.startNewRound();
-        payload = Obstacle.createRectangle(
+        payload = new Obstacle(Obstacle.createRectangle(
                 (Config.GAME_WIDTH - Config.ESCORT_OBSTACLE_WIDTH) / 2,
                 (Config.GAME_HEIGHT - Config.ESCORT_OBSTACLE_HEIGHT) / 2,
                 Config.ESCORT_OBSTACLE_WIDTH,
-                Config.ESCORT_OBSTACLE_HEIGHT);
+                Config.ESCORT_OBSTACLE_HEIGHT).vertices(), false);
     }
 
     @Override
@@ -79,7 +79,7 @@ public class EscortManager extends AbstractTeamBasedManager {
             Obstacle nextPayload = new Obstacle(payload.vertices()
                     .stream()
                     .map(v -> v.add(new Vector2D(finalDelta, 0)))
-                    .toList());
+                    .toList(), false);
 
             double minX = nextPayload.vertices().stream().mapToDouble(Vector2D::x).min().orElse(0);
             double maxX = nextPayload.vertices().stream().mapToDouble(Vector2D::x).max().orElse(0);
@@ -94,6 +94,8 @@ public class EscortManager extends AbstractTeamBasedManager {
 
         // 4. Run the main game loop (updates players, bullets, checks collisions)
         super.updateGame();
+
+        obstacles.clear();
     }
 
     @Override

@@ -277,12 +277,22 @@ public abstract class AbstractGameStateManager {
 
         for (int i = 0; i < bulletsToFire; i++) {
             // Apply random spread to each bullet individually
-            double spread = ThreadLocalRandom.current().nextGaussian() * (weapon.getBulletSpread() / 6.0);
+            double spread = ThreadLocalRandom.current().nextGaussian() * (weapon.getBulletSpread() / 6.0); // 6.0 is 3 standard deviations on each side
             double finalAngle = aimAngle + spread;
 
+            // For multi-bullet shots (like shotguns), add a slight positional stagger
+            // so they don't all originate from the exact same pixel. This creates a more natural "spread".
+            double finalX = bulletX;
+            double finalY = bulletY;
+            if (weapon.getBulletsPerShot() > 1) {
+                double staggerRadius = 4.0; // Max offset in pixels
+                finalX += (ThreadLocalRandom.current().nextDouble() - 0.5) * 2 * staggerRadius;
+                finalY += (ThreadLocalRandom.current().nextDouble() - 0.5) * 2 * staggerRadius;
+            }
+
             Bullet bullet = new Bullet(
-                    bulletX,
-                    bulletY,
+                    finalX,
+                    finalY,
                     Math.cos(finalAngle),
                     Math.sin(finalAngle),
                     player.getId(),
@@ -778,7 +788,7 @@ public abstract class AbstractGameStateManager {
                 bullets,
                 explosions,
                 poisonClouds,
-                obstacles,
+                obstacles.stream().filter(Obstacle::isRendered).toList(),
                 hazards,
                 deathMarkers, // null playerId gets only public events
                 powerUps,

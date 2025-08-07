@@ -1,5 +1,6 @@
 package com.fullsteam.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fullsteam.Config;
 
 import java.util.ArrayList;
@@ -13,26 +14,23 @@ public class Obstacle implements HasId {
     private static final AtomicLong idCounter = new AtomicLong(0);
 
     private final long id;
-    private final String ownerId;
     private final List<Vector2D> vertices;
+    @JsonIgnore
+    private final boolean rendered;
 
     public Obstacle(List<Vector2D> vertices) {
-        this(vertices, null);
+        this(vertices, true);
     }
 
-    public Obstacle(List<Vector2D> vertices, String ownerId) {
+    public Obstacle(List<Vector2D> vertices, boolean rendered) {
         this.id = idCounter.incrementAndGet();
         this.vertices = vertices;
-        this.ownerId = ownerId;
+        this.rendered = rendered;
     }
 
     @Override
     public long id() {
         return id;
-    }
-
-    public String getOwnerId() {
-        return ownerId;
     }
 
     public List<Vector2D> getVertices() {
@@ -41,6 +39,16 @@ public class Obstacle implements HasId {
 
     public List<Vector2D> vertices() {
         return vertices;
+    }
+
+    /**
+     * Indicates whether an obstacle should be rendered (sent to the client)
+     * or just used for collision detection.
+     *
+     * @return true if this obstacle is rendered in the UI, false if it's only used for collision detection
+     */
+    public boolean isRendered() {
+        return rendered;
     }
 
     public static Obstacle createRandomPolygonObstacle() {
@@ -109,15 +117,11 @@ public class Obstacle implements HasId {
     }
 
     public static Obstacle createRectangle(double x, double y, double width, double height) {
-        return createRectangle(x, y, width, height, null);
-    }
-
-    public static Obstacle createRectangle(double x, double y, double width, double height, String ownerId) {
         List<Vector2D> vertices = new ArrayList<>();
         vertices.add(new Vector2D(x, y));
         vertices.add(new Vector2D(x + width, y));
         vertices.add(new Vector2D(x + width, y + height));
         vertices.add(new Vector2D(x, y + height));
-        return new Obstacle(vertices, ownerId);
+        return new Obstacle(vertices);
     }
 }

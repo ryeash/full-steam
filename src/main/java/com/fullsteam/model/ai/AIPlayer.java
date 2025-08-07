@@ -14,8 +14,8 @@ import com.fullsteam.model.RandomNames;
 import com.fullsteam.model.Vector2D;
 
 import java.util.List;
-import java.util.Set;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static com.fullsteam.Config.AI_MAX_FORCE;
@@ -23,8 +23,14 @@ import static com.fullsteam.Config.BASE_AIM_INACCURACY_RADIANS;
 import static com.fullsteam.Config.BASE_STRAFE_INTERVAL_MS;
 import static com.fullsteam.Config.WANDER_DIRECTION_CHANGE_INTERVAL;
 
+/**
+ * Represents an AI-controlled player in the game.
+ * This class uses a state machine and steering behaviors to make decisions.
+ * All vector calculations are performed using the custom Vector2D class for consistency and robustness.
+ */
 public class AIPlayer extends Player {
 
+    // Defines the primary action the AI is trying to perform.
     public enum AIState {
         WANDERING,
         ATTACKING,
@@ -32,6 +38,7 @@ public class AIPlayer extends Player {
         CAPTURING_OBJECTIVE
     }
 
+    // --- AI State & Strategy ---
     private transient AIState currentState = AIState.WANDERING;
     private transient Player currentTarget;
     private transient Vector2D objectiveTargetPoint;
@@ -39,27 +46,35 @@ public class AIPlayer extends Player {
     private transient final IAIStrategy aiStrategy;
     private transient final AIArchetype archetype;
 
+    // --- AI Behavior Timing & State ---
     private transient long lastWanderDirectionChangeTime;
     private transient long lastStrafeTime;
     private transient boolean strafeRight = true;
-    private transient Vector2D acceleration = Vector2D.ZERO;
     private transient long timeTargetAcquired;
+
+    // --- Steering Behavior Fields ---
+    private transient Vector2D acceleration;
 
     // --- AI "Personality" Traits ---
     private transient final long reactionTimeMs;
     private transient final double aimInaccuracyRadians;
     private transient final long strafeInterval;
 
-    public record ShootAction(double directionX, double directionY) {
-    }
+    /**
+     * Represents a decision to fire the weapon in a specific direction.
+     */
+    public record ShootAction(double directionX, double directionY) {}
 
     public AIPlayer(String id, double x, double y, int team, IAIStrategy aiStrategy, AIArchetype archetype) {
         super(id, "AI - " + RandomNames.randomName(), x, y, team, WeaponFactory.getRandomWeapon());
         this.aiStrategy = aiStrategy;
         this.archetype = archetype;
+
+        // Initialize personality traits with some randomness
         this.reactionTimeMs = Config.BASE_REACTION_TIME_MS + (long) (ThreadLocalRandom.current().nextDouble() * 50);
         this.aimInaccuracyRadians = Math.max(0.01, BASE_AIM_INACCURACY_RADIANS + (ThreadLocalRandom.current().nextDouble() - 0.4) * 0.04);
         this.strafeInterval = BASE_STRAFE_INTERVAL_MS + (long) (ThreadLocalRandom.current().nextGaussian() * 300);
+        this.acceleration = Vector2D.ZERO;
     }
 
     public AIArchetype archetype() {
@@ -67,139 +82,248 @@ public class AIPlayer extends Player {
     }
 
     /**
-     * The main update loop for the AI. It decouples movement from shooting, allowing the AI
-     * to engage enemies while performing other actions.
+     * The main update loop for the AI. It orchestrates the AI's decision-making process each frame.
+     * The process follows a standard steering behavior model:
+     * 1. The AI's strategy determines its high-level goal (e.g., attack, defend).
+     * 2. Various "steering forces" are calculated based on the environment (obstacles, hazards, power-ups).
+     * 3. These forces are combined into a single acceleration vector.
+     * 4. The acceleration is used to update the AI's velocity.
+     * 5. The AI's position is updated based on its new velocity (handled by the parent Player class).
+     * 6. A decision to shoot is made independently of movement.
      *
      * @param gameState The current game mode's state information.
      * @param playerGrid The spatial grid for proximity queries.
-     * @return An Optional containing a ShootAction if the AI decides to shoot.
+     * @return An Optional containing a {@link ShootAction} if the AI decides to shoot this frame.
      */
     public Optional<ShootAction> update(GameState gameState, SpatialGrid<Player> playerGrid) {
         if (isDead()) {
             setVelocity(Vector2D.ZERO);
-            super.update();
+            super.update(); // Still need to call this to update position based on zero velocity
             return Optional.empty();
         }
-        List<Obstacle> obstacles = gameState.obstacles();
-        List<Hazard> hazards = gameState.hazards();
 
-        // Reset acceleration at the start of each frame
+        // 1. Reset acceleration for the new frame.
         this.acceleration = Vector2D.ZERO;
 
-        // --- Apply Steering Forces (in order of priority) ---
-        // 0. Highest priority: Get away from walls you are touching or about to touch.
-        // This acts as a "last resort" to prevent getting stuck.
-        Vector2D separationForce = calculateObstacleSeparationForce(obstacles);
-        applyForce(separationForce);
+        // 2. Calculate and apply all steering forces, from highest to lowest priority.
+        // The order is crucial for realistic behavior.
+        applySteeringForces(gameState);
 
-        // 1. High-priority: Avoid dangerous hazards.
-        Vector2D hazardForce = calculateHazardAvoidanceForce(hazards);
-        applyForce(hazardForce);
+        // 3. Update physics based on the final accumulated acceleration.
+        updatePhysics();
 
-        // 2. Mid-priority: React to power-ups (avoid powered-up enemies, seek useful items).
-        Vector2D powerUpForce = calculatePowerUpInfluenceForce(gameState);
-        applyForce(powerUpForce);
-
-        // 3. Let the strategy determine the primary objective (attack, flee, capture)
-        aiStrategy.updateAIState(this, gameState);
-
-        // 4. Execute movement logic based on the current state, which adds more forces
-        performMovement(obstacles);
-
-        // 5. Aiming and Shooting Logic
-        Player targetToShoot = findBestShootingTarget(playerGrid, obstacles);
-        Optional<ShootAction> shootAction = Optional.empty();
-
-        if (targetToShoot != null) {
-            // The AI has a target, so it should aim at it. This updates the visual angle.
-            double dx = targetToShoot.getX() - getX();
-            double dy = targetToShoot.getY() - getY();
-            double aimAngle = Math.atan2(dy, dx);
-            setMouseX(getCenter().x() + Math.cos(aimAngle) * 100);
-            setMouseY(getCenter().y() + Math.sin(aimAngle) * 100);
-
-            // Now, decide if we can actually shoot this frame.
-            if (canShoot()) {
-                boolean canFire = true;
-                // If the best target is our primary `currentTarget`, respect the AI's reaction time.
-                if (currentTarget == targetToShoot) {
-                    if (System.currentTimeMillis() - timeTargetAcquired < this.reactionTimeMs) {
-                        canFire = false; // Still "reacting"
-                    }
-                }
-
-                if (canFire) {
-                    // Use the shootWithInaccuracy method for the actual shot action
-                    shootAction = Optional.of(shootWithInaccuracy(dx, dy));
-                }
-            }
-        }
-
-        // 6. Update player physics using steering
-        // Update velocity by adding acceleration
-        Vector2D newVelocity = getVelocity().add(this.acceleration).limit(getSpeed());
-        setVelocity(newVelocity);
-
-        // If the AI has no target and is moving, make it "look" in the direction it's moving.
-        if (targetToShoot == null && newVelocity.magnitudeSq() > 0.01) {
-            double moveAngle = Math.atan2(newVelocity.y(), newVelocity.x());
-            setMouseX(getCenter().x() + Math.cos(moveAngle) * 100);
-            setMouseY(getCenter().y() + Math.sin(moveAngle) * 100);
-        }
-
-        // Update position based on new velocity
-        super.update();
-
-        // 7. Return the shoot action if any
-        return shootAction;
+        // 4. Handle aiming and shooting logic, which is independent of movement.
+        return decideOnShooting(playerGrid, gameState.obstacles());
     }
 
     /**
-     * Handles all AI movement based on its current state (attacking, fleeing, etc.).
-     * This method sets the AI's velocity.
+     * Calculates all steering forces and applies them to the AI's acceleration.
+     * The forces are weighted and prioritized to create believable movement.
      */
-    private void performMovement(List<Obstacle> obstacles) {
-        switch (currentState) {
-            case ATTACKING:
-                if (currentTarget == null) {
-                    performWanderBehavior(obstacles); // Fallback if target is lost
-                    return;
-                }
-                // Decide whether to strafe or advance on the target
-                long currentTime = System.currentTimeMillis();
-                if (currentTime - lastStrafeTime > this.strafeInterval) {
-                    lastStrafeTime = currentTime;
-                    strafeRight = ThreadLocalRandom.current().nextBoolean();
-                }
+    private void applySteeringForces(GameState gameState) {
+        // --- Priority 1: Immediate Survival ---
+        // Highest priority: A strong, short-range force to avoid getting stuck on walls.
+        Vector2D separationForce = calculateObstacleSeparationForce(gameState.obstacles());
+        applyForce(separationForce, 5.0); // High weight to override other behaviors
 
-                if (isReloading() || getCenter().distanceSquared(currentTarget.getCenter()) < 150 * 150) {
-                    // If reloading or too close, strafe to be evasive
-                    strafe(obstacles);
-                } else {
-                    // Otherwise, seek the target
-                    seek(currentTarget.getCenter(), obstacles);
-                }
-                break;
-            case CAPTURING_OBJECTIVE:
-                seek(this.objectiveTargetPoint, obstacles);
-                break;
-            case FLEEING:
-                flee(this.objectiveTargetPoint, obstacles);
-                break;
-            case WANDERING:
-                if (objectiveTargetPoint != null) {
-                    performWanderNearPoint(objectiveTargetPoint, obstacles);
-                } else {
-                    performWanderBehavior(obstacles);
-                }
-                break;
+        // High priority: Flee from damaging hazards.
+        Vector2D hazardForce = calculateHazardAvoidanceForce(gameState.hazards());
+        applyForce(hazardForce, 4.0);
+
+        // --- Priority 2: Tactical Decisions ---
+        // Mid priority: React to power-ups (seek good ones, avoid powered-up enemies).
+        Vector2D powerUpForce = calculatePowerUpInfluenceForce(gameState);
+        applyForce(powerUpForce, 2.5);
+
+        // --- Priority 3: Strategic Goal ---
+        // Let the game-mode-specific strategy determine the AI's current state and objective.
+        aiStrategy.updateAIState(this, gameState);
+
+        // Execute the primary movement behavior based on the current state.
+        Vector2D objectiveForce = calculateObjectiveForce(gameState.obstacles());
+        applyForce(objectiveForce, 1.0);
+    }
+
+    /**
+     * Updates the AI's velocity based on the accumulated acceleration, then calls the parent
+     * method to update its position.
+     */
+    private void updatePhysics() {
+        // Update velocity by adding acceleration, but cap it at the AI's max speed.
+        Vector2D newVelocity = getVelocity().add(this.acceleration).limit(getSpeed());
+        setVelocity(newVelocity);
+
+        // Update position based on the new velocity.
+        super.update();
+    }
+
+    /**
+     * Determines if the AI should shoot and at what.
+     *
+     * @param playerGrid The spatial grid for finding nearby players.
+     * @param obstacles  The list of obstacles for line-of-sight checks.
+     * @return An Optional {@link ShootAction} if a valid target is found and the AI can shoot.
+     */
+    private Optional<ShootAction> decideOnShooting(SpatialGrid<Player> playerGrid, List<Obstacle> obstacles) {
+        Player targetToShoot = findBestShootingTarget(playerGrid, obstacles);
+
+        if (targetToShoot == null) {
+            // If no target, but we are moving, aim in the direction of movement.
+            if (getVelocity().magnitudeSq() > 0.01) {
+                aimInDirection(getVelocity());
+            }
+            return Optional.empty();
         }
+
+        // Aim at the target.
+        Vector2D directionToTarget = targetToShoot.getCenter().subtract(getCenter());
+        aimInDirection(directionToTarget);
+
+        // Check if we are able to fire (not reloading, cooldown is over, etc.).
+        if (!canShoot()) {
+            return Optional.empty();
+        }
+
+        // Respect the AI's reaction time if this is our primary `currentTarget`.
+        if (currentTarget == targetToShoot && System.currentTimeMillis() - timeTargetAcquired < this.reactionTimeMs) {
+            return Optional.empty(); // Still "reacting", don't shoot yet.
+        }
+
+        // All checks passed, create a shoot action with calculated inaccuracy.
+        return Optional.of(shootWithInaccuracy(directionToTarget));
+    }
+
+    /**
+     * Calculates the primary steering force based on the AI's current state.
+     */
+    private Vector2D calculateObjectiveForce(List<Obstacle> obstacles) {
+        return switch (currentState) {
+            case ATTACKING -> calculateAttackForce(obstacles);
+            case FLEEING -> calculateFleeForce(currentTarget.getCenter(), obstacles);
+            case CAPTURING_OBJECTIVE -> calculateSeekForce(this.objectiveTargetPoint, obstacles);
+            default -> calculateWanderForce(obstacles);
+        };
+    }
+
+    // --- Steering Force Calculation Methods ---
+
+    /**
+     * Calculates a force to seek a target, strafing or advancing as needed.
+     */
+    private Vector2D calculateAttackForce(List<Obstacle> obstacles) {
+        if (currentTarget == null) {
+            return calculateWanderForce(obstacles); // Fallback if target is lost
+        }
+
+        // Decide whether to strafe or advance.
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastStrafeTime > this.strafeInterval) {
+            lastStrafeTime = currentTime;
+            strafeRight = ThreadLocalRandom.current().nextBoolean();
+        }
+
+        // If reloading or too close, prioritize strafing to be evasive.
+        if (isReloading() || getCenter().distanceSquared(currentTarget.getCenter()) < 150 * 150) {
+            Vector2D toTarget = currentTarget.getCenter().subtract(getCenter());
+            // Get a perpendicular vector for strafing.
+            Vector2D strafeDirection = strafeRight ? new Vector2D(toTarget.y(), -toTarget.x()) : new Vector2D(-toTarget.y(), toTarget.x());
+            return calculateSteerForce(strafeDirection.normalize(), obstacles);
+        } else {
+            // Otherwise, advance on the target.
+            return calculateSeekForce(currentTarget.getCenter(), obstacles);
+        }
+    }
+
+    /**
+     * Calculates a steering force to move towards a target position.
+     */
+    private Vector2D calculateSeekForce(Vector2D target, List<Obstacle> obstacles) {
+        if (target == null) {
+            return calculateWanderForce(obstacles);
+        }
+        Vector2D desiredDirection = target.subtract(getCenter()).normalize();
+        return calculateSteerForce(desiredDirection, obstacles);
+    }
+
+    /**
+     * Calculates a steering force to move away from a target position.
+     */
+    private Vector2D calculateFleeForce(Vector2D target, List<Obstacle> obstacles) {
+        if (target == null) {
+            return calculateWanderForce(obstacles);
+        }
+        Vector2D desiredDirection = getCenter().subtract(target).normalize();
+        return calculateSteerForce(desiredDirection, obstacles);
+    }
+
+    /**
+     * Calculates a steering force for wandering behavior.
+     */
+    private Vector2D calculateWanderForce(List<Obstacle> obstacles) {
+        // If we are wandering towards a general objective area.
+        if (objectiveTargetPoint != null) {
+            long currentTime = System.currentTimeMillis();
+            if (wanderTarget == null || currentTime - lastWanderDirectionChangeTime > WANDER_DIRECTION_CHANGE_INTERVAL) {
+                double wanderRadius = 150.0;
+                double randomAngle = ThreadLocalRandom.current().nextDouble(0, 2 * Math.PI);
+                wanderTarget = objectiveTargetPoint.add(new Vector2D(Math.cos(randomAngle), Math.sin(randomAngle)).multiply(wanderRadius));
+                lastWanderDirectionChangeTime = currentTime;
+            }
+        }
+        // If we are just wandering randomly.
+        else if (wanderTarget == null || getCenter().distanceSquared(wanderTarget) < 100 * 100) {
+            double x = ThreadLocalRandom.current().nextDouble(50, Config.GAME_WIDTH - 50);
+            double y = ThreadLocalRandom.current().nextDouble(50, Config.GAME_HEIGHT - 50);
+            wanderTarget = new Vector2D(x, y);
+        }
+        return calculateSeekForce(wanderTarget, obstacles);
+    }
+
+    /**
+     * Core steering calculation. It takes a desired direction, avoids obstacles,
+     * and returns the force needed to steer the AI.
+     */
+    private Vector2D calculateSteerForce(Vector2D desiredDirection, List<Obstacle> obstacles) {
+        // Use obstacle avoidance to find a clear path.
+        Vector2D clearDirection = findClearPath(desiredDirection, obstacles);
+        Vector2D desiredVelocity = clearDirection.multiply(getSpeed());
+
+        // The steering force is the difference between desired and current velocity.
+        Vector2D steer = desiredVelocity.subtract(getVelocity());
+        return steer.limit(AI_MAX_FORCE);
+    }
+
+    // --- Helper Methods for AI Logic ---
+
+    /**
+     * Applies a steering force to the AI's acceleration, with an optional weight.
+     */
+    private void applyForce(Vector2D force, double weight) {
+        this.acceleration = this.acceleration.add(force.multiply(weight));
+    }
+
+    /**
+     * Sets the player's mouse coordinates to aim in a specific direction.
+     */
+    private void aimInDirection(Vector2D direction) {
+        if (direction.magnitudeSq() == 0) return;
+        Vector2D normalized = direction.normalize();
+        setMouseX(getCenter().x() + normalized.x() * 100);
+        setMouseY(getCenter().y() + normalized.y() * 100);
+    }
+
+    /**
+     * Creates a {@link ShootAction} with randomized inaccuracy.
+     */
+    private ShootAction shootWithInaccuracy(Vector2D perfectDirection) {
+        double perfectAngle = Math.atan2(perfectDirection.y(), perfectDirection.x());
+        double inaccuracy = (ThreadLocalRandom.current().nextDouble() - 0.5) * 2 * this.aimInaccuracyRadians;
+        double finalAngle = perfectAngle + inaccuracy;
+        return new ShootAction(Math.cos(finalAngle), Math.sin(finalAngle));
     }
 
     /**
      * Finds the closest enemy player that is within weapon range and has a clear line of sight.
-     *
-     * @return The best Player to target, or null if no valid target exists.
      */
     private Player findBestShootingTarget(SpatialGrid<Player> playerGrid, List<Obstacle> obstacles) {
         Player bestTarget = null;
@@ -207,7 +331,6 @@ public class AIPlayer extends Player {
         double attackRange = getWeapon().getBulletRange();
         double attackRangeSq = attackRange * attackRange;
 
-        // Query the grid for players within a box defined by the weapon's range
         Set<Player> nearbyPlayers = playerGrid.getNearby(getX() - attackRange, getY() - attackRange, attackRange * 2, attackRange * 2);
 
         for (Player potentialTarget : nearbyPlayers) {
@@ -216,7 +339,6 @@ public class AIPlayer extends Player {
             }
 
             double distanceSq = this.getCenter().distanceSquared(potentialTarget.getCenter());
-
             if (distanceSq < attackRangeSq && distanceSq < minDistanceSq) {
                 if (findBlockingObstacle(this.getCenter(), potentialTarget.getCenter(), obstacles) == null) {
                     minDistanceSq = distanceSq;
@@ -228,123 +350,8 @@ public class AIPlayer extends Player {
     }
 
     /**
-     * Applies a steering force to the AI's acceleration.
+     * Checks if a line-of-sight is blocked by an obstacle.
      */
-    private void applyForce(Vector2D force) {
-        this.acceleration = this.acceleration.add(force);
-    }
-
-    /**
-     * A steering behavior that directs the AI towards a target point.
-     * It incorporates simple obstacle avoidance.
-     */
-    private void seek(Vector2D target, List<Obstacle> obstacles) {
-        if (target == null) {
-            performWanderBehavior(obstacles);
-            return;
-        }
-        // 1. Calculate the desired velocity (a vector pointing from us to the target)
-        Vector2D desiredDirection = target.subtract(getCenter()).normalize();
-
-        // 2. Use the existing obstacle avoidance to adjust the desired direction
-        Vector2D avoidanceDirection = findClearPath(desiredDirection, obstacles);
-        Vector2D desiredVelocity = avoidanceDirection.multiply(getSpeed());
-
-        // 3. Calculate the steering force (the force required to change current velocity to desired velocity)
-        Vector2D steer = desiredVelocity.subtract(getVelocity());
-        steer = steer.limit(AI_MAX_FORCE); // Limit the force to our turning ability
-
-        // 4. Apply the force
-        applyForce(steer);
-    }
-
-    /**
-     * A steering behavior that directs the AI away from a target point.
-     */
-    private void flee(Vector2D target, List<Obstacle> obstacles) {
-        if (target == null) {
-            performWanderBehavior(obstacles);
-            return;
-        }
-        // The desired velocity is the opposite of seek
-        Vector2D desiredDirection = getCenter().subtract(target).normalize();
-        Vector2D avoidanceDirection = findClearPath(desiredDirection, obstacles);
-        Vector2D desiredVelocity = avoidanceDirection.multiply(getSpeed());
-
-        Vector2D steer = desiredVelocity.subtract(getVelocity());
-        steer = steer.limit(AI_MAX_FORCE);
-        applyForce(steer);
-    }
-
-    public void setCurrentState(AIState state) {
-        this.currentState = state;
-    }
-
-    public void setObjectiveTargetPoint(Vector2D point) {
-        this.objectiveTargetPoint = point;
-    }
-
-    public void setCurrentTarget(Player target) {
-        if (this.currentTarget != target) {
-            this.timeTargetAcquired = System.currentTimeMillis();
-        }
-        this.currentTarget = target;
-    }
-
-    private void performWanderNearPoint(Vector2D point, List<Obstacle> obstacles) {
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - lastWanderDirectionChangeTime > WANDER_DIRECTION_CHANGE_INTERVAL || getVelocity().magnitudeSq() == 0) {
-            double angleToCenter = Math.atan2(point.y() - getY(), point.x() - getX());
-            double randomOffset = (ThreadLocalRandom.current().nextDouble() - 0.5) * Math.PI;
-            Vector2D desiredDirection = new Vector2D(Math.cos(angleToCenter + randomOffset), Math.sin(angleToCenter + randomOffset));
-            Vector2D finalDirection = findClearPath(desiredDirection, obstacles);
-            setVelocity(finalDirection.multiply(getSpeed()));
-            lastWanderDirectionChangeTime = currentTime;
-        }
-    }
-
-    private void performWanderBehavior(List<Obstacle> obstacles) {
-        // If we don't have a wander target or we've reached it, pick a new one.
-        if (wanderTarget == null || getCenter().distanceSquared(wanderTarget) < 100 * 100) { // 100px radius
-            double x = ThreadLocalRandom.current().nextDouble(50, Config.GAME_WIDTH - 50);
-            double y = ThreadLocalRandom.current().nextDouble(50, Config.GAME_HEIGHT - 50);
-            this.wanderTarget = new Vector2D(x, y);
-        }
-        // Smoothly move towards the wander target.
-        seek(this.wanderTarget, obstacles);
-    }
-
-    private ShootAction shootWithInaccuracy(double dx, double dy) {
-        double perfectAngle = Math.atan2(dy, dx);
-        double inaccuracy = (ThreadLocalRandom.current().nextDouble() - 0.5) * 2 * this.aimInaccuracyRadians;
-        double finalAngle = perfectAngle + inaccuracy;
-        return new ShootAction(Math.cos(finalAngle), Math.sin(finalAngle));
-    }
-
-    private void strafe(List<Obstacle> obstacles) {
-        if (currentTarget == null) {
-            performWanderBehavior(obstacles);
-            return;
-        }
-        double dx = currentTarget.getX() - getX();
-        double dy = currentTarget.getY() - getY();
-
-        double strafeDx = -dy;
-        double strafeDy = dx;
-
-        if (!strafeRight) {
-            strafeDx = -strafeDx;
-            strafeDy = -strafeDy;
-        }
-
-        Vector2D desiredDirection = new Vector2D(strafeDx, strafeDy).normalize();
-        Vector2D avoidanceDirection = findClearPath(desiredDirection, obstacles);
-        Vector2D desiredVelocity = avoidanceDirection.multiply(getSpeed());
-
-        Vector2D steer = desiredVelocity.subtract(getVelocity());
-        applyForce(steer.limit(AI_MAX_FORCE)); // Apply a strong force for responsive strafing
-    }
-
     private Obstacle findBlockingObstacle(Vector2D start, Vector2D end, List<Obstacle> obstacles) {
         for (Obstacle obstacle : obstacles) {
             if (CollisionUtils.checkLinePolygonCollision(start, end, obstacle.vertices())) {
@@ -354,45 +361,29 @@ public class AIPlayer extends Player {
         return null;
     }
 
+    /**
+     * Implements "wall sliding" by projecting the desired movement direction away from an obstacle's normal.
+     */
     private Vector2D findClearPath(Vector2D desiredDirection, List<Obstacle> obstacles) {
-        // Use a "feeler" to detect potential collisions ahead of the AI
-        double feelerLength = 60.0 + (getSpeed() * 10); // Dynamic feeler based on speed
+        double feelerLength = 60.0 + (getSpeed() * 5); // Dynamic feeler based on speed
         Vector2D feelerEnd = getCenter().add(desiredDirection.multiply(feelerLength));
         Obstacle blockingObstacle = findBlockingObstacle(getCenter(), feelerEnd, obstacles);
 
-        // If the path ahead is clear, continue in the desired direction
         if (blockingObstacle == null) {
-            return desiredDirection;
+            return desiredDirection; // Path is clear.
         }
 
-        // --- Wall Sliding Logic ---
-        // The path is blocked, so we need to slide along the obstacle.
-
-        // 1. Find the closest point on the obstacle's perimeter to the AI.
-        // This gives us a reference point for the collision.
+        // Path is blocked, so we need to slide.
         Vector2D closestPointOnObstacle = findClosestPointOnObstacle(getCenter(), blockingObstacle);
-
-        // 2. Calculate a vector pointing away from the obstacle. This acts as the "normal" to the wall.
         Vector2D avoidanceDirection = getCenter().subtract(closestPointOnObstacle).normalize();
-
-        // 3. Project the AI's desired direction onto the avoidance direction (the normal).
         double projection = desiredDirection.dot(avoidanceDirection);
-
-        // 4. The slide direction is calculated by subtracting the projection from the desired direction.
-        // This effectively removes the component of movement that would go "into" the wall,
-        // leaving only the component that runs parallel to it.
         Vector2D slideDirection = desiredDirection.subtract(avoidanceDirection.multiply(projection));
 
-        // 5. Return the normalized slide direction. This is the new direction for the AI to follow.
         return slideDirection.normalize();
     }
 
     /**
      * Finds the point on an obstacle's perimeter that is closest to a given point.
-     *
-     * @param point    The point to check from.
-     * @param obstacle The obstacle to check against.
-     * @return The closest point on the obstacle's edges.
      */
     private Vector2D findClosestPointOnObstacle(Vector2D point, Obstacle obstacle) {
         Vector2D closestPoint = null;
@@ -400,7 +391,7 @@ public class AIPlayer extends Player {
         List<Vector2D> vertices = obstacle.vertices();
         for (int i = 0; i < vertices.size(); i++) {
             Vector2D p1 = vertices.get(i);
-            Vector2D p2 = vertices.get((i + 1) % vertices.size()); // Wrap around for the last edge
+            Vector2D p2 = vertices.get((i + 1) % vertices.size());
 
             Vector2D closestPointOnSegment = getClosestPointOnLineSegment(point, p1, p2);
             double distanceSq = point.distanceSquared(closestPointOnSegment);
@@ -415,89 +406,56 @@ public class AIPlayer extends Player {
 
     /**
      * Calculates the closest point on a line segment to a given point.
-     *
-     * @param p The point.
-     * @param a The start of the line segment.
-     * @param b The end of the line segment.
-     * @return The closest point on the segment [a, b] to p.
+     * This is a core utility for collision avoidance.
      */
     private Vector2D getClosestPointOnLineSegment(Vector2D p, Vector2D a, Vector2D b) {
-        Vector2D ap = p.subtract(a);
         Vector2D ab = b.subtract(a);
-        double ab2 = ab.x() * ab.x() + ab.y() * ab.y();
-        if (ab2 == 0.0) { // a and b are the same point
+        double ab2 = ab.magnitudeSq();
+        if (ab2 < 1e-9) { // Treat very short segments as a single point to avoid NaN.
             return a;
         }
-        double ap_dot_ab = ap.dot(ab);
-        double t = ap_dot_ab / ab2;
-
-        // Clamp t to the range [0, 1] to stay on the segment
-        if (t < 0.0) {
-            return a;
-        } else if (t > 1.0) {
-            return b;
-        }
+        Vector2D ap = p.subtract(a);
+        double t = ap.dot(ab) / ab2;
+        t = Math.max(0, Math.min(1, t)); // Clamp t to the range [0, 1]
         return a.add(ab.multiply(t));
     }
 
+    // --- High-Level Steering Behaviors ---
 
     /**
-     * Calculates a steering force to move the AI away from nearby hazards, especially damaging ones.
-     * The force is stronger the closer the AI is to the hazard's center.
-     *
-     * @param hazards A list of all hazards on the map.
-     * @return A steering force vector.
+     * Calculates a steering force to flee from dangerous hazards.
      */
     private Vector2D calculateHazardAvoidanceForce(List<Hazard> hazards) {
         Vector2D totalAvoidanceForce = Vector2D.ZERO;
-        if (hazards == null) {
-            return totalAvoidanceForce;
-        }
+        if (hazards == null) return totalAvoidanceForce;
 
         for (Hazard hazard : hazards) {
-            // The "awareness" radius is slightly larger than the hazard itself.
-            double awarenessRadius = hazard.radius() + 40; // Be aware of it from 40px away
-            double distanceSq = getCenter().distanceSquared(hazard.position());
-
-            if (distanceSq < awarenessRadius * awarenessRadius) {
-                // We are near or inside a hazard. Calculate a force to flee from it.
+            double awarenessRadius = hazard.radius() + 40;
+            if (getCenter().distanceSquared(hazard.position()) < awarenessRadius * awarenessRadius) {
                 Vector2D fleeDirection = getCenter().subtract(hazard.position());
-
-                // The closer we are, the stronger the force should be.
-                double strength = 1.0 - (Math.sqrt(distanceSq) / awarenessRadius);
-                double weight = (hazard.type() == Hazard.Type.DAMAGE) ? 4.0 : 1.0;
-                Vector2D avoidanceForce = fleeDirection.normalize().multiply(strength * AI_MAX_FORCE * weight);
-                totalAvoidanceForce = totalAvoidanceForce.add(avoidanceForce);
+                double weight = (hazard.type() == Hazard.Type.DAMAGE) ? 1.0 : 0.5;
+                totalAvoidanceForce = totalAvoidanceForce.add(fleeDirection.normalize().multiply(weight));
             }
         }
         return totalAvoidanceForce;
     }
 
     /**
-     * Calculates a strong, short-range repulsive force from nearby obstacles.
-     * This is a high-priority behavior designed to prevent the AI from getting
-     * stuck on walls or in corners. It creates a "personal space" bubble.
-     *
-     * @param obstacles A list of all obstacles on the map.
-     * @return A steering force vector pushing the AI away from close obstacles.
+     * Calculates a strong, short-range repulsive force to prevent getting stuck on walls.
      */
     private Vector2D calculateObstacleSeparationForce(List<Obstacle> obstacles) {
         Vector2D totalSeparationForce = Vector2D.ZERO;
-        double separationRadius = 50.0; // The "personal space" bubble radius.
+        double separationRadius = 20.0;
 
         for (Obstacle obstacle : obstacles) {
             Vector2D closestPoint = findClosestPointOnObstacle(getCenter(), obstacle);
-            double distanceSq = getCenter().distanceSquared(closestPoint);
-
-            // Only apply force if within the separation radius.
-            if (distanceSq < separationRadius * separationRadius) {
-                // Direction of the force is away from the closest point on the obstacle.
-                Vector2D fleeDirection = getCenter().subtract(closestPoint);
-
-                // The force is stronger the closer the AI is to the obstacle.
-                double strength = 1.0 - (Math.sqrt(distanceSq) / separationRadius);
-                Vector2D separationForce = fleeDirection.normalize().multiply(strength * AI_MAX_FORCE * 5.0); // High weight to override other behaviors.
-                totalSeparationForce = totalSeparationForce.add(separationForce);
+            if (closestPoint != null) {
+                double distanceSq = getCenter().distanceSquared(closestPoint);
+                if (distanceSq < separationRadius * separationRadius) {
+                    Vector2D fleeDirection = getCenter().subtract(closestPoint);
+                    double strength = 1.0 - (Math.sqrt(distanceSq) / separationRadius);
+                    totalSeparationForce = totalSeparationForce.add(fleeDirection.normalize().multiply(strength));
+                }
             }
         }
         return totalSeparationForce;
@@ -505,64 +463,53 @@ public class AIPlayer extends Player {
 
     /**
      * Calculates a steering force based on nearby power-ups and powered-up enemies.
-     * - It creates an avoidance force to flee from enemies with ARMOR or DAMAGE_BOOST.
-     * - It creates an attraction force to seek out valuable power-ups.
-     *
-     * @param gameState The current state of the game.
-     * @return A steering force vector representing the influence of power-ups.
      */
     private Vector2D calculatePowerUpInfluenceForce(GameState gameState) {
-        // Note: This method still iterates all players because it's checking for a status (power-up effect)
-        // rather than pure proximity. The number of powered-up players is usually very small, so this is acceptable.
-        // A more advanced implementation could use a separate list for powered-up players.
         Vector2D totalInfluenceForce = Vector2D.ZERO;
         long currentTime = System.currentTimeMillis();
 
-        // 1. Avoid powered-up enemies
-        for (Player player : gameState.players()) { // Iterating all players here is okay, as we check a status flag.
-            if (player.getTeam() == this.getTeam() || player.isDead()) {
-                continue;
-            }
-
+        // Avoid powered-up enemies
+        for (Player player : gameState.players()) {
+            if (player.getTeam() == this.getTeam() || player.isDead()) continue;
             boolean isThreat = player.getArmorUpEndTime() > currentTime || player.getDamageBoostEndTime() > currentTime;
-            if (isThreat) {
-                double distanceSq = getCenter().distanceSquared(player.getCenter());
-                double threatRadius = 400; // Start avoiding from 400px away
-                if (distanceSq < threatRadius * threatRadius) {
-                    Vector2D fleeDirection = getCenter().subtract(player.getCenter());
-                    // The closer the threat, the stronger the force
-                    double strength = 1.0 - (Math.sqrt(distanceSq) / threatRadius);
-                    // This is a high-priority action, so give it a strong weight
-                    Vector2D avoidanceForce = fleeDirection.normalize().multiply(strength * AI_MAX_FORCE * 2.5);
-                    totalInfluenceForce = totalInfluenceForce.add(avoidanceForce);
-                }
+            if (isThreat && getCenter().distanceSquared(player.getCenter()) < 400 * 400) {
+                totalInfluenceForce = totalInfluenceForce.add(getCenter().subtract(player.getCenter()).normalize().multiply(1.0));
             }
         }
 
-        // 2. Seek valuable power-ups
+        // Seek valuable power-ups
         if (gameState.powerUps() != null) {
             for (PowerUp powerUp : gameState.powerUps()) {
-                double distanceSq = getCenter().distanceSquared(powerUp.getPosition());
-                double seekRadius = 500; // Only consider power-ups within 500px
-                if (distanceSq < seekRadius * seekRadius) {
-                    double weight = 1.0; // Default attraction
+                if (getCenter().distanceSquared(powerUp.getPosition()) < 500 * 500) {
+                    double weight = 0.5; // Default attraction
                     if (powerUp.getType() == PowerUpType.HEALTH_PACK) {
-                        // Very attractive if health is low
-                        weight = 2.5 * (1.0 - (getCurrentHealth() / getMaxHealth()));
+                        weight = 1.5 * (1.0 - (getCurrentHealth() / getMaxHealth()));
                     } else if (powerUp.getType() == PowerUpType.ARMOR_UP || powerUp.getType() == PowerUpType.DAMAGE_BOOST) {
-                        weight = 1.5; // Always attractive
+                        weight = 1.0;
                     }
-
-                    if (weight > 0.1) { // Only bother if it's somewhat attractive
-                        Vector2D seekDirection = powerUp.getPosition().subtract(getCenter());
-                        double strength = 1.0 - (Math.sqrt(distanceSq) / seekRadius);
-                        Vector2D attractionForce = seekDirection.normalize().multiply(strength * AI_MAX_FORCE * weight);
-                        totalInfluenceForce = totalInfluenceForce.add(attractionForce);
+                    if (weight > 0.1) {
+                        totalInfluenceForce = totalInfluenceForce.add(powerUp.getPosition().subtract(getCenter()).normalize().multiply(weight));
                     }
                 }
             }
         }
-
         return totalInfluenceForce;
+    }
+
+    // --- State Setters for Strategy ---
+
+    public void setCurrentState(AIState state) {
+        this.currentState = state;
+    }
+
+    public void setObjectiveTargetPoint(Vector2D point) {
+        this.objectiveTargetPoint = point;
+    }
+
+    public void setCurrentTarget(Player target) {
+        if (this.currentTarget != target) {
+            this.timeTargetAcquired = System.currentTimeMillis();
+        }
+        this.currentTarget = target;
     }
 }
