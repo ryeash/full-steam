@@ -11,6 +11,7 @@ import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.DeathmatchAIStrategy;
 import io.netty.channel.Channel;
 
+import java.util.Objects;
 import java.util.UUID;
 
 public class GunMasterManager extends FreeForAllManager {
@@ -48,6 +49,13 @@ public class GunMasterManager extends FreeForAllManager {
     }
 
     private void forceWeaponSwitch() {
+        if (this.currentGlobalWeapon != null) {
+            Weapon current = this.currentGlobalWeapon;
+            // don't switch to the same weapon
+            while (Objects.equals(current.getName(), this.currentGlobalWeapon.getName())) {
+                this.currentGlobalWeapon = WeaponFactory.getRandomWeapon();
+            }
+        }
         this.currentGlobalWeapon = WeaponFactory.getRandomWeapon();
         sendGameEvent(GameEvent.blue("Weapon switched to: " + this.currentGlobalWeapon.getName()));
         for (Player player : players.values()) {

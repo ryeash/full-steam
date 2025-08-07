@@ -5,8 +5,8 @@ import com.fullsteam.games.BuilderManager;
 import com.fullsteam.games.CaptureTheFlagManager;
 import com.fullsteam.games.EliminationManager;
 import com.fullsteam.games.EscortManager;
-import com.fullsteam.games.GunMasterManager;
 import com.fullsteam.games.FreeForAllManager;
+import com.fullsteam.games.GunMasterManager;
 import com.fullsteam.games.JuggernautManager;
 import com.fullsteam.games.KingOfTheHillManager;
 import com.fullsteam.games.LoneWolfManager;
@@ -18,7 +18,6 @@ import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.WelcomeMessage;
 import io.netty.channel.Channel;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,16 +122,8 @@ public class GameLobby {
         // 3. If still no game, find any available game (default behavior)
         if (gameToJoin == null) {
             log.info("No specific game requested or found, finding any available game for player {}.", GameWebSocketHandler.playerId(channel));
-            if (!GAME_ROTATION.isEmpty()) {
-                // Default to finding any game of the first type in rotation, which findOrCreateGame handles.
-                gameToJoin = findOrCreateGame(GAME_ROTATION.get(0).type());
-            } else {
-                log.error("No game modes configured in GAME_ROTATION. Cannot assign player {} to a game.", GameWebSocketHandler.playerId(channel));
-                channel.writeAndFlush(new TextWebSocketFrame("{\"type\":\"error\", \"message\":\"Server has no configured game modes.\"}"));
-                channel.close();
-                playerDisconnected(); // We incremented early, so we must decrement.
-                return;
-            }
+            // Default to finding any game of the first type in rotation, which findOrCreateGame handles.
+            gameToJoin = findOrCreateGame(GAME_ROTATION.get(0).type());
         }
 
         // 4. Join the determined game
@@ -177,7 +168,7 @@ public class GameLobby {
 
         // Send welcome message
         WelcomeMessage welcomeMessage = new WelcomeMessage(player.getId(), player.getTeam(), game.getGameId());
-        ctx.writeAndFlush(new TextWebSocketFrame(Jackson.writeValueAsString(welcomeMessage)));
+        ctx.writeAndFlush(Jackson.msgPackFrame(welcomeMessage));
 
         game.sendGameEvent(GameEvent.info(String.format("Joining: %s (%d)!", game.gameType(), game.getGameId())));
     }

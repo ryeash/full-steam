@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Top-Down Shooter</title>
+    <script src="https://unpkg.com/@msgpack/msgpack@2.7.2/dist.es5+umd/msgpack.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -518,6 +519,7 @@
 
     class Game {
         constructor() {
+            this.decoder = new MessagePack.Decoder();
             this.canvas = document.getElementById('gameCanvas');
             this.ctx = this.canvas.getContext('2d');
             this.ws = null;
@@ -574,6 +576,7 @@
             }
 
             this.ws = new WebSocket(wsUrl);
+            this.ws.binaryType = "arraybuffer";
 
             this.backgroundCanvas.width = this.canvas.width;
             this.backgroundCanvas.height = this.canvas.height;
@@ -590,7 +593,15 @@
             };
 
             this.ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
+                let data;
+                // Check if the data is binary (ArrayBuffer) or text (String)
+                if (event.data instanceof ArrayBuffer) {
+                    // Decode the MessagePack payload
+                    data = this.decoder.decode(event.data);
+                } else {
+                    // Fallback for text-based messages like welcome, pong, etc.
+                    data = JSON.parse(event.data);
+                }
 
                 if (data.type === 'pong') {
                     this.latency = Date.now() - this.pingStartTime;
@@ -1483,13 +1494,35 @@
                 return;
             }
 
+            const myself = player.id === this.playerId;
             const playerSize = 20;
             const playerCenterX = player.x + playerSize / 2;
             const playerCenterY = player.y + playerSize / 2;
 
+            // --- Add respawn ping effect ---
+            const PING_DURATION = 1000;
+            const pingTimeRemaining = PING_DURATION - (this.gameState.serverTime - player.respawnTime);
+            if (myself && pingTimeRemaining > 0) {
+                const progress = pingTimeRemaining / PING_DURATION;
+
+                if (progress >= 0 && progress <= 1) {
+                    const maxRadius = 50;
+                    const currentRadius = maxRadius * progress;
+                    const alpha = progress;
+
+                    this.ctx.save();
+                    this.ctx.strokeStyle = `rgba(255, 215, 0, ${alpha})`; // Gold, fading out
+                    this.ctx.lineWidth = 3;
+                    this.ctx.beginPath();
+                    this.ctx.arc(playerCenterX, playerCenterY, currentRadius, 0, 2 * Math.PI);
+                    this.ctx.stroke();
+                    this.ctx.restore();
+                }
+            }
+
             this.ctx.fillStyle = player.team === 1 ? '#4CAF50' : '#F44336';
-            this.ctx.strokeStyle = player.id === this.playerId ? '#FFD700' : (player.team === 1 ? '#388E3C' : '#B71C1C');
-            this.ctx.lineWidth = player.id === this.playerId ? 3 : 2;
+            this.ctx.strokeStyle = myself ? '#FFD700' : (player.team === 1 ? '#388E3C' : '#B71C1C');
+            this.ctx.lineWidth = myself? 3 : 2;
             this.ctx.beginPath();
             this.ctx.arc(playerCenterX, playerCenterY, playerSize / 2, 0, 2 * Math.PI);
             this.ctx.fill();
@@ -1499,9 +1532,9 @@
             this.ctx.translate(playerCenterX, playerCenterY);
 
             let angle = 0;
-            if (player.id === this.playerId && this.isGamepadActive) {
+            if (myself && this.isGamepadActive) {
                 angle = Math.atan2(this.gamepadAim.y, this.gamepadAim.x);
-            } else if (player.id === this.playerId && !this.isGamepadActive) {
+            } else if (myself && !this.isGamepadActive) {
                 // For the local player, use the live mouse position for maximum responsiveness.
                 angle = Math.atan2(this.mouse.y - playerCenterY, this.mouse.x - playerCenterX);
             } else {
@@ -1583,7 +1616,7 @@
             }
             this.ctx.fillText(displayName, playerCenterX, player.y - 15);
 
-            if (player.id === this.playerId) {
+            if (myself) {
                 this.ctx.font = 'bold 12px Arial';
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'middle';

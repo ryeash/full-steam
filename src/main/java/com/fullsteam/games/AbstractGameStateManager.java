@@ -28,7 +28,7 @@ import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.DeathmatchAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import io.netty.channel.Channel;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,8 +109,7 @@ public abstract class AbstractGameStateManager {
                 "type", "gameEvent",
                 "event", gameEvent
         );
-        String json = Jackson.writeValueAsString(message);
-        TextWebSocketFrame frame = new TextWebSocketFrame(json);
+        BinaryWebSocketFrame frame = Jackson.msgPackFrame(message);
 
         if (gameEvent.playerId() != null) {
             // Private message for one player
@@ -429,7 +428,7 @@ public abstract class AbstractGameStateManager {
                 setValidSpawnPosition(player); // Move them to a spawn point
                 if (!(player instanceof AIPlayer)) {
                     playerChannels.get(player.getId())
-                            .writeAndFlush(new TextWebSocketFrame(Jackson.writeValueAsString(new WelcomeMessage(player.getId(), player.getTeam(), gameId))));
+                            .writeAndFlush(Jackson.msgPackFrame(new WelcomeMessage(player.getId(), player.getTeam(), gameId)));
                 }
             }
 
@@ -786,13 +785,12 @@ public abstract class AbstractGameStateManager {
                 System.currentTimeMillis(),
                 gameInfo
         );
-        String json = Jackson.writeValueAsString(state);
-        TextWebSocketFrame frame = new TextWebSocketFrame(json);
+        BinaryWebSocketFrame frame = Jackson.msgPackFrame(state);
 
         // Send state to all players
         playerChannels.forEach((playerId, channel) -> {
             if (channel.isActive() && channel.isOpen()) {
-                channel.writeAndFlush(frame.retainedDuplicate()).addListener(future -> {
+                channel.writeAndFlush(frame.retainedDuplicate()).addListener(future -> { // retainedDuplicate is crucial
                     if (!future.isSuccess()) {
                         log.error("Failed to send game state to player {}. Closing channel.", playerId, future.cause());
                         channel.close();
@@ -935,7 +933,7 @@ public abstract class AbstractGameStateManager {
                 // Kill the player to force a respawn on the new team's side
                 killPlayer(player, null);
                 playerChannels.get(player.getId())
-                        .writeAndFlush(new TextWebSocketFrame(Jackson.writeValueAsString(new WelcomeMessage(player.getId(), player.getTeam(), gameId))));
+                        .writeAndFlush(Jackson.msgPackFrame(new WelcomeMessage(player.getId(), player.getTeam(), gameId)));
                 log.info("Player {} switched to team {}", playerId, otherTeam);
             } else {
                 // TODO: refactor GameEvent to support sending message to specific players
@@ -962,7 +960,6 @@ public abstract class AbstractGameStateManager {
                 hazards.add(new Hazard(hazardType, new Vector2D(Config.GAME_WIDTH - x, Config.GAME_HEIGHT - y), radius, radius * radius, effectValue));
             }
         }
-        log.info("Generated {} slowing hazards.", hazards.size());
     }
 
     public void shutdown() {

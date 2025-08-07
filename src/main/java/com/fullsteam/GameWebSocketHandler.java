@@ -14,6 +14,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
+
 import static com.fullsteam.Config.MAX_GLOBAL_PLAYERS;
 
 public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
@@ -111,10 +113,7 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
 
         switch (type) {
             case "ping":
-                // Immediately send a pong message back to the client's channel.
-                // The content can be simple; the 'type' is what matters.
-                String pongMessage = "{\"type\":\"pong\"}";
-                ctx.channel().writeAndFlush(new TextWebSocketFrame(pongMessage));
+                ctx.channel().writeAndFlush(Jackson.msgPackFrame(Map.of("type", "pong")));
                 break;
             case "playerInput":
                 PlayerInput input = Jackson.treeToValue(rootNode, PlayerInput.class);
