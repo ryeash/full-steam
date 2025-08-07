@@ -6,6 +6,7 @@ import com.fullsteam.games.CaptureTheFlagManager;
 import com.fullsteam.games.EliminationManager;
 import com.fullsteam.games.EscortManager;
 import com.fullsteam.games.FreeForAllManager;
+import com.fullsteam.games.GunMasterManager;
 import com.fullsteam.games.JuggernautManager;
 import com.fullsteam.games.KingOfTheHillManager;
 import com.fullsteam.games.LoneWolfManager;
@@ -17,7 +18,6 @@ import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.WelcomeMessage;
 import io.netty.channel.Channel;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +36,7 @@ import static com.fullsteam.GameWebSocketHandler.GAME_STATE_MANAGER_KEY;
 import static com.fullsteam.GameWebSocketHandler.PLAYER_ID_KEY;
 
 public class GameLobby {
-    private static final Logger logger = LoggerFactory.getLogger(GameLobby.class);
+    private static final Logger log = LoggerFactory.getLogger(GameLobby.class);
 
     private final AtomicInteger globalPlayerCount = new AtomicInteger(0);
     private final Map<Long, AbstractGameStateManager> activeGames = new ConcurrentHashMap<>();
@@ -47,18 +47,19 @@ public class GameLobby {
 
     public GameLobby() {
         Config.EXECUTOR.scheduleAtFixedRate(this::cleanupEmptyGames, CLEANUP_INTERVAL_SECONDS, CLEANUP_INTERVAL_SECONDS, TimeUnit.SECONDS);
-        logger.info("Lobby maintenance task scheduled to run every {} seconds.", CLEANUP_INTERVAL_SECONDS);
+        log.info("Lobby maintenance task scheduled to run every {} seconds.", CLEANUP_INTERVAL_SECONDS);
         addGameMode(TeamDeathmatchManager.class, () -> new TeamDeathmatchManager(this));
         addGameMode(CaptureTheFlagManager.class, () -> new CaptureTheFlagManager(this));
-        addGameMode(JuggernautManager.class, () -> new JuggernautManager(this));
-        addGameMode(ZombieDefenseManager.class, () -> new ZombieDefenseManager(this));
-        addGameMode(OddballManager.class, () -> new OddballManager(this));
-        addGameMode(EliminationManager.class, () -> new EliminationManager(this));
         addGameMode(KingOfTheHillManager.class, () -> new KingOfTheHillManager(this));
+        addGameMode(EliminationManager.class, () -> new EliminationManager(this));
+        addGameMode(OddballManager.class, () -> new OddballManager(this));
+        addGameMode(GunMasterManager.class, () -> new GunMasterManager(this));
+        addGameMode(JuggernautManager.class, () -> new JuggernautManager(this));
         addGameMode(EscortManager.class, () -> new EscortManager(this));
         addGameMode(FreeForAllManager.class, () -> new FreeForAllManager(this));
         addGameMode(LoneWolfManager.class, () -> new LoneWolfManager(this));
         addGameMode(BuilderManager.class, () -> new BuilderManager(this));
+        addGameMode(ZombieDefenseManager.class, () -> new ZombieDefenseManager(this));
     }
 
     public List<ActiveGame> getActiveGames() {
@@ -93,17 +94,17 @@ public class GameLobby {
                 if (game != null) {
                     if (!game.isFull()) {
                         gameToJoin = game;
-                        logger.info("Player {} joining specific game by ID: {}", GameWebSocketHandler.playerId(channel), gameId);
+                        log.info("Player {} joining specific game by ID: {}", GameWebSocketHandler.playerId(channel), gameId);
                     } else {
-                        logger.warn("Player {} attempted to join full game {}. Will try to find another game of the same type.", GameWebSocketHandler.playerId(channel), gameId);
+                        log.warn("Player {} attempted to join full game {}. Will try to find another game of the same type.", GameWebSocketHandler.playerId(channel), gameId);
                         // If the requested game is full, we can try to find another of the same type.
                         gameTypeStr = game.getClass().getSimpleName();
                     }
                 } else {
-                    logger.warn("Player {} attempted to join non-existent game {}. Will try to find a game by type if specified.", GameWebSocketHandler.playerId(channel), gameId);
+                    log.warn("Player {} attempted to join non-existent game {}. Will try to find a game by type if specified.", GameWebSocketHandler.playerId(channel), gameId);
                 }
             } catch (NumberFormatException e) {
-                logger.warn("Invalid gameId format provided: '{}'. Ignoring.", gameIdStr);
+                log.warn("Invalid gameId format provided: '{}'. Ignoring.", gameIdStr);
             }
         }
 
@@ -111,30 +112,39 @@ public class GameLobby {
         if (gameToJoin == null && gameTypeStr != null && !gameTypeStr.isEmpty() && !gameTypeStr.equals("null")) {
             Class<? extends AbstractGameStateManager> gameTypeClass = findGameTypeClass(gameTypeStr);
             if (gameTypeClass != null) {
-                logger.info("Player {} looking for game of type: {}", GameWebSocketHandler.playerId(channel), gameTypeStr);
+                log.info("Player {} looking for game of type: {}", GameWebSocketHandler.playerId(channel), gameTypeStr);
                 gameToJoin = findOrCreateGame(gameTypeClass);
             } else {
-                logger.warn("Unsupported game type requested: '{}'. Will find any available game.", gameTypeStr);
+                log.warn("Unsupported game type requested: '{}'. Will find any available game.", gameTypeStr);
             }
         }
 
         // 3. If still no game, find any available game (default behavior)
         if (gameToJoin == null) {
-            logger.info("No specific game requested or found, finding any available game for player {}.", GameWebSocketHandler.playerId(channel));
-            if (!GAME_ROTATION.isEmpty()) {
-                // Default to finding any game of the first type in rotation, which findOrCreateGame handles.
-                gameToJoin = findOrCreateGame(GAME_ROTATION.get(0).type());
-            } else {
-                logger.error("No game modes configured in GAME_ROTATION. Cannot assign player {} to a game.", GameWebSocketHandler.playerId(channel));
-                channel.writeAndFlush(new TextWebSocketFrame("{\"type\":\"error\", \"message\":\"Server has no configured game modes.\"}"));
-                channel.close();
-                playerDisconnected(); // We incremented early, so we must decrement.
-                return;
-            }
+            log.info("No specific game requested or found, finding any available game for player {}.", GameWebSocketHandler.playerId(channel));
+            // Default to finding any game of the first type in rotation, which findOrCreateGame handles.
+            gameToJoin = findOrCreateGame(GAME_ROTATION.get(0).type());
         }
 
         // 4. Join the determined game
         joinGame(channel, gameToJoin);
+    }
+
+    public void spectateGame(Channel channel, String gameIdStr) {
+        long gameId = Long.parseLong(gameIdStr);
+        AbstractGameStateManager game = activeGames.get(gameId); // Assuming you have a map of active games
+
+        if (game != null) {
+            game.addSpectator(channel);
+            // Associate the game and a spectator flag with the channel for cleanup on disconnect
+            channel.attr(GameWebSocketHandler.GAME_STATE_MANAGER_KEY).set(game);
+            channel.attr(GameWebSocketHandler.IS_SPECTATOR_KEY).set(true);
+            log.info("Channel {} is now spectating game {}", channel.id().asShortText(), gameId);
+        } else {
+            log.warn("Spectator tried to join non-existent game {}", gameId);
+            playerDisconnected(); // Decrement the count since the connection will be closed
+            channel.close();
+        }
     }
 
     private Class<? extends AbstractGameStateManager> findGameTypeClass(String gameTypeStr) {
@@ -150,7 +160,7 @@ public class GameLobby {
         // Add the player to that specific game instance
         String playerId = GameWebSocketHandler.playerId(ctx);
         Player player = game.addPlayer(playerId, ctx);
-        logger.info("Player {} connected and joined game {}", playerId, game.getGameId());
+        log.info("Player {} connected and joined game {}", playerId, game.getGameId());
 
         // Associate the channel with its game and player ID for future lookups
         ctx.attr(GAME_STATE_MANAGER_KEY).set(game);
@@ -158,7 +168,7 @@ public class GameLobby {
 
         // Send welcome message
         WelcomeMessage welcomeMessage = new WelcomeMessage(player.getId(), player.getTeam(), game.getGameId());
-        ctx.writeAndFlush(new TextWebSocketFrame(Jackson.writeValueAsString(welcomeMessage)));
+        ctx.writeAndFlush(Jackson.msgPackFrame(welcomeMessage));
 
         game.sendGameEvent(GameEvent.info(String.format("Joining: %s (%d)!", game.gameType(), game.getGameId())));
     }
@@ -176,7 +186,7 @@ public class GameLobby {
         for (GameMode gameMode : GAME_ROTATION) {
             if (gameMode.type() == gameType) {
                 AbstractGameStateManager newGame = gameMode.builder().get();
-                logger.info("No available games. Creating new game with ID: {}", newGame.getGameId());
+                log.info("No available games. Creating new game with ID: {}", newGame.getGameId());
                 newGame.startGameLoop(); // Each game has its own loop
                 activeGames.put(newGame.getGameId(), newGame);
                 return newGame;
@@ -189,12 +199,12 @@ public class GameLobby {
         AbstractGameStateManager game = activeGames.remove(gameId);
         if (game != null) {
             game.shutdown(); // Method to stop the game loop
-            logger.info("Removed and shut down game {}", gameId);
+            log.info("Removed and shut down game {}", gameId);
         }
     }
 
     private void cleanupEmptyGames() {
-        logger.debug("Running cleanup task for empty games...");
+        log.debug("Running cleanup task for empty games...");
         List<Long> gamesToRemove = new ArrayList<>();
 
         // First, identify all games that have no human players
@@ -206,7 +216,7 @@ public class GameLobby {
 
         // Then, remove them to avoid concurrent modification issues
         for (Long gameId : gamesToRemove) {
-            logger.info("Game {} has no human players. Removing from lobby.", gameId);
+            log.info("Game {} has no human players. Removing from lobby.", gameId);
             removeGame(gameId);
         }
     }

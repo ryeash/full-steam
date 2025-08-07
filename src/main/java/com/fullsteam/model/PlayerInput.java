@@ -1,20 +1,19 @@
 package com.fullsteam.model;
 
-public class PlayerInput {
-    private double moveX; // Represents the horizontal axis (-1.0 for left, 1.0 for right)
-    private double moveY; // Represents the vertical axis (-1.0 for up, 1.0 for down)
+import java.util.Objects;
 
+public class PlayerInput {
+    private double moveX;
+    private double moveY;
     private boolean shooting;
     private double mouseX;
     private double mouseY;
     private boolean reload;
-    private boolean weaponCycle;
     public boolean placingObstacle;
 
     public PlayerInput() {
     }
 
-    // Getters and setters
     public double getMoveX() {
         return moveX;
     }
@@ -63,19 +62,31 @@ public class PlayerInput {
         this.reload = reload;
     }
 
-    public boolean isWeaponCycle() {
-        return weaponCycle;
-    }
-
-    public void setWeaponCycle(boolean weaponCycle) {
-        this.weaponCycle = weaponCycle;
-    }
-
     public boolean isPlacingObstacle() {
         return placingObstacle;
     }
 
     public void setPlacingObstacle(boolean placingObstacle) {
         this.placingObstacle = placingObstacle;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        PlayerInput that = (PlayerInput) o;
+        return Double.compare(moveX, that.moveX) == 0
+               && Double.compare(moveY, that.moveY) == 0
+               && shooting == that.shooting
+               && Double.compare(mouseX, that.mouseX) == 0
+               && Double.compare(mouseY, that.mouseY) == 0
+               && reload == that.reload
+               && placingObstacle == that.placingObstacle;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(moveX, moveY, shooting, mouseX, mouseY, reload, placingObstacle);
     }
 }

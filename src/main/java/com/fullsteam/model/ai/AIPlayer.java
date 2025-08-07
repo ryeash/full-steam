@@ -2,6 +2,7 @@ package com.fullsteam.model.ai;
 
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
+import com.fullsteam.SpatialGrid;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.Hazard;
@@ -14,6 +15,7 @@ import com.fullsteam.model.Vector2D;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -70,15 +72,15 @@ public class AIPlayer extends Player {
      * to engage enemies while performing other actions.
      *
      * @param gameState The current game mode's state information.
+     * @param playerGrid The spatial grid for proximity queries.
      * @return An Optional containing a ShootAction if the AI decides to shoot.
      */
-    public Optional<ShootAction> update(GameState gameState) {
+    public Optional<ShootAction> update(GameState gameState, SpatialGrid<Player> playerGrid) {
         if (isDead()) {
             setVelocity(Vector2D.ZERO);
             super.update();
             return Optional.empty();
         }
-        Collection<Player> allPlayers = gameState.players();
         List<Obstacle> obstacles = gameState.obstacles();
         List<Hazard> hazards = gameState.hazards();
 
@@ -86,6 +88,11 @@ public class AIPlayer extends Player {
         this.acceleration = Vector2D.ZERO;
 
         // --- Apply Steering Forces (in order of priority) ---
+        // 0. Highest priority: Get away from walls you are touching or about to touch.
+        // This acts as a "last resort" to prevent getting stuck.
+        Vector2D separationForce = calculateObstacleSeparationForce(obstacles);
+        applyForce(separationForce);
+
         // 1. High-priority: Avoid dangerous hazards.
         Vector2D hazardForce = calculateHazardAvoidanceForce(hazards);
         applyForce(hazardForce);
@@ -100,12 +107,47 @@ public class AIPlayer extends Player {
         // 4. Execute movement logic based on the current state, which adds more forces
         performMovement(obstacles);
 
-        // 5. Independently check for and execute shooting logic against any visible enemy
-        Optional<ShootAction> shootAction = checkForShootingOpportunity(allPlayers, obstacles);
+        // 5. Aiming and Shooting Logic
+        Player targetToShoot = findBestShootingTarget(playerGrid, obstacles);
+        Optional<ShootAction> shootAction = Optional.empty();
+
+        if (targetToShoot != null) {
+            // The AI has a target, so it should aim at it. This updates the visual angle.
+            double dx = targetToShoot.getX() - getX();
+            double dy = targetToShoot.getY() - getY();
+            double aimAngle = Math.atan2(dy, dx);
+            setMouseX(getCenter().x() + Math.cos(aimAngle) * 100);
+            setMouseY(getCenter().y() + Math.sin(aimAngle) * 100);
+
+            // Now, decide if we can actually shoot this frame.
+            if (canShoot()) {
+                boolean canFire = true;
+                // If the best target is our primary `currentTarget`, respect the AI's reaction time.
+                if (currentTarget == targetToShoot) {
+                    if (System.currentTimeMillis() - timeTargetAcquired < this.reactionTimeMs) {
+                        canFire = false; // Still "reacting"
+                    }
+                }
+
+                if (canFire) {
+                    // Use the shootWithInaccuracy method for the actual shot action
+                    shootAction = Optional.of(shootWithInaccuracy(dx, dy));
+                }
+            }
+        }
 
         // 6. Update player physics using steering
         // Update velocity by adding acceleration
-        setVelocity(getVelocity().add(this.acceleration).limit(getSpeed()));
+        Vector2D newVelocity = getVelocity().add(this.acceleration).limit(getSpeed());
+        setVelocity(newVelocity);
+
+        // If the AI has no target and is moving, make it "look" in the direction it's moving.
+        if (targetToShoot == null && newVelocity.magnitudeSq() > 0.01) {
+            double moveAngle = Math.atan2(newVelocity.y(), newVelocity.x());
+            setMouseX(getCenter().x() + Math.cos(moveAngle) * 100);
+            setMouseY(getCenter().y() + Math.sin(moveAngle) * 100);
+        }
+
         // Update position based on new velocity
         super.update();
 
@@ -156,43 +198,20 @@ public class AIPlayer extends Player {
     }
 
     /**
-     * Scans for any valid enemy to shoot, independent of the AI's current movement state.
-     *
-     * @return An Optional ShootAction if a valid target is found and the AI can fire.
-     */
-    private Optional<ShootAction> checkForShootingOpportunity(Collection<Player> allPlayers, List<Obstacle> obstacles) {
-        if (!canShoot()) {
-            return Optional.empty();
-        }
-
-        Player targetToShoot = findBestShootingTarget(allPlayers, obstacles);
-        if (targetToShoot == null) {
-            return Optional.empty();
-        }
-
-        // If the best target is our primary `currentTarget`, respect the AI's reaction time.
-        if (currentTarget == targetToShoot) {
-            if (System.currentTimeMillis() - timeTargetAcquired < this.reactionTimeMs) {
-                return Optional.empty(); // Still "reacting"
-            }
-        }
-
-        double dx = targetToShoot.getX() - getX();
-        double dy = targetToShoot.getY() - getY();
-        return Optional.of(shootWithInaccuracy(dx, dy));
-    }
-
-    /**
      * Finds the closest enemy player that is within weapon range and has a clear line of sight.
      *
      * @return The best Player to target, or null if no valid target exists.
      */
-    private Player findBestShootingTarget(Collection<Player> allPlayers, List<Obstacle> obstacles) {
+    private Player findBestShootingTarget(SpatialGrid<Player> playerGrid, List<Obstacle> obstacles) {
         Player bestTarget = null;
         double minDistanceSq = Double.MAX_VALUE;
-        double attackRangeSq = getWeapon().getBulletRange() * getWeapon().getBulletRange();
+        double attackRange = getWeapon().getBulletRange();
+        double attackRangeSq = attackRange * attackRange;
 
-        for (Player potentialTarget : allPlayers) {
+        // Query the grid for players within a box defined by the weapon's range
+        Set<Player> nearbyPlayers = playerGrid.getNearby(getX() - attackRange, getY() - attackRange, attackRange * 2, attackRange * 2);
+
+        for (Player potentialTarget : nearbyPlayers) {
             if (potentialTarget.getId().equals(this.getId()) || potentialTarget.isDead() || potentialTarget.getTeam() == this.getTeam()) {
                 continue;
             }
@@ -456,6 +475,36 @@ public class AIPlayer extends Player {
     }
 
     /**
+     * Calculates a strong, short-range repulsive force from nearby obstacles.
+     * This is a high-priority behavior designed to prevent the AI from getting
+     * stuck on walls or in corners. It creates a "personal space" bubble.
+     *
+     * @param obstacles A list of all obstacles on the map.
+     * @return A steering force vector pushing the AI away from close obstacles.
+     */
+    private Vector2D calculateObstacleSeparationForce(List<Obstacle> obstacles) {
+        Vector2D totalSeparationForce = Vector2D.ZERO;
+        double separationRadius = 50.0; // The "personal space" bubble radius.
+
+        for (Obstacle obstacle : obstacles) {
+            Vector2D closestPoint = findClosestPointOnObstacle(getCenter(), obstacle);
+            double distanceSq = getCenter().distanceSq(closestPoint);
+
+            // Only apply force if within the separation radius.
+            if (distanceSq < separationRadius * separationRadius) {
+                // Direction of the force is away from the closest point on the obstacle.
+                Vector2D fleeDirection = getCenter().subtract(closestPoint);
+
+                // The force is stronger the closer the AI is to the obstacle.
+                double strength = 1.0 - (Math.sqrt(distanceSq) / separationRadius);
+                Vector2D separationForce = fleeDirection.normalize().multiply(strength * AI_MAX_FORCE * 5.0); // High weight to override other behaviors.
+                totalSeparationForce = totalSeparationForce.add(separationForce);
+            }
+        }
+        return totalSeparationForce;
+    }
+
+    /**
      * Calculates a steering force based on nearby power-ups and powered-up enemies.
      * - It creates an avoidance force to flee from enemies with ARMOR or DAMAGE_BOOST.
      * - It creates an attraction force to seek out valuable power-ups.
@@ -464,11 +513,14 @@ public class AIPlayer extends Player {
      * @return A steering force vector representing the influence of power-ups.
      */
     private Vector2D calculatePowerUpInfluenceForce(GameState gameState) {
+        // Note: This method still iterates all players because it's checking for a status (power-up effect)
+        // rather than pure proximity. The number of powered-up players is usually very small, so this is acceptable.
+        // A more advanced implementation could use a separate list for powered-up players.
         Vector2D totalInfluenceForce = Vector2D.ZERO;
         long currentTime = System.currentTimeMillis();
 
         // 1. Avoid powered-up enemies
-        for (Player player : gameState.players()) {
+        for (Player player : gameState.players()) { // Iterating all players here is okay, as we check a status flag.
             if (player.getTeam() == this.getTeam() || player.isDead()) {
                 continue;
             }

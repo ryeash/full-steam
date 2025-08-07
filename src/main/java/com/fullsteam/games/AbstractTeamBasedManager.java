@@ -17,6 +17,7 @@ public abstract class AbstractTeamBasedManager extends AbstractGameStateManager 
     protected final TeamBalancer teamBalancer;
     protected boolean sentVictoryMessage = false;
     protected long roundEndTime = 0;
+    private boolean sent10SecondWarning = false;
 
     public AbstractTeamBasedManager(GameLobby gameLobby) {
         super(gameLobby);
@@ -57,12 +58,22 @@ public abstract class AbstractTeamBasedManager extends AbstractGameStateManager 
         resetScore();
         this.roundEndTime = System.currentTimeMillis() + (ROUND_DURATION_SECONDS * 1000);
         this.sentVictoryMessage = false;
+        this.sent10SecondWarning = false;
         super.startNewRound();
     }
 
     @Override
     protected void updateGame() {
         teamBalancer.balanceTeams(players);
+
+        // Check if we need to send the 10-second warning.
+        if (!isRoundOver && !sent10SecondWarning && roundEndTime > 0) {
+            long remainingMillis = roundEndTime - System.currentTimeMillis();
+            if (remainingMillis > 0 && remainingMillis <= 10_000) {
+                sendGameEvent(GameEvent.yellow("10 seconds remaining!"));
+                sent10SecondWarning = true;
+            }
+        }
         super.updateGame();
     }
 }

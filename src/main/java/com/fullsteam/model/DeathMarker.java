@@ -9,7 +9,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
  * @param y              The y-coordinate of the death location.
  * @param expirationTime The system time (in ms) when this marker should be removed.
  */
-public record DeathMarker(double x,
+public record DeathMarker(long id,
+                          double x,
                           double y,
-                          @JsonIgnore long expirationTime) {
+                          @JsonIgnore long expirationTime) implements HasId {
+    @Override
+    public long getId() {
+        return 0;
+    }
 }

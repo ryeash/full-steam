@@ -145,7 +145,7 @@ public class BuilderManager extends AbstractGameStateManager {
         double dx = input.getMouseX() - (player.getX() + PLAYER_SIZE / 2.0);
         double dy = input.getMouseY() - (player.getY() + PLAYER_SIZE / 2.0);
         double length = Math.sqrt(dx * dx + dy * dy);
-        double baseAngle = (length > 0.1) ? Math.atan2(dy, dx) : player.getAngle();
+        double baseAngle = (length > 0.1) ? Math.atan2(dy, dx) : 0.0D;
 
         // Calculate the ideal placement location.
         double idealX = player.getX() + (PLAYER_SIZE / 2.0) - (CRATE_SIZE / 2.0) + Math.cos(baseAngle) * PLACEMENT_DISTANCE;

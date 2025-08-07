@@ -4,6 +4,7 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.Jackson;
+import com.fullsteam.SpatialGrid;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.Bullet;
 import com.fullsteam.model.BulletEffect;
@@ -16,6 +17,7 @@ import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
+import com.fullsteam.model.PoisonCloud;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.PowerUpType;
 import com.fullsteam.model.Vector2D;
@@ -26,18 +28,20 @@ import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.DeathmatchAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import io.netty.channel.Channel;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -50,6 +54,7 @@ import static com.fullsteam.Config.GAME_WIDTH;
 import static com.fullsteam.Config.HAZARD_COUNT;
 import static com.fullsteam.Config.HAZARD_DAMAGE_FACTOR;
 import static com.fullsteam.Config.HAZARD_SLOW_FACTOR;
+import static com.fullsteam.Config.ID_COUNTER;
 import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
 import static com.fullsteam.Config.OBSTACLE_COUNT;
 import static com.fullsteam.Config.PLAYER_SIZE;
@@ -72,19 +77,21 @@ public abstract class AbstractGameStateManager {
     protected final Map<String, Player> players = new ConcurrentHashMap<>();
     protected final Map<String, Channel> playerChannels = new ConcurrentHashMap<>();
     protected final Map<String, PlayerInput> playerInput = new ConcurrentHashMap<>();
-    protected final List<Bullet> bullets = new CopyOnWriteArrayList<>();
-    protected final List<Explosion> explosions = new CopyOnWriteArrayList<>();
-    protected final List<Obstacle> obstacles = new CopyOnWriteArrayList<>();
-    protected final List<Hazard> hazards = new CopyOnWriteArrayList<>();
-    protected final List<DeathMarker> deathMarkers = new CopyOnWriteArrayList<>();
-    protected final List<GameEvent> gameEvents = new CopyOnWriteArrayList<>();
-    protected final List<PowerUp> powerUps = new CopyOnWriteArrayList<>();
+    protected final List<Channel> spectatorChannels = Collections.synchronizedList(new LinkedList<>());
+    protected final List<Bullet> bullets = Collections.synchronizedList(new LinkedList<>());
+    protected final List<Explosion> explosions = Collections.synchronizedList(new LinkedList<>());
+    protected final List<PoisonCloud> poisonClouds = Collections.synchronizedList(new LinkedList<>());
+    protected final List<Obstacle> obstacles = Collections.synchronizedList(new LinkedList<>());
+    protected final List<Hazard> hazards = Collections.synchronizedList(new LinkedList<>());
+    protected final List<DeathMarker> deathMarkers = Collections.synchronizedList(new LinkedList<>());
+    protected final List<PowerUp> powerUps = Collections.synchronizedList(new LinkedList<>());
+    protected final SpatialGrid<Player> playerGrid;
     protected boolean isRoundOver = false;
-    protected ScheduledFuture<?> scheduledFuture;
-
+    protected ScheduledFuture<?> gameLoopHook;
 
     public AbstractGameStateManager(GameLobby gameLobby) {
         this.gameLobby = gameLobby;
+        this.playerGrid = new SpatialGrid<>(GAME_WIDTH, GAME_HEIGHT, 100, 100);
     }
 
     public abstract String gameType();
@@ -93,8 +100,29 @@ public abstract class AbstractGameStateManager {
         return gameId;
     }
 
+    public void sendGameEvent(String message, GameEvent.EventType type) {
+        sendGameEvent(new GameEvent(message, type, Config.GAME_EVENT_DURATION_MS, null));
+    }
+
     public void sendGameEvent(GameEvent gameEvent) {
-        gameEvents.add(gameEvent);
+        Map<String, Object> message = Map.of(
+                "type", "gameEvent",
+                "event", gameEvent
+        );
+        BinaryWebSocketFrame frame = Jackson.msgPackFrame(message);
+
+        if (gameEvent.playerId() != null) {
+            // Private message for one player
+            Channel channel = playerChannels.get(gameEvent.playerId());
+            if (channel != null && channel.isActive()) {
+                channel.writeAndFlush(frame.retainedDuplicate());
+            }
+        } else {
+            // Broadcast to all players and spectators
+            playerChannels.values().forEach(ch -> ch.writeAndFlush(frame.retainedDuplicate()));
+            spectatorChannels.forEach(ch -> ch.writeAndFlush(frame.retainedDuplicate()));
+        }
+        frame.release();
     }
 
     public boolean isFull() {
@@ -112,7 +140,7 @@ public abstract class AbstractGameStateManager {
     public void startGameLoop() {
         startNewRound();
         // The TeamBalancer will automatically add AI players, so the initial call is no longer needed.
-        this.scheduledFuture = Config.EXECUTOR.scheduleAtFixedRate(this::updateGame, 0, 1000 / TICK_RATE, TimeUnit.MILLISECONDS);
+        this.gameLoopHook = Config.EXECUTOR.scheduleAtFixedRate(this::updateGame, 0, 1000 / TICK_RATE, TimeUnit.MILLISECONDS);
         log.info("Game loop started at {} FPS", TICK_RATE);
     }
 
@@ -128,6 +156,16 @@ public abstract class AbstractGameStateManager {
         playerChannels.put(playerId, channel);
         log.info("Player {} joined team {} at position ({}, {})", playerId, team, player.getX(), player.getY());
         return player;
+    }
+
+    public void addSpectator(Channel channel) {
+        spectatorChannels.add(channel);
+        log.info("Spectator {} joined game {}", channel.id().asShortText(), gameId);
+    }
+
+    public void removeSpectator(Channel channel) {
+        spectatorChannels.remove(channel);
+        log.info("Spectator {} left game {}", channel.id().asShortText(), gameId);
     }
 
     /**
@@ -156,8 +194,10 @@ public abstract class AbstractGameStateManager {
         if (player == null) {
             return;
         }
-        player.setLastInputTime(System.currentTimeMillis());
-        playerInput.put(playerId, input);
+        PlayerInput previousInput = playerInput.put(playerId, input);
+        if (!Objects.equals(previousInput, input)) {
+            player.setLastInputTime(System.currentTimeMillis());
+        }
     }
 
     public void handlePlayerInput(String playerId, PlayerInput input) {
@@ -168,6 +208,10 @@ public abstract class AbstractGameStateManager {
         if (player.isDead()) {
             return;
         }
+
+        // Update the player's aim direction from the input
+        player.setMouseX(input.getMouseX());
+        player.setMouseY(input.getMouseY());
 
         // Handle movement
         double moveX = input.getMoveX();
@@ -218,36 +262,6 @@ public abstract class AbstractGameStateManager {
                 player.startReload();
             }
         }
-
-        // Handle weapon cycle with a 500ms cooldown
-        if (input.isWeaponCycle()) {
-            if (System.currentTimeMillis() - player.getLastWeaponChangeTime() > 500) {
-                cyclePlayerWeapon(player);
-                player.setLastWeaponChangeTime(System.currentTimeMillis());
-            }
-        }
-    }
-
-    private void cyclePlayerWeapon(Player player) {
-        if (player == null || player.isDead()) {
-            return;
-        }
-
-        // Get the list of all available weapon names
-        List<String> weaponNames = WeaponFactory.weaponOptions();
-
-        // Find the index of the player's current weapon
-        String currentWeaponName = player.getWeapon().getName();
-        int currentIndex = weaponNames.indexOf(currentWeaponName);
-
-        // Calculate the index of the next weapon, wrapping around to the start
-        int nextIndex = (currentIndex + 1) % weaponNames.size();
-
-        // Get the new weapon from the factory and set it on the player
-        Weapon newWeapon = WeaponFactory.getWeapon(weaponNames.get(nextIndex));
-        player.setWeapon(newWeapon);
-
-        log.info("Player {} cycled weapon to {}", player.getId(), newWeapon.getName());
     }
 
     protected void fireWeapon(Player player, double aimAngle) {
@@ -287,6 +301,7 @@ public abstract class AbstractGameStateManager {
 
     protected void updateGame() {
         try {
+            populateSpatialGrids();
             if (!isRoundOver) {
                 isRoundOver = checkEndConditions();
                 if (isRoundOver) {
@@ -297,14 +312,21 @@ public abstract class AbstractGameStateManager {
             checkAfkPlayers();
             checkAndRespawnPlayers();
             updateDeathMarkers();
-            updateGameEvents();
             updatePowerUps();
             updatePlayers();
             updateBullets();
             updateExplosions();
+            updatePoisonClouds();
             sendGameState();
         } catch (Throwable t) {
             log.error("error executing game loop", t);
+        }
+    }
+
+    private void populateSpatialGrids() {
+        playerGrid.clear();
+        for (Player player : players.values()) {
+            playerGrid.insert(player, player.getX(), player.getY(), PLAYER_SIZE, PLAYER_SIZE);
         }
     }
 
@@ -319,7 +341,8 @@ public abstract class AbstractGameStateManager {
                 double radiusSq = explosion.getSize() * explosion.getSize();
                 Player shooter = players.get(explosion.getShooterId());
 
-                for (Player p : players.values()) {
+                Set<Player> nearbyPlayers = playerGrid.getNearby(explosion.getX() - explosion.getSize(), explosion.getY() - explosion.getSize(), explosion.getSize() * 2, explosion.getSize() * 2);
+                for (Player p : nearbyPlayers) {
                     if (p.isDead()) {
                         continue;
                     }
@@ -344,23 +367,39 @@ public abstract class AbstractGameStateManager {
     }
 
     /**
-     * Removes events that have expired.
+     * Handles the lifecycle of poison clouds, applying damage over time and removing them when expired.
      */
-    protected void updateGameEvents() {
-        gameEvents.removeIf(event -> System.currentTimeMillis() >= event.expirationTime());
-    }
+    protected void updatePoisonClouds() {
+        long currentTime = System.currentTimeMillis();
+        for (PoisonCloud cloud : poisonClouds) {
+            // Damage players inside the cloud, ticking every 500ms
+            if (currentTime > cloud.getLastDamageTickTime() + 500) {
+                Vector2D cloudCenter = new Vector2D(cloud.getX(), cloud.getY());
+                double radiusSq = cloud.getRadius() * cloud.getRadius();
+                Player shooter = players.get(cloud.getShooterId());
 
-    /**
-     * Adds a new event to be displayed to clients.
-     *
-     * @param message    The text to display.
-     * @param type       The type of event.
-     * @param durationMs How long the event should stay on screen.
-     */
-    protected void addGameEvent(String message, GameEvent.EventType type, long durationMs) {
-        long expiration = System.currentTimeMillis() + durationMs;
-        gameEvents.add(new GameEvent(message, type, null, expiration));
-        log.info("New Game Event: {}", message);
+                Set<Player> nearbyPlayers = playerGrid.getNearby(cloud.getX() - cloud.getRadius(), cloud.getY() - cloud.getRadius(), cloud.getRadius() * 2, cloud.getRadius() * 2);
+                for (Player p : nearbyPlayers) {
+                    if (p.isDead()) {
+                        continue;
+                    }
+                    // Prevent friendly fire, but allow self-damage
+                    if (shooter != null && p.getTeam() == shooter.getTeam() && !p.getId().equals(shooter.getId())) {
+                        continue;
+                    }
+
+                    if (p.getCenter().distanceSq(cloudCenter) < radiusSq) {
+                        if (p.takeDamage(cloud.getDamagePerTick())) {
+                            killPlayer(p, shooter);
+                        }
+                    }
+                }
+                cloud.setLastDamageTickTime(currentTime);
+            }
+        }
+
+        // Remove any clouds that have exceeded their visual duration.
+        poisonClouds.removeIf(PoisonCloud::isExpired);
     }
 
     protected abstract boolean checkEndConditions();
@@ -374,7 +413,7 @@ public abstract class AbstractGameStateManager {
             // Clear transient game objects
             bullets.clear();
             deathMarkers.clear();
-            gameEvents.clear();
+            poisonClouds.clear();
             powerUps.clear();
 
             generateObstacles();
@@ -389,7 +428,7 @@ public abstract class AbstractGameStateManager {
                 setValidSpawnPosition(player); // Move them to a spawn point
                 if (!(player instanceof AIPlayer)) {
                     playerChannels.get(player.getId())
-                            .writeAndFlush(new TextWebSocketFrame(Jackson.writeValueAsString(new WelcomeMessage(player.getId(), player.getTeam(), gameId))));
+                            .writeAndFlush(Jackson.msgPackFrame(new WelcomeMessage(player.getId(), player.getTeam(), gameId)));
                 }
             }
 
@@ -402,8 +441,7 @@ public abstract class AbstractGameStateManager {
 
 
     protected void updateDeathMarkers() {
-        long currentTime = System.currentTimeMillis();
-        deathMarkers.removeIf(marker -> currentTime >= marker.expirationTime());
+        deathMarkers.removeIf(marker -> System.currentTimeMillis() >= marker.expirationTime());
     }
 
     /**
@@ -417,12 +455,6 @@ public abstract class AbstractGameStateManager {
             Player player = entry.getValue();
             // We don't want to kick AI players
             if (player instanceof AIPlayer) {
-                continue;
-            }
-
-            // don't expect dead players to do anything
-            if (player.isDead()) {
-                player.setLastInputTime(System.currentTimeMillis());
                 continue;
             }
 
@@ -450,10 +482,10 @@ public abstract class AbstractGameStateManager {
                 players.values(),
                 bullets,
                 explosions,
+                poisonClouds,
                 obstacles,
                 hazards,
                 deathMarkers,
-                gameEvents,
                 powerUps,
                 System.currentTimeMillis(),
                 null
@@ -502,7 +534,7 @@ public abstract class AbstractGameStateManager {
 
             // Let the AI make its decisions first, then apply movement
             if (player instanceof AIPlayer ai) {
-                Optional<AIPlayer.ShootAction> shootAction = ai.update(gameState);
+                Optional<AIPlayer.ShootAction> shootAction = ai.update(gameState, playerGrid);
                 if (shootAction.isPresent()) {
                     if (ai.canShoot()) {
                         AIPlayer.ShootAction action = shootAction.get();
@@ -525,7 +557,6 @@ public abstract class AbstractGameStateManager {
             if (isColliding(player, obstacles)) {
                 // Player's new position is invalid. Attempt to slide along the obstacle.
                 // This is done by testing movement on each axis independently.
-                // ... (the rest of the sliding logic)
                 // First, try moving only on the Y axis.
                 player.setX(oldX);
                 if (isColliding(player, obstacles)) {
@@ -582,7 +613,13 @@ public abstract class AbstractGameStateManager {
             }
 
             // Check bullet-player collisions using the line segment
-            for (Player player : players.values()) {
+            double sx = Math.min(oldPos.x(), newPos.x());
+            double sy = Math.min(oldPos.y(), newPos.y());
+            double w = Math.abs(oldPos.x() - newPos.x());
+            double h = Math.abs(oldPos.y() - newPos.y());
+            Set<Player> nearbyPlayers = playerGrid.getNearby(sx, sy, w, h);
+
+            for (Player player : nearbyPlayers) {
                 // Check for collision with an enemy player
                 if (!player.isDead() && player.getTeam() != bullet.getTeam()) {
                     Vector2D playerCenter = new Vector2D(player.getX() + PLAYER_SIZE / 2, player.getY() + PLAYER_SIZE / 2);
@@ -612,6 +649,8 @@ public abstract class AbstractGameStateManager {
     protected void applyBulletEffect(BulletEffect bulletEffect) {
         if (bulletEffect instanceof Explosion e) {
             explosions.add(e);
+        } else if (bulletEffect instanceof PoisonCloud pc) {
+            poisonClouds.add(pc);
         } else {
             throw new UnsupportedOperationException("unknown effect: " + bulletEffect);
         }
@@ -636,11 +675,25 @@ public abstract class AbstractGameStateManager {
             log.info("Player {} was eliminated by a disconnected player or a hazard.", victim.getId());
         }
 
+        // If an AI player's performance is unbalanced, give it a new random weapon.
+        // This helps prevent an AI from getting stuck with a weapon it's ineffective
+        // with or dominating too easily with one it's very good with.
+        if (victim instanceof AIPlayer) {
+            int kills = victim.getKills();
+            int deaths = victim.getDeaths();
+            // After at least 3 deaths, check if the kill-death difference is significant.
+            if (deaths >= 3 && Math.abs(kills - deaths) > 5) {
+                Weapon oldWeapon = victim.getWeapon();
+                victim.setWeapon(WeaponFactory.getRandomWeapon());
+                log.info("{} performance (K/D: {}/{}) triggered a weapon change from {} to {}.", victim.getPlayerName(), kills, deaths, oldWeapon.getName(), victim.getWeapon().getName());
+            }
+        }
+
         // Add the death marker
         double markerX = victim.getX() + (PLAYER_SIZE / 2); // Center of the player
         double markerY = victim.getY() + (PLAYER_SIZE / 2);
         long expiration = System.currentTimeMillis() + DEATH_MARKER_DURATION_MS;
-        deathMarkers.add(new DeathMarker(markerX, markerY, expiration));
+        deathMarkers.add(new DeathMarker(ID_COUNTER.incrementAndGet(), markerX, markerY, expiration));
 
         if (ThreadLocalRandom.current().nextDouble() < 0.25) { // 25% chance to drop a power-up
             spawnPowerUp(new Vector2D(victim.getX(), victim.getY()));
@@ -657,7 +710,8 @@ public abstract class AbstractGameStateManager {
     protected void updatePowerUps() {
         List<PowerUp> consumedPowerUps = new ArrayList<>();
         for (PowerUp powerUp : powerUps) {
-            for (Player player : players.values()) {
+            Set<Player> nearbyPlayers = playerGrid.getNearby(powerUp.getPosition().x() - PLAYER_SIZE, powerUp.getPosition().y() - PLAYER_SIZE, PLAYER_SIZE * 2, PLAYER_SIZE * 2);
+            for (Player player : nearbyPlayers) {
                 if (!player.isDead() && isColliding(player, powerUp)) {
                     applyPowerUp(player, powerUp);
                     consumedPowerUps.add(powerUp);
@@ -716,40 +770,51 @@ public abstract class AbstractGameStateManager {
      */
     protected abstract GameInfo buildGameState();
 
-    protected List<GameEvent> eventsForPlayer(String playerId) {
-        return gameEvents.stream()
-                .filter(ge -> ge.playerId() == null || Objects.equals(ge.playerId(), playerId))
-                .toList();
-    }
-
     protected void sendGameState() {
         GameInfo gameInfo = buildGameState();
 
-        // Iterate over the entry set to have access to both the playerId and the channel
+        GameState state = new GameState(
+                players.values(),
+                bullets,
+                explosions,
+                poisonClouds,
+                obstacles,
+                hazards,
+                deathMarkers, // null playerId gets only public events
+                powerUps,
+                System.currentTimeMillis(),
+                gameInfo
+        );
+        BinaryWebSocketFrame frame = Jackson.msgPackFrame(state);
+
+        // Send state to all players
         playerChannels.forEach((playerId, channel) -> {
             if (channel.isActive() && channel.isOpen()) {
-                GameState gameState = new GameState(
-                        players.values(),
-                        bullets,
-                        explosions,
-                        obstacles,
-                        hazards,
-                        deathMarkers,
-                        eventsForPlayer(playerId),
-                        powerUps,
-                        System.currentTimeMillis(),
-                        gameInfo
-                );
-                String json = Jackson.writeValueAsString(gameState);
-                channel.writeAndFlush(new TextWebSocketFrame(json)).addListener(future -> {
+                channel.writeAndFlush(frame.retainedDuplicate()).addListener(future -> { // retainedDuplicate is crucial
                     if (!future.isSuccess()) {
                         log.error("Failed to send game state to player {}. Closing channel.", playerId, future.cause());
-                        channel.close(); // This will trigger removal in the handler
+                        channel.close();
                     }
                 });
             }
-            // Removing inactive channels here is better handled by the channelInactive handler in GameWebSocketHandler
         });
+
+        // Send to all spectators
+        if (!spectatorChannels.isEmpty()) {
+            for (Channel spectatorChannel : spectatorChannels) {
+                if (spectatorChannel.isActive() && spectatorChannel.isOpen()) {
+                    spectatorChannel.writeAndFlush(frame.retainedDuplicate()).addListener(future -> {
+                        if (!future.isSuccess()) {
+                            log.error("Failed to send game state to spectator {}. Closing channel.", spectatorChannel.id().asShortText(), future.cause());
+                            spectatorChannel.close();
+                        }
+                    });
+                }
+            }
+        }
+
+        // Release the original frame after all sends are initiated.
+        frame.release();
     }
 
     protected void generateObstacles() {
@@ -868,7 +933,7 @@ public abstract class AbstractGameStateManager {
                 // Kill the player to force a respawn on the new team's side
                 killPlayer(player, null);
                 playerChannels.get(player.getId())
-                        .writeAndFlush(new TextWebSocketFrame(Jackson.writeValueAsString(new WelcomeMessage(player.getId(), player.getTeam(), gameId))));
+                        .writeAndFlush(Jackson.msgPackFrame(new WelcomeMessage(player.getId(), player.getTeam(), gameId)));
                 log.info("Player {} switched to team {}", playerId, otherTeam);
             } else {
                 // TODO: refactor GameEvent to support sending message to specific players
@@ -895,12 +960,12 @@ public abstract class AbstractGameStateManager {
                 hazards.add(new Hazard(hazardType, new Vector2D(Config.GAME_WIDTH - x, Config.GAME_HEIGHT - y), radius, radius * radius, effectValue));
             }
         }
-        log.info("Generated {} slowing hazards.", hazards.size());
     }
 
     public void shutdown() {
-        if (scheduledFuture != null) {
-            scheduledFuture.cancel(true);
+        spectatorChannels.forEach(Channel::close);
+        if (gameLoopHook != null) {
+            gameLoopHook.cancel(true);
         }
     }
 

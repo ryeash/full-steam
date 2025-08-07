@@ -1,9 +1,9 @@
 package com.fullsteam.model;
 
-import java.util.UUID;
+import com.fullsteam.Config;
 
-public class Crate {
-    private final String id;
+public class Crate implements HasId {
+    private final long id;
     private final String ownerId;
     private final double x;
     private final double y;
@@ -12,7 +12,7 @@ public class Crate {
     private final double maxHp;
 
     public Crate(String ownerId, double x, double y, double size, double hp) {
-        this.id = UUID.randomUUID().toString();
+        this.id = Config.ID_COUNTER.incrementAndGet();
         this.ownerId = ownerId;
         this.x = x;
         this.y = y;
@@ -21,7 +21,8 @@ public class Crate {
         this.maxHp = hp;
     }
 
-    public String getId() {
+    @Override
+    public long id() {
         return id;
     }
 

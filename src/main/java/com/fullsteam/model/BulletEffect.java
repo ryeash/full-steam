@@ -1,4 +1,4 @@
 package com.fullsteam.model;
 
-public interface BulletEffect {
+public interface BulletEffect extends HasId {
 }

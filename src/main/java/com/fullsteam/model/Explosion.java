@@ -1,8 +1,10 @@
 package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fullsteam.Config;
 
 public class Explosion implements BulletEffect {
+    private final long id;
     private final double x;
     private final double y;
     private final String shooterId;
@@ -16,6 +18,7 @@ public class Explosion implements BulletEffect {
     private boolean damageApplied = false;
 
     public Explosion(double x, double y, String shooterId, int team, double size, double damage, long duration) {
+        this.id = Config.ID_COUNTER.incrementAndGet();
         this.x = x;
         this.y = y;
         this.shooterId = shooterId;
@@ -46,6 +49,11 @@ public class Explosion implements BulletEffect {
                 50, // size/radius
                 75, // damage
                 300); // duration ms
+    }
+
+    @Override
+    public long id() {
+        return id;
     }
 
     public double getX() {

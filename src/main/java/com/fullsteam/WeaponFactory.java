@@ -1,6 +1,7 @@
 package com.fullsteam;
 
 import com.fullsteam.model.Explosion;
+import com.fullsteam.model.PoisonCloud;
 import com.fullsteam.model.Weapon;
 
 import java.util.List;
@@ -169,6 +170,66 @@ public class WeaponFactory {
                 Explosion::grenade
         ));
 
+        addPreset(new Weapon(
+                "Poison Launcher",
+                "P",
+                2, // Fire Rate
+                0, // Damage (damage is from the cloud)
+                14,// Range
+                8, // Speed
+                2, // Speed Decay
+                5, // Accuracy
+                0, // Multi-shot
+                0, // Magazine Size
+                9, // Reload Speed
+                PoisonCloud::create
+        ));
+
+        addPreset(new Weapon(
+                "Marksman Rifle",
+                "MR",
+                10, // Fire Rate
+                30, // Damage
+                15, // Range
+                12, // Speed
+                6,  // Speed Decay
+                14, // Accuracy
+                0,  // Multi-shot
+                5,  // Magazine Size
+                8,  // Reload Speed
+                null
+        ));
+
+        addPreset(new Weapon(
+                "Tactical Rifle",
+                "TR",
+                8,  // Fire Rate
+                12, // Damage
+                8,  // Range
+                10, // Speed
+                8,  // Speed Decay
+                12, // Accuracy
+                20, // Multi-shot (3-round burst)
+                10, // Magazine Size
+                12, // Reload Speed
+                null
+        ));
+
+        addPreset(new Weapon(
+                "Hand Cannon",
+                "REV", // Revolver
+                3,  // Fire Rate
+                55, // Damage
+                4,  // Range
+                15, // Speed
+                8,  // Speed Decay
+                11, // Accuracy
+                0,  // Multi-shot
+                0,  // Magazine Size (6 shots)
+                4,  // Reload Speed
+                null
+        ));
+
         // Pre-sort the weapon names for faster access.
         weaponNames = weaponPresets.keySet().stream().sorted().toList();
 
@@ -191,7 +252,7 @@ public class WeaponFactory {
             0,
             0,
             10,
-            4,
+            19,
             20,
             null
     );

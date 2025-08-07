@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class Obstacle {
+public class Obstacle implements HasId {
 
     private static final AtomicLong idCounter = new AtomicLong(0);
 
@@ -26,7 +26,8 @@ public class Obstacle {
         this.ownerId = ownerId;
     }
 
-    public long getId() {
+    @Override
+    public long id() {
         return id;
     }
 

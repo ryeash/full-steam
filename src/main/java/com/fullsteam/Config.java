@@ -3,6 +3,7 @@ package com.fullsteam;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 public class Config {
@@ -30,6 +31,10 @@ public class Config {
     // global scheduler
     public static final ScheduledExecutorService EXECUTOR = Executors.newScheduledThreadPool(8);
 
+    // global ID assignment
+    public static final AtomicLong ID_COUNTER = new AtomicLong();
+
+
     // --- Server Configuration ---
     public static final int PORT = getInt("server.port", 8080);
 
@@ -46,7 +51,6 @@ public class Config {
     public static final int MAX_GLOBAL_PLAYERS = getInt("lobby.max_global_players", 50);
 
     // Game
-    public static final long AFK_TIMEOUT_MS = getLong("game.afk_timeout_ms", 30_000);
     public static final int GAME_WIDTH = getInt("game.width", 1000);
     public static final int GAME_HEIGHT = getInt("game.height", 800);
     public static final int TICK_RATE = getInt("game.tick_rate", 60);
@@ -60,6 +64,7 @@ public class Config {
     public static final double DEFAULT_PLAYER_SPEED = getDouble("game.default_player_speed", 3.0);
     public static final double ZOMBIE_SPEED = getDouble("game.zombie_speed", 1.2); // Slower than players
     public static final long ROUND_DURATION_SECONDS = getLong("game.round_duration_s", 180);
+    public static final long AFK_TIMEOUT_MS = getLong("game.afk_timeout_ms", (ROUND_DURATION_SECONDS * 1000) + 10_000L);
     public static final double SPAWN_HORIZONTAL_PADDING = getDouble("game.spawn_padding_h", 50.0);
     public static final double SPAWN_VERTICAL_PADDING = getDouble("game.spawn_padding_v", 50.0);
     public static final double SPAWN_MIDFIELD_BUFFER = getDouble("game.spawn_midfield_buffer", 100.0);
@@ -92,7 +97,7 @@ public class Config {
     public static final double KOTH_HILL_KEEP_OUT_RADIUS = getDouble("game.koth.hill_keep_out_radius", 125.0);
 
     // --- Oddball Game Mode ---
-    public static final double ODDBALL_SCORE_TO_WIN = getDouble("game.oddball.score_to_win", 150.0);
+    public static final double ODDBALL_SCORE_TO_WIN = getDouble("game.oddball.score_to_win", (double) ROUND_DURATION_SECONDS / 2);
     public static final double ODDBALL_POINTS_PER_SECOND = getDouble("game.oddball.points_per_second", 1.0);
     public static final double ODDBALL_BALL_PICKUP_RADIUS = getDouble("game.oddball.ball_pickup_radius", 30.0);
     public static final long ODDBALL_BALL_RESET_TIMEOUT_MS = getLong("game.oddball.ball_reset_timeout_ms", 15_000);
@@ -110,6 +115,7 @@ public class Config {
 
     // --- Lone Wolf Game Mode ---
     public static final double LONE_WOLF_HEALTH_MULTIPLIER = getDouble("game.lonewolf.health_multiplier", 5.0);
+    public static final int LONE_WOLF_LIVES = getInt("game.lonewolf.lives", 3);
     public static final double LONE_WOLF_DAMAGE_BOOST_PER_DEATH = getDouble("game.lonewolf.damage_boost_per_death", 0.50);
 
     // --- Builder Game Mode ---

@@ -19,6 +19,7 @@ dependencies {
     implementation "io.netty:netty-codec-http:${nettyVersion}"
     implementation "io.netty:netty-handler:${nettyVersion}"
     implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+    implementation "org.msgpack:jackson-dataformat-msgpack:0.9.10"
     implementation "ch.qos.logback:logback-classic:${logbackVersion}"
     implementation 'org.apache.commons:commons-lang3:3.18.0'
 

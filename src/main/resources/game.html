@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Top-Down Shooter</title>
+    <script src="https://unpkg.com/@msgpack/msgpack@2.7.2/dist.es5+umd/msgpack.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -356,6 +357,14 @@
                     this.elements.yourTeam.style.display = 'none';
                     this.elements.switchTeamBtn.style.display = 'none';
                 },
+                'Gun Master': (info) => {
+                    this.game.shouldDrawRespawnOverlay = true;
+                    this.elements.team1Score.style.display = 'none';
+                    this.elements.team2Score.style.display = 'none';
+                    this.elements.yourTeam.style.display = 'none';
+                    this.elements.switchTeamBtn.style.display = 'none';
+                    this.doc.getElementById('weaponSelector').parentElement.style.display = 'none';
+                },
                 'Zombie Defense': (info) => {
                     this.game.shouldDrawRespawnOverlay = false;
                     this.elements.yourTeam.style.display = 'none';
@@ -408,6 +417,15 @@
                     this.elements.team1Scoreboard.style.display = 'none';
                     this.elements.team2Scoreboard.style.display = 'none';
                     this.elements.ffaScoreboard.style.display = 'block';
+                    this.elements.ffaList.innerHTML = '';
+                    const sortedPlayers = [...players].sort((a, b) => b.kills - a.kills);
+                    sortedPlayers.forEach(p => this.elements.ffaList.appendChild(this.createPlayerEntry(p, playerId)));
+                },
+                'Gun Master': (players, playerId) => {
+                    this.elements.team1Scoreboard.style.display = 'none';
+                    this.elements.team2Scoreboard.style.display = 'none';
+                    this.elements.ffaScoreboard.style.display = 'block';
+
                     this.elements.ffaList.innerHTML = '';
                     const sortedPlayers = [...players].sort((a, b) => b.kills - a.kills);
                     sortedPlayers.forEach(p => this.elements.ffaList.appendChild(this.createPlayerEntry(p, playerId)));
@@ -501,6 +519,7 @@
 
     class Game {
         constructor() {
+            this.decoder = new MessagePack.Decoder();
             this.canvas = document.getElementById('gameCanvas');
             this.ctx = this.canvas.getContext('2d');
             this.ws = null;
@@ -511,10 +530,13 @@
             this.playerTeam = null;
             this.isLocalPlayerDead = false;
             this.shouldDrawRespawnOverlay = true;
+            this.isSpectator = false;
+            this.gameEvents = [];
             this.gamepad = null;
             this.isGamepadActive = false;
             this.gamepadAim = { x: 1, y: 0 };
             this.gamepadMoveDir = { x: 0, y: 0 };
+            this.weaponNames = [];
             this.gamepadWeaponSwapPressed = false;
 
             this.latency = 0;
@@ -534,24 +556,36 @@
         }
 
         resetGameState() {
-            this.gameState = { players: [], bullets: [], obstacles: [], deathMarkers: [], events: [], powerUps: [], info: null, serverTime: 0 };
+            this.gameState = { players: [], bullets: [], explosions: [], poisonClouds: [], obstacles: [], deathMarkers: [], powerUps: [], info: null, serverTime: 0 };
+            this.gameEvents = [];
         }
 
         connect() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const urlParams = new URLSearchParams(window.location.search);
+            const isSpectator = urlParams.get('spectate') === 'true';
             const gameId = urlParams.get('gameId') || 'null';
             const gameType = urlParams.get('gameType') || 'null';
-            let wsUrl = `${protocol}//${location.hostname}:${location.port}/game/${gameId}/${gameType}`;
+            let wsUrl;
+
+            if (isSpectator) {
+                wsUrl = `${protocol}//${location.hostname}:${location.port}/game/${gameId}/spectate`;
+                this.enterSpectatorMode();
+            } else {
+                wsUrl = `${protocol}//${location.hostname}:${location.port}/game/${gameId}/${gameType}`;
+            }
 
             this.ws = new WebSocket(wsUrl);
+            this.ws.binaryType = "arraybuffer";
 
             this.backgroundCanvas.width = this.canvas.width;
             this.backgroundCanvas.height = this.canvas.height;
 
             this.ws.onopen = () => {
-                document.getElementById('status').textContent = 'Connected';
-                document.getElementById('status').style.color = '#4CAF50';
+                if (!this.isSpectator) {
+                    document.getElementById('status').textContent = 'Connected';
+                    document.getElementById('status').style.color = '#4CAF50';
+                }
                 setInterval(() => {
                     this.pingStartTime = Date.now();
                     this.ws.send(JSON.stringify({ type: 'ping' }));
@@ -559,7 +593,15 @@
             };
 
             this.ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
+                let data;
+                // Check if the data is binary (ArrayBuffer) or text (String)
+                if (event.data instanceof ArrayBuffer) {
+                    // Decode the MessagePack payload
+                    data = this.decoder.decode(event.data);
+                } else {
+                    // Fallback for text-based messages like welcome, pong, etc.
+                    data = JSON.parse(event.data);
+                }
 
                 if (data.type === 'pong') {
                     this.latency = Date.now() - this.pingStartTime;
@@ -584,6 +626,9 @@
                     if (data.weaponOptions) {
                         this.populateWeaponSelector(data.weaponOptions);
                     }
+                } else if (data.type === 'gameEvent') {
+                    const event = data.event;
+                    this.gameEvents.push(event);
                 } else {
                     this.gameState = data;
                     this.uiManager.update(this.gameState);
@@ -603,9 +648,20 @@
 
         setupEventListeners() {
             document.addEventListener('keydown', (e) => {
+                // Don't register game key-presses if the user is typing in an input field.
+                const activeEl = document.activeElement;
+                if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+                    return;
+                }
                 this.keys[e.code] = true;
             });
-            document.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
+            document.addEventListener('keyup', (e) => {
+                const activeEl = document.activeElement;
+                if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT')) {
+                    return;
+                }
+                this.keys[e.code] = false;
+            });
 
             this.canvas.addEventListener('mousemove', (e) => {
                 const rect = this.canvas.getBoundingClientRect();
@@ -615,6 +671,13 @@
             this.canvas.addEventListener('mousedown', (e) => { if (e.button === 0) this.mouse.down = true; });
             this.canvas.addEventListener('mouseup', (e) => { if (e.button === 0) this.mouse.down = false; });
             this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+            // When the window loses focus, clear all input state to prevent the player
+            // from getting stuck moving in one direction.
+            window.addEventListener('blur', () => {
+                this.keys = {};
+                this.mouse.down = false;
+            });
 
             document.getElementById('playerNameInput').addEventListener('change', () => {
                 this.sendConfigChange();
@@ -634,6 +697,16 @@
                 this.sendTeamChangeRequest();
                 this.canvas.focus();
             });
+        }
+
+        enterSpectatorMode() {
+            this.isSpectator = true;
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = 'Spectating';
+            statusEl.style.color = '#4FC3F7'; // A nice blue for spectator mode
+            document.getElementById('player-config').style.display = 'none';
+            document.getElementById('yourTeam').parentElement.style.display = 'none';
+            this.canvas.style.cursor = 'default';
         }
 
         pollGamepad() {
@@ -670,7 +743,7 @@
         }
 
         sendInput() {
-            if (this.isLocalPlayerDead || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            if (this.isSpectator || this.isLocalPlayerDead || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
                 return;
             }
 
@@ -681,7 +754,6 @@
                 mouseX: 0,
                 mouseY: 0,
                 reload: false,
-                weaponCycle: false,
                 placingObstacle: false
             };
             const deadzone = 0.25;
@@ -705,9 +777,17 @@
                 input.reload = this.gamepad.buttons[2] && this.gamepad.buttons[2].pressed;
                 input.placingObstacle = this.gamepad.buttons[0] && this.gamepad.buttons[0].pressed; // A button
 
-                const swapButtonPressed = this.gamepad.buttons[3] && this.gamepad.buttons[3].pressed;
+                const swapButtonPressed = this.gamepad.buttons[3] && this.gamepad.buttons[3].pressed; // Y or Triangle
                 if (swapButtonPressed && !this.gamepadWeaponSwapPressed) {
-                    input.weaponCycle = true;
+                    const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
+                    if (localPlayer && localPlayer.weapon && this.weaponNames.length > 0) {
+                        const currentWeaponName = localPlayer.weapon.name;
+                        const currentIndex = this.weaponNames.indexOf(currentWeaponName);
+                        if (currentIndex !== -1) {
+                            const nextIndex = (currentIndex + 1) % this.weaponNames.length;
+                            this.sendConfigChange(this.weaponNames[nextIndex]);
+                        }
+                    }
                 }
                 this.gamepadWeaponSwapPressed = swapButtonPressed;
 
@@ -747,16 +827,15 @@
             this.ws.send(JSON.stringify(input));
         }
 
-        sendConfigChange() {
+        sendConfigChange(weaponNameToSet) {
             if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
                 return;
             }
             const playerName = document.getElementById('playerNameInput').value;
-            const weaponName = document.getElementById('weaponSelector').value;
+            const weaponName = weaponNameToSet || document.getElementById('weaponSelector').value;
 
             localStorage.setItem('playerName', playerName);
             localStorage.setItem('weaponName', weaponName);
-
             const message = {
                 type: 'configChange',
                 playerName: playerName,
@@ -789,6 +868,7 @@
             const selector = document.getElementById('weaponSelector');
             if (!selector) return;
 
+            this.weaponNames = weaponNames;
             selector.innerHTML = '';
 
             weaponNames.forEach(name => {
@@ -887,6 +967,7 @@
             this.drawPowerUps();
             this.drawCrates();
             this.drawExplosions();
+            this.drawPoisonClouds();
 
 
             this.gameState.players.forEach(player => {
@@ -907,7 +988,7 @@
             const rightStickY = this.gamepad ? this.gamepad.axes[3] || 0 : 0;
             const aimMagnitude = Math.sqrt(rightStickX * rightStickX + rightStickY * rightStickY);
 
-            if (this.isGamepadActive && aimMagnitude > deadzone) {
+            if (!this.isSpectator && this.isGamepadActive && aimMagnitude > deadzone) {
                 const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
                 if (localPlayer) {
                     // Get the normalized direction of the stick
@@ -935,7 +1016,7 @@
                     this.ctx.lineTo(crosshairX, crosshairY + 8);
                     this.ctx.stroke();
                 }
-            } else if (!this.isGamepadActive && this.mouse.x && this.mouse.y) {
+            } else if (!this.isSpectator && !this.isGamepadActive && this.mouse.x && this.mouse.y) {
                 this.ctx.strokeStyle = '#fff';
                 this.ctx.lineWidth = 1;
                 this.ctx.beginPath();
@@ -1088,6 +1169,47 @@
                 this.ctx.fillStyle = gradient;
                 this.ctx.beginPath();
                 this.ctx.arc(explosion.x, explosion.y, currentRadius, 0, 2 * Math.PI);
+                this.ctx.fill();
+            });
+            this.ctx.restore();
+        }
+
+        drawPoisonClouds() {
+            if (!this.gameState.poisonClouds) {
+                return;
+            }
+
+            this.ctx.save();
+            this.gameState.poisonClouds.forEach(cloud => {
+                const now = this.gameState.serverTime;
+                if (!now) return;
+
+                const age = now - cloud.creationTime;
+                const lifetime = cloud.duration;
+
+                if (age < 0 || age > lifetime) return;
+
+                const progress = age / lifetime; // 0.0 to 1.0
+
+                // Let the cloud expand to full size then linger
+                const expandTime = 0.2; // 20% of lifetime to expand
+                const radiusProgress = Math.min(1.0, progress / expandTime);
+                const currentRadius = cloud.radius * radiusProgress;
+
+                // Fade out over the whole duration
+                const alpha = (1.0 - progress) * 0.6; // Max alpha 0.6
+
+                const gradient = this.ctx.createRadialGradient(
+                    cloud.x, cloud.y, 0,
+                    cloud.x, cloud.y, currentRadius
+                );
+                gradient.addColorStop(0, `rgba(129, 199, 132, ${alpha})`); // Light green
+                gradient.addColorStop(0.7, `rgba(56, 142, 60, ${alpha * 0.8})`); // Darker green
+                gradient.addColorStop(1, `rgba(27, 94, 32, 0)`); // Fade to transparent
+
+                this.ctx.fillStyle = gradient;
+                this.ctx.beginPath();
+                this.ctx.arc(cloud.x, cloud.y, currentRadius, 0, 2 * Math.PI);
                 this.ctx.fill();
             });
             this.ctx.restore();
@@ -1328,7 +1450,16 @@
         }
 
         drawGameEvents() {
-            if (!this.gameState.events || this.gameState.events.length === 0) {
+            const now = Date.now();
+            // Filter out expired events in-place for performance
+            let i = this.gameEvents.length;
+            while (i--) {
+                if (now >= this.gameEvents[i].expirationTime) {
+                    this.gameEvents.splice(i, 1);
+                }
+            }
+
+            if (this.gameEvents.length === 0) {
                 return;
             }
 
@@ -1339,17 +1470,17 @@
             this.ctx.shadowBlur = 5;
 
             const startY = 50;
-            this.gameState.events.forEach((event, index) => {
+            this.gameEvents.forEach((event, index) => {
                 const yPos = startY + (index * 25);
                 switch (event.type) {
                     case 'FLAG_CAPTURE': this.ctx.fillStyle = '#FFD700'; break;
                     case 'FLAG_PICKUP':  this.ctx.fillStyle = '#4FC3F7'; break;
                     case 'FLAG_DROP':    this.ctx.fillStyle = '#BDBDBD'; break;
                     case 'FLAG_RETURN':  this.ctx.fillStyle = '#81C784'; break;
-                    case 'GREEN':  this.ctx.fillStyle = '#81C784'; break;
-                    case 'RED':  this.ctx.fillStyle = '#F44336'; break;
-                    case 'YELLOW': this.ctx.fillStyle = '#FFD700'; break;
-                    case 'BLUE': this.ctx.fillStyle = '#4FC3F7'; break;
+                    case 'GREEN':        this.ctx.fillStyle = '#81C784'; break;
+                    case 'RED':          this.ctx.fillStyle = '#F44336'; break;
+                    case 'YELLOW':       this.ctx.fillStyle = '#FFD700'; break;
+                    case 'BLUE':         this.ctx.fillStyle = '#4FC3F7'; break;
                     default: this.ctx.fillStyle = '#FFFFFF'; break;
                 }
                 this.ctx.fillText(event.message, this.canvas.width / 2, yPos);
@@ -1363,13 +1494,35 @@
                 return;
             }
 
+            const myself = player.id === this.playerId;
             const playerSize = 20;
             const playerCenterX = player.x + playerSize / 2;
             const playerCenterY = player.y + playerSize / 2;
 
+            // --- Add respawn ping effect ---
+            const PING_DURATION = 1000;
+            const pingTimeRemaining = PING_DURATION - (this.gameState.serverTime - player.respawnTime);
+            if (myself && pingTimeRemaining > 0) {
+                const progress = pingTimeRemaining / PING_DURATION;
+
+                if (progress >= 0 && progress <= 1) {
+                    const maxRadius = 50;
+                    const currentRadius = maxRadius * progress;
+                    const alpha = progress;
+
+                    this.ctx.save();
+                    this.ctx.strokeStyle = `rgba(255, 215, 0, ${alpha})`; // Gold, fading out
+                    this.ctx.lineWidth = 3;
+                    this.ctx.beginPath();
+                    this.ctx.arc(playerCenterX, playerCenterY, currentRadius, 0, 2 * Math.PI);
+                    this.ctx.stroke();
+                    this.ctx.restore();
+                }
+            }
+
             this.ctx.fillStyle = player.team === 1 ? '#4CAF50' : '#F44336';
-            this.ctx.strokeStyle = player.id === this.playerId ? '#FFD700' : (player.team === 1 ? '#388E3C' : '#B71C1C');
-            this.ctx.lineWidth = player.id === this.playerId ? 3 : 2;
+            this.ctx.strokeStyle = myself ? '#FFD700' : (player.team === 1 ? '#388E3C' : '#B71C1C');
+            this.ctx.lineWidth = myself? 3 : 2;
             this.ctx.beginPath();
             this.ctx.arc(playerCenterX, playerCenterY, playerSize / 2, 0, 2 * Math.PI);
             this.ctx.fill();
@@ -1379,14 +1532,14 @@
             this.ctx.translate(playerCenterX, playerCenterY);
 
             let angle = 0;
-            if (player.id === this.playerId) {
-                if (this.isGamepadActive) {
-                    angle = Math.atan2(this.gamepadAim.y, this.gamepadAim.x);
-                } else {
-                    angle = Math.atan2(this.mouse.y - playerCenterY, this.mouse.x - playerCenterX);
-                }
+            if (myself && this.isGamepadActive) {
+                angle = Math.atan2(this.gamepadAim.y, this.gamepadAim.x);
+            } else if (myself && !this.isGamepadActive) {
+                // For the local player, use the live mouse position for maximum responsiveness.
+                angle = Math.atan2(this.mouse.y - playerCenterY, this.mouse.x - playerCenterX);
             } else {
-                angle = player.lastBulletAngle || 0;
+                // For other players (human or AI), use the server-replicated mouse position.
+                angle = Math.atan2(player.mouseY - playerCenterY, player.mouseX - playerCenterX);
             }
             this.ctx.rotate(angle);
 
@@ -1463,7 +1616,7 @@
             }
             this.ctx.fillText(displayName, playerCenterX, player.y - 15);
 
-            if (player.id === this.playerId) {
+            if (myself) {
                 this.ctx.font = 'bold 12px Arial';
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'middle';
