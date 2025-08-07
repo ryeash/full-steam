@@ -68,7 +68,7 @@ public class OddballAIStrategy implements IAIStrategy {
     private Player findClosestTeammate(AIPlayer self, Collection<Player> allPlayers) {
         return allPlayers.stream()
                 .filter(p -> p.getTeam() == self.getTeam() && !Objects.equals(p.getId(), self.getId()))
-                .min(Comparator.comparingDouble(p -> p.getCenter().distanceSq(self.getCenter())))
+                .min(Comparator.comparingDouble(p -> p.getCenter().distanceSquared(self.getCenter())))
                 .orElse(null);
     }
 
@@ -100,7 +100,7 @@ public class OddballAIStrategy implements IAIStrategy {
             } else {
                 // If we are alone, fall back to the original behavior of running to a safe point.
                 Vector2D safePoint = getSafePointForTeam(self.getTeam());
-                double distanceToSafePointSq = self.getCenter().distanceSq(safePoint);
+                double distanceToSafePointSq = self.getCenter().distanceSquared(safePoint);
 
                 // If we are already near our safe point, just wander around it to evade.
                 if (distanceToSafePointSq < 200 * 200) { // 200 unit radius
@@ -167,7 +167,7 @@ public class OddballAIStrategy implements IAIStrategy {
             self.setObjectiveTargetPoint(friendlyCarrier.getCenter());
 
             // If an enemy gets close to the carrier, the Guardian will engage.
-            if (closestEnemy != null && closestEnemy.getCenter().distanceSq(friendlyCarrier.getCenter()) < 400 * 400) { // 400 unit guard radius
+            if (closestEnemy != null && closestEnemy.getCenter().distanceSquared(friendlyCarrier.getCenter()) < 400 * 400) { // 400 unit guard radius
                 self.setCurrentTarget(closestEnemy);
                 self.setCurrentState(AIPlayer.AIState.ATTACKING);
             }

@@ -13,7 +13,6 @@ import com.fullsteam.model.PowerUpType;
 import com.fullsteam.model.RandomNames;
 import com.fullsteam.model.Vector2D;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.Optional;
@@ -173,7 +172,7 @@ public class AIPlayer extends Player {
                     strafeRight = ThreadLocalRandom.current().nextBoolean();
                 }
 
-                if (isReloading() || getCenter().distanceSq(currentTarget.getCenter()) < 150 * 150) {
+                if (isReloading() || getCenter().distanceSquared(currentTarget.getCenter()) < 150 * 150) {
                     // If reloading or too close, strafe to be evasive
                     strafe(obstacles);
                 } else {
@@ -216,7 +215,7 @@ public class AIPlayer extends Player {
                 continue;
             }
 
-            double distanceSq = this.getCenter().distanceSq(potentialTarget.getCenter());
+            double distanceSq = this.getCenter().distanceSquared(potentialTarget.getCenter());
 
             if (distanceSq < attackRangeSq && distanceSq < minDistanceSq) {
                 if (findBlockingObstacle(this.getCenter(), potentialTarget.getCenter(), obstacles) == null) {
@@ -306,7 +305,7 @@ public class AIPlayer extends Player {
 
     private void performWanderBehavior(List<Obstacle> obstacles) {
         // If we don't have a wander target or we've reached it, pick a new one.
-        if (wanderTarget == null || getCenter().distanceSq(wanderTarget) < 100 * 100) { // 100px radius
+        if (wanderTarget == null || getCenter().distanceSquared(wanderTarget) < 100 * 100) { // 100px radius
             double x = ThreadLocalRandom.current().nextDouble(50, Config.GAME_WIDTH - 50);
             double y = ThreadLocalRandom.current().nextDouble(50, Config.GAME_HEIGHT - 50);
             this.wanderTarget = new Vector2D(x, y);
@@ -357,7 +356,7 @@ public class AIPlayer extends Player {
 
     private Vector2D findClearPath(Vector2D desiredDirection, List<Obstacle> obstacles) {
         // Use a "feeler" to detect potential collisions ahead of the AI
-        double feelerLength = 40.0 + (getSpeed() * 10); // Dynamic feeler based on speed
+        double feelerLength = 60.0 + (getSpeed() * 10); // Dynamic feeler based on speed
         Vector2D feelerEnd = getCenter().add(desiredDirection.multiply(feelerLength));
         Obstacle blockingObstacle = findBlockingObstacle(getCenter(), feelerEnd, obstacles);
 
@@ -404,7 +403,7 @@ public class AIPlayer extends Player {
             Vector2D p2 = vertices.get((i + 1) % vertices.size()); // Wrap around for the last edge
 
             Vector2D closestPointOnSegment = getClosestPointOnLineSegment(point, p1, p2);
-            double distanceSq = point.distanceSq(closestPointOnSegment);
+            double distanceSq = point.distanceSquared(closestPointOnSegment);
 
             if (distanceSq < minDistanceSq) {
                 minDistanceSq = distanceSq;
@@ -458,7 +457,7 @@ public class AIPlayer extends Player {
         for (Hazard hazard : hazards) {
             // The "awareness" radius is slightly larger than the hazard itself.
             double awarenessRadius = hazard.radius() + 40; // Be aware of it from 40px away
-            double distanceSq = getCenter().distanceSq(hazard.position());
+            double distanceSq = getCenter().distanceSquared(hazard.position());
 
             if (distanceSq < awarenessRadius * awarenessRadius) {
                 // We are near or inside a hazard. Calculate a force to flee from it.
@@ -488,7 +487,7 @@ public class AIPlayer extends Player {
 
         for (Obstacle obstacle : obstacles) {
             Vector2D closestPoint = findClosestPointOnObstacle(getCenter(), obstacle);
-            double distanceSq = getCenter().distanceSq(closestPoint);
+            double distanceSq = getCenter().distanceSquared(closestPoint);
 
             // Only apply force if within the separation radius.
             if (distanceSq < separationRadius * separationRadius) {
@@ -527,7 +526,7 @@ public class AIPlayer extends Player {
 
             boolean isThreat = player.getArmorUpEndTime() > currentTime || player.getDamageBoostEndTime() > currentTime;
             if (isThreat) {
-                double distanceSq = getCenter().distanceSq(player.getCenter());
+                double distanceSq = getCenter().distanceSquared(player.getCenter());
                 double threatRadius = 400; // Start avoiding from 400px away
                 if (distanceSq < threatRadius * threatRadius) {
                     Vector2D fleeDirection = getCenter().subtract(player.getCenter());
@@ -543,7 +542,7 @@ public class AIPlayer extends Player {
         // 2. Seek valuable power-ups
         if (gameState.powerUps() != null) {
             for (PowerUp powerUp : gameState.powerUps()) {
-                double distanceSq = getCenter().distanceSq(powerUp.getPosition());
+                double distanceSq = getCenter().distanceSquared(powerUp.getPosition());
                 double seekRadius = 500; // Only consider power-ups within 500px
                 if (distanceSq < seekRadius * seekRadius) {
                     double weight = 1.0; // Default attraction

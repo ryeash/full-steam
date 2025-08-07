@@ -43,14 +43,6 @@ public class Jackson {
         }
     }
 
-    public static byte[] writeValueAsBytes(Object obj) {
-        try {
-            return objectMapper.writeValueAsBytes(obj);
-        } catch (JsonProcessingException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     public static ByteBuf msgPack(Object value) {
         try {
             return Unpooled.wrappedBuffer(MSGPACK_MAPPER.writeValueAsBytes(value));

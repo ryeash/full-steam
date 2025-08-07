@@ -109,7 +109,7 @@ public class OddballManager extends AbstractTeamBasedManager {
                     continue;
                 }
 
-                if (Vector2D.distanceSq(player.getCenter(), oddball.position()) < BALL_PICKUP_RADIUS_SQ) {
+                if (player.getCenter().distanceSquared(oddball.position()) < BALL_PICKUP_RADIUS_SQ) {
                     oddball = oddball.asCarriedBy(player.getId(), player.getCenter());
                     log.info("Player {} picked up the Oddball for team {}!", player.getPlayerName(), player.getTeam());
                     sendGameEvent(GameEvent.team(player.getTeam(), "%s picked up the Oddball!".formatted(player.getPlayerName())));

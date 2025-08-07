@@ -1,6 +1,5 @@
 package com.fullsteam.model.ai;
 
-import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.Obstacle;
@@ -35,7 +34,7 @@ public class EscortAIStrategy implements IAIStrategy {
         double proximitySq = Config.ESCORT_PLAYER_PROXIMITY * Config.ESCORT_PLAYER_PROXIMITY;
         Set<Integer> teamsNearPayload = allPlayers.stream()
                 .filter(p -> !p.isDead())
-                .filter(p -> p.getCenter().distanceSq(payloadCenter) < proximitySq)
+                .filter(p -> p.getCenter().distanceSquared(payloadCenter) < proximitySq)
                 .map(Player::getTeam)
                 .collect(Collectors.toSet());
 
@@ -64,7 +63,7 @@ public class EscortAIStrategy implements IAIStrategy {
      */
     private void runBalancedLogic(AIPlayer self, Player closestEnemy, Vector2D payloadCenter, boolean isOurTeamPushing) {
         // Priority 1: An enemy is very close. ATTACK!
-        if (closestEnemy != null && self.getCenter().distanceSq(closestEnemy.getCenter()) < 250 * 250) {
+        if (closestEnemy != null && self.getCenter().distanceSquared(closestEnemy.getCenter()) < 250 * 250) {
             self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
@@ -162,11 +161,11 @@ public class EscortAIStrategy implements IAIStrategy {
             }
 
             // Check if the enemy is near the payload
-            if (other.getCenter().distanceSq(payloadCenter) > radiusSq) {
+            if (other.getCenter().distanceSquared(payloadCenter) > radiusSq) {
                 continue;
             }
 
-            double distanceSq = self.getCenter().distanceSq(other.getCenter());
+            double distanceSq = self.getCenter().distanceSquared(other.getCenter());
             if (distanceSq < minDistanceSq) {
                 minDistanceSq = distanceSq;
                 closestEnemy = other;

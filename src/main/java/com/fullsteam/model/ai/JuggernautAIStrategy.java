@@ -101,7 +101,7 @@ public class JuggernautAIStrategy implements IAIStrategy {
     private void prioritizeDefense(AIPlayer self, Collection<Player> allPlayers, Player myJuggernaut) {
         // Priority 1: An enemy is near our Juggernaut. INTERCEPT!
         Player closestEnemy = findClosestEnemy(self, allPlayers);
-        if (closestEnemy != null && closestEnemy.getCenter().distanceSq(myJuggernaut.getCenter()) < 400 * 400) { // 400 unit guard radius
+        if (closestEnemy != null && closestEnemy.getCenter().distanceSquared(myJuggernaut.getCenter()) < 400 * 400) { // 400 unit guard radius
             self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;

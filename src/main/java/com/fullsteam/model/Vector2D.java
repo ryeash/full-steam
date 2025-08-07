@@ -5,9 +5,13 @@ package com.fullsteam.model;
  * Using a record provides constructors, getters, equals(), hashCode(),
  * and toString() automatically.
  */
-public record Vector2D(double x, double y) {
+public record Vector2D(double x, double y, double magnitudeSquared) {
 
     public static final Vector2D ZERO = new Vector2D(0, 0);
+
+    public Vector2D(double x, double y) {
+        this(x, y, x * x + y * y);
+    }
 
     /**
      * Adds another vector to this vector.
@@ -47,7 +51,7 @@ public record Vector2D(double x, double y) {
      * @return The squared magnitude of the vector.
      */
     public double magnitudeSq() {
-        return x * x + y * y;
+        return magnitudeSquared;
     }
 
     /**
@@ -95,22 +99,9 @@ public record Vector2D(double x, double y) {
      * @param other The other vector.
      * @return The squared distance between the two vectors.
      */
-    public double distanceSq(Vector2D other) {
+    public double distanceSquared(Vector2D other) {
         double dx = this.x - other.x;
         double dy = this.y - other.y;
-        return dx * dx + dy * dy;
-    }
-
-    /**
-     * A static helper to calculate the squared Euclidean distance between two vectors.
-     *
-     * @param v1 The first vector.
-     * @param v2 The second vector.
-     * @return The squared distance between the two vectors.
-     */
-    public static double distanceSq(Vector2D v1, Vector2D v2) {
-        double dx = v1.x() - v2.x();
-        double dy = v1.y() - v2.y();
         return dx * dx + dy * dy;
     }
 

@@ -46,6 +46,6 @@ public interface IAIStrategy {
             return false;
         }
         double rangeSq = range * range;
-        return self.getCenter().distanceSq(target.getCenter()) < rangeSq;
+        return self.getCenter().distanceSquared(target.getCenter()) < rangeSq;
     }
 }

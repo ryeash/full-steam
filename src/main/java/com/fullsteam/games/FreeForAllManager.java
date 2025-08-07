@@ -175,7 +175,7 @@ public class FreeForAllManager extends AbstractGameStateManager {
             Vector2D playerCenter = new Vector2D(player.getX() + Config.PLAYER_SIZE / 2, player.getY() + Config.PLAYER_SIZE / 2);
             for (Hazard hazard : hazards) {
                 if (hazard.type() == Hazard.Type.DAMAGE) {
-                    if (playerCenter.distanceSq(hazard.position()) < hazard.radiusSq()) {
+                    if (playerCenter.distanceSquared(hazard.position()) < hazard.radiusSq()) {
                         invalidPosition = true;
                         break;
                     }

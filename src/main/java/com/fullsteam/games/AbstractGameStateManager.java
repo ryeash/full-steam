@@ -352,7 +352,7 @@ public abstract class AbstractGameStateManager {
                         continue;
                     }
 
-                    if (p.getCenter().distanceSq(explosionCenter) < radiusSq) {
+                    if (p.getCenter().distanceSquared(explosionCenter) < radiusSq) {
                         if (p.takeDamage(explosion.getDamage())) {
                             killPlayer(p, shooter);
                         }
@@ -388,7 +388,7 @@ public abstract class AbstractGameStateManager {
                         continue;
                     }
 
-                    if (p.getCenter().distanceSq(cloudCenter) < radiusSq) {
+                    if (p.getCenter().distanceSquared(cloudCenter) < radiusSq) {
                         if (p.takeDamage(cloud.getDamagePerTick())) {
                             killPlayer(p, shooter);
                         }
@@ -515,7 +515,7 @@ public abstract class AbstractGameStateManager {
 
             // Process hazards for damage and (if not boosted) slowing.
             for (Hazard hazard : hazards) {
-                if (player.getCenter().distanceSq(hazard.position()) < hazard.radiusSq()) {
+                if (player.getCenter().distanceSquared(hazard.position()) < hazard.radiusSq()) {
                     switch (hazard.type()) {
                         case SLOW:
                             // Apply slow only if the player is not speed-boosted.
@@ -758,7 +758,7 @@ public abstract class AbstractGameStateManager {
         double playerCenterX = player.getX() + (PLAYER_SIZE / 2);
         double playerCenterY = player.getY() + (PLAYER_SIZE / 2);
         // Assuming power-ups have a similar size to players for collision
-        double distanceSq = new Vector2D(playerCenterX, playerCenterY).distanceSq(powerUp.position);
+        double distanceSq = new Vector2D(playerCenterX, playerCenterY).distanceSquared(powerUp.position);
         return distanceSq < (PLAYER_SIZE * PLAYER_SIZE); // Using squared distance for efficiency
     }
 
@@ -868,7 +868,7 @@ public abstract class AbstractGameStateManager {
                 if (hazard.type() == Hazard.Type.DAMAGE) {
                     // Check if the player's center is inside the hazard's radius.
                     // This is a simplified check, but consistent with how hazards affect players during the game.
-                    if (playerCenter.distanceSq(hazard.position()) < hazard.radiusSq()) {
+                    if (playerCenter.distanceSquared(hazard.position()) < hazard.radiusSq()) {
                         invalidPosition = true;
                         break; // Exit the for loop and try a new position
                     }
