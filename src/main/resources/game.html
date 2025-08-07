@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Top-Down Shooter</title>
+    <title>Full Steam</title>
     <script src="https://unpkg.com/@msgpack/msgpack@2.7.2/dist.es5+umd/msgpack.min.js"></script>
     <style>
         body {
@@ -316,7 +316,7 @@
     </div>
 </div>
 
-<script>
+<script type="text/javascript">
     class GameUIManager {
         constructor(gameInstance) {
             this.game = gameInstance;
@@ -473,7 +473,6 @@
             }
 
             if (this.game.playerId) {
-                this.game.isLocalPlayerDead = this.localPlayer ? this.localPlayer.dead : false;
                 if (this.localPlayer && this.localPlayer.weapon) {
                     // If the weapon from the server is different from the one in the UI
                     if (this.elements.weaponSelector.value !== this.localPlayer.weapon.name) {
@@ -548,12 +547,9 @@
             this.localPlayer = null;
 
             // --- Sprite Loading ---
-            // These images should be placed in a publicly accessible folder (e.g., /static/sprites).
             // They are expected to be horizontal strips of animation frames.
-            this.playerSpriteTeam1 = new Image();
-            this.playerSpriteTeam1.src = '/sprites/spritesheet.png';
-            this.playerSpriteTeam2 = new Image();
-            this.playerSpriteTeam2.src = '/sprites/spritesheet.png';
+            this.spritesheet = new Image();
+            this.spritesheet.src = '/sprites/demo.png';
 
             this.uiManager = new GameUIManager(this);
 
@@ -640,6 +636,7 @@
                 } else {
                     this.gameState = data;
                     this.localPlayer = this.gameState.players.find(p => p.id === this.playerId);
+                    this.isLocalPlayerDead = this.localPlayer && this.localPlayer.dead;
                     this.uiManager.update(this.gameState);
                 }
             };
@@ -687,6 +684,8 @@
                 this.keys = {};
                 this.mouse.down = false;
             });
+
+            this.canvas.addEventListener('dragstart', (e) => e.preventDefault());
 
             document.getElementById('playerNameInput').addEventListener('change', () => {
                 this.sendConfigChange();
@@ -1545,32 +1544,32 @@
             const isMoving = player.velocityX !== 0 || player.velocityY !== 0;
             const frameWidth = 32;  // Width of a single frame in the spritesheet
             const frameHeight = 32; // Height of a single frame
-            const numFrames = 8;    // Number of frames in the walking animation
+            const numFrames = 4;    // Number of frames in the walking animation
             let frameIndex = 0;
 
             if (isMoving) {
                 // Cycle through frames based on time to create animation
-                frameIndex = Math.floor(Date.now() / 100) % numFrames;
+                frameIndex = Math.floor(Date.now() / 140) % numFrames;
             }
 
-            const spriteSheet = player.team === 1 ? this.playerSpriteTeam1 : this.playerSpriteTeam2;
+            const spriteSheetRow = player.team === 1 ? 0 : 1;
             const sourceX = frameIndex * frameWidth;
 
             // Draw the current animation frame, centered and rotated.
             // The sprite is drawn facing right, and the canvas rotation handles the direction.
             this.ctx.drawImage(
-                spriteSheet,
-                sourceX, 0, frameWidth, frameHeight,           // Source rect from spritesheet
+                this.spritesheet,
+                sourceX, spriteSheetRow * 32, frameWidth, frameHeight, // Source rect from spritesheet
                 -frameWidth / 2, -frameHeight / 2, frameWidth, frameHeight // Destination rect on canvas
             );
 
             // --- Draw Weapon ---
-            this.ctx.fillStyle = '#9E9E9E';
-            this.ctx.strokeStyle = '#616161';
-            this.ctx.lineWidth = 1;
+            //this.ctx.fillStyle = '#9E9E9E';
+            //this.ctx.strokeStyle = '#616161';
+            //this.ctx.lineWidth = 1;
             // Draw the weapon extending slightly from the player's center
-            this.ctx.fillRect(5, -3, 15, 6);
-            this.ctx.strokeRect(5, -3, 15, 6);
+            //this.ctx.fillRect(5, -3, 15, 6);
+            //this.ctx.strokeRect(5, -3, 15, 6);
             this.ctx.restore();
 
             const gameInfo = this.gameState.info;

@@ -5,14 +5,10 @@ import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
-import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
-import com.fullsteam.model.ai.DeathmatchAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.LoneWolfInfo;
 import io.netty.channel.Channel;
-
-import java.util.UUID;
 
 import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
 
@@ -85,13 +81,9 @@ public class LoneWolfManager extends AbstractGameStateManager {
     }
 
     @Override
-    public void addAIPlayer(int team) {
-        String playerId = "ai-" + UUID.randomUUID();
+    public AIPlayer addAIPlayer(int team) {
         // All AI in this mode are hunters with a deathmatch strategy
-        AIPlayer player = new AIPlayer(playerId, 0, 0, 2, new DeathmatchAIStrategy(), AIArchetype.randomArchetype());
-        setValidSpawnPosition(player);
-        players.put(playerId, player);
-        log.info("AI Hunter {} joined at position ({}, {})", playerId, player.getX(), player.getY());
+        return super.addAIPlayer(2);
     }
 
     @Override

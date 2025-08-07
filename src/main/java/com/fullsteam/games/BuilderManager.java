@@ -8,25 +8,22 @@ import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.gamemodes.BuilderGameInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
-import io.netty.channel.Channel;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.fullsteam.Config.PLAYER_SIZE;
 
-public class BuilderManager extends AbstractGameStateManager {
+public class BuilderManager extends AbstractFreeForAllManager {
 
     private static final double CRATE_SIZE = 30.0;
     private static final double PLACEMENT_DISTANCE = CRATE_SIZE * 2;
     private static final double PLACEMENT_SEARCH_RADIUS = PLACEMENT_DISTANCE + 5;
     private static final int PLACEMENT_SEARCH_STEPS = 8;
 
-    private final AtomicInteger teamIdCounter = new AtomicInteger(100);
     private final List<Crate> crates = new CopyOnWriteArrayList<>();
 
     public BuilderManager(GameLobby gameLobby) {
@@ -111,17 +108,6 @@ public class BuilderManager extends AbstractGameStateManager {
             // Clean up the temporary crate obstacles to ensure they don't persist.
             obstacles.removeAll(crateObstacles);
         }
-    }
-
-    @Override
-    public Player addPlayer(String playerId, Channel channel) {
-        int uniqueTeamId = teamIdCounter.getAndIncrement();
-        Player player = new Player(playerId, 0, 0, uniqueTeamId);
-        setValidSpawnPosition(player);
-        players.put(playerId, player);
-        playerChannels.put(playerId, channel);
-        log.info("Player {} joined Builder game {} at position ({}, {})", playerId, gameId, player.getX(), player.getY());
-        return player;
     }
 
     public void placeCrate(String playerId) {

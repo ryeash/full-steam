@@ -8,14 +8,12 @@ import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Oddball;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
-import com.fullsteam.model.ai.AIArchetype;
-import com.fullsteam.model.ai.AIPlayer;
+import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.ai.OddballAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.OddballInfo;
 
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static com.fullsteam.Config.GAME_HEIGHT;
@@ -45,12 +43,8 @@ public class OddballManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    public void addAIPlayer(int team) {
-        String playerId = "ai-" + UUID.randomUUID();
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new OddballAIStrategy(), AIArchetype.randomArchetype());
-        setValidSpawnPosition(player);
-        players.put(playerId, player);
-        log.info("AI Player {} (Oddball Strategy) joined team {}", playerId, team);
+    protected IAIStrategy buildAIStrategy() {
+        return new OddballAIStrategy();
     }
 
     @Override

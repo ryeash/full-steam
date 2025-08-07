@@ -68,13 +68,7 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
     }
 
     @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        log.info("Channel {} became active, awaiting handshake.", ctx.channel().id());
-        super.channelActive(ctx);
-    }
-
-    @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+    public void channelInactive(ChannelHandlerContext ctx) {
         // Clean up the player from their specific game
         AbstractGameStateManager game = ctx.channel().attr(GAME_STATE_MANAGER_KEY).get();
         if (game != null) {
@@ -93,7 +87,7 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) throws Exception {
+    protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) {
         // Retrieve the correct GameStateManager and Player ID from the channel's attributes
         AbstractGameStateManager game = ctx.channel().attr(GAME_STATE_MANAGER_KEY).get();
         if (ctx.channel().hasAttr(IS_SPECTATOR_KEY)) {
@@ -130,7 +124,7 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         String playerId = playerId(ctx);
         log.error("WebSocket error for player {}: {}", playerId, cause.getMessage());
         ctx.close();

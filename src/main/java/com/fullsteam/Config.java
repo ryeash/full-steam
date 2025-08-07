@@ -34,7 +34,6 @@ public class Config {
     // global ID assignment
     public static final AtomicLong ID_COUNTER = new AtomicLong();
 
-
     // --- Server Configuration ---
     public static final int PORT = getInt("server.port", 8080);
 
@@ -54,6 +53,7 @@ public class Config {
     public static final int GAME_WIDTH = getInt("game.width", 1000);
     public static final int GAME_HEIGHT = getInt("game.height", 800);
     public static final int TICK_RATE = getInt("game.tick_rate", 60);
+    public static final boolean ALLOW_NAME_CHANGE = getProp("game.allow_name_change", true, Boolean::valueOf);
     public static final int OBSTACLE_COUNT = getInt("game.obstacle_count", 8);
     public static final long DEATH_MARKER_DURATION_MS = getLong("game.death_marker_duration_ms", 5000); // Marker lasts 5 seconds
     public static final long GAME_EVENT_DURATION_MS = getLong("game.game_event_duration_ms", 6000); // 4 seconds for events to be on screen
@@ -72,9 +72,13 @@ public class Config {
     public static final int HAZARD_COUNT = getInt("game.hazard.count", 2);
     public static final double HAZARD_SLOW_FACTOR = getDouble("game.hazard.slow_factor", 0.5); // 50% speed
     public static final double HAZARD_DAMAGE_FACTOR = getDouble("game.hazard.damage_factor", 0.5); // damage per tick;
+    public static final long RESPAWN_IMMUNITY_DURATION = getLong("game.respawn_immunity_duration", 2000);
     public static final double POWER_UP_SPEED_BOOST_FACTOR = getDouble("game.powerup.speed_boost_factor", 1.5);
-    public static final double DAMAGE_BOOST_MULTIPLIER = getDouble("game.powerup.damage_boost_multiplier", 1.5);
-    public static final long RESPAWN_IMMUNITY_DURATION = getLong("game.powerup.damage_boost_multiplier", 1500);
+    public static final double POWER_UP_DAMAGE_BOOST_MULTIPLIER = getDouble("game.powerup.damage_boost_multiplier", 1.5);
+    public static final long POWER_UP_HEALTH_RECOVERY = getLong("game.powerup.health_recovery", -50);
+    public static final long POWER_UP_SPEED_BOOST_DURATION = getLong("game.powerup.speed_boost_duration", 5000);
+    public static final long POWER_UP_ARMOR_UP_DURATION = getLong("game.powerup.armor_up_duration", 3000);
+    public static final long POWER_UP_DAMAGE_BOOST_DURATION = getLong("game.powerup.damage_boost_duration", 5000);
 
     // --- Capture the Flag (CTF) Game Mode ---
     public static final int CTF_SCORE_TO_WIN = getInt("game.ctf.score_to_win", 3);

@@ -6,14 +6,12 @@ import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
-import com.fullsteam.model.ai.AIArchetype;
-import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.EscortAIStrategy;
+import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.gamemodes.EscortGameInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
 
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -32,12 +30,8 @@ public class EscortManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    public void addAIPlayer(int team) {
-        String playerId = "ai-" + UUID.randomUUID();
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new EscortAIStrategy(), AIArchetype.randomArchetype());
-        setValidSpawnPosition(player);
-        players.put(playerId, player);
-        log.info("AI Player {} (Escort Strategy) joined team {}", playerId, team);
+    protected IAIStrategy buildAIStrategy() {
+        return new EscortAIStrategy();
     }
 
     @Override

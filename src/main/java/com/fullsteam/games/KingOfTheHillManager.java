@@ -7,8 +7,7 @@ import com.fullsteam.model.Hill;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
-import com.fullsteam.model.ai.AIArchetype;
-import com.fullsteam.model.ai.AIPlayer;
+import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.ai.KingOfTheHillAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.KingOfTheHillInfo;
@@ -16,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static com.fullsteam.Config.KOTH_HILL_KEEP_OUT_RADIUS;
@@ -48,12 +46,8 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    public void addAIPlayer(int team) {
-        String playerId = "ai-" + UUID.randomUUID();
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new KingOfTheHillAIStrategy(), AIArchetype.randomArchetype());
-        setValidSpawnPosition(player);
-        players.put(playerId, player);
-        log.info("AI Player {} (CTF Strategy) joined team {}", playerId, team);
+    protected IAIStrategy buildAIStrategy() {
+        return new KingOfTheHillAIStrategy();
     }
 
     @Override

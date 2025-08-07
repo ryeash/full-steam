@@ -6,15 +6,19 @@ import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.Weapon;
-import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
-import com.fullsteam.model.ai.DeathmatchAIStrategy;
+import com.fullsteam.model.gamemodes.FreeForAllInfo;
+import com.fullsteam.model.gamemodes.GameInfo;
+import com.fullsteam.model.gamemodes.GunMasterInfo;
 import io.netty.channel.Channel;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
-public class GunMasterManager extends FreeForAllManager {
+public class GunMasterManager extends AbstractFreeForAllManager {
 
     private static final long WEAPON_SWITCH_INTERVAL_MS = 20_000; // 20 seconds
     private long nextWeaponSwitchTime = 0;
@@ -50,13 +54,15 @@ public class GunMasterManager extends FreeForAllManager {
 
     private void forceWeaponSwitch() {
         if (this.currentGlobalWeapon != null) {
-            Weapon current = this.currentGlobalWeapon;
             // don't switch to the same weapon
-            while (Objects.equals(current.getName(), this.currentGlobalWeapon.getName())) {
-                this.currentGlobalWeapon = WeaponFactory.getRandomWeapon();
-            }
+            Weapon next;
+            do {
+                next = WeaponFactory.getRandomWeapon();
+            } while (Objects.equals(next.getName(), this.currentGlobalWeapon.getName()));
+            this.currentGlobalWeapon = next;
+        } else {
+            this.currentGlobalWeapon = WeaponFactory.getRandomWeapon();
         }
-        this.currentGlobalWeapon = WeaponFactory.getRandomWeapon();
         sendGameEvent(GameEvent.blue("Weapon switched to: " + this.currentGlobalWeapon.getName()));
         for (Player player : players.values()) {
             player.setWeapon(this.currentGlobalWeapon);
@@ -69,6 +75,7 @@ public class GunMasterManager extends FreeForAllManager {
         if (player != null) {
             // Ensure new players get the current weapon
             if (currentGlobalWeapon != null) {
+                sendGameEvent(GameEvent.yellow("Weapon switched to: " + this.currentGlobalWeapon.getName(), playerId));
                 player.setWeapon(currentGlobalWeapon);
             }
         }
@@ -76,15 +83,12 @@ public class GunMasterManager extends FreeForAllManager {
     }
 
     @Override
-    public void addAIPlayer(int team) {
-        String playerId = "ai-" + UUID.randomUUID();
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new DeathmatchAIStrategy(), AIArchetype.randomArchetype());
+    public AIPlayer addAIPlayer(int team) {
+        AIPlayer aiPlayer = super.addAIPlayer(team);
         if (currentGlobalWeapon != null) {
-            player.setWeapon(currentGlobalWeapon);
+            aiPlayer.setWeapon(currentGlobalWeapon);
         }
-        setValidSpawnPosition(player);
-        players.put(playerId, player);
-        log.info("AI Player {} joined Gun Master at position ({}, {})", playerId, player.getX(), player.getY());
+        return aiPlayer;
     }
 
     @Override
@@ -93,21 +97,33 @@ public class GunMasterManager extends FreeForAllManager {
         if (player == null) {
             return;
         }
-
-        // Allow name changes
-        if (request.getPlayerName() != null && !request.getPlayerName().isEmpty()) {
-            player.setPlayerName(request.getPlayerName());
-        }
-
         // Disallow weapon changes
         if (request.getWeaponName() != null && !request.getWeaponName().isEmpty()) {
             sendGameEvent(GameEvent.team(player.getTeam(), "Weapon selection is disabled in Gun Master!"));
+            return;
         }
 
         // Disallow team changes
         if (request.isRequestTeamChange()) {
             sendGameEvent(GameEvent.team(player.getTeam(), "There are no teams in Gun Master!"));
+            return;
         }
-        log.info("Player {} reconfigured: name={}", playerId, player.getPlayerName());
+        super.handlePlayerConfigChange(playerId, request);
+    }
+
+
+    @Override
+    protected GameInfo buildGameState() {
+        long remainingMillis = roundEndTime - System.currentTimeMillis();
+        long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
+
+        List<FreeForAllInfo.PlayerScore> playerScores = players.values().stream()
+                .sorted(Comparator.comparingInt(Player::getKills).reversed()) // Sort by kills descending
+                .map(player -> new FreeForAllInfo.PlayerScore(player.getPlayerName(), player.getKills()))
+                .collect(Collectors.toList());
+
+        return new GunMasterInfo(
+                playerScores,
+                roundTimeRemainingSeconds);
     }
 }

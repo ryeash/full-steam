@@ -430,10 +430,10 @@ public class AIPlayer extends Player {
         if (hazards == null) return totalAvoidanceForce;
 
         for (Hazard hazard : hazards) {
-            double awarenessRadius = hazard.radius() + 40;
+            double awarenessRadius = hazard.radius() + 20;
             if (getCenter().distanceSquared(hazard.position()) < awarenessRadius * awarenessRadius) {
                 Vector2D fleeDirection = getCenter().subtract(hazard.position());
-                double weight = (hazard.type() == Hazard.Type.DAMAGE) ? 1.0 : 0.5;
+                double weight = (hazard.type() == Hazard.Type.DAMAGE) ? 0.5 : 0.25;
                 totalAvoidanceForce = totalAvoidanceForce.add(fleeDirection.normalize().multiply(weight));
             }
         }

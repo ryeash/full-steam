@@ -5,15 +5,13 @@ import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
-import com.fullsteam.model.ai.AIArchetype;
-import com.fullsteam.model.ai.AIPlayer;
+import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.ai.JuggernautAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.JuggernautInfo;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -40,12 +38,8 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    public void addAIPlayer(int team) {
-        String playerId = "ai-" + UUID.randomUUID();
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new JuggernautAIStrategy(), AIArchetype.randomArchetype());
-        setValidSpawnPosition(player);
-        players.put(playerId, player);
-        log.info("AI Player {} (Juggernaut Strategy) joined team {}", playerId, team);
+    protected IAIStrategy buildAIStrategy() {
+        return new JuggernautAIStrategy();
     }
 
     @Override

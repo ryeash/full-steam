@@ -10,9 +10,7 @@ public class Player {
     protected String playerName;
     protected double x;
     protected double y;
-    @JsonIgnore
     protected double velocityX;
-    @JsonIgnore
     protected double velocityY;
     @JsonIgnore
     protected double speed;
@@ -46,7 +44,7 @@ public class Player {
     private long alternateActionCooldown;
 
     public Player(String id, double x, double y, int team) {
-        this(id, id, x, y, team, WeaponFactory.getDefaultWeapon());
+        this(id, RandomNames.randomName(), x, y, team, WeaponFactory.getDefaultWeapon());
     }
 
     public Player(String id, String playerName, double x, double y, int team, Weapon weapon) {
@@ -366,7 +364,7 @@ public class Player {
 
     public void applyDamageBoost(long durationMs) {
         this.damageBoostEndTime = System.currentTimeMillis() + durationMs;
-        this.damageMultiplier = Config.DAMAGE_BOOST_MULTIPLIER;
+        this.damageMultiplier = Config.POWER_UP_DAMAGE_BOOST_MULTIPLIER;
     }
 
     public long getDamageBoostEndTime() {

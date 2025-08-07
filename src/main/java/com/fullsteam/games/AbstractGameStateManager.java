@@ -26,6 +26,7 @@ import com.fullsteam.model.WelcomeMessage;
 import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.DeathmatchAIStrategy;
+import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
@@ -58,6 +59,10 @@ import static com.fullsteam.Config.ID_COUNTER;
 import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
 import static com.fullsteam.Config.OBSTACLE_COUNT;
 import static com.fullsteam.Config.PLAYER_SIZE;
+import static com.fullsteam.Config.POWER_UP_ARMOR_UP_DURATION;
+import static com.fullsteam.Config.POWER_UP_DAMAGE_BOOST_DURATION;
+import static com.fullsteam.Config.POWER_UP_HEALTH_RECOVERY;
+import static com.fullsteam.Config.POWER_UP_SPEED_BOOST_DURATION;
 import static com.fullsteam.Config.POWER_UP_SPEED_BOOST_FACTOR;
 import static com.fullsteam.Config.RESPAWN_DELAY_MS;
 import static com.fullsteam.Config.RESPAWN_IMMUNITY_DURATION;
@@ -151,6 +156,7 @@ public abstract class AbstractGameStateManager {
         int team = (team2Count <= team1Count) ? 2 : 1;
 
         Player player = new Player(playerId, 0, 0, team);
+        player.applyArmorUp(POWER_UP_ARMOR_UP_DURATION);
         setValidSpawnPosition(player);
         players.put(playerId, player);
         playerChannels.put(playerId, channel);
@@ -173,12 +179,16 @@ public abstract class AbstractGameStateManager {
      *
      * @param team The team ID to add the AI player to.
      */
-    public void addAIPlayer(int team) {
+    public AIPlayer addAIPlayer(int team) {
         String playerId = "ai-" + UUID.randomUUID();
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new DeathmatchAIStrategy(), AIArchetype.randomArchetype());
+        AIPlayer player = new AIPlayer(playerId, 0, 0, team, buildAIStrategy(), AIArchetype.randomArchetype());
         setValidSpawnPosition(player);
         players.put(playerId, player);
-        log.info("AI Player {} joined team {} at position ({}, {})", playerId, team, player.getX(), player.getY());
+        return player;
+    }
+
+    protected IAIStrategy buildAIStrategy() {
+        return new DeathmatchAIStrategy();
     }
 
     public void removePlayer(String playerId) {
@@ -520,7 +530,7 @@ public abstract class AbstractGameStateManager {
             }
 
             if (System.currentTimeMillis() < player.getDamageBoostEndTime()) {
-                player.setDamageMultiplier(Config.DAMAGE_BOOST_MULTIPLIER);
+                player.setDamageMultiplier(Config.POWER_UP_DAMAGE_BOOST_MULTIPLIER);
             }
 
             // Process hazards for damage and (if not boosted) slowing.
@@ -600,7 +610,7 @@ public abstract class AbstractGameStateManager {
 
             // Remove bullets that are out of bounds or have traveled max distance
             if (newPos.x() < 0 || newPos.x() > GAME_WIDTH
-                || newPos.y() < 0 || newPos.y() > GAME_HEIGHT) {
+                    || newPos.y() < 0 || newPos.y() > GAME_HEIGHT) {
                 return true;
             }
 
@@ -736,16 +746,16 @@ public abstract class AbstractGameStateManager {
         log.info("Player {} picked up {}", player.getId(), powerUp.getType());
         switch (powerUp.getType()) {
             case HEALTH_PACK:
-                player.takeDamage(-50); // Negative damage to heal
+                player.takeDamage(-POWER_UP_HEALTH_RECOVERY);
                 break;
             case SPEED_BOOST:
-                player.applySpeedBoost(5000); // 5-second speed boost
+                player.applySpeedBoost(POWER_UP_SPEED_BOOST_DURATION);
                 break;
             case ARMOR_UP:
-                player.applyArmorUp(3000); // 3-second invincibility
+                player.applyArmorUp(POWER_UP_ARMOR_UP_DURATION);
                 break;
             case DAMAGE_BOOST:
-                player.applyDamageBoost(5000);
+                player.applyDamageBoost(POWER_UP_DAMAGE_BOOST_DURATION);
                 break;
         }
     }
@@ -915,13 +925,13 @@ public abstract class AbstractGameStateManager {
             return;
         }
 
-        if (request.getPlayerName() != null && !request.getPlayerName().isEmpty()) {
+        if (request.getPlayerName() != null && !request.getPlayerName().isEmpty() && Config.ALLOW_NAME_CHANGE) {
             player.setPlayerName(request.getPlayerName());
         }
 
         if (request.getWeaponName() != null
-            && !request.getWeaponName().isEmpty()
-            && !request.getWeaponName().equals(player.getWeapon().getName())) {
+                && !request.getWeaponName().isEmpty()
+                && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
         }
