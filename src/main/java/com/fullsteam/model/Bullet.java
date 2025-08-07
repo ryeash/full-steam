@@ -18,7 +18,7 @@ public class Bullet implements HasId{
     @JsonIgnore
     private final double velocityY;
     @JsonIgnore
-    private final String shooterId;
+    private final long shooterId;
     @JsonIgnore
     private final double damage;
     @JsonIgnore
@@ -32,11 +32,11 @@ public class Bullet implements HasId{
     @JsonIgnore
     private final Function<Bullet, BulletEffect> onDestructionAction;
 
-    public Bullet(double x, double y, double velocityX, double velocityY, String shooterId, int team, double damage, double speed, double range, double bulletSpeedDecay) {
+    public Bullet(double x, double y, double velocityX, double velocityY, long shooterId, int team, double damage, double speed, double range, double bulletSpeedDecay) {
         this(x, y, velocityX, velocityY, shooterId, team, damage, speed, range, bulletSpeedDecay, null);
     }
 
-    public Bullet(double x, double y, double velocityX, double velocityY, String shooterId, int team, double damage, double speed, double range, double bulletSpeedDecay, Function<Bullet, BulletEffect> onDestructionAction) {
+    public Bullet(double x, double y, double velocityX, double velocityY, long shooterId, int team, double damage, double speed, double range, double bulletSpeedDecay, Function<Bullet, BulletEffect> onDestructionAction) {
         this.x = x;
         this.y = y;
         this.velocityX = velocityX;
@@ -94,7 +94,7 @@ public class Bullet implements HasId{
         return velocityY;
     }
 
-    public String getShooterId() {
+    public long getShooterId() {
         return shooterId;
     }
 

@@ -9,6 +9,7 @@ import com.fullsteam.model.gamemodes.EscortGameInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
 
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -156,7 +157,7 @@ public class EscortAIStrategy implements IAIStrategy {
 
         for (Player other : allPlayers) {
             // Skip self, teammates, or dead players
-            if (other.getId().equals(self.getId()) || other.getTeam() == self.getTeam() || other.isDead()) {
+            if (Objects.equals(other.getId(), self.getId()) || other.getTeam() == self.getTeam() || other.isDead()) {
                 continue;
             }
 

@@ -11,7 +11,7 @@ public class PoisonCloud implements BulletEffect {
     private final long id;
     private final double x;
     private final double y;
-    private final String shooterId;
+    private final long shooterId;
     private final int team;
     private final double radius;
     private final double damagePerTick;
@@ -21,7 +21,7 @@ public class PoisonCloud implements BulletEffect {
     @JsonIgnore
     private transient long lastDamageTickTime;
 
-    public PoisonCloud(double x, double y, String shooterId, int team, double radius, double damagePerTick, long duration) {
+    public PoisonCloud(double x, double y, long shooterId, int team, double radius, double damagePerTick, long duration) {
         this.id = Config.ID_COUNTER.incrementAndGet();
         this.x = x;
         this.y = y;
@@ -61,7 +61,7 @@ public class PoisonCloud implements BulletEffect {
         return y;
     }
 
-    public String getShooterId() {
+    public long getShooterId() {
         return shooterId;
     }
 

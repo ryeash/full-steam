@@ -102,7 +102,6 @@ public class EliminationManager extends AbstractTeamBasedManager {
             player.resetHealth();
             player.finishReload();
             setValidSpawnPosition(player);
-            log.info("Player {} has respawned.", player.getId());
         }
     }
 

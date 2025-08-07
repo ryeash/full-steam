@@ -158,7 +158,7 @@ public class GameLobby {
 
     public void joinGame(Channel ctx, AbstractGameStateManager game) {
         // Add the player to that specific game instance
-        String playerId = GameWebSocketHandler.playerId(ctx);
+        Long playerId = GameWebSocketHandler.playerId(ctx);
         Player player = game.addPlayer(playerId, ctx);
         log.info("Player {} connected and joined game {}", playerId, game.getGameId());
 

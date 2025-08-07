@@ -4,7 +4,7 @@ public record Flag(int team,
                    FlagState state,
                    Vector2D position,
                    Vector2D basePosition,
-                   String carrierId,
+                   Long carrierId,
                    long dropTimestamp // Used for automatic return timer
 ) {
     public enum FlagState {
@@ -14,7 +14,7 @@ public record Flag(int team,
     }
 
     // Helper methods for creating new instances with updated state (immutability)
-    public Flag asCarriedBy(String playerId) {
+    public Flag asCarriedBy(long playerId) {
         return new Flag(team, FlagState.CARRIED, position, basePosition, playerId, 0);
     }
 

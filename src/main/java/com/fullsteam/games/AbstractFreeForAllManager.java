@@ -13,8 +13,8 @@ import io.netty.channel.Channel;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -57,14 +57,14 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
             log.info("Too many players. Current players: {}, Max: {}. Removing {} AI.", players.size(), MAX_PLAYERS, playersToRemove);
 
             // Get a list of AI player IDs to remove
-            List<String> aiPlayerIdsToRemove = players.values().stream()
+            List<Long> aiPlayerIdsToRemove = players.values().stream()
                     .filter(p -> p instanceof AIPlayer)
                     .map(Player::getId)
                     .limit(playersToRemove)
                     .toList();
 
             // Remove them
-            for (String playerId : aiPlayerIdsToRemove) {
+            for (Long playerId : aiPlayerIdsToRemove) {
                 removePlayer(playerId);
                 log.info("Removed AI Player {} to meet max player limit.", playerId);
             }
@@ -73,7 +73,7 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
 
     @Override
     public AIPlayer addAIPlayer(int team) {
-        String playerId = "ai-" + UUID.randomUUID();
+        Long playerId = Config.ID_COUNTER.incrementAndGet();
         AIPlayer player = new AIPlayer(playerId, 0, 0, team, new DeathmatchAIStrategy(), AIArchetype.randomArchetype());
         setValidSpawnPosition(player);
         players.put(playerId, player);
@@ -105,7 +105,7 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
     }
 
     @Override
-    public Player addPlayer(String playerId, Channel channel) {
+    public Player addPlayer(long playerId, Channel channel) {
         // If the game is at max capacity, try to remove an AI to make room.
         if (players.size() >= MAX_PLAYERS) {
             Optional<Player> aiToKick = players.values().stream()
@@ -161,7 +161,7 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
             }
 
             for (Player other : players.values()) {
-                if (!player.getId().equals(other.getId()) && other.getCenter().distanceSquared(player.getCenter()) < PLAYER_BUFFER_SPAWN_DISTANCE) {
+                if (!Objects.equals(player.getId(), other.getId()) && other.getCenter().distanceSquared(player.getCenter()) < PLAYER_BUFFER_SPAWN_DISTANCE) {
                     invalidPosition = true;
                     break;
                 }

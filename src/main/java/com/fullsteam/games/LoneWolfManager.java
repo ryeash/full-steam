@@ -10,6 +10,8 @@ import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.LoneWolfInfo;
 import io.netty.channel.Channel;
 
+import java.util.Objects;
+
 import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
 
 public class LoneWolfManager extends AbstractGameStateManager {
@@ -17,7 +19,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
     private static final long AI_FILL_CHECK_INTERVAL_MS = 5000; // 5 seconds
     private long lastAIFillCheckTime = 0;
 
-    private String loneWolfId;
+    private Long loneWolfId;
     private int loneWolfDeaths = 0;
 
     public LoneWolfManager(GameLobby gameLobby) {
@@ -87,7 +89,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
     }
 
     @Override
-    public Player addPlayer(String playerId, Channel channel) {
+    public Player addPlayer(long playerId, Channel channel) {
         Player player;
         // The first player to join is the Lone Wolf
         if (loneWolfId == null) {
@@ -107,7 +109,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
     }
 
     @Override
-    public void handlePlayerConfigChange(String playerId, PlayerConfigRequest request) {
+    public void handlePlayerConfigChange(Long playerId, PlayerConfigRequest request) {
         Player player = players.get(playerId);
         if (player != null && request.isRequestTeamChange()) {
             if (player.getTeam() == 1) {
@@ -124,7 +126,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
     protected void killPlayer(Player victim, Player shooter) {
         super.killPlayer(victim, shooter); // Handle basic kill logic first
 
-        if (victim.getId().equals(loneWolfId)) {
+        if (Objects.equals(victim.getId(), loneWolfId)) {
             loneWolfDeaths++;
             Player loneWolf = players.get(loneWolfId);
             if (loneWolf != null && loneWolfDeaths < Config.LONE_WOLF_LIVES) {
@@ -134,7 +136,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
                 sendGameEvent(GameEvent.red("The Lone Wolf grows stronger! Damage is now " + (int) (newDamageMultiplier * 100) + "%."));
                 schedule(super::checkAndRespawnPlayers, Config.RESPAWN_DELAY_MS);
             }
-        } else if (shooter != null && shooter.getId().equals(loneWolfId)) {
+        } else if (shooter != null && Objects.equals(shooter.getId(), loneWolfId)) {
             // A hunter was killed by the lone wolf
             sendGameEvent(GameEvent.green("The Lone Wolf has eliminated " + victim.getPlayerName()));
         }
@@ -185,7 +187,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
     protected void resetDamageMultiplier(Player player) {
         // The Lone Wolf's damage multiplier is persistent and managed separately.
         // We only reset the multiplier for the Hunters.
-        if (!player.getId().equals(loneWolfId)) {
+        if (!Objects.equals(player.getId(), loneWolfId)) {
             player.setDamageMultiplier(1.0);
         }
     }

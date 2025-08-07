@@ -117,7 +117,7 @@ public class OddballManager extends AbstractTeamBasedManager {
     protected void killPlayer(Player victim, Player shooter) {
         super.killPlayer(victim, shooter);
         // Check if the victim was carrying the ball
-        if (oddball.state() == Oddball.OddballState.CARRIED && victim.getId().equals(oddball.carrierId())) {
+        if (oddball.state() == Oddball.OddballState.CARRIED && Objects.equals(victim.getId(), oddball.carrierId())) {
             oddball = oddball.asDroppedAt(victim.getCenter());
             log.info("Oddball carrier was eliminated! Ball dropped at ({}, {}).", victim.getX(), victim.getY());
             sendGameEvent(GameEvent.blue("The Oddball carrier was eliminated!"));

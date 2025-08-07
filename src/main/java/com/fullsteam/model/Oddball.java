@@ -6,7 +6,7 @@ package com.fullsteam.model;
  */
 public record Oddball(OddballState state,
                       Vector2D position,
-                      String carrierId,
+                      Long carrierId,
                       long dropTimestamp // Used for automatic reset timer
 ) {
     public enum OddballState {
@@ -17,7 +17,7 @@ public record Oddball(OddballState state,
 
     // --- Helper methods for immutable state transitions ---
 
-    public Oddball asCarriedBy(String playerId, Vector2D carrierPosition) {
+    public Oddball asCarriedBy(Long playerId, Vector2D carrierPosition) {
         return new Oddball(OddballState.CARRIED, carrierPosition, playerId, 0);
     }
 

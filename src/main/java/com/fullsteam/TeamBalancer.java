@@ -28,7 +28,7 @@ public class TeamBalancer {
      *
      * @param players The current map of all players in the game.
      */
-    public void balanceTeams(Map<String, Player> players) {
+    public void balanceTeams(Map<Long, Player> players) {
         // Count players on each team
         long team1Count = players.values().stream().filter(p -> p.getTeam() == 1).count();
         long team2Count = players.values().stream().filter(p -> p.getTeam() == 2).count();
@@ -40,7 +40,7 @@ public class TeamBalancer {
         balanceTeam(2, team2Count, MAX_PLAYERS_PER_TEAM, players);
     }
 
-    public void balanceTeam(int teamId, long currentTeamSize, long targetTeamSize, Map<String, Player> players) {
+    public void balanceTeam(int teamId, long currentTeamSize, long targetTeamSize, Map<Long, Player> players) {
         if (currentTeamSize < targetTeamSize) {
             // Add AI players to fill the team
             long playersToAdd = targetTeamSize - currentTeamSize;

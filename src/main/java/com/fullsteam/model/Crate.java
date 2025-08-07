@@ -4,14 +4,14 @@ import com.fullsteam.Config;
 
 public class Crate implements HasId {
     private final long id;
-    private final String ownerId;
+    private final long ownerId;
     private final double x;
     private final double y;
     private final double size;
     private double hp;
     private final double maxHp;
 
-    public Crate(String ownerId, double x, double y, double size, double hp) {
+    public Crate(long ownerId, double x, double y, double size, double hp) {
         this.id = Config.ID_COUNTER.incrementAndGet();
         this.ownerId = ownerId;
         this.x = x;
@@ -26,7 +26,7 @@ public class Crate implements HasId {
         return id;
     }
 
-    public String getOwnerId() {
+    public long getOwnerId() {
         return ownerId;
     }
 

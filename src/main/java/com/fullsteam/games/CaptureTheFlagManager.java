@@ -14,6 +14,7 @@ import com.fullsteam.model.gamemodes.GameInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -166,12 +167,12 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
     @Override
     protected void killPlayer(Player victim, Player shooter) {
         // Check if the victim was carrying a flag
-        if (team1Flag.state() == Flag.FlagState.CARRIED && victim.getId().equals(team1Flag.carrierId())) {
+        if (team1Flag.state() == Flag.FlagState.CARRIED && Objects.equals(victim.getId(), team1Flag.carrierId())) {
             team1Flag = team1Flag.asDroppedAt(victim.getCenter());
             log.info("Team 1's flag carrier was eliminated! Flag dropped at ({}, {}).", victim.getX(), victim.getY());
             sendGameEvent(GameEvent.withType("Team 1's flag was dropped!", GameEvent.EventType.FLAG_DROP));
         }
-        if (team2Flag.state() == Flag.FlagState.CARRIED && victim.getId().equals(team2Flag.carrierId())) {
+        if (team2Flag.state() == Flag.FlagState.CARRIED && Objects.equals(victim.getId(), team2Flag.carrierId())) {
             team2Flag = team2Flag.asDroppedAt(victim.getCenter());
             log.info("Team 2's flag carrier was eliminated! Flag dropped at ({}, {}).", victim.getX(), victim.getY());
             sendGameEvent(GameEvent.withType("Team 2's flag was dropped!", GameEvent.EventType.FLAG_DROP));

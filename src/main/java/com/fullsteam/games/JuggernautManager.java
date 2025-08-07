@@ -25,8 +25,8 @@ import static com.fullsteam.Config.JUGGERNAUT_SELECTION_DELAY_MS;
  */
 public class JuggernautManager extends AbstractTeamBasedManager {
 
-    private String team1Juggernaut;
-    private String team2Juggernaut;
+    private Long team1Juggernaut;
+    private Long team2Juggernaut;
 
     public JuggernautManager(GameLobby gameLobby) {
         super(gameLobby);
@@ -58,7 +58,7 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    public void acceptPlayerInput(String playerId, PlayerInput input) {
+    public void acceptPlayerInput(Long playerId, PlayerInput input) {
         if (team1Juggernaut == null || team2Juggernaut == null) {
             // freeze until the juggernauts are selected
             return;

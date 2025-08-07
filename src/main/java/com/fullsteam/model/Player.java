@@ -5,8 +5,8 @@ import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
 import org.apache.commons.lang3.StringUtils;
 
-public class Player {
-    protected final String id;
+public class Player implements HasId {
+    protected final long id;
     protected String playerName;
     protected double x;
     protected double y;
@@ -43,11 +43,11 @@ public class Player {
     @JsonIgnore
     private long alternateActionCooldown;
 
-    public Player(String id, double x, double y, int team) {
+    public Player(long id, double x, double y, int team) {
         this(id, RandomNames.randomName(), x, y, team, WeaponFactory.getDefaultWeapon());
     }
 
-    public Player(String id, String playerName, double x, double y, int team, Weapon weapon) {
+    public Player(long id, String playerName, double x, double y, int team, Weapon weapon) {
         this.id = id;
         this.playerName = playerName;
         this.x = x;
@@ -64,7 +64,7 @@ public class Player {
         this.isDead = false;
         this.respawnTime = 0;
         this.kills = 0;
-        this.deaths = 0;        
+        this.deaths = 0;
         this.mouseX = x;
         this.mouseY = y;
         this.currentAmmoInMagazine = weapon.getRoundsPerMagazine();
@@ -122,8 +122,8 @@ public class Player {
         this.currentAmmoInMagazine = weapon.getRoundsPerMagazine();
     }
 
-    // Getters and setters
-    public String getId() {
+    @Override
+    public long id() {
         return id;
     }
 

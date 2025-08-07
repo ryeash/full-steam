@@ -41,7 +41,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
@@ -79,9 +78,9 @@ public abstract class AbstractGameStateManager {
 
     protected final GameLobby gameLobby;
     protected final Long gameId = gameIdGenerator.getAndIncrement();
-    protected final Map<String, Player> players = new ConcurrentHashMap<>();
-    protected final Map<String, Channel> playerChannels = new ConcurrentHashMap<>();
-    protected final Map<String, PlayerInput> playerInput = new ConcurrentHashMap<>();
+    protected final Map<Long, Player> players = new ConcurrentHashMap<>();
+    protected final Map<Long, Channel> playerChannels = new ConcurrentHashMap<>();
+    protected final Map<Long, PlayerInput> playerInput = new ConcurrentHashMap<>();
     protected final List<Channel> spectatorChannels = Collections.synchronizedList(new LinkedList<>());
     protected final List<Bullet> bullets = Collections.synchronizedList(new LinkedList<>());
     protected final List<Explosion> explosions = Collections.synchronizedList(new LinkedList<>());
@@ -149,7 +148,7 @@ public abstract class AbstractGameStateManager {
         log.info("Game loop started at {} FPS", TICK_RATE);
     }
 
-    public Player addPlayer(String playerId, Channel channel) {
+    public Player addPlayer(long playerId, Channel channel) {
         // Assign player to the team with fewer players to keep things balanced.
         long team1Count = players.values().stream().filter(p -> p.getTeam() == 1).count();
         long team2Count = players.values().stream().filter(p -> p.getTeam() == 2).count();
@@ -180,7 +179,7 @@ public abstract class AbstractGameStateManager {
      * @param team The team ID to add the AI player to.
      */
     public AIPlayer addAIPlayer(int team) {
-        String playerId = "ai-" + UUID.randomUUID();
+        long playerId = ID_COUNTER.incrementAndGet();
         AIPlayer player = new AIPlayer(playerId, 0, 0, team, buildAIStrategy(), AIArchetype.randomArchetype());
         setValidSpawnPosition(player);
         players.put(playerId, player);
@@ -191,7 +190,7 @@ public abstract class AbstractGameStateManager {
         return new DeathmatchAIStrategy();
     }
 
-    public void removePlayer(String playerId) {
+    public void removePlayer(long playerId) {
         players.remove(playerId);
         playerChannels.remove(playerId);
         playerInput.remove(playerId);
@@ -199,7 +198,7 @@ public abstract class AbstractGameStateManager {
         sendGameState();
     }
 
-    public void acceptPlayerInput(String playerId, PlayerInput input) {
+    public void acceptPlayerInput(Long playerId, PlayerInput input) {
         Player player = players.get(playerId);
         if (player == null) {
             return;
@@ -210,7 +209,7 @@ public abstract class AbstractGameStateManager {
         }
     }
 
-    public void handlePlayerInput(String playerId, PlayerInput input) {
+    public void handlePlayerInput(Long playerId, PlayerInput input) {
         Player player = players.get(playerId);
         if (player == null) {
             return;
@@ -368,7 +367,7 @@ public abstract class AbstractGameStateManager {
                     }
 
                     // Prevent friendly fire, but allow self-damage
-                    if (shooter != null && p.getTeam() == shooter.getTeam() && !p.getId().equals(shooter.getId())) {
+                    if (shooter != null && p.getTeam() == shooter.getTeam() && !Objects.equals(p.getId(), shooter.getId())) {
                         continue;
                     }
 
@@ -404,7 +403,7 @@ public abstract class AbstractGameStateManager {
                         continue;
                     }
                     // Prevent friendly fire, but allow self-damage
-                    if (shooter != null && p.getTeam() == shooter.getTeam() && !p.getId().equals(shooter.getId())) {
+                    if (shooter != null && p.getTeam() == shooter.getTeam() && !Objects.equals(p.getId(), shooter.getId())) {
                         continue;
                     }
 
@@ -469,9 +468,9 @@ public abstract class AbstractGameStateManager {
      */
     protected void checkAfkPlayers() {
         long currentTime = System.currentTimeMillis();
-        List<String> afkPlayerIds = new ArrayList<>();
+        List<Long> afkPlayerIds = new ArrayList<>();
 
-        for (Map.Entry<String, Player> entry : players.entrySet()) {
+        for (Map.Entry<Long, Player> entry : players.entrySet()) {
             Player player = entry.getValue();
             // We don't want to kick AI players
             if (player instanceof AIPlayer) {
@@ -483,7 +482,7 @@ public abstract class AbstractGameStateManager {
             }
         }
 
-        for (String playerId : afkPlayerIds) {
+        for (Long playerId : afkPlayerIds) {
             log.info("Player {} is AFK. Removing from game.", playerId);
             Channel channel = playerChannels.get(playerId);
             if (channel != null) {
@@ -610,7 +609,7 @@ public abstract class AbstractGameStateManager {
 
             // Remove bullets that are out of bounds or have traveled max distance
             if (newPos.x() < 0 || newPos.x() > GAME_WIDTH
-                    || newPos.y() < 0 || newPos.y() > GAME_HEIGHT) {
+                || newPos.y() < 0 || newPos.y() > GAME_HEIGHT) {
                 return true;
             }
 
@@ -689,10 +688,8 @@ public abstract class AbstractGameStateManager {
 
         if (shooter != null) {
             shooter.incrementKills();
-            log.info("Player {} was eliminated by {}. (K/D: {}/{})", victim.getId(), shooter.getId(), shooter.getKills(), shooter.getDeaths());
-        } else {
-            // This can happen if the shooter disconnects right after firing
-            log.info("Player {} was eliminated by a disconnected player or a hazard.", victim.getId());
+            sendGameEvent(GameEvent.yellow("You were eliminated by %s (%s)".formatted(shooter.getPlayerName(), shooter.getWeapon().getName()), victim.id()));
+            sendGameEvent(GameEvent.blue("You eliminated %s".formatted(victim.getPlayerName()), shooter.id()));
         }
 
         // If an AI player's performance is unbalanced, give it a new random weapon.
@@ -769,7 +766,6 @@ public abstract class AbstractGameStateManager {
                 player.finishReload();
                 player.applyArmorUp(RESPAWN_IMMUNITY_DURATION);
                 setValidSpawnPosition(player);
-                log.info("Player {} has respawned.", player.getId());
             }
         }
     }
@@ -919,7 +915,7 @@ public abstract class AbstractGameStateManager {
      * @param playerId The ID of the player making the request.
      * @param request  The weapon change request details.
      */
-    public void handlePlayerConfigChange(String playerId, PlayerConfigRequest request) {
+    public void handlePlayerConfigChange(Long playerId, PlayerConfigRequest request) {
         Player player = players.get(playerId);
         if (player == null) {
             return;
@@ -930,8 +926,8 @@ public abstract class AbstractGameStateManager {
         }
 
         if (request.getWeaponName() != null
-                && !request.getWeaponName().isEmpty()
-                && !request.getWeaponName().equals(player.getWeapon().getName())) {
+            && !request.getWeaponName().isEmpty()
+            && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
         }

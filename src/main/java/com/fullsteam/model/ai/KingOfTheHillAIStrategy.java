@@ -6,6 +6,7 @@ import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.KingOfTheHillInfo;
 
 import java.util.Collection;
+import java.util.Objects;
 
 public class KingOfTheHillAIStrategy implements IAIStrategy {
 
@@ -138,7 +139,7 @@ public class KingOfTheHillAIStrategy implements IAIStrategy {
 
         for (Player other : allPlayers) {
             // Skip self, teammates, or dead players
-            if (other.getId().equals(self.getId()) || other.getTeam() == self.getTeam() || other.isDead()) {
+            if (Objects.equals(other.getId(), self.getId()) || other.getTeam() == self.getTeam() || other.isDead()) {
                 continue;
             }
 

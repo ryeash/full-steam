@@ -70,7 +70,7 @@ public class GunMasterManager extends AbstractFreeForAllManager {
     }
 
     @Override
-    public Player addPlayer(String playerId, Channel channel) {
+    public Player addPlayer(long playerId, Channel channel) {
         Player player = super.addPlayer(playerId, channel);
         if (player != null) {
             // Ensure new players get the current weapon
@@ -92,7 +92,7 @@ public class GunMasterManager extends AbstractFreeForAllManager {
     }
 
     @Override
-    public void handlePlayerConfigChange(String playerId, PlayerConfigRequest request) {
+    public void handlePlayerConfigChange(Long playerId, PlayerConfigRequest request) {
         Player player = players.get(playerId);
         if (player == null) {
             return;

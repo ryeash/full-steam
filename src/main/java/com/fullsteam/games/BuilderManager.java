@@ -78,7 +78,7 @@ public class BuilderManager extends AbstractFreeForAllManager {
     }
 
     @Override
-    public void handlePlayerInput(String playerId, PlayerInput input) {
+    public void handlePlayerInput(Long playerId, PlayerInput input) {
         super.handlePlayerInput(playerId, input);
         // Handle weapon cycle with a 500ms cooldown
         if (input.isPlacingObstacle()) {
@@ -110,7 +110,7 @@ public class BuilderManager extends AbstractFreeForAllManager {
         }
     }
 
-    public void placeCrate(String playerId) {
+    public void placeCrate(Long playerId) {
         Player player = players.get(playerId);
         if (player == null) {
             return;
@@ -195,12 +195,12 @@ public class BuilderManager extends AbstractFreeForAllManager {
     }
 
     @Override
-    public void removePlayer(String playerId) {
+    public void removePlayer(long playerId) {
         removePlayerCrates(playerId);
         super.removePlayer(playerId);
     }
 
-    private void removePlayerCrates(String playerId) {
+    private void removePlayerCrates(Long playerId) {
         crates.removeIf(crate -> playerId.equals(crate.getOwnerId()));
     }
 }

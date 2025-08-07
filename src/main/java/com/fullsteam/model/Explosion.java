@@ -7,7 +7,7 @@ public class Explosion implements BulletEffect {
     private final long id;
     private final double x;
     private final double y;
-    private final String shooterId;
+    private final long shooterId;
     private final int team;
     private final double size;
     private final double damage;
@@ -17,7 +17,7 @@ public class Explosion implements BulletEffect {
     @JsonIgnore
     private boolean damageApplied = false;
 
-    public Explosion(double x, double y, String shooterId, int team, double size, double damage, long duration) {
+    public Explosion(double x, double y, long shooterId, int team, double size, double damage, long duration) {
         this.id = Config.ID_COUNTER.incrementAndGet();
         this.x = x;
         this.y = y;
@@ -64,7 +64,7 @@ public class Explosion implements BulletEffect {
         return y;
     }
 
-    public String getShooterId() {
+    public long getShooterId() {
         return shooterId;
     }
 

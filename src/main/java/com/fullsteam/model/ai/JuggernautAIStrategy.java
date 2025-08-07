@@ -116,12 +116,12 @@ public class JuggernautAIStrategy implements IAIStrategy {
      * Helper to find the Juggernaut player object for a given team.
      */
     private Optional<Player> findJuggernautForTeam(Collection<Player> players, int team, JuggernautInfo j) {
-        String juggernautId = team == 1 ? j.getTeam1Juggernaut() : j.getTeam2Juggernaut();
+        Long juggernautId = team == 1 ? j.getTeam1Juggernaut() : j.getTeam2Juggernaut();
         if (juggernautId == null) {
             return Optional.empty();
         }
         return players.stream()
-                .filter(p -> p.getId().equals(juggernautId))
+                .filter(p -> Objects.equals(p.getId(), juggernautId))
                 .findFirst();
     }
 }

@@ -63,9 +63,10 @@ public class AIPlayer extends Player {
     /**
      * Represents a decision to fire the weapon in a specific direction.
      */
-    public record ShootAction(double directionX, double directionY) {}
+    public record ShootAction(double directionX, double directionY) {
+    }
 
-    public AIPlayer(String id, double x, double y, int team, IAIStrategy aiStrategy, AIArchetype archetype) {
+    public AIPlayer(long id, double x, double y, int team, IAIStrategy aiStrategy, AIArchetype archetype) {
         super(id, "AI - " + RandomNames.randomName(), x, y, team, WeaponFactory.getRandomWeapon());
         this.aiStrategy = aiStrategy;
         this.archetype = archetype;
@@ -91,7 +92,7 @@ public class AIPlayer extends Player {
      * 5. The AI's position is updated based on its new velocity (handled by the parent Player class).
      * 6. A decision to shoot is made independently of movement.
      *
-     * @param gameState The current game mode's state information.
+     * @param gameState  The current game mode's state information.
      * @param playerGrid The spatial grid for proximity queries.
      * @return An Optional containing a {@link ShootAction} if the AI decides to shoot this frame.
      */
@@ -334,7 +335,7 @@ public class AIPlayer extends Player {
         Set<Player> nearbyPlayers = playerGrid.getNearby(getX() - attackRange, getY() - attackRange, attackRange * 2, attackRange * 2);
 
         for (Player potentialTarget : nearbyPlayers) {
-            if (potentialTarget.getId().equals(this.getId()) || potentialTarget.isDead() || potentialTarget.getTeam() == this.getTeam()) {
+            if (potentialTarget.getId() == this.getId() || potentialTarget.isDead() || potentialTarget.getTeam() == this.getTeam()) {
                 continue;
             }
 

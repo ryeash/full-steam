@@ -21,7 +21,7 @@ import static com.fullsteam.Config.MAX_GLOBAL_PLAYERS;
 public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private static final Logger log = LoggerFactory.getLogger(GameWebSocketHandler.class);
     public static final AttributeKey<AbstractGameStateManager> GAME_STATE_MANAGER_KEY = AttributeKey.valueOf("gameStateManager");
-    public static final AttributeKey<String> PLAYER_ID_KEY = AttributeKey.valueOf("playerId");
+    public static final AttributeKey<Long> PLAYER_ID_KEY = AttributeKey.valueOf("playerId");
     public static final AttributeKey<Boolean> IS_SPECTATOR_KEY = AttributeKey.valueOf("isSpectator");
 
     private final GameLobby gameLobby;
@@ -76,7 +76,7 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
             if (isSpectator != null && isSpectator) {
                 game.removeSpectator(ctx.channel());
             } else {
-                String playerId = ctx.channel().attr(PLAYER_ID_KEY).get();
+                Long playerId = ctx.channel().attr(PLAYER_ID_KEY).get();
                 if (playerId != null) {
                     game.removePlayer(playerId);
                 }
@@ -93,7 +93,7 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
         if (ctx.channel().hasAttr(IS_SPECTATOR_KEY)) {
             return; // Spectators don't send input
         }
-        String playerId = ctx.channel().attr(PLAYER_ID_KEY).get();
+        Long playerId = ctx.channel().attr(PLAYER_ID_KEY).get();
 
         if (game == null || playerId == null) {
             log.warn("Received message from a channel without a game session. Closing.");
@@ -125,16 +125,20 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        String playerId = playerId(ctx);
+        Long playerId = playerId(ctx);
         log.error("WebSocket error for player {}: {}", playerId, cause.getMessage());
         ctx.close();
     }
 
-    public static String playerId(ChannelHandlerContext ctx) {
-        return ctx.channel().id().asShortText();
+    public static Long playerId(ChannelHandlerContext ctx) {
+        return playerId(ctx.channel());
     }
 
-    public static String playerId(Channel ch) {
-        return ch.id().asShortText();
+    public static Long playerId(Channel ch) {
+        if (ch.attr(PLAYER_ID_KEY).get() == null) {
+            return ch.attr(PLAYER_ID_KEY).setIfAbsent(Config.ID_COUNTER.incrementAndGet());
+        } else {
+            return ch.attr(PLAYER_ID_KEY).get();
+        }
     }
 }

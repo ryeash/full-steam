@@ -14,7 +14,6 @@ import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.ZombieDefenseInfo;
 import io.netty.channel.Channel;
 
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -43,7 +42,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     }
 
     @Override
-    public Player addPlayer(String playerId, Channel channel) {
+    public Player addPlayer(long playerId, Channel channel) {
         // All human players are on Team 1 (Survivors)
         Player player = new Player(playerId, 0, 0, 1);
         setValidSpawnPosition(player); // This will spawn them inside the house
@@ -124,7 +123,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     }
 
     private void spawnZombie() {
-        String playerId = "zombie-" + UUID.randomUUID();
+        long playerId = Config.ID_COUNTER.incrementAndGet();
         // Zombies are on Team 2
         AIPlayer zombie = new AIPlayer(playerId, 0, 0, 2, new ZombieAIStrategy(), AIArchetype.randomArchetype());
         double random = ThreadLocalRandom.current().nextDouble();
@@ -175,7 +174,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         long humansAlive = players.values().stream()
                 .filter(p -> p.getTeam() == 1 && !p.isDead())
                 .count();
-        // Use an if / else if structure to prevent incorrect win conditions
+        // Use an if / else-if structure to prevent incorrect win conditions
         if (humansAlive == 0 && hasHumanPlayers()) {
             log.info("All survivors have been eliminated. Zombies win!");
             sendGameEvent(GameEvent.info("The horde has won! Game Over."));

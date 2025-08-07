@@ -7,6 +7,7 @@ import com.fullsteam.model.gamemodes.CaptureTheFlagInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
 
 import java.util.Collection;
+import java.util.Objects;
 
 public class CaptureTheFlagAIStrategy implements IAIStrategy {
 
@@ -26,7 +27,7 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
         // --- Pre-computation: Get key state information once ---
         Flag myFlag = self.getTeam() == 1 ? ctf.getTeam1Flag() : ctf.getTeam2Flag();
         Flag enemyFlag = self.getTeam() == 1 ? ctf.getTeam2Flag() : ctf.getTeam1Flag();
-        boolean amICarryingFlag = self.getId().equals(enemyFlag.carrierId());
+        boolean amICarryingFlag = Objects.equals(self.getId(), enemyFlag.carrierId());
 
         // --- Universal Priority #1: Handle flag carrier logic ---
         if (handleFlagCarrierLogic(self, allPlayers, myFlag, amICarryingFlag)) {
