@@ -77,7 +77,7 @@ public class Config {
     // --- Power Ups ---
     public static final double POWER_UP_SPEED_BOOST_FACTOR = getDouble("game.powerup.speed_boost_factor", 1.5);
     public static final double POWER_UP_DAMAGE_BOOST_MULTIPLIER = getDouble("game.powerup.damage_boost_multiplier", 1.5);
-    public static final long POWER_UP_HEALTH_RECOVERY = getLong("game.powerup.health_recovery", -50);
+    public static final long POWER_UP_HEALTH_RECOVERY = getLong("game.powerup.health_recovery", 50);
     public static final long POWER_UP_SPEED_BOOST_DURATION = getLong("game.powerup.speed_boost_duration", 5000);
     public static final long POWER_UP_ARMOR_UP_DURATION = getLong("game.powerup.armor_up_duration", 3000);
     public static final long POWER_UP_DAMAGE_BOOST_DURATION = getLong("game.powerup.damage_boost_duration", 5000);
