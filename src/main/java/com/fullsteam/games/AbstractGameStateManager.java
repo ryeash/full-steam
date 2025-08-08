@@ -77,13 +77,11 @@ import static com.fullsteam.Config.MAX_SPECTATORS_PER_GAME;
 public abstract class AbstractGameStateManager {
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
-    protected static final AtomicLong gameIdGenerator = new AtomicLong(1);
-
     protected final GameLobby gameLobby;
-    protected final Long gameId = gameIdGenerator.getAndIncrement();
-    protected final Map<Long, Player> players = new ConcurrentHashMap<>();
-    protected final Map<Long, Channel> playerChannels = new ConcurrentHashMap<>();
-    protected final Map<Long, PlayerInput> playerInput = new ConcurrentHashMap<>();
+    protected final Long gameId = ID_COUNTER.incrementAndGet();
+    protected final Map<Long, Player> players = new ConcurrentHashMap<>(10, 1, 1);
+    protected final Map<Long, Channel> playerChannels = new ConcurrentHashMap<>(10, 1, 1);
+    protected final Map<Long, PlayerInput> playerInput = new ConcurrentHashMap<>(10, 1, 1);
     protected final List<Channel> spectatorChannels = Collections.synchronizedList(new LinkedList<>());
     protected final List<Bullet> bullets = Collections.synchronizedList(new LinkedList<>());
     protected final List<Explosion> explosions = Collections.synchronizedList(new LinkedList<>());
@@ -161,7 +159,12 @@ public abstract class AbstractGameStateManager {
         // Assign player to the team with fewer players to keep things balanced.
         long team1Count = players.values().stream().filter(p -> p.getTeam() == 1).count();
         long team2Count = players.values().stream().filter(p -> p.getTeam() == 2).count();
-        int team = (team2Count <= team1Count) ? 2 : 1;
+        int team;
+        if (team1Count < MAX_PLAYERS_PER_TEAM && team2Count < MAX_PLAYERS_PER_TEAM) {
+            team = ThreadLocalRandom.current().nextBoolean() ? 2 : 1;
+        } else {
+            team = (team2Count <= team1Count) ? 2 : 1;
+        }
 
         Player player = new Player(playerId, 0, 0, team);
         player.applyArmorUp(POWER_UP_ARMOR_UP_DURATION);
@@ -461,6 +464,8 @@ public abstract class AbstractGameStateManager {
                             .writeAndFlush(Jackson.msgPackFrame(new WelcomeMessage(player.getId(), player.getTeam(), gameId)));
                 }
             }
+            spectatorChannels.forEach(channel ->
+                    channel.writeAndFlush(Jackson.msgPackFrame(new WelcomeMessage(-1, 0, gameId))));
 
             log.info("New round started! Round will end in {} seconds.", ROUND_DURATION_SECONDS);
             sendGameState(); // Send an immediate update to reflect the reset
@@ -620,7 +625,7 @@ public abstract class AbstractGameStateManager {
 
             // Remove bullets that are out of bounds or have traveled max distance
             if (newPos.x() < 0 || newPos.x() > GAME_WIDTH
-                || newPos.y() < 0 || newPos.y() > GAME_HEIGHT) {
+                    || newPos.y() < 0 || newPos.y() > GAME_HEIGHT) {
                 return true;
             }
 
@@ -691,6 +696,7 @@ public abstract class AbstractGameStateManager {
             return; // Prevent scoring on an already dead player
         }
 
+        playerInput.remove(victim.getId());
         victim.setDead(true);
         victim.incrementDeaths();
         victim.setRespawnTime(System.currentTimeMillis() + RESPAWN_DELAY_MS);
@@ -968,8 +974,8 @@ public abstract class AbstractGameStateManager {
         }
 
         if (request.getWeaponName() != null
-            && !request.getWeaponName().isEmpty()
-            && !request.getWeaponName().equals(player.getWeapon().getName())) {
+                && !request.getWeaponName().isEmpty()
+                && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
         }
@@ -994,9 +1000,7 @@ public abstract class AbstractGameStateManager {
                         .writeAndFlush(Jackson.msgPackFrame(new WelcomeMessage(player.getId(), player.getTeam(), gameId)));
                 log.info("Player {} switched to team {}", playerId, otherTeam);
             } else {
-                // TODO: refactor GameEvent to support sending message to specific players
-                // then send a message to the user to tell them that they aren't allowed to move teams
-                log.warn("Player {} failed to switch to team {}: team is full.", playerId, otherTeam);
+                sendGameEvent(GameEvent.red("Team %d is full. You cannot switch teams.".formatted(otherTeam), playerId));
             }
         }
         log.info("Player {} reconfigured: name={}, weapon={}", playerId, player.getPlayerName(), player.getWeapon().getName());

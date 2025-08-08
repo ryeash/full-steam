@@ -93,7 +93,7 @@
 
     <div id="player-count">Global Players: 0/0</div>
 
-    <h2>Create a New Game</h2>
+    <h2>Join or Create Game</h2>
     <div id="create-buttons">
         <!-- "Create Game" buttons will be populated by JavaScript -->
     </div>
@@ -130,7 +130,7 @@
         if (lobbyInfo.gameTypes) {
             lobbyInfo.gameTypes.forEach(gameType => {
                 const button = document.createElement('button');
-                button.textContent = `Create ${(gameType || '').replace('Manager', '')}`;
+                button.textContent = `${gameType}`;
                 button.onclick = () => createGame(gameType);
                 createButtons.appendChild(button);
             });
