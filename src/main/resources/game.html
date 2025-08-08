@@ -521,7 +521,7 @@
             this.canvas = document.getElementById('gameCanvas');
             this.ctx = this.canvas.getContext('2d');
             this.ws = null;
-            this.resetGameState();
+            
             this.keys = {};
             this.mouse = { x: 0, y: 0, down: false };
             this.playerId = null;
@@ -546,6 +546,22 @@
             this.backgroundNeedsRedraw = true;
             this.localPlayer = null;
 
+            // Interpolation system
+            this.previousGameState = null;
+            this.lastUpdateTime = 0;
+            this.interpolationTime = 100; // ms to interpolate over
+            this.interpolatedPlayers = new Map();
+            this.interpolatedBullets = new Map();
+            
+            // Render loop state
+            this.isRenderLoopRunning = false;
+            this.lastFrameTime = 0;
+            this.frameCount = 0;
+            this.fps = 0;
+            this.lastFpsTime = 0;
+            
+            this.resetGameState();
+            
             // --- Sprite Loading ---
             // They are expected to be horizontal strips of animation frames.
             this.spritesheet = new Image();
@@ -562,6 +578,187 @@
         resetGameState() {
             this.gameState = { players: [], bullets: [], explosions: [], poisonClouds: [], obstacles: [], deathMarkers: [], powerUps: [], info: null, serverTime: 0 };
             this.gameEvents = [];
+            this.previousGameState = null;
+            this.lastUpdateTime = 0;
+            this.interpolatedPlayers.clear();
+            this.interpolatedBullets.clear();
+        }
+
+        // Linear interpolation function
+        lerp(start, end, t) {
+            return start + (end - start) * t;
+        }
+
+        // Update interpolation data when new game state arrives
+        updateInterpolation(newGameState) {
+            const currentTime = performance.now();
+            
+            // Store previous state for interpolation
+            if (this.gameState) {
+                this.previousGameState = JSON.parse(JSON.stringify(this.gameState));
+                this.lastUpdateTime = currentTime;
+            }
+            
+            // Update current state
+            this.gameState = newGameState;
+            
+            // Clean up interpolation data for disconnected players
+            if (this.gameState.players) {
+                const currentPlayerIds = new Set(this.gameState.players.map(p => p.id));
+                for (const playerId of this.interpolatedPlayers.keys()) {
+                    if (!currentPlayerIds.has(playerId)) {
+                        this.interpolatedPlayers.delete(playerId);
+                    }
+                }
+                
+                // Initialize interpolated positions for new players
+                this.gameState.players.forEach(player => {
+                    if (!this.interpolatedPlayers.has(player.id)) {
+                        this.interpolatedPlayers.set(player.id, {
+                            x: player.x,
+                            y: player.y,
+                            mouseX: player.mouseX,
+                            mouseY: player.mouseY
+                        });
+                    }
+                });
+            }
+
+            // Clean up interpolation data for expired bullets
+            if (this.gameState.bullets) {
+                const currentBulletIds = new Set(this.gameState.bullets.map(b => b.id));
+                for (const bulletId of this.interpolatedBullets.keys()) {
+                    if (!currentBulletIds.has(bulletId)) {
+                        this.interpolatedBullets.delete(bulletId);
+                    }
+                }
+                
+                // Initialize interpolated positions for new bullets
+                this.gameState.bullets.forEach(bullet => {
+                    if (!this.interpolatedBullets.has(bullet.id)) {
+                        this.interpolatedBullets.set(bullet.id, {
+                            x: bullet.x,
+                            y: bullet.y
+                        });
+                    }
+                });
+            }
+        }
+
+        // Get interpolated positions for rendering
+        getInterpolatedPositions(renderTime) {
+            if (!this.previousGameState || !this.gameState) {
+                return {
+                    players: this.gameState?.players || [],
+                    bullets: this.gameState?.bullets || []
+                };
+            }
+
+            // Use render time for more accurate interpolation
+            const currentTime = renderTime || performance.now();
+            const timeSinceUpdate = currentTime - this.lastUpdateTime;
+            const t = Math.min(Math.max(timeSinceUpdate / this.interpolationTime, 0.0), 1.0);
+            
+            // Debug excessive interpolation
+            if (t > 1.0 && timeSinceUpdate > this.interpolationTime * 2) {
+                // If we haven't received an update in a long time, don't interpolate
+                return {
+                    players: this.gameState?.players || [],
+                    bullets: this.gameState?.bullets || []
+                };
+            }
+
+            // Interpolate player positions
+            const interpolatedPlayers = [];
+            if (this.gameState.players) {
+                this.gameState.players.forEach(currentPlayer => {
+                    const previousPlayer = this.previousGameState?.players?.find(p => p.id === currentPlayer.id);
+                    
+                    if (previousPlayer && !currentPlayer.dead && !previousPlayer.dead) {
+                        // Check if player teleported/respawned (distance too large for normal movement)
+                        const distance = Math.sqrt(
+                            Math.pow(currentPlayer.x - previousPlayer.x, 2) + 
+                            Math.pow(currentPlayer.y - previousPlayer.y, 2)
+                        );
+                        const maxReasonableDistance = 100; // Adjust based on game mechanics
+                        
+                        if (distance > maxReasonableDistance) {
+                            // Player likely teleported, don't interpolate
+                            interpolatedPlayers.push(currentPlayer);
+                            this.interpolatedPlayers.set(currentPlayer.id, {
+                                x: currentPlayer.x,
+                                y: currentPlayer.y,
+                                mouseX: currentPlayer.mouseX,
+                                mouseY: currentPlayer.mouseY
+                            });
+                        } else {
+                            // Normal movement, interpolate
+                            const interpolatedPlayer = { ...currentPlayer };
+                            interpolatedPlayer.x = this.lerp(previousPlayer.x, currentPlayer.x, t);
+                            interpolatedPlayer.y = this.lerp(previousPlayer.y, currentPlayer.y, t);
+                            
+                            // Don't interpolate mouse position for local player (use live position)
+                            if (currentPlayer.id !== this.playerId) {
+                                interpolatedPlayer.mouseX = this.lerp(previousPlayer.mouseX, currentPlayer.mouseX, t);
+                                interpolatedPlayer.mouseY = this.lerp(previousPlayer.mouseY, currentPlayer.mouseY, t);
+                            }
+                            
+                            interpolatedPlayers.push(interpolatedPlayer);
+                            
+                            // Update stored interpolated position
+                            this.interpolatedPlayers.set(currentPlayer.id, {
+                                x: interpolatedPlayer.x,
+                                y: interpolatedPlayer.y,
+                                mouseX: interpolatedPlayer.mouseX,
+                                mouseY: interpolatedPlayer.mouseY
+                            });
+                        }
+                    } else {
+                        // No previous position, player just respawned, or player is dead - use current position
+                        interpolatedPlayers.push(currentPlayer);
+                        this.interpolatedPlayers.set(currentPlayer.id, {
+                            x: currentPlayer.x,
+                            y: currentPlayer.y,
+                            mouseX: currentPlayer.mouseX,
+                            mouseY: currentPlayer.mouseY
+                        });
+                    }
+                });
+            }
+
+            // Interpolate bullet positions using ID-based tracking
+            const interpolatedBullets = [];
+            if (this.gameState.bullets) {
+                this.gameState.bullets.forEach(currentBullet => {
+                    const previousBullet = this.previousGameState?.bullets?.find(b => b.id === currentBullet.id);
+                    
+                    if (previousBullet) {
+                        // Create interpolated bullet
+                        const interpolatedBullet = { ...currentBullet };
+                        interpolatedBullet.x = this.lerp(previousBullet.x, currentBullet.x, t);
+                        interpolatedBullet.y = this.lerp(previousBullet.y, currentBullet.y, t);
+                        interpolatedBullets.push(interpolatedBullet);
+                        
+                        // Update stored interpolated position
+                        this.interpolatedBullets.set(currentBullet.id, {
+                            x: interpolatedBullet.x,
+                            y: interpolatedBullet.y
+                        });
+                    } else {
+                        // New bullet, use current position
+                        interpolatedBullets.push(currentBullet);
+                        this.interpolatedBullets.set(currentBullet.id, {
+                            x: currentBullet.x,
+                            y: currentBullet.y
+                        });
+                    }
+                });
+            }
+
+            return {
+                players: interpolatedPlayers,
+                bullets: interpolatedBullets
+            };
         }
 
         connect() {
@@ -634,7 +831,8 @@
                     const event = data.event;
                     this.gameEvents.push(event);
                 } else {
-                    this.gameState = data;
+                    // Use interpolation system for game state updates
+                    this.updateInterpolation(data);
                     this.localPlayer = this.gameState.players.find(p => p.id === this.playerId);
                     this.isLocalPlayerDead = this.localPlayer && this.localPlayer.dead;
                     this.uiManager.update(this.gameState);
@@ -645,6 +843,7 @@
                 document.getElementById('status').textContent = 'Disconnected';
                 document.getElementById('status').style.color = '#F44336';
                 this.resetGameState();
+                // Keep render loop running to show disconnected state
             };
 
             this.ws.onerror = (error) => {
@@ -945,7 +1144,7 @@
             console.log("Pre-rendered static background.");
         }
 
-        render() {
+        render(currentTime) {
             if (this.backgroundNeedsRedraw && this.gameState.info) {                this.preRenderBackground();
                 this.backgroundNeedsRedraw = false;
             }
@@ -975,12 +1174,19 @@
             this.drawExplosions();
             this.drawPoisonClouds();
 
-            this.gameState.players.forEach(player => {
+            // Get interpolated positions for smooth rendering
+            const interpolated = this.getInterpolatedPositions(currentTime);
+            
+            // Store interpolation factor for debug display
+            this.lastInterpolationFactor = this.lastUpdateTime ? 
+                Math.min(Math.max((currentTime - this.lastUpdateTime) / this.interpolationTime, 0.0), 1.0) : 0;
+
+            interpolated.players.forEach(player => {
                 this.drawPlayer(player);
             });
 
-            if (this.gameState.bullets) {
-                this.gameState.bullets.forEach(bullet => {
+            if (interpolated.bullets) {
+                interpolated.bullets.forEach(bullet => {
                     this.ctx.fillStyle = bullet.team === 1 ? '#81C784' : '#E57373';
                     this.ctx.beginPath();
                     this.ctx.arc(bullet.x, bullet.y, 3, 0, 2 * Math.PI);
@@ -1037,6 +1243,7 @@
             this.drawPayload();
             this.drawLoneWolfHud();
             this.drawGameEvents();
+            this.drawDebugInfo(currentTime);
 
             if (this.isLocalPlayerDead && this.shouldDrawRespawnOverlay) {
                 if (this.localPlayer && this.localPlayer.respawnTime && this.gameState.serverTime > 0) {
@@ -1755,14 +1962,88 @@
             this.ctx.restore();
         }
 
+        drawDebugInfo(currentTime) {
+            // Optional FPS display (can be toggled with a key)
+            if (this.keys['F3'] || localStorage.getItem('showFPS') === 'true') {
+                this.ctx.save();
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                this.ctx.fillRect(10, this.canvas.height - 95, 200, 85);
+                
+                this.ctx.fillStyle = '#00FF00';
+                this.ctx.font = '14px monospace';
+                this.ctx.textAlign = 'left';
+                this.ctx.textBaseline = 'top';
+                
+                const timeSinceLastUpdate = this.lastUpdateTime ? (currentTime - this.lastUpdateTime) : 0;
+                
+                this.ctx.fillText(`FPS: ${this.fps}`, 15, this.canvas.height - 90);
+                this.ctx.fillText(`Ping: ${this.latency}ms`, 15, this.canvas.height - 75);
+                this.ctx.fillText(`Last Update: ${timeSinceLastUpdate.toFixed(0)}ms ago`, 15, this.canvas.height - 60);
+                this.ctx.fillText(`Interp Factor: ${(this.lastInterpolationFactor || 0).toFixed(2)}`, 15, this.canvas.height - 45);
+                this.ctx.fillText(`Players: ${this.gameState?.players?.length || 0}`, 15, this.canvas.height - 30);
+                this.ctx.fillText(`Bullets: ${this.gameState?.bullets?.length || 0}`, 15, this.canvas.height - 15);
+                
+                this.ctx.restore();
+            }
+        }
+
         startGameLoop() {
+            // Start input sending loop (20 Hz)
             setInterval(() => this.sendInput(), 50);
-            const renderLoop = () => {
-                this.pollGamepad();
-                this.render();
+            
+            // Start independent render loop
+            this.startRenderLoop();
+        }
+        
+        startRenderLoop() {
+            if (this.isRenderLoopRunning) return;
+            
+            this.isRenderLoopRunning = true;
+            this.lastFrameTime = performance.now();
+            this.lastFpsTime = this.lastFrameTime;
+            
+            const renderLoop = (currentTime) => {
+                if (!this.isRenderLoopRunning) return;
+                
+                // Calculate frame timing
+                const deltaTime = currentTime - this.lastFrameTime;
+                this.lastFrameTime = currentTime;
+                
+                // Update FPS counter
+                this.frameCount++;
+                if (currentTime - this.lastFpsTime >= 1000) {
+                    this.fps = Math.round((this.frameCount * 1000) / (currentTime - this.lastFpsTime));
+                    this.frameCount = 0;
+                    this.lastFpsTime = currentTime;
+                }
+                
+                // Update game systems independent of network
+                this.update(deltaTime);
+                
+                // Render frame
+                this.render(currentTime);
+                
+                // Schedule next frame
                 requestAnimationFrame(renderLoop);
             };
-            renderLoop();
+            
+            renderLoop(this.lastFrameTime);
+        }
+        
+        stopRenderLoop() {
+            this.isRenderLoopRunning = false;
+        }
+        
+        // Independent update loop - runs every frame
+        update(deltaTime) {
+            // Poll gamepad state
+            this.pollGamepad();
+            
+            // Update any client-side animations or effects
+            // (This could include particle systems, UI animations, etc.)
+            
+            // Update local player prediction if needed
+            // (For now, we rely on server authority)
         }
     }
 
