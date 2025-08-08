@@ -191,10 +191,12 @@ public abstract class AbstractGameStateManager {
     }
 
     public void removePlayer(long playerId) {
-        players.remove(playerId);
+        Player removed = players.remove(playerId);
         playerChannels.remove(playerId);
         playerInput.remove(playerId);
-        log.info("Player {} left the game", playerId);
+        log.info("Player {} left the game", Optional.ofNullable(removed)
+                .map(Player::getPlayerName)
+                .orElse(String.valueOf(playerId)));
         sendGameState();
     }
 

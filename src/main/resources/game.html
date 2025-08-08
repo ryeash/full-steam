@@ -549,7 +549,7 @@
             // --- Sprite Loading ---
             // They are expected to be horizontal strips of animation frames.
             this.spritesheet = new Image();
-            this.spritesheet.src = '/sprites/demo.png';
+            this.spritesheet.src = '/sprites/demo2.png';
 
             this.uiManager = new GameUIManager(this);
 
@@ -1544,7 +1544,7 @@
             const isMoving = player.velocityX !== 0 || player.velocityY !== 0;
             const frameWidth = 32;  // Width of a single frame in the spritesheet
             const frameHeight = 32; // Height of a single frame
-            const numFrames = 4;    // Number of frames in the walking animation
+            const numFrames = 1;    // Number of frames in the walking animation
             let frameIndex = 0;
 
             if (isMoving) {
@@ -1552,7 +1552,7 @@
                 frameIndex = Math.floor(Date.now() / 140) % numFrames;
             }
 
-            const spriteSheetRow = player.team === 1 ? 0 : 1;
+            const spriteSheetRow = player.team === 1 ? 1 : 0;
             const sourceX = frameIndex * frameWidth;
 
             // Draw the current animation frame, centered and rotated.
