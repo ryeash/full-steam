@@ -38,6 +38,7 @@ public class Config {
     public static final int PORT = getInt("server.port", 8080);
 
     // AI
+    public static final long AI_DECISION_COOLDOWN_MS = getLong("ai.decision_cooldown_ms", 800);
     public static final double VISION_RANGE = getDouble("ai.vision_range", 450.0);
     public static final long WANDER_DIRECTION_CHANGE_INTERVAL = getLong("ai.wander_interval_ms", 2000); // ms
     public static final long BASE_REACTION_TIME_MS = getLong("ai.base_reaction_ms", 600);
@@ -48,13 +49,14 @@ public class Config {
     // Lobby
     public static final long CLEANUP_INTERVAL_SECONDS = getLong("lobby.cleanup_interval_s", 10);
     public static final int MAX_GLOBAL_PLAYERS = getInt("lobby.max_global_players", 50);
+    public static final int MAX_SPECTATORS_PER_GAME = getInt("lobby.max_spectators_per_game", 5);
 
     // Game
     public static final int GAME_WIDTH = getInt("game.width", 1000);
     public static final int GAME_HEIGHT = getInt("game.height", 800);
     public static final int TICK_RATE = getInt("game.tick_rate", 60);
     public static final boolean ALLOW_NAME_CHANGE = getProp("game.allow_name_change", true, Boolean::valueOf);
-    public static final int OBSTACLE_COUNT = getInt("game.obstacle_count", 8);
+    public static final int OBSTACLE_COUNT = getInt("game.obstacle_count", 6);
     public static final long DEATH_MARKER_DURATION_MS = getLong("game.death_marker_duration_ms", 5000); // Marker lasts 5 seconds
     public static final long GAME_EVENT_DURATION_MS = getLong("game.game_event_duration_ms", 6000); // 4 seconds for events to be on screen
     public static final long NEXT_ROUND_DELAY_MS = getLong("game.next_round_delay_ms", 6000); // 3-second delay between rounds

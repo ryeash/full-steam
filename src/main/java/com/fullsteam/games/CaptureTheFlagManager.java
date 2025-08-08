@@ -4,7 +4,6 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.Flag;
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.ai.CaptureTheFlagAIStrategy;
@@ -24,9 +23,9 @@ import static com.fullsteam.Config.CTF_FLAG_RETURN_TIMEOUT_MS;
 import static com.fullsteam.Config.CTF_SCORE_TO_WIN;
 import static com.fullsteam.Config.GAME_HEIGHT;
 import static com.fullsteam.Config.GAME_WIDTH;
-import static com.fullsteam.Config.OBSTACLE_COUNT;
 import static com.fullsteam.model.GameEvent.EventType.FLAG_RETURN;
 
+@GameName("Capture the Flag")
 public class CaptureTheFlagManager extends AbstractTeamBasedManager {
 
     private static final Logger log = LoggerFactory.getLogger(CaptureTheFlagManager.class);
@@ -40,11 +39,6 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
         super(gameLobby);
         log.info("Capture the Flag game mode initialized.");
         randomizeBaseLocations();
-    }
-
-    @Override
-    public String gameType() {
-        return "Capture the Flag";
     }
 
     @Override
@@ -194,26 +188,11 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
 
     @Override
     protected void generateObstacles() {
-        obstacles.clear();
-        for (int i = 0; i < OBSTACLE_COUNT / 2; i++) {
-            Obstacle newObstacle;
-            boolean isColliding;
-            int attempts = 0;
-            do {
-                newObstacle = Obstacle.createRandomPolygonObstacle();
-                // Check collision with both flag bases
-                isColliding = CollisionUtils.checkCirclePolygonCollision(team1Flag.basePosition(), CTF_FLAG_PICKUP_RADIUS, newObstacle.vertices()) ||
-                              CollisionUtils.checkCirclePolygonCollision(team2Flag.basePosition(), CTF_FLAG_PICKUP_RADIUS, newObstacle.vertices());
-                attempts++;
-            } while (isColliding && attempts < 100);
-
-            if (!isColliding) {
-                obstacles.add(newObstacle);
-                obstacles.add(newObstacle.create180Clone());
-            } else {
-                log.warn("Could not place an obstacle without colliding with a flag base after 100 attempts.");
-            }
-        }
+        generateObstacles(newObstacle -> {
+            boolean isColliding = CollisionUtils.checkCirclePolygonCollision(team1Flag.basePosition(), CTF_FLAG_PICKUP_RADIUS, newObstacle.vertices()) ||
+                                  CollisionUtils.checkCirclePolygonCollision(team2Flag.basePosition(), CTF_FLAG_PICKUP_RADIUS, newObstacle.vertices());
+            return !isColliding;
+        });
     }
 
     private void randomizeBaseLocations() {

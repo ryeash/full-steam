@@ -17,6 +17,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import static com.fullsteam.Config.PLAYER_SIZE;
 
+@GameName("Builder")
 public class BuilderManager extends AbstractFreeForAllManager {
 
     private static final double CRATE_SIZE = 30.0;
@@ -31,8 +32,8 @@ public class BuilderManager extends AbstractFreeForAllManager {
     }
 
     @Override
-    public String gameType() {
-        return "Builder";
+    protected void balanceOpponents() {
+        // do nothing
     }
 
     @Override

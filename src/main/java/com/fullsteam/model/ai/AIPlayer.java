@@ -18,6 +18,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static com.fullsteam.Config.AI_DECISION_COOLDOWN_MS;
 import static com.fullsteam.Config.AI_MAX_FORCE;
 import static com.fullsteam.Config.BASE_AIM_INACCURACY_RADIANS;
 import static com.fullsteam.Config.BASE_STRAFE_INTERVAL_MS;
@@ -63,6 +64,7 @@ public class AIPlayer extends Player {
     private transient final long reactionTimeMs;
     private transient final double aimInaccuracyRadians;
     private transient final long strafeInterval;
+    private transient final double rangeSlew;
 
     /**
      * Represents a decision to fire the weapon in a specific direction.
@@ -79,6 +81,7 @@ public class AIPlayer extends Player {
         this.reactionTimeMs = Config.BASE_REACTION_TIME_MS + (long) (ThreadLocalRandom.current().nextDouble() * 50);
         this.aimInaccuracyRadians = Math.max(0.01, BASE_AIM_INACCURACY_RADIANS + (ThreadLocalRandom.current().nextDouble() - 0.4) * 0.04);
         this.strafeInterval = BASE_STRAFE_INTERVAL_MS + (long) (ThreadLocalRandom.current().nextGaussian() * 300);
+        this.rangeSlew = ThreadLocalRandom.current().nextGaussian() * 50;
         this.acceleration = Vector2D.ZERO;
     }
 
@@ -133,20 +136,23 @@ public class AIPlayer extends Player {
 
         // High priority: Flee from damaging hazards.
         Vector2D hazardForce = calculateHazardAvoidanceForce(gameState.hazards());
-        applyForce(hazardForce, 1.0);
+        applyForce(hazardForce, 4.0);
 
         // --- Priority 2: Tactical Decisions ---
         // Mid priority: React to power-ups (seek good ones, avoid powered-up enemies).
         Vector2D powerUpForce = calculatePowerUpInfluenceForce(gameState);
-        applyForce(powerUpForce, 2.0);
+        applyForce(powerUpForce, 2.5);
 
         // --- Priority 3: Strategic Goal ---
         // Let the game-mode-specific strategy determine the AI's current state and objective.
-        aiStrategy.updateAIState(this, gameState);
+        // Only re-evaluate the strategy periodically to prevent indecisive jittering.
+        if ((System.currentTimeMillis() - stateChangeTime) > AI_DECISION_COOLDOWN_MS) {
+            aiStrategy.updateAIState(this, gameState);
+        }
 
         // Execute the primary movement behavior based on the current state.
         Vector2D objectiveForce = calculateObjectiveForce(gameState.obstacles());
-        applyForce(objectiveForce, 4.0);
+        applyForce(objectiveForce, 1.0);
     }
 
     /**
@@ -230,14 +236,20 @@ public class AIPlayer extends Player {
             strafeRight = ThreadLocalRandom.current().nextBoolean();
         }
 
-        // If reloading or too close, prioritize strafing to be evasive.
-        if (isReloading() || getCenter().distanceSquared(currentTarget.getCenter()) < 150 * 150) {
+        // The AI's preferred engagement distance, with some randomness.
+        // We square it once to avoid using Math.sqrt() in a loop.
+        double idealRange = getWeapon().getBulletRange() - rangeSlew;
+        double idealRangeSq = idealRange * idealRange;
+
+        // If we are reloading OR we are already within our ideal engagement range,
+        // prioritize strafing to be evasive.
+        if (isReloading() || getCenter().distanceSquared(currentTarget.getCenter()) < idealRangeSq) {
             Vector2D toTarget = currentTarget.getCenter().subtract(getCenter());
             // Get a perpendicular vector for strafing.
             Vector2D strafeDirection = strafeRight ? new Vector2D(toTarget.y(), -toTarget.x()) : new Vector2D(-toTarget.y(), toTarget.x());
             return calculateSteerForce(strafeDirection.normalize(), obstacles);
         } else {
-            // Otherwise, advance on the target.
+            // Otherwise, we are out of range and not reloading, so advance on the target.
             return calculateSeekForce(currentTarget.getCenter(), obstacles);
         }
     }
@@ -535,7 +547,7 @@ public class AIPlayer extends Player {
      */
     private Vector2D calculateObstacleSeparationForce(List<Obstacle> obstacles) {
         Vector2D totalSeparationForce = Vector2D.ZERO;
-        double separationRadius = 20.0;
+        double separationRadius = 30.0; // Increased for more "personal space" to reduce wall jitter
 
         for (Obstacle obstacle : obstacles) {
             // Broad Phase: Check if the AI's "personal space" bubble overlaps the obstacle's bounding circle.

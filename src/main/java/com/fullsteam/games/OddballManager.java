@@ -4,7 +4,6 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Oddball;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
@@ -18,13 +17,13 @@ import java.util.concurrent.TimeUnit;
 
 import static com.fullsteam.Config.GAME_HEIGHT;
 import static com.fullsteam.Config.GAME_WIDTH;
-import static com.fullsteam.Config.OBSTACLE_COUNT;
 import static com.fullsteam.Config.ODDBALL_BALL_PICKUP_RADIUS;
 import static com.fullsteam.Config.ODDBALL_BALL_RESET_TIMEOUT_MS;
 import static com.fullsteam.Config.ODDBALL_KEEP_OUT_RADIUS;
 import static com.fullsteam.Config.ODDBALL_POINTS_PER_SECOND;
 import static com.fullsteam.Config.ODDBALL_SCORE_TO_WIN;
 
+@GameName("Oddball")
 public class OddballManager extends AbstractTeamBasedManager {
 
     private static final double BALL_PICKUP_RADIUS_SQ = ODDBALL_BALL_PICKUP_RADIUS * ODDBALL_BALL_PICKUP_RADIUS;
@@ -35,11 +34,6 @@ public class OddballManager extends AbstractTeamBasedManager {
     public OddballManager(GameLobby gameLobby) {
         super(gameLobby);
         this.oddball = new Oddball(Oddball.OddballState.ON_SPAWN, ballSpawnPoint, null, 0);
-    }
-
-    @Override
-    public String gameType() {
-        return "Oddball";
     }
 
     @Override
@@ -135,28 +129,13 @@ public class OddballManager extends AbstractTeamBasedManager {
 
     @Override
     protected void generateObstacles() {
-        obstacles.clear();
-        for (int i = 0; i < OBSTACLE_COUNT / 2; i++) {
-            Obstacle newObstacle;
-            boolean isColliding;
-            int attempts = 0; // Safety break to prevent infinite loops
-            do {
-                newObstacle = Obstacle.createRandomPolygonObstacle();
-                // Check if the new obstacle intersects with the oddball's keep-out zone.
-                isColliding = CollisionUtils.checkCirclePolygonCollision(
-                        new Vector2D((double) GAME_WIDTH / 2, (double) GAME_HEIGHT / 2),
-                        ODDBALL_KEEP_OUT_RADIUS,
-                        newObstacle.vertices());
-                attempts++;
-            } while (isColliding && attempts < 100); // Keep trying until it's clear or we give up
-
-            if (!isColliding) {
-                obstacles.add(newObstacle);
-                obstacles.add(newObstacle.create180Clone());
-            } else {
-                log.warn("Could not place an obstacle without colliding with the oddball after 100 attempts.");
-            }
-        }
+        generateObstacles(newObstacle -> {
+            boolean isColliding = CollisionUtils.checkCirclePolygonCollision(
+                    new Vector2D((double) GAME_WIDTH / 2, (double) GAME_HEIGHT / 2),
+                    ODDBALL_KEEP_OUT_RADIUS,
+                    newObstacle.vertices());
+            return !isColliding;
+        });
     }
 
     @Override

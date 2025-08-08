@@ -1,5 +1,6 @@
 package com.fullsteam;
 
+import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Vector2D;
 
 import java.util.List;
@@ -124,5 +125,10 @@ public class CollisionUtils {
 
         // If 0 <= t <= 1 and 0 <= u <= 1, the segments intersect.
         return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+    }
+
+    public static boolean checkObstacleOverlap(Obstacle o1, Obstacle o2, double spacingBuffer) {
+        double combinedRadius = o1.getBoundingRadius() + o2.getBoundingRadius() + spacingBuffer;
+        return o1.getCenter().distanceSquared(o2.getCenter()) < combinedRadius * combinedRadius;
     }
 }

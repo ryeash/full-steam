@@ -8,17 +8,13 @@ import com.fullsteam.model.gamemodes.TeamDeathmatchInfo;
 
 import java.util.concurrent.TimeUnit;
 
+@GameName("Team Deathmatch")
 public class TeamDeathmatchManager extends AbstractTeamBasedManager {
     protected final TeamBalancer teamBalancer;
 
     public TeamDeathmatchManager(GameLobby gameLobby) {
         super(gameLobby);
         this.teamBalancer = new TeamBalancer(this);
-    }
-
-    @Override
-    public String gameType() {
-        return "Team Deathmatch";
     }
 
     @Override

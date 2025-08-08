@@ -23,6 +23,7 @@ import static com.fullsteam.Config.JUGGERNAUT_SELECTION_DELAY_MS;
  * A round-based game mode where each team has one "Juggernaut".
  * A team scores by eliminating the enemy Juggernaut.
  */
+@GameName("Juggernaut")
 public class JuggernautManager extends AbstractTeamBasedManager {
 
     private Long team1Juggernaut;
@@ -30,11 +31,6 @@ public class JuggernautManager extends AbstractTeamBasedManager {
 
     public JuggernautManager(GameLobby gameLobby) {
         super(gameLobby);
-    }
-
-    @Override
-    public String gameType() {
-        return "Juggernaut";
     }
 
     @Override

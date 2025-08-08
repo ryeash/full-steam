@@ -18,6 +18,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@GameName("Gun Master")
 public class GunMasterManager extends AbstractFreeForAllManager {
 
     private static final long WEAPON_SWITCH_INTERVAL_MS = 20_000; // 20 seconds
@@ -26,11 +27,6 @@ public class GunMasterManager extends AbstractFreeForAllManager {
 
     public GunMasterManager(GameLobby gameLobby) {
         super(gameLobby);
-    }
-
-    @Override
-    public String gameType() {
-        return "Gun Master";
     }
 
     @Override

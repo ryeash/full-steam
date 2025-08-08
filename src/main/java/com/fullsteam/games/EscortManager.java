@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@GameName("Escort")
 public class EscortManager extends AbstractTeamBasedManager {
 
     private Obstacle payload;
@@ -22,11 +23,6 @@ public class EscortManager extends AbstractTeamBasedManager {
     public EscortManager(GameLobby gameLobby) {
         super(gameLobby);
         startNewRound();
-    }
-
-    @Override
-    public String gameType() {
-        return "Escort";
     }
 
     @Override

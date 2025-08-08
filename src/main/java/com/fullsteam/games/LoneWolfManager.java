@@ -13,7 +13,9 @@ import io.netty.channel.Channel;
 import java.util.Objects;
 
 import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
+import static com.fullsteam.Config.RESPAWN_IMMUNITY_DURATION;
 
+@GameName("Lone Wolf")
 public class LoneWolfManager extends AbstractGameStateManager {
 
     private static final long AI_FILL_CHECK_INTERVAL_MS = 5000; // 5 seconds
@@ -24,11 +26,6 @@ public class LoneWolfManager extends AbstractGameStateManager {
 
     public LoneWolfManager(GameLobby gameLobby) {
         super(gameLobby);
-    }
-
-    @Override
-    public String gameType() {
-        return "Lone Wolf";
     }
 
     @Override
@@ -134,7 +131,13 @@ public class LoneWolfManager extends AbstractGameStateManager {
                 loneWolf.setDamageMultiplier(newDamageMultiplier);
                 loneWolf.setDamageBoostEndTime(Long.MAX_VALUE);
                 sendGameEvent(GameEvent.red("The Lone Wolf grows stronger! Damage is now " + (int) (newDamageMultiplier * 100) + "%."));
-                schedule(super::checkAndRespawnPlayers, Config.RESPAWN_DELAY_MS);
+                for (Player player : players.values()) {
+                    player.setDead(false);
+                    player.resetHealth();
+                    player.finishReload();
+                    player.applyArmorUp(RESPAWN_IMMUNITY_DURATION);
+                    setValidSpawnPosition(player);
+                }
             }
         } else if (shooter != null && Objects.equals(shooter.getId(), loneWolfId)) {
             // A hunter was killed by the lone wolf

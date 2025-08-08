@@ -88,28 +88,42 @@ public class OddballAIStrategy implements IAIStrategy {
 
     // --- Balanced Logic (Original Behavior) ---
     private void runBalancedLogic(AIPlayer self, Player closestEnemy, Oddball oddball, boolean isCarrier, Optional<Player> carrierOpt, Collection<Player> allPlayers) {
-        // Priority 1: I am the ball carrier. RUN FOR COVER!
+        // Priority 1: I am the ball carrier. SURVIVE AND SCORE!
         if (isCarrier) {
-            // Find the closest teammate to run to for protection.
+            // Always get the safe point on our side
+            Vector2D safePoint = getSafePointForTeam(self.getTeam());
+
+            // Find the closest teammate to use as cover
             Player closestTeammate = findClosestTeammate(self, allPlayers);
 
+            // If we have a nearby teammate in a good defensive position (closer to our safe zone), use them as cover
             if (closestTeammate != null) {
-                // If we have a teammate, run towards them for protection.
-                self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
-                self.setObjectiveTargetPoint(closestTeammate.getCenter());
-            } else {
-                // If we are alone, fall back to the original behavior of running to a safe point.
-                Vector2D safePoint = getSafePointForTeam(self.getTeam());
-                double distanceToSafePointSq = self.getCenter().distanceSquared(safePoint);
+                double teammateDistToSafeSq = closestTeammate.getCenter().distanceSquared(safePoint);
+                double myDistToSafeSq = self.getCenter().distanceSquared(safePoint);
 
-                // If we are already near our safe point, just wander around it to evade.
-                if (distanceToSafePointSq < 200 * 200) { // 200 unit radius
-                    self.setCurrentState(AIPlayer.AIState.WANDERING);
-                } else {
-                    // Otherwise, run towards the safe point.
-                    self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
+                if (teammateDistToSafeSq < myDistToSafeSq) {
+                    self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE, "Moving to teammate for cover");
+                    self.setObjectiveTargetPoint(closestTeammate.getCenter());
+                    return;
                 }
+            }
+
+            // No good teammate cover, focus on getting to safety
+            double distanceToSafePointSq = self.getCenter().distanceSquared(safePoint);
+
+            // If we're at our safe point, do evasive wandering
+            if (distanceToSafePointSq < 150 * 150) { // Reduced radius to stay closer to safe point
+                self.setCurrentState(AIPlayer.AIState.WANDERING, "Safe position reached, evading");
+                self.setObjectiveTargetPoint(safePoint); // Keep the safe point as reference for wandering
+            } else {
+                // Run towards safety!
+                self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE, "Retreating to safe position");
                 self.setObjectiveTargetPoint(safePoint);
+            }
+
+            // If there's an enemy too close, consider them a threat but keep moving
+            if (closestEnemy != null && isInRange(self, closestEnemy, 200)) {
+                self.setCurrentTarget(closestEnemy); // Track them for shooting while retreating
             }
             return;
         }
@@ -150,6 +164,10 @@ public class OddballAIStrategy implements IAIStrategy {
     // --- Archetype-Specific Logic ---
 
     private void prioritizeCombat(AIPlayer self, Player closestEnemy, Oddball oddball, boolean isCarrier, Optional<Player> carrierOpt, Collection<Player> allPlayers) {
+        if (isCarrier) {
+            runBalancedLogic(self, closestEnemy, oddball, isCarrier, Optional.empty(), allPlayers);
+        }
+
         // Even warriors prioritize hunting the enemy ball carrier
         if (carrierOpt.isPresent() && carrierOpt.get().getTeam() != self.getTeam()) {
             Player enemyCarrier = carrierOpt.get();
@@ -169,6 +187,10 @@ public class OddballAIStrategy implements IAIStrategy {
     }
 
     private void prioritizeDefense(AIPlayer self, Player closestEnemy, Oddball oddball, boolean isCarrier, Optional<Player> carrierOpt, Collection<Player> allPlayers) {
+        if (isCarrier) {
+            runBalancedLogic(self, closestEnemy, oddball, isCarrier, Optional.empty(), allPlayers);
+        }
+
         // Priority #1: Hunt enemy ball carrier with extreme prejudice!
         if (carrierOpt.isPresent() && carrierOpt.get().getTeam() != self.getTeam()) {
             Player enemyCarrier = carrierOpt.get();
@@ -195,6 +217,10 @@ public class OddballAIStrategy implements IAIStrategy {
     }
 
     private void prioritizeObjective(AIPlayer self, Player closestEnemy, Oddball oddball, boolean isCarrier, Optional<Player> carrierOpt, Collection<Player> allPlayers) {
+        if (isCarrier) {
+            runBalancedLogic(self, closestEnemy, oddball, isCarrier, Optional.empty(), allPlayers);
+        }
+
         // Priority #1: Hunt enemy ball carrier with relentless determination!
         if (carrierOpt.isPresent() && carrierOpt.get().getTeam() != self.getTeam()) {
             Player enemyCarrier = carrierOpt.get();

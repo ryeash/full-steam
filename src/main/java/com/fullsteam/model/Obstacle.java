@@ -80,10 +80,10 @@ public class Obstacle implements HasId {
     }
 
     public static Obstacle createRandomPolygonObstacle() {
-        int vertexCount = 3 + ThreadLocalRandom.current().nextInt(5); // Polygons with 3 to 7 vertices
+        int vertexCount = 3 + ThreadLocalRandom.current().nextInt(6); // Polygons with 3 to 7 vertices
         double centerX = 100 + ThreadLocalRandom.current().nextInt(Config.GAME_WIDTH - 200);
         double centerY = 100 + ThreadLocalRandom.current().nextInt(Config.GAME_HEIGHT - 200);
-        double avgRadius = 40 + ThreadLocalRandom.current().nextInt(60);
+        double avgRadius = 45 + ThreadLocalRandom.current().nextInt(60);
 
         List<Vector2D> points = new ArrayList<>();
         for (int i = 0; i < vertexCount; i++) {

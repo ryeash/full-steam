@@ -1239,7 +1239,6 @@
             this.drawFlags();
             this.drawOddball();
             this.drawPayload();
-            this.drawLoneWolfHud();
             this.drawGameEvents();
             this.drawDebugInfo(currentTime);
 
@@ -1266,7 +1265,7 @@
             this.ctx.textBaseline = 'middle';
 
             this.gameState.powerUps.forEach(powerUp => {
-                const size = 20;
+                const size = 15;
                 const centerX = powerUp.position.x + size / 2;
                 const centerY = powerUp.position.y + size / 2;
 
@@ -1475,20 +1474,6 @@
             this.ctx.restore();
         }
 
-        drawFlags() {
-            const gameInfo = this.gameState.info;
-            if (!gameInfo || gameInfo.type !== 'Capture the Flag') {
-                return;
-            }
-
-            if (gameInfo.team1Flag) {
-                this.drawSingleFlag(gameInfo.team1Flag);
-            }
-            if (gameInfo.team2Flag) {
-                this.drawSingleFlag(gameInfo.team2Flag);
-            }
-        }
-
         drawOddball() {
             const gameInfo = this.gameState.info;
             if (!gameInfo || gameInfo.type !== 'Oddball' || !gameInfo.oddball) {
@@ -1529,6 +1514,20 @@
             }
 
             this.ctx.restore();
+        }
+
+        drawFlags() {
+            const gameInfo = this.gameState.info;
+            if (!gameInfo || gameInfo.type !== 'Capture the Flag') {
+                return;
+            }
+
+            if (gameInfo.team1Flag) {
+                this.drawSingleFlag(gameInfo.team1Flag);
+            }
+            if (gameInfo.team2Flag) {
+                this.drawSingleFlag(gameInfo.team2Flag);
+            }
         }
 
         drawSingleFlag(flag) {
@@ -1781,21 +1780,12 @@
             if (gameInfo && gameInfo.type === 'Capture the Flag') {
                 const enemyFlag = player.team === 1 ? gameInfo.team2Flag : gameInfo.team1Flag;
                 if (enemyFlag && enemyFlag.state === 'CARRIED' && enemyFlag.carrierId === player.id) {
-                    const flagColor = player.team === 1 ? '#F44336' : '#4CAF50';
                     this.ctx.save();
-                    this.ctx.translate(playerCenterX, player.y - 35);
-
-                    this.ctx.strokeStyle = '#333';
-                    this.ctx.lineWidth = 1;
-                    this.ctx.fillStyle = flagColor;
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(0, 0);
-                    this.ctx.lineTo(12, -6);
-                    this.ctx.lineTo(0, -12);
-                    this.ctx.closePath();
-                    this.ctx.fill();
-                    this.ctx.stroke();
-
+                    this.ctx.font = '18px Arial';
+                    this.ctx.textAlign = 'center';
+                    // Use red flag for team 1 and green flag for team 2
+                    const flagEmoji = player.team === 1 ? '🔴🚩' : '🟢🚩';
+                    this.ctx.fillText(flagEmoji, playerCenterX, player.y - 30);
                     this.ctx.restore();
                 }
             }
@@ -1804,16 +1794,9 @@
                 const oddball = gameInfo.oddball;
                 if (oddball.state === 'CARRIED' && oddball.carrierId === player.id) {
                     this.ctx.save();
-                    this.ctx.translate(playerCenterX, player.y - 35);
-
-                    this.ctx.fillStyle = '#FFD700';
-                    this.ctx.strokeStyle = 'white';
-                    this.ctx.lineWidth = 1;
-                    this.ctx.beginPath();
-                    this.ctx.arc(0, 0, 8, 0, 2 * Math.PI);
-                    this.ctx.fill();
-                    this.ctx.stroke();
-
+                    this.ctx.font = '18px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('🔆', playerCenterX, player.y - 30);
                     this.ctx.restore();
                 }
             }
@@ -1821,7 +1804,7 @@
             if (gameInfo && gameInfo.type === 'Juggernaut'
                     && (gameInfo.team1Juggernaut === player.id || gameInfo.team2Juggernaut == player.id)) {
                 this.ctx.save();
-                this.ctx.font = '24px Arial';
+                this.ctx.font = '18px Arial';
                 this.ctx.textAlign = 'center';
                 this.ctx.fillText('👑', playerCenterX, player.y - 30);
                 this.ctx.restore();
@@ -1927,39 +1910,6 @@
             this.ctx.restore();
         }
 
-        drawLoneWolfHud() {
-            const gameInfo = this.gameState.info;
-            if (!gameInfo || gameInfo.type !== 'LoneWolfManager' || !gameInfo.gameModeMetadata) {
-                return;
-            }
-
-            if (!this.localPlayer || this.localPlayer.team !== 1) { // Only show for the Lone Wolf
-                return;
-            }
-
-            const targets = gameInfo.gameModeMetadata.hunterTargets || [];
-            if (targets.length === 0) {
-                return;
-            }
-
-            this.ctx.save();
-            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            this.ctx.font = '16px Arial';
-            this.ctx.textAlign = 'left';
-            this.ctx.textBaseline = 'top';
-            this.ctx.shadowColor = 'black';
-            this.ctx.shadowBlur = 3;
-
-            this.ctx.fillText('Remaining Targets:', 10, 50);
-
-            this.ctx.font = '14px Arial';
-            targets.forEach((name, index) => {
-                this.ctx.fillText(`- ${name}`, 15, 75 + (index * 20));
-            });
-
-            this.ctx.restore();
-        }
-
         drawDebugInfo(currentTime) {
             // Optional FPS display (can be toggled with a key)
             if (this.keys['F3'] || localStorage.getItem('showFPS') === 'true') {
@@ -1994,7 +1944,9 @@
         }
         
         startRenderLoop() {
-            if (this.isRenderLoopRunning) return;
+            if (this.isRenderLoopRunning) {
+                return;
+            }
             
             this.isRenderLoopRunning = true;
             this.lastFrameTime = performance.now();
@@ -2032,16 +1984,8 @@
             this.isRenderLoopRunning = false;
         }
         
-        // Independent update loop - runs every frame
         update(deltaTime) {
-            // Poll gamepad state
             this.pollGamepad();
-            
-            // Update any client-side animations or effects
-            // (This could include particle systems, UI animations, etc.)
-            
-            // Update local player prediction if needed
-            // (For now, we rely on server authority)
         }
     }
 

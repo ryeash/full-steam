@@ -46,7 +46,9 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
 
+import static com.fullsteam.CollisionUtils.checkObstacleOverlap;
 import static com.fullsteam.Config.AFK_TIMEOUT_MS;
 import static com.fullsteam.Config.DEATH_MARKER_DURATION_MS;
 import static com.fullsteam.Config.GAME_HEIGHT;
@@ -70,6 +72,7 @@ import static com.fullsteam.Config.SPAWN_HORIZONTAL_PADDING;
 import static com.fullsteam.Config.SPAWN_MIDFIELD_BUFFER;
 import static com.fullsteam.Config.SPAWN_VERTICAL_PADDING;
 import static com.fullsteam.Config.TICK_RATE;
+import static com.fullsteam.Config.MAX_SPECTATORS_PER_GAME;
 
 public abstract class AbstractGameStateManager {
     protected final Logger log = LoggerFactory.getLogger(getClass());
@@ -98,7 +101,9 @@ public abstract class AbstractGameStateManager {
         this.playerGrid = new SpatialGrid<>(GAME_WIDTH, GAME_HEIGHT, 100, 100);
     }
 
-    public abstract String gameType();
+    public final String gameType() {
+        return getClass().getAnnotation(GameName.class).value();
+    }
 
     public Long getGameId() {
         return gameId;
@@ -135,6 +140,10 @@ public abstract class AbstractGameStateManager {
 
     public boolean hasHumanPlayers() {
         return !players.values().stream().allMatch(p -> p instanceof AIPlayer);
+    }
+
+    public boolean isSpectatorsFull() {
+        return spectatorChannels.size() >= MAX_SPECTATORS_PER_GAME;
     }
 
     public void schedule(Runnable runnable, long delayMs) {
@@ -771,11 +780,7 @@ public abstract class AbstractGameStateManager {
     }
 
     protected boolean isColliding(Player player, PowerUp powerUp) {
-        double playerCenterX = player.getX() + (PLAYER_SIZE / 2);
-        double playerCenterY = player.getY() + (PLAYER_SIZE / 2);
-        // Assuming power-ups have a similar size to players for collision
-        double distanceSq = new Vector2D(playerCenterX, playerCenterY).distanceSquared(powerUp.position);
-        return distanceSq < (PLAYER_SIZE * PLAYER_SIZE); // Using squared distance for efficiency
+        return player.getCenter().distanceSquared(powerUp.getPosition()) < (PLAYER_SIZE * PLAYER_SIZE); // Using squared distance for efficiency
     }
 
     /**
@@ -834,15 +839,39 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void generateObstacles() {
-        obstacles.clear();
-        for (int i = 0; i < OBSTACLE_COUNT / 2; i++) {
-            Obstacle ob = Obstacle.createRandomPolygonObstacle();
-            obstacles.add(ob);
-            obstacles.add(ob.create180Clone());
-        }
+        generateObstacles(o -> true);
+    }
 
-        if (OBSTACLE_COUNT % 2 == 1) {
-            obstacles.add(Obstacle.createSymmetricPolygonObstacle());
+    protected void generateObstacles(Predicate<Obstacle> checkValidObstacle) {
+        obstacles.clear();
+        int MAX_RETRIES = 100; // To prevent infinite loops if density is too high
+
+        for (int i = 0; i < OBSTACLE_COUNT / 2; i++) {
+            int retries = 0;
+            while (retries < MAX_RETRIES) {
+                Obstacle candidate = Obstacle.createRandomPolygonObstacle();
+                Obstacle clone = candidate.create180Clone();
+
+                boolean isValid = checkValidObstacle.test(candidate) && checkValidObstacle.test(clone);
+
+                boolean overlaps = obstacles.stream().anyMatch(existing ->
+                        checkObstacleOverlap(candidate, existing, 40) || checkObstacleOverlap(clone, existing, 40));
+
+                // Also check if the candidate and its clone overlap each other
+                if (!overlaps && checkObstacleOverlap(candidate, clone, 40)) {
+                    overlaps = true;
+                }
+
+                if (isValid && !overlaps) {
+                    obstacles.add(candidate);
+                    obstacles.add(clone);
+                    break; // Success, move to the next pair
+                }
+                retries++;
+            }
+            if (retries >= MAX_RETRIES) {
+                log.warn("Could not place non-overlapping obstacle pair after {} retries. Obstacle density may be too high.", MAX_RETRIES);
+            }
         }
     }
 

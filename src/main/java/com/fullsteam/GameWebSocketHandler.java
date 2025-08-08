@@ -14,6 +14,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import static com.fullsteam.Config.MAX_GLOBAL_PLAYERS;
@@ -52,7 +54,7 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
                     gameLobby.spectateGame(ctx.channel(), gameId);
                 } else if (parts.length > 0 && "game".equals(parts[0]) && parts.length > 2) {
                     String gameId = parts[1];
-                    String gameType = parts[2];
+                    String gameType = URLDecoder.decode(parts[2], StandardCharsets.UTF_8);
                     gameLobby.joinGame(ctx.channel(), gameId, gameType);
                 } else {
                     throw new IllegalArgumentException("Invalid connection URI: " + uri);

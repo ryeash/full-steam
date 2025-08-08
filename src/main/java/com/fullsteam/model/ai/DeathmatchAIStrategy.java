@@ -1,7 +1,9 @@
 package com.fullsteam.model.ai;
 
+import com.fullsteam.Config;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.gamemodes.GameInfo;
 
 import java.util.Collection;
@@ -38,38 +40,95 @@ public class DeathmatchAIStrategy implements IAIStrategy {
 
     /**
      * The default behavior: find the nearest enemy and attack.
+     * Uses weapon range to determine optimal engagement distance.
      */
     private void runBalancedLogic(AIPlayer self, Player closestEnemy) {
         if (closestEnemy != null) {
+            double distanceSq = self.getCenter().distanceSquared(closestEnemy.getCenter());
+            double weaponRange = self.getWeapon().getBulletRange();
+            double optimalRangeSq = (weaponRange * 0.6) * (weaponRange * 0.6); // Try to get to 60% of max range
+            
             self.setCurrentTarget(closestEnemy);
-            self.setCurrentState(AIPlayer.AIState.ATTACKING);
+            
+            // If we're too far away, use CAPTURING_OBJECTIVE to aggressively close distance
+            if (distanceSq > optimalRangeSq) {
+                self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE, "Closing distance to target");
+                self.setObjectiveTargetPoint(closestEnemy.getCenter());
+            } else {
+                // Within good range, switch to ATTACKING which includes strafing behavior
+                self.setCurrentState(AIPlayer.AIState.ATTACKING, "Engaging target at optimal range");
+            }
         } else {
-            // No enemies in sight, so wander to find one.
-            self.setCurrentState(AIPlayer.AIState.WANDERING);
+            // No enemies in sight, so wander to find one
+            self.setCurrentState(AIPlayer.AIState.WANDERING, "Searching for targets");
         }
     }
 
     /**
      * Warrior/Objective Hound: Pure, relentless aggression.
+     * More aggressive than balanced, using a closer optimal range.
      */
     private void prioritizeCombat(AIPlayer self, Player closestEnemy) {
-        // For this mode, the most aggressive strategy is the same as the balanced one.
-        runBalancedLogic(self, closestEnemy);
+        if (closestEnemy != null) {
+            double distanceSq = self.getCenter().distanceSquared(closestEnemy.getCenter());
+            double weaponRange = self.getWeapon().getBulletRange();
+            // Warriors want to get much closer - to 40% of max range
+            double optimalRangeSq = (weaponRange * 0.4) * (weaponRange * 0.4);
+            
+            self.setCurrentTarget(closestEnemy);
+            
+            // More aggressive range management
+            if (distanceSq > optimalRangeSq) {
+                self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE, "Aggressively pursuing target");
+                self.setObjectiveTargetPoint(closestEnemy.getCenter());
+            } else {
+                self.setCurrentState(AIPlayer.AIState.ATTACKING, "Engaged in close combat");
+            }
+        } else {
+            // More aggressive wandering - use CAPTURING_OBJECTIVE to move faster
+            self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE, "Hunting for targets");
+            // Pick a point in the center of the map for hunting
+            self.setObjectiveTargetPoint(new Vector2D(Config.GAME_WIDTH / 2.0, Config.GAME_HEIGHT / 2.0));
+        }
     }
 
     /**
      * Guardian: Engages in combat but will retreat if badly wounded.
+     * Uses weapon range for optimal positioning.
      */
     private void prioritizeDefense(AIPlayer self, Player closestEnemy) {
-        // Priority 1: If health is low and an enemy is nearby, run away!
-        boolean isWounded = self.getCurrentHealth() < self.getMaxHealth() * 0.4; // Flee below 40% health
-        if (isWounded && closestEnemy != null) {
-            self.setCurrentState(AIPlayer.AIState.FLEEING);
-            self.setObjectiveTargetPoint(closestEnemy.getCenter());
+        if (closestEnemy == null) {
+            // No enemies, patrol center area
+            self.setCurrentState(AIPlayer.AIState.WANDERING, "Patrolling");
             return;
         }
 
-        // Priority 2: If not wounded, engage in combat as normal.
-        runBalancedLogic(self, closestEnemy);
+        double distanceSq = self.getCenter().distanceSquared(closestEnemy.getCenter());
+        double weaponRange = self.getWeapon().getBulletRange();
+        double healthRatio = self.getCurrentHealth() / (double) self.getMaxHealth();
+        
+        // Adjust optimal range based on health
+        double rangeMultiplier = healthRatio < 0.4 ? 0.8 : // Stay far when wounded
+                                healthRatio < 0.7 ? 0.7 :   // Medium range when damaged
+                                0.6;                        // Normal range when healthy
+        
+        double optimalRangeSq = (weaponRange * rangeMultiplier) * (weaponRange * rangeMultiplier);
+        
+        self.setCurrentTarget(closestEnemy);
+        
+        // Too close and wounded - retreat!
+        if (distanceSq < optimalRangeSq && healthRatio < 0.4) {
+            self.setCurrentState(AIPlayer.AIState.FLEEING, "Tactical retreat");
+            self.setObjectiveTargetPoint(closestEnemy.getCenter());
+        }
+        // Too far - close in carefully
+        else if (distanceSq > optimalRangeSq) {
+            self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE, "Moving to optimal range");
+            self.setObjectiveTargetPoint(closestEnemy.getCenter());
+        }
+        // At good range - engage
+        else {
+            self.setCurrentState(AIPlayer.AIState.ATTACKING, "Engaging from optimal range");
+        }
     }
 }

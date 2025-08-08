@@ -45,7 +45,7 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
         }
     }
 
-    private void balanceOpponents() {
+    protected void balanceOpponents() {
         int playersToAdd = MAX_PLAYERS - players.size();
         if (playersToAdd > 0) {
             log.info("Checking to fill game. Current players: {}, Max: {}. Adding {} AI.", players.size(), MAX_PLAYERS, playersToAdd);
