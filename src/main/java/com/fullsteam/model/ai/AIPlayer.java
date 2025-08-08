@@ -449,6 +449,9 @@ public class AIPlayer extends Player {
      */
     private Obstacle findBlockingObstacle(Vector2D start, Vector2D end, List<Obstacle> obstacles) {
         for (Obstacle obstacle : obstacles) {
+            if (obstacle == null) {
+                continue;
+            }
             // Broad Phase: Check if the "feeler" line segment intersects the obstacle's bounding circle.
             // If not, we can skip the expensive polygon check.
             if (!CollisionUtils.checkLineCircleCollision(start, end, obstacle.getCenter(), obstacle.getBoundingRadius())) {
