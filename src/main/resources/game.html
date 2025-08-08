@@ -472,14 +472,12 @@
                 this.lastScoreboardUpdateTime = now;
             }
 
-            if (this.game.playerId) {
-                if (this.localPlayer && this.localPlayer.weapon) {
-                    // If the weapon from the server is different from the one in the UI
-                    if (this.elements.weaponSelector.value !== this.localPlayer.weapon.name) {
-                        this.elements.weaponSelector.value = this.localPlayer.weapon.name;
-                        // Save the change to localStorage so it persists
-                        localStorage.setItem('weaponName', this.localPlayer.weapon.name);
-                    }
+            if (this.game.playerId && this.game.localPlayer && this.game.localPlayer.weapon) {
+                // If the weapon from the server is different from the one in the UI
+                if (this.elements.weaponSelector.value !== this.game.localPlayer.weapon.name) {
+                    this.elements.weaponSelector.value = this.game.localPlayer.weapon.name;
+                    // Save the change to localStorage so it persists
+                    localStorage.setItem('weaponName', this.game.localPlayer.weapon.name);
                 }
             }
         }

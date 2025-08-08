@@ -46,37 +46,54 @@ public class KingOfTheHillAIStrategy implements IAIStrategy {
      * A well-rounded strategy that serves as the default behavior.
      */
     private void runBalancedLogic(AIPlayer self, Collection<Player> allPlayers, KingOfTheHillInfo koth) {
-        // Priority 1: An enemy is nearby. ATTACK!
+        // Priority 1: Hunt enemies on or near the hill first!
+        Player enemyOnHill = findClosestEnemyOnHill(self, allPlayers, koth);
+        if (enemyOnHill != null) {
+            self.setCurrentTarget(enemyOnHill);
+            self.setCurrentState(AIPlayer.AIState.ATTACKING);
+            return;
+        }
+
+        // Priority 2: The hill is contested or not ours. CAPTURE!
+        if (koth.getHill().controllingTeam() != self.getTeam() || koth.getHill().contested()) {
+            self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
+            self.setObjectiveTargetPoint(koth.getHill().position());
+            return;
+        }
+
+        // Priority 3: An enemy is nearby but not on hill. ATTACK if close enough!
         Player closestEnemy = findClosestEnemy(self, allPlayers);
-        if (closestEnemy != null) {
+        if (closestEnemy != null && isInRange(self, closestEnemy, 400)) {
             self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
 
-        // Priority 2: The hill is not ours. CAPTURE!
-        if (koth.getHill().controllingTeam() != self.getTeam()) {
-            self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
-            self.setObjectiveTargetPoint(koth.getHill().position());
-        } else {
-            // Priority 3: The hill is ours. DEFEND! (Patrol the area)
-            self.setCurrentState(AIPlayer.AIState.WANDERING);
-            self.setObjectiveTargetPoint(koth.getHill().position());
-        }
+        // Priority 4: The hill is ours and secure. DEFEND! (Patrol the area)
+        self.setCurrentState(AIPlayer.AIState.WANDERING);
+        self.setObjectiveTargetPoint(koth.getHill().position());
     }
 
     /**
-     * Warrior: Always seeks combat first, plays the objective second.
+     * Warrior: Prioritizes hunting hill enemies, then general combat, then objectives.
      */
     private void prioritizeCombat(AIPlayer self, Collection<Player> allPlayers, KingOfTheHillInfo koth) {
-        // The Warrior's #1 priority is always to fight.
+        // Even warriors prioritize enemies on the hill
+        Player enemyOnHill = findClosestEnemyOnHill(self, allPlayers, koth);
+        if (enemyOnHill != null) {
+            self.setCurrentTarget(enemyOnHill);
+            self.setCurrentState(AIPlayer.AIState.ATTACKING);
+            return;
+        }
+
+        // The Warrior's #2 priority is always to fight anyone else.
         Player closestEnemy = findClosestEnemy(self, allPlayers);
         if (closestEnemy != null) {
             self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
-        // If no one is around to fight, it will play the objective as a secondary goal.
+        // If no one is around to fight, it will play the objective as a tertiary goal.
         runBalancedLogic(self, allPlayers, koth);
     }
 
@@ -84,22 +101,30 @@ public class KingOfTheHillAIStrategy implements IAIStrategy {
      * Guardian: Prioritizes holding the hill and defending it.
      */
     private void prioritizeDefense(AIPlayer self, Collection<Player> allPlayers, KingOfTheHillInfo koth) {
-        // The Guardian's #1 priority is defending the hill if we own it.
-        if (koth.getHill().controllingTeam() == self.getTeam()) {
+        // Priority #1: Hunt enemies on the hill with extreme prejudice!
+        Player enemyOnHill = findClosestEnemyOnHill(self, allPlayers, koth);
+        if (enemyOnHill != null) {
+            self.setCurrentTarget(enemyOnHill);
+            self.setCurrentState(AIPlayer.AIState.ATTACKING);
+            return;
+        }
+
+        // Priority #2: Defend the hill if we own it and it's not contested.
+        if (koth.getHill().controllingTeam() == self.getTeam() && !koth.getHill().contested()) {
             self.setCurrentState(AIPlayer.AIState.WANDERING); // Patrol the hill
             self.setObjectiveTargetPoint(koth.getHill().position());
 
             // If an enemy gets close while we're defending, attack them.
             Player closestEnemy = findClosestEnemy(self, allPlayers);
-            // Use a guard radius around the hill's center
-            if (closestEnemy != null && closestEnemy.getCenter().distanceSquared(koth.getHill().position()) < 400 * 400) {
+            // Use an expanded guard radius around the hill's center
+            if (closestEnemy != null && closestEnemy.getCenter().distanceSquared(koth.getHill().position()) < 500 * 500) {
                 self.setCurrentTarget(closestEnemy);
                 self.setCurrentState(AIPlayer.AIState.ATTACKING);
             }
             return;
         }
 
-        // If we don't own the hill, the Guardian will help capture it like a Balanced AI.
+        // If we don't own the hill or it's contested, help capture it like a Balanced AI.
         runBalancedLogic(self, allPlayers, koth);
     }
 
@@ -107,23 +132,30 @@ public class KingOfTheHillAIStrategy implements IAIStrategy {
      * Objective Hound: Aggressively pursues capturing the hill.
      */
     private void prioritizeObjective(AIPlayer self, Collection<Player> allPlayers, KingOfTheHillInfo koth) {
-        // The Objective Hound's #1 priority is capturing the hill if it's not ours.
-        if (koth.getHill().controllingTeam() != self.getTeam()) {
+        // Priority #1: Hunt enemies on the hill with relentless determination!
+        Player enemyOnHill = findClosestEnemyOnHill(self, allPlayers, koth);
+        if (enemyOnHill != null) {
+            self.setCurrentTarget(enemyOnHill);
+            self.setCurrentState(AIPlayer.AIState.ATTACKING);
+            return;
+        }
+
+        // Priority #2: Capturing the hill if it's not ours or contested.
+        if (koth.getHill().controllingTeam() != self.getTeam() || koth.getHill().contested()) {
             self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
             self.setObjectiveTargetPoint(koth.getHill().position());
             return;
         }
 
-        // If we own the hill, it will defend it, but it will only fight enemies
-        // who are a direct threat to the objective.
-        Player closestEnemyOnHill = findClosestEnemyOnHill(self, allPlayers, koth);
-        if (closestEnemyOnHill != null) {
-            self.setCurrentTarget(closestEnemyOnHill);
+        // Priority #3: Only fight enemies that are very close and threatening the hill
+        Player closestEnemy = findClosestEnemy(self, allPlayers);
+        if (closestEnemy != null && isInRange(self, closestEnemy, 300)) {
+            self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
 
-        // If no enemies are on the hill, just patrol it.
+        // Priority #4: Patrol the hill to maintain control
         self.setCurrentState(AIPlayer.AIState.WANDERING);
         self.setObjectiveTargetPoint(koth.getHill().position());
     }

@@ -82,17 +82,17 @@ public class JuggernautAIStrategy implements IAIStrategy {
      * Offensive logic for Warriors and Objective Hounds.
      */
     private void prioritizeOffense(AIPlayer self, Collection<Player> allPlayers, Player enemyJuggernaut) {
-        // Priority 1: An enemy is nearby. ATTACK!
+        // Priority 1: Hunt the enemy Juggernaut with extreme focus!
+        self.setCurrentTarget(enemyJuggernaut);
+        self.setCurrentState(AIPlayer.AIState.ATTACKING);
+
+        // Only get distracted by nearby enemies if they're very close
         Player closestEnemy = findClosestEnemy(self, allPlayers);
-        if (closestEnemy != null) {
+        if (closestEnemy != null && isInRange(self, closestEnemy, 200) && 
+            !Objects.equals(closestEnemy.getId(), enemyJuggernaut.getId())) {
             self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
-            return;
         }
-
-        // Priority 2: No immediate threats, so hunt the enemy Juggernaut.
-        self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
-        self.setObjectiveTargetPoint(enemyJuggernaut.getCenter());
     }
 
     /**

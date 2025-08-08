@@ -114,9 +114,10 @@ public class OddballAIStrategy implements IAIStrategy {
             return;
         }
 
-        // Priority 2: An enemy is nearby. ATTACK!
-        if (closestEnemy != null) {
-            self.setCurrentTarget(closestEnemy);
+        // Priority 2: HUNT enemy ball carrier with extreme prejudice!
+        if (carrierOpt.isPresent() && carrierOpt.get().getTeam() != self.getTeam()) {
+            Player enemyCarrier = carrierOpt.get();
+            self.setCurrentTarget(enemyCarrier);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
@@ -128,18 +129,18 @@ public class OddballAIStrategy implements IAIStrategy {
             return;
         }
 
-        // Priority 4 & 5: A teammate or enemy has the ball.
-        if (carrierOpt.isPresent()) {
-            Player carrier = carrierOpt.get();
-            if (carrier.getTeam() != self.getTeam()) {
-                // HUNT the enemy carrier
-                self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
-                self.setObjectiveTargetPoint(carrier.getCenter());
-            } else {
-                // PROTECT the friendly carrier
-                self.setCurrentState(AIPlayer.AIState.WANDERING);
-                self.setObjectiveTargetPoint(carrier.getCenter());
-            }
+        // Priority 4: An enemy is nearby and no objectives available. ATTACK!
+        if (closestEnemy != null && isInRange(self, closestEnemy, 400)) {
+            self.setCurrentTarget(closestEnemy);
+            self.setCurrentState(AIPlayer.AIState.ATTACKING);
+            return;
+        }
+
+        // Priority 5: PROTECT the friendly carrier
+        if (carrierOpt.isPresent() && carrierOpt.get().getTeam() == self.getTeam()) {
+            Player friendlyCarrier = carrierOpt.get();
+            self.setCurrentState(AIPlayer.AIState.WANDERING);
+            self.setObjectiveTargetPoint(friendlyCarrier.getCenter());
             return;
         }
 
@@ -149,18 +150,34 @@ public class OddballAIStrategy implements IAIStrategy {
     // --- Archetype-Specific Logic ---
 
     private void prioritizeCombat(AIPlayer self, Player closestEnemy, Oddball oddball, boolean isCarrier, Optional<Player> carrierOpt, Collection<Player> allPlayers) {
-        // The Warrior's #1 priority is always to fight.
+        // Even warriors prioritize hunting the enemy ball carrier
+        if (carrierOpt.isPresent() && carrierOpt.get().getTeam() != self.getTeam()) {
+            Player enemyCarrier = carrierOpt.get();
+            self.setCurrentTarget(enemyCarrier);
+            self.setCurrentState(AIPlayer.AIState.ATTACKING);
+            return;
+        }
+
+        // The Warrior's #2 priority is always to fight anyone else.
         if (closestEnemy != null) {
             self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
-        // If no one is around to fight, it will play the objective as a secondary goal.
+        // If no one is around to fight, it will play the objective as a tertiary goal.
         runBalancedLogic(self, null, oddball, isCarrier, carrierOpt, allPlayers);
     }
 
     private void prioritizeDefense(AIPlayer self, Player closestEnemy, Oddball oddball, boolean isCarrier, Optional<Player> carrierOpt, Collection<Player> allPlayers) {
-        // The Guardian's #1 priority is protecting the friendly carrier.
+        // Priority #1: Hunt enemy ball carrier with extreme prejudice!
+        if (carrierOpt.isPresent() && carrierOpt.get().getTeam() != self.getTeam()) {
+            Player enemyCarrier = carrierOpt.get();
+            self.setCurrentTarget(enemyCarrier);
+            self.setCurrentState(AIPlayer.AIState.ATTACKING);
+            return;
+        }
+
+        // Priority #2: Protecting the friendly carrier.
         if (carrierOpt.isPresent() && carrierOpt.get().getTeam() == self.getTeam()) {
             Player friendlyCarrier = carrierOpt.get();
             self.setCurrentState(AIPlayer.AIState.WANDERING); // Default to wandering near the carrier
@@ -173,18 +190,41 @@ public class OddballAIStrategy implements IAIStrategy {
             }
             return;
         }
-        // If there's no friendly carrier to protect, it will play normally.
+        // If there's no carrier to protect, it will play normally.
         runBalancedLogic(self, closestEnemy, oddball, isCarrier, carrierOpt, allPlayers);
     }
 
     private void prioritizeObjective(AIPlayer self, Player closestEnemy, Oddball oddball, boolean isCarrier, Optional<Player> carrierOpt, Collection<Player> allPlayers) {
-        // The Objective Hound's #1 priority is getting the ball if it's loose.
+        // Priority #1: Hunt enemy ball carrier with relentless determination!
+        if (carrierOpt.isPresent() && carrierOpt.get().getTeam() != self.getTeam()) {
+            Player enemyCarrier = carrierOpt.get();
+            self.setCurrentTarget(enemyCarrier);
+            self.setCurrentState(AIPlayer.AIState.ATTACKING);
+            return;
+        }
+
+        // Priority #2: Getting the ball if it's loose.
         if (oddball.state() == Oddball.OddballState.ON_SPAWN || oddball.state() == Oddball.OddballState.DROPPED) {
             self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
             self.setObjectiveTargetPoint(oddball.position());
             return;
         }
-        // If it can't get the ball, it will play normally.
-        runBalancedLogic(self, closestEnemy, oddball, isCarrier, carrierOpt, allPlayers);
+
+        // Priority #3: Only fight enemies that are blocking objective paths or very close
+        if (closestEnemy != null && isInRange(self, closestEnemy, 250)) {
+            self.setCurrentTarget(closestEnemy);
+            self.setCurrentState(AIPlayer.AIState.ATTACKING);
+            return;
+        }
+
+        // Priority #4: Position near ball spawn for opportunities
+        if (oddball.state() == Oddball.OddballState.CARRIED) {
+            self.setCurrentState(AIPlayer.AIState.WANDERING);
+            self.setObjectiveTargetPoint(oddball.position()); // Move toward where the ball will likely drop
+            return;
+        }
+
+        // Default fallback
+        runBalancedLogic(self, null, oddball, isCarrier, carrierOpt, allPlayers);
     }
 }

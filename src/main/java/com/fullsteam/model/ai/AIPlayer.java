@@ -46,6 +46,10 @@ public class AIPlayer extends Player {
     private transient final IAIStrategy aiStrategy;
     private transient final AIArchetype archetype;
 
+    // --- Debug/Analytics Fields ---
+    private transient String lastDecisionReason = ""; // For debugging AI behavior
+    private transient long stateChangeTime = System.currentTimeMillis();
+
     // --- AI Behavior Timing & State ---
     private transient long lastWanderDirectionChangeTime;
     private transient long lastStrafeTime;
@@ -129,12 +133,12 @@ public class AIPlayer extends Player {
 
         // High priority: Flee from damaging hazards.
         Vector2D hazardForce = calculateHazardAvoidanceForce(gameState.hazards());
-        applyForce(hazardForce, 4.0);
+        applyForce(hazardForce, 1.0);
 
         // --- Priority 2: Tactical Decisions ---
         // Mid priority: React to power-ups (seek good ones, avoid powered-up enemies).
         Vector2D powerUpForce = calculatePowerUpInfluenceForce(gameState);
-        applyForce(powerUpForce, 2.5);
+        applyForce(powerUpForce, 2.0);
 
         // --- Priority 3: Strategic Goal ---
         // Let the game-mode-specific strategy determine the AI's current state and objective.
@@ -142,7 +146,7 @@ public class AIPlayer extends Player {
 
         // Execute the primary movement behavior based on the current state.
         Vector2D objectiveForce = calculateObjectiveForce(gameState.obstacles());
-        applyForce(objectiveForce, 1.0);
+        applyForce(objectiveForce, 4.0);
     }
 
     /**
@@ -185,9 +189,12 @@ public class AIPlayer extends Player {
             return Optional.empty();
         }
 
-        // Respect the AI's reaction time if this is our primary `currentTarget`.
-        if (currentTarget == targetToShoot && System.currentTimeMillis() - timeTargetAcquired < this.reactionTimeMs) {
-            return Optional.empty(); // Still "reacting", don't shoot yet.
+        // Respect the AI's reaction time, but adjust for target priority
+        if (currentTarget == targetToShoot) {
+            long reactionTimeNeeded = calculateReactionTimeForTarget(targetToShoot);
+            if (System.currentTimeMillis() - timeTargetAcquired < reactionTimeNeeded) {
+                return Optional.empty(); // Still "reacting", don't shoot yet.
+            }
         }
 
         // All checks passed, create a shoot action with calculated inaccuracy.
@@ -324,11 +331,11 @@ public class AIPlayer extends Player {
     }
 
     /**
-     * Finds the closest enemy player that is within weapon range and has a clear line of sight.
+     * Finds the best enemy player to shoot at, prioritizing high-value targets over pure distance.
      */
     private Player findBestShootingTarget(SpatialGrid<Player> playerGrid, List<Obstacle> obstacles) {
         Player bestTarget = null;
-        double minDistanceSq = Double.MAX_VALUE;
+        double bestScore = Double.MAX_VALUE;
         double attackRange = getWeapon().getBulletRange();
         double attackRangeSq = attackRange * attackRange;
 
@@ -340,14 +347,89 @@ public class AIPlayer extends Player {
             }
 
             double distanceSq = this.getCenter().distanceSquared(potentialTarget.getCenter());
-            if (distanceSq < attackRangeSq && distanceSq < minDistanceSq) {
+            if (distanceSq < attackRangeSq) {
                 if (findBlockingObstacle(this.getCenter(), potentialTarget.getCenter(), obstacles) == null) {
-                    minDistanceSq = distanceSq;
-                    bestTarget = potentialTarget;
+                    // Calculate priority score (lower = better)
+                    double score = calculateTargetPriorityScore(potentialTarget, distanceSq);
+                    if (score < bestScore) {
+                        bestScore = score;
+                        bestTarget = potentialTarget;
+                    }
                 }
             }
         }
         return bestTarget;
+    }
+
+    /**
+     * Calculates a priority score for a potential target.
+     * Lower scores indicate higher priority targets.
+     */
+    private double calculateTargetPriorityScore(Player target, double distanceSq) {
+        double baseScore = Math.sqrt(distanceSq); // Base score is distance
+
+        // High priority: Current primary target (maintain focus)
+        if (target == this.currentTarget) {
+            baseScore *= 0.3; // Very high priority
+        }
+
+        // High priority: Low health enemies (easy kills)
+        double healthRatio = target.getCurrentHealth() / target.getMaxHealth();
+        if (healthRatio < 0.3) {
+            baseScore *= 0.5;
+        }
+
+        // Medium priority: Powered-up enemies (threats)
+        long currentTime = System.currentTimeMillis();
+        if (target.getDamageBoostEndTime() > currentTime || target.getArmorUpEndTime() > currentTime) {
+            baseScore *= 0.7;
+        }
+
+        // Lower priority: Reloading enemies (less immediate threat)
+        if (target.isReloading()) {
+            baseScore *= 1.3;
+        }
+
+        return baseScore;
+    }
+
+    /**
+     * Calculates the reaction time needed for a specific target.
+     * High-priority targets get faster reaction times.
+     */
+    private long calculateReactionTimeForTarget(Player target) {
+        long baseReactionTime = this.reactionTimeMs;
+
+        // High priority targets get much faster reactions
+        double healthRatio = target.getCurrentHealth() / target.getMaxHealth();
+        if (healthRatio < 0.3) {
+            baseReactionTime = (long) (baseReactionTime * 0.4); // 60% faster for low-health targets
+        }
+
+        // Powered-up enemies are dangerous, react faster
+        long currentTime = System.currentTimeMillis();
+        if (target.getDamageBoostEndTime() > currentTime) {
+            baseReactionTime = (long) (baseReactionTime * 0.5); // 50% faster for damage-boosted enemies
+        }
+
+        // Archetype-based reaction adjustments
+        switch (this.archetype) {
+            case WARRIOR:
+                baseReactionTime = (long) (baseReactionTime * 0.7); // Warriors are more aggressive
+                break;
+            case GUARDIAN:
+                baseReactionTime = (long) (baseReactionTime * 1.1); // Guardians are more cautious
+                break;
+            case OBJECTIVE_HOUND:
+                baseReactionTime = (long) (baseReactionTime * 0.9); // Slightly faster, focused
+                break;
+            case BALANCED:
+            default:
+                // BALANCED uses default timing (no modification)
+                break;
+        }
+
+        return Math.max(50, baseReactionTime); // Never go below 50ms
     }
 
     /**
@@ -441,7 +523,7 @@ public class AIPlayer extends Player {
             double awarenessRadius = hazard.radius() + 20;
             if (getCenter().distanceSquared(hazard.position()) < awarenessRadius * awarenessRadius) {
                 Vector2D fleeDirection = getCenter().subtract(hazard.position());
-                double weight = (hazard.type() == Hazard.Type.DAMAGE) ? 0.5 : 0.25;
+                double weight = (hazard.type() == Hazard.Type.DAMAGE) ? 0.25 : 0.05;
                 totalAvoidanceForce = totalAvoidanceForce.add(fleeDirection.normalize().multiply(weight));
             }
         }
@@ -512,6 +594,18 @@ public class AIPlayer extends Player {
     // --- State Setters for Strategy ---
 
     public void setCurrentState(AIState state) {
+        if (this.currentState != state) {
+            this.stateChangeTime = System.currentTimeMillis();
+            this.lastDecisionReason = "State changed from " + this.currentState + " to " + state;
+        }
+        this.currentState = state;
+    }
+
+    public void setCurrentState(AIState state, String reason) {
+        if (this.currentState != state) {
+            this.stateChangeTime = System.currentTimeMillis();
+        }
+        this.lastDecisionReason = reason;
         this.currentState = state;
     }
 
