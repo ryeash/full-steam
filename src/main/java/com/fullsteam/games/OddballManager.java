@@ -105,7 +105,6 @@ public class OddballManager extends AbstractTeamBasedManager {
 
                 if (player.getCenter().distanceSquared(oddball.position()) < BALL_PICKUP_RADIUS_SQ) {
                     oddball = oddball.asCarriedBy(player.getId(), player.getCenter());
-                    log.info("Player {} picked up the Oddball for team {}!", player.getPlayerName(), player.getTeam());
                     sendGameEvent(GameEvent.team(player.getTeam(), "%s picked up the Oddball!".formatted(player.getPlayerName())));
                     break; // Only one player can pick it up
                 }

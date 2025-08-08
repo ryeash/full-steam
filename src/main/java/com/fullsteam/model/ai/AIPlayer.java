@@ -355,6 +355,13 @@ public class AIPlayer extends Player {
      */
     private Obstacle findBlockingObstacle(Vector2D start, Vector2D end, List<Obstacle> obstacles) {
         for (Obstacle obstacle : obstacles) {
+            // Broad Phase: Check if the "feeler" line segment intersects the obstacle's bounding circle.
+            // If not, we can skip the expensive polygon check.
+            if (!CollisionUtils.checkLineCircleCollision(start, end, obstacle.getCenter(), obstacle.getBoundingRadius())) {
+                continue;
+            }
+
+            // Narrow Phase: The feeler is close, so now do the precise check.
             if (CollisionUtils.checkLinePolygonCollision(start, end, obstacle.vertices())) {
                 return obstacle;
             }
@@ -449,14 +456,19 @@ public class AIPlayer extends Player {
         double separationRadius = 20.0;
 
         for (Obstacle obstacle : obstacles) {
+            // Broad Phase: Check if the AI's "personal space" bubble overlaps the obstacle's bounding circle.
+            double combinedRadius = separationRadius + obstacle.getBoundingRadius();
+            if (getCenter().distanceSquared(obstacle.getCenter()) > combinedRadius * combinedRadius) {
+                continue; // Not close enough to worry about.
+            }
+
+            // Narrow Phase: We are close, so find the exact closest point to push away from.
             Vector2D closestPoint = findClosestPointOnObstacle(getCenter(), obstacle);
-            if (closestPoint != null) {
-                double distanceSq = getCenter().distanceSquared(closestPoint);
-                if (distanceSq < separationRadius * separationRadius) {
-                    Vector2D fleeDirection = getCenter().subtract(closestPoint);
-                    double strength = 1.0 - (Math.sqrt(distanceSq) / separationRadius);
-                    totalSeparationForce = totalSeparationForce.add(fleeDirection.normalize().multiply(strength));
-                }
+            double distanceSq = getCenter().distanceSquared(closestPoint);
+            if (distanceSq < separationRadius * separationRadius) {
+                Vector2D fleeDirection = getCenter().subtract(closestPoint);
+                double strength = 1.0 - (Math.sqrt(distanceSq) / separationRadius);
+                totalSeparationForce = totalSeparationForce.add(fleeDirection.normalize().multiply(strength));
             }
         }
         return totalSeparationForce;

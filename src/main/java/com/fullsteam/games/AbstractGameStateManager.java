@@ -721,7 +721,6 @@ public abstract class AbstractGameStateManager {
         PowerUpType type = PowerUpType.values()[ThreadLocalRandom.current().nextInt(PowerUpType.values().length)];
         PowerUp powerUp = new PowerUp(position, type);
         powerUps.add(powerUp);
-        log.info("Spawned power-up {} at ({}, {})", type, position.x(), position.y());
     }
 
     protected void updatePowerUps() {
@@ -740,7 +739,6 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void applyPowerUp(Player player, PowerUp powerUp) {
-        log.info("Player {} picked up {}", player.getId(), powerUp.getType());
         switch (powerUp.getType()) {
             case HEALTH_PACK:
                 player.takeDamage(-POWER_UP_HEALTH_RECOVERY);
@@ -905,8 +903,21 @@ public abstract class AbstractGameStateManager {
     }
 
     protected boolean isColliding(Player player, Obstacle obstacle) {
+        // --- Broad Phase Check ---
+        // First, do a quick check using bounding circles to see if the objects are even close.
+        double playerRadius = PLAYER_SIZE / 2.0;
+        double combinedRadius = playerRadius + obstacle.getBoundingRadius();
+        double distanceSq = player.getCenter().distanceSquared(obstacle.getCenter());
+
+        // If the distance between centers is greater than their combined radii, they can't be colliding.
+        if (distanceSq > combinedRadius * combinedRadius) {
+            return false;
+        }
+
+        // --- Narrow Phase Check ---
+        // The broad phase passed, so now we do the expensive, precise check.
         return CollisionUtils.checkCirclePolygonCollision(
-                new Vector2D(player.getX() + PLAYER_SIZE / 2, player.getY() + PLAYER_SIZE / 2), PLAYER_SIZE / 2, obstacle.vertices());
+                player.getCenter(), playerRadius, obstacle.vertices());
     }
 
     /**

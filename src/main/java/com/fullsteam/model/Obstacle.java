@@ -16,6 +16,10 @@ public class Obstacle implements HasId {
     private final long id;
     private final List<Vector2D> vertices;
     @JsonIgnore
+    private final Vector2D center;
+    @JsonIgnore
+    private final double boundingRadius;
+    @JsonIgnore
     private final boolean rendered;
 
     public Obstacle(List<Vector2D> vertices) {
@@ -25,6 +29,22 @@ public class Obstacle implements HasId {
     public Obstacle(List<Vector2D> vertices, boolean rendered) {
         this.id = idCounter.incrementAndGet();
         this.vertices = vertices;
+
+        // --- Calculate Bounding Information ---
+        // 1. Find the geometric center (centroid) of the polygon.
+        double totalX = 0, totalY = 0;
+        for (Vector2D v : vertices) {
+            totalX += v.x();
+            totalY += v.y();
+        }
+        this.center = new Vector2D(totalX / vertices.size(), totalY / vertices.size());
+
+        // 2. Find the bounding radius (distance from center to the furthest vertex).
+        this.boundingRadius = Math.sqrt(vertices.stream()
+                .mapToDouble(v -> v.distanceSquared(this.center))
+                .max()
+                .orElse(0.0));
+
         this.rendered = rendered;
     }
 
@@ -39,6 +59,14 @@ public class Obstacle implements HasId {
 
     public List<Vector2D> vertices() {
         return vertices;
+    }
+
+    public Vector2D getCenter() {
+        return center;
+    }
+
+    public double getBoundingRadius() {
+        return boundingRadius;
     }
 
     /**
