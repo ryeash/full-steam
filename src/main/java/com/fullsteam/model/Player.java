@@ -10,7 +10,9 @@ public class Player implements HasId {
     protected String playerName;
     protected double x;
     protected double y;
+    @JsonIgnore
     protected double velocityX;
+    @JsonIgnore
     protected double velocityY;
     @JsonIgnore
     protected double speed;
@@ -39,6 +41,7 @@ public class Player implements HasId {
     public long speedBoostEndTime;
     public long armorUpEndTime;
     public long damageBoostEndTime;
+    @JsonIgnore
     public double damageMultiplier;
     @JsonIgnore
     private long alternateActionCooldown;
@@ -93,7 +96,7 @@ public class Player implements HasId {
     /**
      * Fires the weapon, decrements ammo, and sets the cooldown.
      */
-    public void shoot(double aimAngle) {
+    public void shoot() {
         if (!canShoot()) {
             return;
         }

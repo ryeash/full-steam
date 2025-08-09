@@ -83,7 +83,7 @@ public class Obstacle implements HasId {
         int vertexCount = 3 + ThreadLocalRandom.current().nextInt(6); // Polygons with 3 to 7 vertices
         double centerX = 100 + ThreadLocalRandom.current().nextInt(Config.GAME_WIDTH - 200);
         double centerY = 100 + ThreadLocalRandom.current().nextInt(Config.GAME_HEIGHT - 200);
-        double avgRadius = 45 + ThreadLocalRandom.current().nextInt(60);
+        double avgRadius = 45 + ThreadLocalRandom.current().nextInt(100);
 
         List<Vector2D> points = new ArrayList<>();
         for (int i = 0; i < vertexCount; i++) {
@@ -94,47 +94,6 @@ public class Obstacle implements HasId {
             points.add(new Vector2D(x, y));
         }
         return new Obstacle(points);
-    }
-
-    public static Obstacle createSymmetricPolygonObstacle() {
-        final double centerX = Config.GAME_WIDTH / 2.0;
-        final double centerY = 100 + ThreadLocalRandom.current().nextInt(Config.GAME_HEIGHT - 200);
-        final double halfWidth = 20 + ThreadLocalRandom.current().nextInt(80);
-        final double halfHeight = 30 + ThreadLocalRandom.current().nextInt(100);
-
-        final Vector2D topPoint = new Vector2D(centerX, centerY - halfHeight);
-        final Vector2D bottomPoint = new Vector2D(centerX, centerY + halfHeight);
-
-        int midPointsCount = 1 + ThreadLocalRandom.current().nextInt(3);
-        List<Vector2D> rightSideMidPoints = new ArrayList<>();
-        for (int i = 0; i < midPointsCount; i++) {
-            double pointX = centerX + (ThreadLocalRandom.current().nextDouble() * halfWidth);
-            double pointY = (centerY - halfHeight) + (ThreadLocalRandom.current().nextDouble() * (halfHeight * 2));
-            rightSideMidPoints.add(new Vector2D(pointX, pointY));
-        }
-
-        List<Vector2D> rightSideVertices = new ArrayList<>();
-        rightSideVertices.add(topPoint);
-        rightSideVertices.addAll(rightSideMidPoints);
-        rightSideVertices.add(bottomPoint);
-        rightSideVertices.sort(Comparator.comparingDouble(Vector2D::y));
-
-        List<Vector2D> leftSideVertices = rightSideMidPoints.stream()
-                .map(v -> new Vector2D(Config.GAME_WIDTH - v.x(), v.y()))
-                .sorted(Comparator.comparingDouble(Vector2D::y).reversed())
-                .toList();
-
-        List<Vector2D> allVertices = new ArrayList<>(rightSideVertices);
-        allVertices.addAll(leftSideVertices);
-
-        return new Obstacle(allVertices);
-    }
-
-    public Obstacle createMirrorClone() {
-        List<Vector2D> mirroredVertices = this.vertices.stream()
-                .map(vertex -> new Vector2D(Config.GAME_WIDTH - vertex.x(), vertex.y()))
-                .toList();
-        return new Obstacle(mirroredVertices);
     }
 
     public Obstacle create180Clone() {

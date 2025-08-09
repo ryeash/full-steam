@@ -332,7 +332,7 @@ public abstract class AbstractGameStateManager {
         }
 
         // Trigger cooldown and set aim direction after the shot is fired
-        player.shoot(aimAngle);
+        player.shoot();
     }
 
     protected void updateGame(long delta) {

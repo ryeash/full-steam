@@ -1,11 +1,16 @@
 package com.fullsteam.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 /**
  * A simple, immutable record to represent a 2D vector or point.
  * Using a record provides constructors, getters, equals(), hashCode(),
  * and toString() automatically.
  */
-public record Vector2D(double x, double y, double magnitudeSquared) {
+public record Vector2D(double x,
+                       double y,
+                       @JsonIgnore
+                       double magnitudeSquared) {
 
     public static final Vector2D ZERO = new Vector2D(0, 0);
 
