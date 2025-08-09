@@ -57,6 +57,7 @@ import static com.fullsteam.Config.HAZARD_DAMAGE_FACTOR;
 import static com.fullsteam.Config.HAZARD_SLOW_FACTOR;
 import static com.fullsteam.Config.ID_COUNTER;
 import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
+import static com.fullsteam.Config.MAX_SPECTATORS_PER_GAME;
 import static com.fullsteam.Config.OBSTACLE_COUNT;
 import static com.fullsteam.Config.PLAYER_SIZE;
 import static com.fullsteam.Config.POWER_UP_ARMOR_UP_DURATION;
@@ -71,7 +72,6 @@ import static com.fullsteam.Config.SPAWN_HORIZONTAL_PADDING;
 import static com.fullsteam.Config.SPAWN_MIDFIELD_BUFFER;
 import static com.fullsteam.Config.SPAWN_VERTICAL_PADDING;
 import static com.fullsteam.Config.TICK_RATE;
-import static com.fullsteam.Config.MAX_SPECTATORS_PER_GAME;
 
 public abstract class AbstractGameStateManager {
     protected final Logger log = LoggerFactory.getLogger(getClass());
@@ -628,11 +628,11 @@ public abstract class AbstractGameStateManager {
 
             // Remove bullets that are out of bounds or have traveled max distance
             if (newPos.x() < 0 || newPos.x() > GAME_WIDTH
-                    || newPos.y() < 0 || newPos.y() > GAME_HEIGHT) {
+                || newPos.y() < 0 || newPos.y() > GAME_HEIGHT) {
                 return true;
             }
 
-            if (bullet.hasExceededMaxDistance()) {
+            if (bullet.hasExceededMaxDistance() || bullet.getSpeed() < 10) {
                 bullet.getOnDestructionAction()
                         .map(action -> action.apply(bullet))
                         .ifPresent(this::applyBulletEffect);
@@ -977,8 +977,8 @@ public abstract class AbstractGameStateManager {
         }
 
         if (request.getWeaponName() != null
-                && !request.getWeaponName().isEmpty()
-                && !request.getWeaponName().equals(player.getWeapon().getName())) {
+            && !request.getWeaponName().isEmpty()
+            && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
         }

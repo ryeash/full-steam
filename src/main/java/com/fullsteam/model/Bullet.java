@@ -1,7 +1,6 @@
 package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fullsteam.Config;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -53,13 +52,14 @@ public class Bullet implements HasId {
     }
 
     public void update(long delta) {
+        double deltaSeconds = (double) delta / 1000.0;
         // Update position
         Vector2D start = new Vector2D(x, y);
-        x += delta * velocityX * speed;
-        y += delta * velocityY * speed;
+        x += deltaSeconds * velocityX * speed;
+        y += deltaSeconds * velocityY * speed;
         Vector2D end = new Vector2D(x, y);
         // Apply speed decay
-//        speed *= bulletSpeedDecay * ((double) 1000 / Config.TICK_RATE);
+        speed *= Math.pow(bulletSpeedDecay, deltaSeconds);
         distanceTraveled += Math.sqrt(start.distanceSquared(end));
     }
 
@@ -109,5 +109,9 @@ public class Bullet implements HasId {
 
     public double getDamage() {
         return damage;
+    }
+
+    public double getSpeed() {
+        return speed;
     }
 }
