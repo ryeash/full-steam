@@ -22,8 +22,6 @@ public class Player implements HasId {
     protected Weapon weapon;
     protected double currentHealth;
     protected double maxHealth;
-    @JsonIgnore
-    protected transient long lastShotTime;
     protected double mouseX;
     protected double mouseY;
     @JsonIgnore
@@ -62,7 +60,6 @@ public class Player implements HasId {
         this.currentHealth = Config.DEFAULT_PLAYER_HEALTH;
         this.maxHealth = Config.DEFAULT_PLAYER_HEALTH;
         this.velocityY = 0;
-        this.lastShotTime = 0;
         this.lastInputTime = System.currentTimeMillis();
         this.isDead = false;
         this.respawnTime = 0;
@@ -88,9 +85,9 @@ public class Player implements HasId {
 
     public boolean canShoot() {
         return !isDead()
-                && !isReloading
-                && currentAmmoInMagazine > 0
-                && System.currentTimeMillis() >= nextShotTime;
+               && !isReloading
+               && currentAmmoInMagazine > 0
+               && System.currentTimeMillis() >= nextShotTime;
     }
 
     /**
@@ -101,7 +98,6 @@ public class Player implements HasId {
             return;
         }
         this.nextShotTime = System.currentTimeMillis() + weapon.getFireRateCooldown();
-        this.lastShotTime = System.currentTimeMillis();
         this.currentAmmoInMagazine -= weapon.getBulletsPerShot();
     }
 

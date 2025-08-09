@@ -102,7 +102,7 @@ public class OddballAIStrategy implements IAIStrategy {
                 double myDistToSafeSq = self.getCenter().distanceSquared(safePoint);
 
                 if (teammateDistToSafeSq < myDistToSafeSq) {
-                    self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE, "Moving to teammate for cover");
+                    self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
                     self.setObjectiveTargetPoint(closestTeammate.getCenter());
                     return;
                 }
@@ -113,11 +113,11 @@ public class OddballAIStrategy implements IAIStrategy {
 
             // If we're at our safe point, do evasive wandering
             if (distanceToSafePointSq < 150 * 150) { // Reduced radius to stay closer to safe point
-                self.setCurrentState(AIPlayer.AIState.WANDERING, "Safe position reached, evading");
+                self.setCurrentState(AIPlayer.AIState.WANDERING);
                 self.setObjectiveTargetPoint(safePoint); // Keep the safe point as reference for wandering
             } else {
                 // Run towards safety!
-                self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE, "Retreating to safe position");
+                self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
                 self.setObjectiveTargetPoint(safePoint);
             }
 

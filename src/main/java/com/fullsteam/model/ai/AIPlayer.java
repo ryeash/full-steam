@@ -48,7 +48,6 @@ public class AIPlayer extends Player {
     private transient final AIArchetype archetype;
 
     // --- Debug/Analytics Fields ---
-    private transient String lastDecisionReason = ""; // For debugging AI behavior
     private transient long stateChangeTime = System.currentTimeMillis();
 
     // --- AI Behavior Timing & State ---
@@ -612,16 +611,7 @@ public class AIPlayer extends Player {
     public void setCurrentState(AIState state) {
         if (this.currentState != state) {
             this.stateChangeTime = System.currentTimeMillis();
-            this.lastDecisionReason = "State changed from " + this.currentState + " to " + state;
         }
-        this.currentState = state;
-    }
-
-    public void setCurrentState(AIState state, String reason) {
-        if (this.currentState != state) {
-            this.stateChangeTime = System.currentTimeMillis();
-        }
-        this.lastDecisionReason = reason;
         this.currentState = state;
     }
 

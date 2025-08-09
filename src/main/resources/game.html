@@ -570,7 +570,7 @@
         }
 
         resetGameState() {
-            this.gameState = { players: [], bullets: [], explosions: [], poisonClouds: [], obstacles: [], deathMarkers: [], powerUps: [], info: null, serverTime: 0 };
+            this.gameState = { players: [], bullets: [], explosions: [], poisonClouds: [], obstacles: [], deathMarkers: [], powerUps: [], turrets: [], info: null, serverTime: 0 };
             this.gameEvents = [];
             this.previousGameState = null;
             this.lastUpdateTime = 0;
@@ -1161,6 +1161,7 @@
             this.drawCrates();
             this.drawExplosions();
             this.drawPoisonClouds();
+            this.drawTurrets();
 
             // Get interpolated positions for smooth rendering
             const interpolated = this.getInterpolatedPositions(currentTime);
@@ -1410,6 +1411,70 @@
                 this.ctx.beginPath();
                 this.ctx.arc(cloud.x, cloud.y, currentRadius, 0, 2 * Math.PI);
                 this.ctx.fill();
+            });
+            this.ctx.restore();
+        }
+
+        drawTurrets() {
+            if (!this.gameState.turrets) return;
+
+            this.ctx.save();
+            this.gameState.turrets.forEach(turret => {
+                const turretX = turret.x;
+                const turretY = turret.y;
+                const turretRadius = turret.radius;
+
+                this.ctx.save();
+                this.ctx.translate(turretX, turretY);
+
+                // Draw tripod legs
+                this.ctx.strokeStyle = '#616161'; // Dark grey
+                this.ctx.lineWidth = 4;
+                for (let i = 0; i < 3; i++) {
+                    const legAngle = (i * 2 * Math.PI / 3) + Math.PI / 2;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, 0);
+                    this.ctx.lineTo(Math.cos(legAngle) * turretRadius, Math.sin(legAngle) * turretRadius);
+                    this.ctx.stroke();
+                }
+
+                // Draw base with team color
+                const teamColor = turret.team === 1 ? '#4CAF50' : '#F44336';
+                const darkTeamColor = turret.team === 1 ? '#2E7D32' : '#C62828';
+                this.ctx.fillStyle = teamColor;
+                this.ctx.strokeStyle = darkTeamColor;
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(0, 0, turretRadius * 0.6, 0, 2 * Math.PI);
+                this.ctx.fill();
+                this.ctx.stroke();
+
+                // Draw rotating barrel
+                this.ctx.rotate(turret.angle);
+                this.ctx.fillStyle = '#424242'; // Darker grey for barrel
+                this.ctx.strokeStyle = '#212121';
+                this.ctx.lineWidth = 2;
+                this.ctx.fillRect(0, -4, turretRadius * 1.2, 8);
+                this.ctx.strokeRect(0, -4, turretRadius * 1.2, 8);
+
+                this.ctx.restore(); // Restore from translate/rotate
+
+                // Draw health bar
+                if (turret.hp < turret.maxHp) {
+                    const healthPercentage = Math.max(0, turret.hp / turret.maxHp);
+                    const barWidth = turretRadius * 2;
+                    const barHeight = 5;
+                    const barX = turretX - turretRadius;
+                    const barY = turretY - turretRadius - 15;
+
+                    this.ctx.fillStyle = '#333';
+                    this.ctx.fillRect(barX, barY, barWidth, barHeight);
+                    this.ctx.fillStyle = healthPercentage > 0.5 ? '#4CAF50' : (healthPercentage > 0.2 ? '#FFC107' : '#F44336');
+                    this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
+                    this.ctx.strokeStyle = '#111';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+                }
             });
             this.ctx.restore();
         }

@@ -4,7 +4,6 @@ import com.fullsteam.Config;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
-import com.fullsteam.model.gamemodes.GameInfo;
 
 import java.util.Collection;
 
@@ -52,15 +51,15 @@ public class DeathmatchAIStrategy implements IAIStrategy {
             
             // If we're too far away, use CAPTURING_OBJECTIVE to aggressively close distance
             if (distanceSq > optimalRangeSq) {
-                self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE, "Closing distance to target");
+                self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
                 self.setObjectiveTargetPoint(closestEnemy.getCenter());
             } else {
                 // Within good range, switch to ATTACKING which includes strafing behavior
-                self.setCurrentState(AIPlayer.AIState.ATTACKING, "Engaging target at optimal range");
+                self.setCurrentState(AIPlayer.AIState.ATTACKING);
             }
         } else {
             // No enemies in sight, so wander to find one
-            self.setCurrentState(AIPlayer.AIState.WANDERING, "Searching for targets");
+            self.setCurrentState(AIPlayer.AIState.WANDERING);
         }
     }
 
@@ -79,14 +78,14 @@ public class DeathmatchAIStrategy implements IAIStrategy {
             
             // More aggressive range management
             if (distanceSq > optimalRangeSq) {
-                self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE, "Aggressively pursuing target");
+                self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
                 self.setObjectiveTargetPoint(closestEnemy.getCenter());
             } else {
-                self.setCurrentState(AIPlayer.AIState.ATTACKING, "Engaged in close combat");
+                self.setCurrentState(AIPlayer.AIState.ATTACKING);
             }
         } else {
             // More aggressive wandering - use CAPTURING_OBJECTIVE to move faster
-            self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE, "Hunting for targets");
+            self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
             // Pick a point in the center of the map for hunting
             self.setObjectiveTargetPoint(new Vector2D(Config.GAME_WIDTH / 2.0, Config.GAME_HEIGHT / 2.0));
         }
@@ -99,7 +98,7 @@ public class DeathmatchAIStrategy implements IAIStrategy {
     private void prioritizeDefense(AIPlayer self, Player closestEnemy) {
         if (closestEnemy == null) {
             // No enemies, patrol center area
-            self.setCurrentState(AIPlayer.AIState.WANDERING, "Patrolling");
+            self.setCurrentState(AIPlayer.AIState.WANDERING);
             return;
         }
 
@@ -118,17 +117,17 @@ public class DeathmatchAIStrategy implements IAIStrategy {
         
         // Too close and wounded - retreat!
         if (distanceSq < optimalRangeSq && healthRatio < 0.4) {
-            self.setCurrentState(AIPlayer.AIState.FLEEING, "Tactical retreat");
+            self.setCurrentState(AIPlayer.AIState.FLEEING);
             self.setObjectiveTargetPoint(closestEnemy.getCenter());
         }
         // Too far - close in carefully
         else if (distanceSq > optimalRangeSq) {
-            self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE, "Moving to optimal range");
+            self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
             self.setObjectiveTargetPoint(closestEnemy.getCenter());
         }
         // At good range - engage
         else {
-            self.setCurrentState(AIPlayer.AIState.ATTACKING, "Engaging from optimal range");
+            self.setCurrentState(AIPlayer.AIState.ATTACKING);
         }
     }
 }

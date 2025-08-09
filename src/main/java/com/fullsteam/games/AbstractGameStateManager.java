@@ -20,6 +20,7 @@ import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.PoisonCloud;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.PowerUpType;
+import com.fullsteam.model.Turret;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Weapon;
 import com.fullsteam.model.WelcomeMessage;
@@ -58,6 +59,7 @@ import static com.fullsteam.Config.HAZARD_SLOW_FACTOR;
 import static com.fullsteam.Config.ID_COUNTER;
 import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
 import static com.fullsteam.Config.MAX_SPECTATORS_PER_GAME;
+import static com.fullsteam.Config.MAX_TURRETS_PER_PLAYER;
 import static com.fullsteam.Config.OBSTACLE_COUNT;
 import static com.fullsteam.Config.PLAYER_SIZE;
 import static com.fullsteam.Config.POWER_UP_ARMOR_UP_DURATION;
@@ -85,6 +87,7 @@ public abstract class AbstractGameStateManager {
     protected final List<Bullet> bullets = Collections.synchronizedList(new LinkedList<>());
     protected final List<Explosion> explosions = Collections.synchronizedList(new LinkedList<>());
     protected final List<PoisonCloud> poisonClouds = Collections.synchronizedList(new LinkedList<>());
+    protected final List<Turret> turrets = Collections.synchronizedList(new LinkedList<>());
     protected final List<Obstacle> obstacles = Collections.synchronizedList(new LinkedList<>());
     protected final List<Hazard> hazards = Collections.synchronizedList(new LinkedList<>());
     protected final List<DeathMarker> deathMarkers = Collections.synchronizedList(new LinkedList<>());
@@ -353,10 +356,47 @@ public abstract class AbstractGameStateManager {
             updateBullets(delta);
             updateExplosions();
             updatePoisonClouds();
+            updateTurrets(delta);
             sendGameState();
         } catch (Throwable t) {
             log.error("error executing game loop", t);
         }
+    }
+
+
+    protected void updateTurrets(long delta) {
+        GameState gameState = new GameState(
+                players.values(),
+                bullets,
+                explosions,
+                poisonClouds,
+                turrets,
+                obstacles,
+                hazards,
+                deathMarkers,
+                powerUps,
+                System.currentTimeMillis(),
+                null // GameInfo is not needed for turret AI
+        );
+
+        turrets.removeIf(turret -> {
+            if (turret.getHp() <= 0) {
+                explosions.add(new Explosion(turret.getX(),
+                        turret.getY(),
+                        turret.getOwnerId(),
+                        turret.getTeam(),
+                        PLAYER_SIZE, // size/radius
+                        0, // damage
+                        300));
+                // TODO: add explosion effect on turret death
+                return true;
+            }
+
+            Optional<Turret.ShootAction> shootAction = turret.update(gameState, playerGrid);
+            shootAction.ifPresent(action -> fireTurretWeapon(turret, Math.atan2(action.directionY(), action.directionX())));
+
+            return false;
+        });
     }
 
     private void populateSpatialGrids() {
@@ -450,6 +490,7 @@ public abstract class AbstractGameStateManager {
             bullets.clear();
             deathMarkers.clear();
             poisonClouds.clear();
+            turrets.clear();
             powerUps.clear();
 
             generateObstacles();
@@ -521,6 +562,7 @@ public abstract class AbstractGameStateManager {
                 bullets,
                 explosions,
                 poisonClouds,
+                turrets,
                 obstacles,
                 hazards,
                 deathMarkers,
@@ -680,6 +722,26 @@ public abstract class AbstractGameStateManager {
                 }
             }
 
+            // Check bullet-turret collisions
+            for (Turret turret : turrets) {
+                Vector2D turretPos = new Vector2D(turret.getX(), turret.getY());
+                if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, turretPos, turret.getRadius())) {
+                    Player bulletOwner = players.get(bullet.getShooterId());
+                    Player turretOwner = players.get(turret.getOwnerId());
+
+                    // Prevent friendly fire on turrets
+                    if (bulletOwner != null && turretOwner != null && bulletOwner.getTeam() == turretOwner.getTeam()) {
+                        continue; // Skip friendly fire
+                    }
+
+                    turret.setHp(turret.getHp() - bullet.getDamage());
+                    bullet.getOnDestructionAction()
+                            .map(action -> action.apply(bullet))
+                            .ifPresent(this::applyBulletEffect);
+                    return true; // Remove bullet on hit
+                }
+            }
+
             return false;
         });
     }
@@ -689,6 +751,18 @@ public abstract class AbstractGameStateManager {
             explosions.add(e);
         } else if (bulletEffect instanceof PoisonCloud pc) {
             poisonClouds.add(pc);
+        } else if (bulletEffect instanceof Turret t) {
+            long ownerId = t.getOwnerId();
+            long existingTurrets = turrets.stream()
+                    .filter(existing -> existing.getOwnerId() == ownerId)
+                    .count();
+
+            if (existingTurrets < MAX_TURRETS_PER_PLAYER) {
+                turrets.add(t);
+            } else {
+                // Send a feedback message to the player who tried to place the turret.
+                sendGameEvent(GameEvent.red("Turret limit reached!", ownerId));
+            }
         } else {
             throw new UnsupportedOperationException("unknown effect: " + bulletEffect);
         }
@@ -705,6 +779,7 @@ public abstract class AbstractGameStateManager {
         victim.setRespawnTime(System.currentTimeMillis() + RESPAWN_DELAY_MS);
         victim.setVelocityX(0);
         victim.setVelocityY(0);
+        removePlayerTurrets(victim);
 
         if (shooter != null) {
             shooter.incrementKills();
@@ -808,6 +883,7 @@ public abstract class AbstractGameStateManager {
                 bullets,
                 explosions,
                 poisonClouds,
+                turrets,
                 obstacles.stream().filter(Obstacle::isRendered).toList(),
                 hazards,
                 deathMarkers, // null playerId gets only public events
@@ -981,6 +1057,7 @@ public abstract class AbstractGameStateManager {
             && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
+            removePlayerTurrets(player);
         }
 
         if (request.isRequestTeamChange()) {
@@ -1007,6 +1084,10 @@ public abstract class AbstractGameStateManager {
             }
         }
         log.info("Player {} reconfigured: name={}, weapon={}", playerId, player.getPlayerName(), player.getWeapon().getName());
+    }
+
+    protected void removePlayerTurrets(Player player) {
+        turrets.removeIf(t -> t.getOwnerId() == player.id());
     }
 
     protected void generateHazards() {
@@ -1040,5 +1121,33 @@ public abstract class AbstractGameStateManager {
 
     public int getMaxPlayers() {
         return MAX_PLAYERS_PER_TEAM * 2;
+    }
+
+    protected void fireTurretWeapon(Turret turret, double aimAngle) {
+        Weapon weapon = turret.getWeapon();
+        Player owner = players.get(turret.getOwnerId());
+        if (owner == null) {
+            return;
+        }
+
+        for (int i = 0; i < weapon.getBulletsPerShot(); i++) {
+            double spread = ThreadLocalRandom.current().nextGaussian() * (weapon.getBulletSpread() / 6.0);
+            double finalAngle = aimAngle + spread;
+
+            Bullet bullet = new Bullet(
+                    turret.getX(),
+                    turret.getY(),
+                    Math.cos(finalAngle),
+                    Math.sin(finalAngle),
+                    turret.getOwnerId(),
+                    owner.getTeam(),
+                    weapon.getBulletDamage(),
+                    weapon.getBulletSpeed(),
+                    weapon.getBulletRange(),
+                    weapon.getBulletSpeedDecay(),
+                    weapon.getOnBulletDestruction());
+            bullets.add(bullet);
+        }
+        turret.shoot();
     }
 }
