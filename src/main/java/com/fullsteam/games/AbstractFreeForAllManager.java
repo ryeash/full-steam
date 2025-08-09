@@ -35,8 +35,8 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
     }
 
     @Override
-    protected void updateGame() {
-        super.updateGame();
+    protected void updateGame(long delta) {
+        super.updateGame(delta);
         long currentTime = System.currentTimeMillis();
         // Only check to add AI if the round is active
         if (!isRoundOver && currentTime - lastAIFillCheckTime > AI_FILL_CHECK_INTERVAL_MS) {

@@ -77,8 +77,8 @@ public class Weapon {
         // Range: Base 100 units. Each point adds 50 units.
         this.bulletRange = 100 + (rangePoints * 50);
 
-        // Bullet Speed: Base 3.0 units/tick. Each point adds 0.7.
-        this.bulletSpeed = 3.0 + (speedPoints * 0.7);
+        // Bullet Speed: Base 3.0 units/tick. Each point adds 0.2.
+        this.bulletSpeed = .2 + (speedPoints * 0.02);
 
         // Bullet Speed Decay: Base 0.98 (2% decay). Each point adds 0.002, up to 1.0 (no decay).
         this.bulletSpeedDecay = 0.98 + (speedDecayPoints * 0.002);

@@ -63,8 +63,8 @@ public class Config {
     public static final long RESPAWN_DELAY_MS = getLong("game.respawn_delay_ms", 5_000);
     public static final double PLAYER_SIZE = getDouble("game.player_size", 20.0);
     public static final double DEFAULT_PLAYER_HEALTH = getDouble("game.default_player_health", 100.0);
-    public static final double DEFAULT_PLAYER_SPEED = getDouble("game.default_player_speed", 3.0);
-    public static final double ZOMBIE_SPEED = getDouble("game.zombie_speed", 1.2); // Slower than players
+    public static final double DEFAULT_PLAYER_SPEED = getDouble("game.default_player_speed", .18);
+    public static final double ZOMBIE_SPEED = getDouble("game.zombie_speed", DEFAULT_PLAYER_SPEED / 2); // Slower than players
     public static final long ROUND_DURATION_SECONDS = getLong("game.round_duration_s", 180);
     public static final long AFK_TIMEOUT_MS = getLong("game.afk_timeout_ms", (ROUND_DURATION_SECONDS * 1000) + 10_000L);
     public static final double SPAWN_HORIZONTAL_PADDING = getDouble("game.spawn_padding_h", 50.0);
@@ -118,7 +118,7 @@ public class Config {
     // --- Escort Game Mode ---
     public static final double ESCORT_OBSTACLE_WIDTH = getDouble("game.escort.obstacle_width", 50.0);
     public static final double ESCORT_OBSTACLE_HEIGHT = getDouble("game.escort.obstacle_height", 40.0);
-    public static final double ESCORT_OBSTACLE_SPEED = getDouble("game.escort.obstacle_speed", 1.0);
+    public static final double ESCORT_OBSTACLE_SPEED = getDouble("game.escort.obstacle_speed", .1);
     public static final double ESCORT_PLAYER_PROXIMITY = getDouble("game.escort.player_proximity", 100.0);
 
     // --- Lone Wolf Game Mode ---

@@ -45,12 +45,12 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected void updatePlayers() {
+    protected void updatePlayers(long delta) {
         if (team1Juggernaut == null || team2Juggernaut == null) {
             // freeze until the juggernauts are selected
             return;
         }
-        super.updatePlayers();
+        super.updatePlayers(delta);
     }
 
     @Override

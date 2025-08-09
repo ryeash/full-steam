@@ -92,6 +92,7 @@ public abstract class AbstractGameStateManager {
     protected final SpatialGrid<Player> playerGrid;
     protected boolean isRoundOver = false;
     protected ScheduledFuture<?> gameLoopHook;
+    protected long lastGameStateUpdate = System.currentTimeMillis();
 
     public AbstractGameStateManager(GameLobby gameLobby) {
         this.gameLobby = gameLobby;
@@ -149,7 +150,11 @@ public abstract class AbstractGameStateManager {
 
     public void startGameLoop() {
         startNewRound();
-        this.gameLoopHook = Config.EXECUTOR.scheduleAtFixedRate(this::updateGame, 0, 1000 / TICK_RATE, TimeUnit.MILLISECONDS);
+        this.gameLoopHook = Config.EXECUTOR.scheduleAtFixedRate(() -> {
+            long delta = System.currentTimeMillis() - lastGameStateUpdate;
+            updateGame(delta);
+            lastGameStateUpdate = System.currentTimeMillis();
+        }, 0, 1000 / TICK_RATE, TimeUnit.MILLISECONDS);
         log.info("Game loop started at {} FPS", TICK_RATE);
     }
 
@@ -330,7 +335,7 @@ public abstract class AbstractGameStateManager {
         player.shoot(aimAngle);
     }
 
-    protected void updateGame() {
+    protected void updateGame(long delta) {
         try {
             populateSpatialGrids();
             if (!isRoundOver) {
@@ -344,8 +349,8 @@ public abstract class AbstractGameStateManager {
             checkAndRespawnPlayers();
             updateDeathMarkers();
             updatePowerUps();
-            updatePlayers();
-            updateBullets();
+            updatePlayers(delta);
+            updateBullets(delta);
             updateExplosions();
             updatePoisonClouds();
             sendGameState();
@@ -510,7 +515,7 @@ public abstract class AbstractGameStateManager {
         }
     }
 
-    protected void updatePlayers() {
+    protected void updatePlayers(long delta) {
         GameState gameState = new GameState(
                 players.values(),
                 bullets,
@@ -567,7 +572,7 @@ public abstract class AbstractGameStateManager {
 
             // Let the AI make its decisions first, then apply movement
             if (player instanceof AIPlayer ai) {
-                Optional<AIPlayer.ShootAction> shootAction = ai.update(gameState, playerGrid);
+                Optional<AIPlayer.ShootAction> shootAction = ai.update(gameState, playerGrid, delta);
                 if (shootAction.isPresent()) {
                     if (ai.canShoot()) {
                         AIPlayer.ShootAction action = shootAction.get();
@@ -583,7 +588,7 @@ public abstract class AbstractGameStateManager {
                 if (input != null) {
                     handlePlayerInput(player.getId(), input);
                 }
-                player.update();
+                player.update(delta);
             }
 
             // --- Collision Resolution with Obstacles ---
@@ -614,11 +619,11 @@ public abstract class AbstractGameStateManager {
         player.setDamageMultiplier(1.0);
     }
 
-    protected void updateBullets() {
+    protected void updateBullets(long delta) {
         bullets.removeIf(bullet -> {
             // Store the previous position for line-segment collision checks
             Vector2D oldPos = new Vector2D(bullet.getX(), bullet.getY());
-            bullet.update();
+            bullet.update(delta);
             Vector2D newPos = new Vector2D(bullet.getX(), bullet.getY());
 
             // Remove bullets that are out of bounds or have traveled max distance

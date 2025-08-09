@@ -78,16 +78,16 @@ public class Player implements HasId {
         this.alternateActionCooldown = 0;
     }
 
-    public void update() {
-        x += velocityX;
-        y += velocityY;
+    public void update(long delta) {
+        x += delta * velocityX;
+        y += delta * velocityY;
     }
 
     public boolean canShoot() {
         return !isDead()
-               && !isReloading
-               && currentAmmoInMagazine > 0
-               && System.currentTimeMillis() >= nextShotTime;
+                && !isReloading
+                && currentAmmoInMagazine > 0
+                && System.currentTimeMillis() >= nextShotTime;
     }
 
     /**

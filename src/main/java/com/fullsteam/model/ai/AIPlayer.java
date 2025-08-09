@@ -103,10 +103,10 @@ public class AIPlayer extends Player {
      * @param playerGrid The spatial grid for proximity queries.
      * @return An Optional containing a {@link ShootAction} if the AI decides to shoot this frame.
      */
-    public Optional<ShootAction> update(GameState gameState, SpatialGrid<Player> playerGrid) {
+    public Optional<ShootAction> update(GameState gameState, SpatialGrid<Player> playerGrid, long delta) {
         if (isDead()) {
             setVelocity(Vector2D.ZERO);
-            super.update(); // Still need to call this to update position based on zero velocity
+            super.update(delta); // Still need to call this to update position based on zero velocity
             return Optional.empty();
         }
 
@@ -118,7 +118,7 @@ public class AIPlayer extends Player {
         applySteeringForces(gameState);
 
         // 3. Update physics based on the final accumulated acceleration.
-        updatePhysics();
+        updatePhysics(delta);
 
         // 4. Handle aiming and shooting logic, which is independent of movement.
         return decideOnShooting(playerGrid, gameState.obstacles());
@@ -159,13 +159,13 @@ public class AIPlayer extends Player {
      * Updates the AI's velocity based on the accumulated acceleration, then calls the parent
      * method to update its position.
      */
-    private void updatePhysics() {
+    private void updatePhysics(long delta) {
         // Update velocity by adding acceleration, but cap it at the AI's max speed.
         Vector2D newVelocity = getVelocity().add(this.acceleration).limit(getSpeed());
         setVelocity(newVelocity);
 
         // Update position based on the new velocity.
-        super.update();
+        super.update(delta);
     }
 
     /**

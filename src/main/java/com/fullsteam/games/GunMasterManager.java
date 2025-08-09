@@ -39,8 +39,8 @@ public class GunMasterManager extends AbstractFreeForAllManager {
     }
 
     @Override
-    protected void updateGame() {
-        super.updateGame();
+    protected void updateGame(long delta) {
+        super.updateGame(delta);
         long currentTime = System.currentTimeMillis();
         if (!isRoundOver && currentTime >= nextWeaponSwitchTime) {
             forceWeaponSwitch();

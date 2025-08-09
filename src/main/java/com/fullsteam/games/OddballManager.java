@@ -59,8 +59,8 @@ public class OddballManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected void updateGame() {
-        super.updateGame();
+    protected void updateGame(long delta) {
+        super.updateGame(delta);
         updateOddball();
     }
 

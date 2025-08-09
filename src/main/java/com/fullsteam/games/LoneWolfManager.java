@@ -44,8 +44,8 @@ public class LoneWolfManager extends AbstractGameStateManager {
     }
 
     @Override
-    protected void updateGame() {
-        super.updateGame();
+    protected void updateGame(long delta) {
+        super.updateGame(delta);
         long currentTime = System.currentTimeMillis();
         if ((currentTime - lastAIFillCheckTime) > AI_FILL_CHECK_INTERVAL_MS) {
             balanceTeams();

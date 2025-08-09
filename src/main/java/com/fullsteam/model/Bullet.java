@@ -1,13 +1,14 @@
 package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fullsteam.Config;
 
 import java.util.Optional;
 import java.util.function.Function;
 
 import static com.fullsteam.Config.ID_COUNTER;
 
-public class Bullet implements HasId{
+public class Bullet implements HasId {
     private final long id = ID_COUNTER.incrementAndGet();
     private double x;
     private double y;
@@ -51,11 +52,15 @@ public class Bullet implements HasId{
         this.onDestructionAction = onDestructionAction;
     }
 
-    public void update() {
-        x += velocityX * speed;
-        y += velocityY * speed;
-        distanceTraveled += speed;
-        speed *= bulletSpeedDecay;
+    public void update(long delta) {
+        // Update position
+        Vector2D start = new Vector2D(x, y);
+        x += delta * velocityX * speed;
+        y += delta * velocityY * speed;
+        Vector2D end = new Vector2D(x, y);
+        // Apply speed decay
+//        speed *= bulletSpeedDecay * ((double) 1000 / Config.TICK_RATE);
+        distanceTraveled += Math.sqrt(start.distanceSquared(end));
     }
 
     /**

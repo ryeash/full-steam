@@ -68,8 +68,8 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     }
 
     @Override
-    protected void updateGame() {
-        super.updateGame();
+    protected void updateGame(long delta) {
+        super.updateGame(delta);
         if (System.currentTimeMillis() >= nextWaveTime) {
             spawnNextWave();
         }

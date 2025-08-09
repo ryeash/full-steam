@@ -52,15 +52,15 @@ public class BuilderManager extends AbstractFreeForAllManager {
     }
 
     @Override
-    protected void updateBullets() {
-        super.updateBullets();
+    protected void updateBullets(long delta) {
+        super.updateBullets(delta);
         bullets.removeIf(bullet -> {
             for (Crate crate : crates) {
                 // AABB collision check, assuming crate's (x,y) is its top-left corner.
                 if (bullet.getX() >= crate.getX() &&
-                    bullet.getX() <= crate.getX() + crate.getSize() &&
-                    bullet.getY() >= crate.getY() &&
-                    bullet.getY() <= crate.getY() + crate.getSize()) {
+                        bullet.getX() <= crate.getX() + crate.getSize() &&
+                        bullet.getY() >= crate.getY() &&
+                        bullet.getY() <= crate.getY() + crate.getSize()) {
                     crate.takeDamage(bullet.getDamage());
                     if (crate.isDestroyed()) {
                         crates.remove(crate);
@@ -92,7 +92,7 @@ public class BuilderManager extends AbstractFreeForAllManager {
     }
 
     @Override
-    protected void updatePlayers() {
+    protected void updatePlayers(long delta) {
         // Temporarily add crates as obstacles for collision detection purposes.
         // This allows us to reuse the collision logic from the superclass.
         List<Obstacle> crateObstacles = new ArrayList<>();
@@ -104,7 +104,7 @@ public class BuilderManager extends AbstractFreeForAllManager {
 
         try {
             // Now the super method will handle collision with both permanent obstacles and crates.
-            super.updatePlayers();
+            super.updatePlayers(delta);
         } finally {
             // Clean up the temporary crate obstacles to ensure they don't persist.
             obstacles.removeAll(crateObstacles);
@@ -180,9 +180,9 @@ public class BuilderManager extends AbstractFreeForAllManager {
     private boolean isCollidingWithAnyCrate(double newCrateX, double newCrateY) {
         for (Crate existingCrate : crates) {
             if (newCrateX < existingCrate.getX() + existingCrate.getSize() &&
-                newCrateX + CRATE_SIZE > existingCrate.getX() &&
-                newCrateY < existingCrate.getY() + existingCrate.getSize() &&
-                newCrateY + CRATE_SIZE > existingCrate.getY()) {
+                    newCrateX + CRATE_SIZE > existingCrate.getX() &&
+                    newCrateY < existingCrate.getY() + existingCrate.getSize() &&
+                    newCrateY + CRATE_SIZE > existingCrate.getY()) {
                 return true;
             }
         }

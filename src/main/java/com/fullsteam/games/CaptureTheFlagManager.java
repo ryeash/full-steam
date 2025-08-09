@@ -55,8 +55,8 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected void updateGame() {
-        super.updateGame();
+    protected void updateGame(long delta) {
+        super.updateGame(delta);
         updateFlags();
     }
 

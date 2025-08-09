@@ -51,8 +51,8 @@ public class TeamDeathmatchManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected void updateGame() {
+    protected void updateGame(long delta) {
         teamBalancer.balanceTeams(players);
-        super.updateGame();
+        super.updateGame(delta);
     }
 }

@@ -42,7 +42,7 @@ public class EscortManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected void updateGame() {
+    protected void updateGame(long delta) {
         // 1. Determine payload movement based on last frame's state
         Vector2D payloadCenter = getPayloadCenter();
         double proximitySq = Config.ESCORT_PLAYER_PROXIMITY * Config.ESCORT_PLAYER_PROXIMITY;
@@ -58,9 +58,9 @@ public class EscortManager extends AbstractTeamBasedManager {
         // If only one team is near the payload, it moves.
         // Team 1 (Green) pushes Right (positive X), Team 2 (Red) pushes Left (negative X).
         if (teamsNearPayload.contains(1) && !teamsNearPayload.contains(2)) {
-            moveX = Config.ESCORT_OBSTACLE_SPEED;
+            moveX = delta * Config.ESCORT_OBSTACLE_SPEED;
         } else if (teamsNearPayload.contains(2) && !teamsNearPayload.contains(1)) {
-            moveX = -Config.ESCORT_OBSTACLE_SPEED;
+            moveX = delta * -Config.ESCORT_OBSTACLE_SPEED;
         }
 
         // 2. Update payload to its new position for this frame, checking boundaries
@@ -83,7 +83,7 @@ public class EscortManager extends AbstractTeamBasedManager {
         obstacles.add(this.payload);
 
         // 4. Run the main game loop (updates players, bullets, checks collisions)
-        super.updateGame();
+        super.updateGame(delta);
 
         obstacles.clear();
     }

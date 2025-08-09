@@ -111,9 +111,9 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected void updateGame() {
+    protected void updateGame(long delta) {
         teamBalancer.balanceTeams(players);
-        super.updateGame();
+        super.updateGame(delta);
     }
 
     @Override
