@@ -10,9 +10,7 @@ import com.fullsteam.model.gamemodes.BuilderGameInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static com.fullsteam.Config.PLAYER_SIZE;
@@ -58,13 +56,16 @@ public class BuilderManager extends AbstractFreeForAllManager {
             for (Crate crate : crates) {
                 // AABB collision check, assuming crate's (x,y) is its top-left corner.
                 if (bullet.getX() >= crate.getX() &&
-                        bullet.getX() <= crate.getX() + crate.getSize() &&
-                        bullet.getY() >= crate.getY() &&
-                        bullet.getY() <= crate.getY() + crate.getSize()) {
+                    bullet.getX() <= crate.getX() + crate.getSize() &&
+                    bullet.getY() >= crate.getY() &&
+                    bullet.getY() <= crate.getY() + crate.getSize()) {
                     crate.takeDamage(bullet.getDamage());
                     if (crate.isDestroyed()) {
                         crates.remove(crate);
                     }
+                    bullet.getOnDestructionAction()
+                            .map(action -> action.apply(bullet))
+                            .ifPresent(this::applyBulletEffect);
                     return true;
                 }
             }
@@ -84,8 +85,7 @@ public class BuilderManager extends AbstractFreeForAllManager {
         // Handle weapon cycle with a 500ms cooldown
         if (input.isPlacingObstacle()) {
             Player player = players.get(playerId);
-            if (player != null && player.getAlternateActionCooldown() < System.currentTimeMillis()) {
-                player.setAlternateActionCooldown(System.currentTimeMillis() + 500);
+            if (player != null) {
                 placeCrate(playerId);
             }
         }
@@ -142,47 +142,30 @@ public class BuilderManager extends AbstractFreeForAllManager {
         double snappedX = Math.round(idealX / CRATE_SIZE) * CRATE_SIZE;
         double snappedY = Math.round(idealY / CRATE_SIZE) * CRATE_SIZE;
 
-        if (!isCollidingWithAnyCrate(snappedX, snappedY)) {
+        if (!isCollidingWithAnyCrate(snappedX, snappedY) && !isCollidingWithAnyPlayer(snappedX, snappedY)) {
             crates.add(new Crate(playerId, snappedX, snappedY, CRATE_SIZE, Config.BUILDER_CRATE_HEALTH));
-            return;
-        }
-
-        // Use a Set to avoid checking the same grid cell multiple times.
-        Set<String> checkedGridCells = new HashSet<>();
-        checkedGridCells.add(snappedX + "," + snappedY);
-
-        // If the initial spot is taken, search nearby grid cells.
-        for (double r = CRATE_SIZE / 2; r <= PLACEMENT_SEARCH_RADIUS; r += CRATE_SIZE / 2) {
-            for (int i = 0; i < PLACEMENT_SEARCH_STEPS; i++) {
-                double angle = (2 * Math.PI / PLACEMENT_SEARCH_STEPS) * i;
-                // Search from the original, non-snapped target for a smoother radial search.
-                double checkX = idealX + r * Math.cos(angle);
-                double checkY = idealY + r * Math.sin(angle);
-
-                // Snap the potential position to the grid.
-                double snappedCheckX = Math.round(checkX / CRATE_SIZE) * CRATE_SIZE;
-                double snappedCheckY = Math.round(checkY / CRATE_SIZE) * CRATE_SIZE;
-
-                String posKey = snappedCheckX + "," + snappedCheckY;
-                if (checkedGridCells.contains(posKey)) {
-                    continue; // Already checked this grid cell.
-                }
-                checkedGridCells.add(posKey);
-
-                if (!isCollidingWithAnyCrate(snappedCheckX, snappedCheckY)) {
-                    crates.add(new Crate(playerId, snappedCheckX, snappedCheckY, CRATE_SIZE, Config.BUILDER_CRATE_HEALTH));
-                    return;
-                }
-            }
         }
     }
 
     private boolean isCollidingWithAnyCrate(double newCrateX, double newCrateY) {
         for (Crate existingCrate : crates) {
             if (newCrateX < existingCrate.getX() + existingCrate.getSize() &&
-                    newCrateX + CRATE_SIZE > existingCrate.getX() &&
-                    newCrateY < existingCrate.getY() + existingCrate.getSize() &&
-                    newCrateY + CRATE_SIZE > existingCrate.getY()) {
+                newCrateX + CRATE_SIZE > existingCrate.getX() &&
+                newCrateY < existingCrate.getY() + existingCrate.getSize() &&
+                newCrateY + CRATE_SIZE > existingCrate.getY()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isCollidingWithAnyPlayer(double crateX, double crateY) {
+        for (Player player : players.values()) {
+            // AABB collision check
+            if (crateX < player.getX() + PLAYER_SIZE &&
+                crateX + CRATE_SIZE > player.getX() &&
+                crateY < player.getY() + PLAYER_SIZE &&
+                crateY + CRATE_SIZE > player.getY()) {
                 return true;
             }
         }

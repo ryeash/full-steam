@@ -970,7 +970,7 @@
 
                 input.shooting = this.gamepad.buttons[7] && this.gamepad.buttons[7].value > 0.5;
                 input.reload = this.gamepad.buttons[2] && this.gamepad.buttons[2].pressed;
-                input.placingObstacle = this.gamepad.buttons[0] && this.gamepad.buttons[0].pressed; // A button
+                input.placingObstacle = this.gamepad.buttons[5] && this.gamepad.buttons[5].pressed; // R1/RB button
 
                 const swapButtonPressed = this.gamepad.buttons[3] && this.gamepad.buttons[3].pressed; // Y or Triangle
                 if (swapButtonPressed && !this.gamepadWeaponSwapPressed) {
@@ -1015,7 +1015,7 @@
                 input.mouseX = this.mouse.x;
                 input.mouseY = this.mouse.y;
                 input.reload = !!this.keys['KeyR'];
-                input.placingObstacle = !!this.keys['KeyB'];
+                input.placingObstacle = !!this.keys['KeyE'];
             }
             this.ws.send(JSON.stringify(input));
         }
