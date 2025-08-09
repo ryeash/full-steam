@@ -54,7 +54,7 @@ public class Config {
     // Game
     public static final int GAME_WIDTH = getInt("game.width", 1000);
     public static final int GAME_HEIGHT = getInt("game.height", 800);
-    public static final int TICK_RATE = getInt("game.tick_rate", 60);
+    public static final int TICK_RATE = getInt("game.tick_rate", 30);
     public static final boolean ALLOW_NAME_CHANGE = getProp("game.allow_name_change", true, Boolean::valueOf);
     public static final int OBSTACLE_COUNT = getInt("game.obstacle_count", 6);
     public static final long DEATH_MARKER_DURATION_MS = getLong("game.death_marker_duration_ms", 5000); // Marker lasts 5 seconds

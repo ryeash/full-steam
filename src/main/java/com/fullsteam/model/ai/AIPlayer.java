@@ -160,8 +160,9 @@ public class AIPlayer extends Player {
      * method to update its position.
      */
     private void updatePhysics(long delta) {
-        // Update velocity by adding acceleration, but cap it at the AI's max speed.
-        Vector2D newVelocity = getVelocity().add(this.acceleration).limit(getSpeed());
+        double deltaSeconds = delta / 1000.0;
+        // Update velocity by adding acceleration (scaled by delta time), and cap it at the AI's max speed.
+        Vector2D newVelocity = getVelocity().add(this.acceleration.multiply(deltaSeconds)).limit(getSpeed());
         setVelocity(newVelocity);
 
         // Update position based on the new velocity.
