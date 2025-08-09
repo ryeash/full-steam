@@ -109,15 +109,15 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
 
         switch (type) {
             case "ping":
-                ctx.channel().writeAndFlush(Jackson.msgPackFrame(Map.of("type", "pong")));
-                break;
-            case "playerInput":
-                PlayerInput input = Jackson.treeToValue(rootNode, PlayerInput.class);
-                game.acceptPlayerInput(playerId, input);
+                ctx.channel().writeAndFlush(Jackson.msgFrame(Map.of("type", "pong")));
                 break;
             case "configChange":
                 PlayerConfigRequest request = Jackson.treeToValue(rootNode, PlayerConfigRequest.class);
                 game.handlePlayerConfigChange(playerId, request);
+                break;
+            case "playerInput":
+                PlayerInput input = Jackson.treeToValue(rootNode, PlayerInput.class);
+                game.acceptPlayerInput(playerId, input);
                 break;
             default:
                 log.warn("Received unknown message type '{}' from player {}", type, playerId);

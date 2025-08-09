@@ -184,7 +184,7 @@ public class GameLobby {
 
         // Send welcome message
         WelcomeMessage welcomeMessage = new WelcomeMessage(player.getId(), player.getTeam(), game.getGameId());
-        ctx.writeAndFlush(Jackson.msgPackFrame(welcomeMessage));
+        ctx.writeAndFlush(Jackson.msgFrame(welcomeMessage));
 
         game.sendGameEvent(GameEvent.info(String.format("Joining: %s (%d)!", game.gameType(), game.getGameId())));
     }

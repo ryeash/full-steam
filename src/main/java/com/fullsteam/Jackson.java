@@ -7,10 +7,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
-import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 import java.io.UncheckedIOException;
 
@@ -25,16 +23,6 @@ public class Jackson {
             .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
             .setDefaultMergeable(true);
 
-    public static final ObjectMapper MSGPACK_MAPPER = new ObjectMapper(new MessagePackFactory())
-            .setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
-            .configure(JsonGenerator.Feature.IGNORE_UNKNOWN, true)
-            .configure(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, false)
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            .configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true)
-            .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
-            .setDefaultMergeable(true);
-
-
     public static String writeValueAsString(Object obj) {
         try {
             return objectMapper.writeValueAsString(obj);
@@ -43,16 +31,16 @@ public class Jackson {
         }
     }
 
-    public static ByteBuf msgPack(Object value) {
+    public static byte[] writeValueAsBytes(Object obj) {
         try {
-            return Unpooled.wrappedBuffer(MSGPACK_MAPPER.writeValueAsBytes(value));
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to serialize object to MessagePack", e);
+            return objectMapper.writeValueAsBytes(obj);
+        } catch (JsonProcessingException e) {
+            throw new UncheckedIOException(e);
         }
     }
 
-    public static BinaryWebSocketFrame msgPackFrame(Object value) {
-        return new BinaryWebSocketFrame(Unpooled.wrappedBuffer(msgPack(value)));
+    public static BinaryWebSocketFrame msgFrame(Object value) {
+        return new BinaryWebSocketFrame(Unpooled.wrappedBuffer(writeValueAsBytes(value)));
     }
 
     public static JsonNode readTree(String text) {

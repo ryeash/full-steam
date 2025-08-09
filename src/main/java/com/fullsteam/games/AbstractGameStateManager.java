@@ -45,7 +45,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
 import static com.fullsteam.CollisionUtils.checkObstacleOverlap;
@@ -116,7 +115,7 @@ public abstract class AbstractGameStateManager {
                 "type", "gameEvent",
                 "event", gameEvent
         );
-        BinaryWebSocketFrame frame = Jackson.msgPackFrame(message);
+        BinaryWebSocketFrame frame = Jackson.msgFrame(message);
 
         if (gameEvent.playerId() != null) {
             // Private message for one player
@@ -150,7 +149,6 @@ public abstract class AbstractGameStateManager {
 
     public void startGameLoop() {
         startNewRound();
-        // The TeamBalancer will automatically add AI players, so the initial call is no longer needed.
         this.gameLoopHook = Config.EXECUTOR.scheduleAtFixedRate(this::updateGame, 0, 1000 / TICK_RATE, TimeUnit.MILLISECONDS);
         log.info("Game loop started at {} FPS", TICK_RATE);
     }
@@ -461,11 +459,11 @@ public abstract class AbstractGameStateManager {
                 setValidSpawnPosition(player); // Move them to a spawn point
                 if (!(player instanceof AIPlayer)) {
                     playerChannels.get(player.getId())
-                            .writeAndFlush(Jackson.msgPackFrame(new WelcomeMessage(player.getId(), player.getTeam(), gameId)));
+                            .writeAndFlush(Jackson.msgFrame(new WelcomeMessage(player.getId(), player.getTeam(), gameId)));
                 }
             }
             spectatorChannels.forEach(channel ->
-                    channel.writeAndFlush(Jackson.msgPackFrame(new WelcomeMessage(-1, 0, gameId))));
+                    channel.writeAndFlush(Jackson.msgFrame(new WelcomeMessage(-1, 0, gameId))));
 
             log.info("New round started! Round will end in {} seconds.", ROUND_DURATION_SECONDS);
             sendGameState(); // Send an immediate update to reflect the reset
@@ -812,7 +810,7 @@ public abstract class AbstractGameStateManager {
                 System.currentTimeMillis(),
                 gameInfo
         );
-        BinaryWebSocketFrame frame = Jackson.msgPackFrame(state);
+        BinaryWebSocketFrame frame = Jackson.msgFrame(state);
 
         // Send state to all players
         playerChannels.forEach((playerId, channel) -> {
@@ -997,7 +995,7 @@ public abstract class AbstractGameStateManager {
                 // Kill the player to force a respawn on the new team's side
                 killPlayer(player, null);
                 playerChannels.get(player.getId())
-                        .writeAndFlush(Jackson.msgPackFrame(new WelcomeMessage(player.getId(), player.getTeam(), gameId)));
+                        .writeAndFlush(Jackson.msgFrame(new WelcomeMessage(player.getId(), player.getTeam(), gameId)));
                 log.info("Player {} switched to team {}", playerId, otherTeam);
             } else {
                 sendGameEvent(GameEvent.red("Team %d is full. You cannot switch teams.".formatted(otherTeam), playerId));
