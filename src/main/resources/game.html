@@ -1340,12 +1340,13 @@
                 const now = this.gameState.serverTime;
                 if (!now) return; // Don't draw if we don't have a server time yet
 
-                const age = now - explosion.creationTime;
-                const lifetime = explosion.duration;
+                // TODO: better math that doesn't rely on lifetime
+                const lifetime = 300; // All explosions last for .3 seconds.
+                const timeRemaining = explosion.expiration - now;
 
-                if (age < 0 || age > lifetime) return;
+                if (timeRemaining < 0 || timeRemaining > lifetime) return;
 
-                const progress = age / lifetime; // 0.0 to 1.0
+                const progress = 1 - (timeRemaining / lifetime); // 0.0 to 1.0
 
                 // Animate the radius to expand quickly
                 const peakTime = 0.3; // Time to reach max size
@@ -1381,12 +1382,13 @@
                 const now = this.gameState.serverTime;
                 if (!now) return;
 
-                const age = now - cloud.creationTime;
-                const lifetime = cloud.duration;
+                // TODO: better math that doesn't rely on lifetime
+                const lifetime = 5000; // All poison clouds last for 5 seconds.
+                const timeRemaining = cloud.expiration - now;
 
-                if (age < 0 || age > lifetime) return;
+                if (timeRemaining < 0 || timeRemaining > lifetime) return;
 
-                const progress = age / lifetime; // 0.0 to 1.0
+                const progress = 1 - (timeRemaining / lifetime); // 0.0 to 1.0
 
                 // Let the cloud expand to full size then linger
                 const expandTime = 0.2; // 20% of lifetime to expand

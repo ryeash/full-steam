@@ -5,18 +5,20 @@ import com.fullsteam.Config;
 
 /**
  * Represents a lingering cloud that applies damage over time to players within its radius.
- * This is a type of {@link BulletEffect} that is created upon a bullet's destruction.
+ * This is a type of {@link BulletEffect} that is created upon a bullet'''s destruction.
  */
 public class PoisonCloud implements BulletEffect {
     private final long id;
     private final double x;
     private final double y;
+    @JsonIgnore
     private final long shooterId;
+    @JsonIgnore
     private final int team;
     private final double radius;
+    @JsonIgnore
     private final double damagePerTick;
-    private final long duration;
-    private final long creationTime;
+    private final long expiration;
 
     @JsonIgnore
     private transient long lastDamageTickTime;
@@ -29,8 +31,7 @@ public class PoisonCloud implements BulletEffect {
         this.team = team;
         this.radius = radius;
         this.damagePerTick = damagePerTick;
-        this.duration = duration;
-        this.creationTime = System.currentTimeMillis();
+        this.expiration = System.currentTimeMillis() + duration;
         this.lastDamageTickTime = System.currentTimeMillis(); // Start ticking immediately
     }
 
@@ -77,17 +78,13 @@ public class PoisonCloud implements BulletEffect {
         return damagePerTick;
     }
 
-    public long getDuration() {
-        return duration;
-    }
-
-    public long getCreationTime() {
-        return creationTime;
+    public long getExpiration() {
+        return expiration;
     }
 
     @JsonIgnore
     public boolean isExpired() {
-        return System.currentTimeMillis() > creationTime + duration;
+        return System.currentTimeMillis() > expiration;
     }
 
     @JsonIgnore
