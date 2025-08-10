@@ -112,8 +112,8 @@ public class JuggernautManager extends AbstractTeamBasedManager {
         team1Juggernaut = null;
         team2Juggernaut = null;
         for (Player player : players.values()) {
-            player.setMaxHealth(Config.DEFAULT_PLAYER_HEALTH);
-            player.setCurrentHealth(Config.DEFAULT_PLAYER_HEALTH);
+            player.setMaxHp(Config.DEFAULT_PLAYER_HEALTH);
+            player.setHp(Config.DEFAULT_PLAYER_HEALTH);
         }
         sendGameEvent(GameEvent.info("Starting new round!"));
         sendGameEvent(GameEvent.blue("Will select new juggernauts in " + (JUGGERNAUT_SELECTION_DELAY_MS / 1000) + " seconds"));
@@ -136,8 +136,8 @@ public class JuggernautManager extends AbstractTeamBasedManager {
             } else {
                 team2Juggernaut = juggernaut.getId();
             }
-            juggernaut.setCurrentHealth(JUGGERNAUT_HEALTH);
-            juggernaut.setMaxHealth(JUGGERNAUT_HEALTH);
+            juggernaut.setHp(JUGGERNAUT_HEALTH);
+            juggernaut.setMaxHp(JUGGERNAUT_HEALTH);
             sendGameEvent(GameEvent.team(team, "%s is Team %d's Juggernaut!".formatted(juggernaut.getPlayerName(), team)));
             log.info("{} is the new Juggernaut for team {}", juggernaut.getPlayerName(), team);
         } else {

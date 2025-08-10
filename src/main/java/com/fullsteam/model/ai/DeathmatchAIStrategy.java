@@ -43,7 +43,7 @@ public class DeathmatchAIStrategy implements IAIStrategy {
      */
     private void runBalancedLogic(AIPlayer self, Player closestEnemy) {
         if (closestEnemy != null) {
-            double distanceSq = self.getCenter().distanceSquared(closestEnemy.getCenter());
+            double distanceSq = self.position().distanceSquared(closestEnemy.position());
             double weaponRange = self.getWeapon().getBulletRange();
             double optimalRangeSq = (weaponRange * 0.6) * (weaponRange * 0.6); // Try to get to 60% of max range
             
@@ -52,7 +52,7 @@ public class DeathmatchAIStrategy implements IAIStrategy {
             // If we're too far away, use CAPTURING_OBJECTIVE to aggressively close distance
             if (distanceSq > optimalRangeSq) {
                 self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
-                self.setObjectiveTargetPoint(closestEnemy.getCenter());
+                self.setObjectiveTargetPoint(closestEnemy.position());
             } else {
                 // Within good range, switch to ATTACKING which includes strafing behavior
                 self.setCurrentState(AIPlayer.AIState.ATTACKING);
@@ -69,7 +69,7 @@ public class DeathmatchAIStrategy implements IAIStrategy {
      */
     private void prioritizeCombat(AIPlayer self, Player closestEnemy) {
         if (closestEnemy != null) {
-            double distanceSq = self.getCenter().distanceSquared(closestEnemy.getCenter());
+            double distanceSq = self.position().distanceSquared(closestEnemy.position());
             double weaponRange = self.getWeapon().getBulletRange();
             // Warriors want to get much closer - to 40% of max range
             double optimalRangeSq = (weaponRange * 0.4) * (weaponRange * 0.4);
@@ -79,7 +79,7 @@ public class DeathmatchAIStrategy implements IAIStrategy {
             // More aggressive range management
             if (distanceSq > optimalRangeSq) {
                 self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
-                self.setObjectiveTargetPoint(closestEnemy.getCenter());
+                self.setObjectiveTargetPoint(closestEnemy.position());
             } else {
                 self.setCurrentState(AIPlayer.AIState.ATTACKING);
             }
@@ -102,9 +102,9 @@ public class DeathmatchAIStrategy implements IAIStrategy {
             return;
         }
 
-        double distanceSq = self.getCenter().distanceSquared(closestEnemy.getCenter());
+        double distanceSq = self.position().distanceSquared(closestEnemy.position());
         double weaponRange = self.getWeapon().getBulletRange();
-        double healthRatio = self.getCurrentHealth() / (double) self.getMaxHealth();
+        double healthRatio = self.getHp() / (double) self.getMaxHp();
         
         // Adjust optimal range based on health
         double rangeMultiplier = healthRatio < 0.4 ? 0.8 : // Stay far when wounded
@@ -118,12 +118,12 @@ public class DeathmatchAIStrategy implements IAIStrategy {
         // Too close and wounded - retreat!
         if (distanceSq < optimalRangeSq && healthRatio < 0.4) {
             self.setCurrentState(AIPlayer.AIState.FLEEING);
-            self.setObjectiveTargetPoint(closestEnemy.getCenter());
+            self.setObjectiveTargetPoint(closestEnemy.position());
         }
         // Too far - close in carefully
         else if (distanceSq > optimalRangeSq) {
             self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
-            self.setObjectiveTargetPoint(closestEnemy.getCenter());
+            self.setObjectiveTargetPoint(closestEnemy.position());
         }
         // At good range - engage
         else {

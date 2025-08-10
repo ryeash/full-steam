@@ -19,7 +19,7 @@ public class ZombieAIStrategy implements IAIStrategy {
         // Find the closest living human player
         allPlayers.stream()
                 .filter(p -> p.getTeam() == 1 && !p.isDead())
-                .min(Comparator.comparingDouble(p -> p.getCenter().distanceSquared(self.getCenter())))
+                .min(Comparator.comparingDouble(p -> p.position().distanceSquared(self.position())))
                 .ifPresentOrElse(
                         target -> {
                             // A human target has been found. Decide whether to attack or chase.
@@ -32,7 +32,7 @@ public class ZombieAIStrategy implements IAIStrategy {
                             } else {
                                 // If the target is out of range, chase them.
                                 self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
-                                self.setObjectiveTargetPoint(target.getCenter());
+                                self.setObjectiveTargetPoint(target.position());
                             }
                         },
                         () -> {

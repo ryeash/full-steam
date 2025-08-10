@@ -117,7 +117,7 @@ public class KingOfTheHillAIStrategy implements IAIStrategy {
             // If an enemy gets close while we're defending, attack them.
             Player closestEnemy = findClosestEnemy(self, allPlayers);
             // Use an expanded guard radius around the hill's center
-            if (closestEnemy != null && closestEnemy.getCenter().distanceSquared(koth.getHill().position()) < 500 * 500) {
+            if (closestEnemy != null && closestEnemy.position().distanceSquared(koth.getHill().position()) < 500 * 500) {
                 self.setCurrentTarget(closestEnemy);
                 self.setCurrentState(AIPlayer.AIState.ATTACKING);
             }
@@ -176,11 +176,11 @@ public class KingOfTheHillAIStrategy implements IAIStrategy {
             }
 
             // Check if the enemy is on the hill
-            if (other.getCenter().distanceSquared(koth.getHill().position()) > hillRadiusSq) {
+            if (other.position().distanceSquared(koth.getHill().position()) > hillRadiusSq) {
                 continue;
             }
 
-            double distanceSq = self.getCenter().distanceSquared(other.getCenter());
+            double distanceSq = self.position().distanceSquared(other.position());
             if (distanceSq < minDistanceSq) {
                 minDistanceSq = distanceSq;
                 closestEnemy = other;

@@ -161,7 +161,7 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
             }
 
             for (Player other : players.values()) {
-                if (!Objects.equals(player.getId(), other.getId()) && other.getCenter().distanceSquared(player.getCenter()) < PLAYER_BUFFER_SPAWN_DISTANCE) {
+                if (!Objects.equals(player.getId(), other.getId()) && other.position().distanceSquared(player.position()) < PLAYER_BUFFER_SPAWN_DISTANCE) {
                     invalidPosition = true;
                     break;
                 }

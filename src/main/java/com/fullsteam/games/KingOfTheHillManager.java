@@ -74,7 +74,7 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
         List<Player> playersOnHill = players.values().stream()
                 .filter(p -> !p.isDead())
                 .filter(p -> {
-                    double distanceSq = p.getCenter().distanceSquared(hill.position());
+                    double distanceSq = p.position().distanceSquared(hill.position());
                     return distanceSq < hill.radiusSq();
                 })
                 .toList();

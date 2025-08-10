@@ -68,7 +68,7 @@ public class OddballAIStrategy implements IAIStrategy {
     private Player findClosestTeammate(AIPlayer self, Collection<Player> allPlayers) {
         return allPlayers.stream()
                 .filter(p -> p.getTeam() == self.getTeam() && !Objects.equals(p.getId(), self.getId()))
-                .min(Comparator.comparingDouble(p -> p.getCenter().distanceSquared(self.getCenter())))
+                .min(Comparator.comparingDouble(p -> p.position().distanceSquared(self.position())))
                 .orElse(null);
     }
 
@@ -98,18 +98,18 @@ public class OddballAIStrategy implements IAIStrategy {
 
             // If we have a nearby teammate in a good defensive position (closer to our safe zone), use them as cover
             if (closestTeammate != null) {
-                double teammateDistToSafeSq = closestTeammate.getCenter().distanceSquared(safePoint);
-                double myDistToSafeSq = self.getCenter().distanceSquared(safePoint);
+                double teammateDistToSafeSq = closestTeammate.position().distanceSquared(safePoint);
+                double myDistToSafeSq = self.position().distanceSquared(safePoint);
 
                 if (teammateDistToSafeSq < myDistToSafeSq) {
                     self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
-                    self.setObjectiveTargetPoint(closestTeammate.getCenter());
+                    self.setObjectiveTargetPoint(closestTeammate.position());
                     return;
                 }
             }
 
             // No good teammate cover, focus on getting to safety
-            double distanceToSafePointSq = self.getCenter().distanceSquared(safePoint);
+            double distanceToSafePointSq = self.position().distanceSquared(safePoint);
 
             // If we're at our safe point, do evasive wandering
             if (distanceToSafePointSq < 150 * 150) { // Reduced radius to stay closer to safe point
@@ -154,7 +154,7 @@ public class OddballAIStrategy implements IAIStrategy {
         if (carrierOpt.isPresent() && carrierOpt.get().getTeam() == self.getTeam()) {
             Player friendlyCarrier = carrierOpt.get();
             self.setCurrentState(AIPlayer.AIState.WANDERING);
-            self.setObjectiveTargetPoint(friendlyCarrier.getCenter());
+            self.setObjectiveTargetPoint(friendlyCarrier.position());
             return;
         }
 
@@ -203,10 +203,10 @@ public class OddballAIStrategy implements IAIStrategy {
         if (carrierOpt.isPresent() && carrierOpt.get().getTeam() == self.getTeam()) {
             Player friendlyCarrier = carrierOpt.get();
             self.setCurrentState(AIPlayer.AIState.WANDERING); // Default to wandering near the carrier
-            self.setObjectiveTargetPoint(friendlyCarrier.getCenter());
+            self.setObjectiveTargetPoint(friendlyCarrier.position());
 
             // If an enemy gets close to the carrier, the Guardian will engage.
-            if (closestEnemy != null && closestEnemy.getCenter().distanceSquared(friendlyCarrier.getCenter()) < 400 * 400) { // 400 unit guard radius
+            if (closestEnemy != null && closestEnemy.position().distanceSquared(friendlyCarrier.position()) < 400 * 400) { // 400 unit guard radius
                 self.setCurrentTarget(closestEnemy);
                 self.setCurrentState(AIPlayer.AIState.ATTACKING);
             }

@@ -20,6 +20,7 @@ import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.PoisonCloud;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.PowerUpType;
+import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Turret;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Weapon;
@@ -92,7 +93,7 @@ public abstract class AbstractGameStateManager {
     protected final List<Hazard> hazards = Collections.synchronizedList(new LinkedList<>());
     protected final List<DeathMarker> deathMarkers = Collections.synchronizedList(new LinkedList<>());
     protected final List<PowerUp> powerUps = Collections.synchronizedList(new LinkedList<>());
-    protected final SpatialGrid<Player> playerGrid;
+    protected final SpatialGrid<Targetable> playerGrid;
     protected boolean isRoundOver = false;
     protected ScheduledFuture<?> gameLoopHook;
     protected long lastGameStateUpdate = System.currentTimeMillis();
@@ -326,7 +327,7 @@ public abstract class AbstractGameStateManager {
                     Math.sin(finalAngle),
                     player.getId(),
                     player.getTeam(),
-                    weapon.getBulletDamage(),
+                    weapon.getBulletDamage() * player.getDamageMultiplier(),
                     weapon.getBulletSpeed(),
                     weapon.getBulletRange(),
                     weapon.getBulletSpeedDecay(),
@@ -404,12 +405,16 @@ public abstract class AbstractGameStateManager {
         for (Player player : players.values()) {
             playerGrid.insert(player, player.getX(), player.getY(), PLAYER_SIZE, PLAYER_SIZE);
         }
+        for (Turret turret : turrets) {
+            playerGrid.insert(turret, turret.getX(), turret.getY(), turret.getRadius() * 2, turret.getRadius() * 2);
+        }
     }
 
     /**
      * Handles the lifecycle of explosions, applying damage and removing them when expired.
      */
     protected void updateExplosions() {
+        // TODO: handle turret damage
         // First, apply damage for any new explosions that haven't dealt it yet.
         for (Explosion explosion : explosions) {
             if (!explosion.hasDamageBeenApplied()) {
@@ -417,21 +422,33 @@ public abstract class AbstractGameStateManager {
                 double radiusSq = explosion.getSize() * explosion.getSize();
                 Player shooter = players.get(explosion.getShooterId());
 
-                Set<Player> nearbyPlayers = playerGrid.getNearby(explosion.getX() - explosion.getSize(), explosion.getY() - explosion.getSize(), explosion.getSize() * 2, explosion.getSize() * 2);
-                for (Player p : nearbyPlayers) {
-                    if (p.isDead()) {
-                        continue;
-                    }
-
-                    // Prevent friendly fire, but allow self-damage
-                    if (shooter != null && p.getTeam() == shooter.getTeam() && !Objects.equals(p.getId(), shooter.getId())) {
-                        continue;
-                    }
-
-                    if (p.getCenter().distanceSquared(explosionCenter) < radiusSq) {
-                        if (p.takeDamage(explosion.getDamage())) {
-                            killPlayer(p, shooter);
+                Set<Targetable> nearbyPlayers = playerGrid.getNearby(explosion.getX() - explosion.getSize(), explosion.getY() - explosion.getSize(), explosion.getSize() * 2, explosion.getSize() * 2);
+                for (Targetable t : nearbyPlayers) {
+                    if (t instanceof Player p) {
+                        if (p.isDead()) {
+                            continue;
                         }
+
+                        // Prevent friendly fire, but allow self-damage
+                        if (shooter != null && p.getTeam() == shooter.getTeam() && !Objects.equals(p.getId(), shooter.getId())) {
+                            continue;
+                        }
+
+                        if (p.position().distanceSquared(explosionCenter) < radiusSq) {
+                            if (p.takeDamage(explosion.getDamage())) {
+                                killPlayer(p, shooter);
+                            }
+                        }
+                    } else if (t instanceof Turret turret) {
+                        // Prevent friendly fire, but allow self-damage
+                        if (shooter != null && turret.getTeam() == shooter.getTeam() && !Objects.equals(turret.getId(), shooter.getId())) {
+                            continue;
+                        }
+                        if (turret.position().distanceSquared(explosionCenter) < radiusSq) {
+                            turret.takeDamage(explosion.getDamage());
+                        }
+                    } else {
+                        throw new UnsupportedOperationException("fix for other targetable things");
                     }
                 }
                 explosion.markDamageApplied(); // Mark it so damage isn't applied again.
@@ -446,6 +463,7 @@ public abstract class AbstractGameStateManager {
      * Handles the lifecycle of poison clouds, applying damage over time and removing them when expired.
      */
     protected void updatePoisonClouds() {
+        // TODO: handle turret damage
         long currentTime = System.currentTimeMillis();
         for (PoisonCloud cloud : poisonClouds) {
             // Damage players inside the cloud, ticking every 500ms
@@ -454,20 +472,31 @@ public abstract class AbstractGameStateManager {
                 double radiusSq = cloud.getRadius() * cloud.getRadius();
                 Player shooter = players.get(cloud.getShooterId());
 
-                Set<Player> nearbyPlayers = playerGrid.getNearby(cloud.getX() - cloud.getRadius(), cloud.getY() - cloud.getRadius(), cloud.getRadius() * 2, cloud.getRadius() * 2);
-                for (Player p : nearbyPlayers) {
-                    if (p.isDead()) {
-                        continue;
-                    }
-                    // Prevent friendly fire, but allow self-damage
-                    if (shooter != null && p.getTeam() == shooter.getTeam() && !Objects.equals(p.getId(), shooter.getId())) {
-                        continue;
-                    }
-
-                    if (p.getCenter().distanceSquared(cloudCenter) < radiusSq) {
-                        if (p.takeDamage(cloud.getDamagePerTick())) {
-                            killPlayer(p, shooter);
+                Set<Targetable> nearbyPlayers = playerGrid.getNearby(cloud.getX() - cloud.getRadius(), cloud.getY() - cloud.getRadius(), cloud.getRadius() * 2, cloud.getRadius() * 2);
+                for (Targetable t : nearbyPlayers) {
+                    if (t instanceof Player p) {
+                        if (p.isDead()) {
+                            continue;
                         }
+                        // Prevent friendly fire, but allow self-damage
+                        if (shooter != null && p.getTeam() == shooter.getTeam() && !Objects.equals(p.getId(), shooter.getId())) {
+                            continue;
+                        }
+
+                        if (p.position().distanceSquared(cloudCenter) < radiusSq) {
+                            if (p.takeDamage(cloud.getDamagePerTick())) {
+                                killPlayer(p, shooter);
+                            }
+                        }
+                    } else if (t instanceof Turret turret) {
+                        if (shooter != null && turret.getTeam() == shooter.getTeam() && !Objects.equals(turret.getId(), shooter.getId())) {
+                            continue;
+                        }
+                        if (turret.position().distanceSquared(cloudCenter) < radiusSq) {
+                            turret.takeDamage(cloud.getDamagePerTick());
+                        }
+                    } else {
+                        throw new UnsupportedOperationException("fix for other targetables");
                     }
                 }
                 cloud.setLastDamageTickTime(currentTime);
@@ -499,7 +528,7 @@ public abstract class AbstractGameStateManager {
             // Reset all players
             for (Player player : players.values()) {
                 player.resetStats();
-                player.resetHealth();
+                player.resetHp();
                 player.finishReload();
                 player.setDead(false); // Ensure they are alive
                 setValidSpawnPosition(player); // Move them to a spawn point
@@ -595,7 +624,7 @@ public abstract class AbstractGameStateManager {
 
             // Process hazards for damage and (if not boosted) slowing.
             for (Hazard hazard : hazards) {
-                if (player.getCenter().distanceSquared(hazard.position()) < hazard.radiusSq()) {
+                if (player.position().distanceSquared(hazard.position()) < hazard.radiusSq()) {
                     switch (hazard.type()) {
                         case SLOW:
                             // Apply slow only if the player is not speed-boosted.
@@ -697,34 +726,46 @@ public abstract class AbstractGameStateManager {
             double sy = Math.min(oldPos.y(), newPos.y());
             double w = Math.abs(oldPos.x() - newPos.x());
             double h = Math.abs(oldPos.y() - newPos.y());
-            Set<Player> nearbyPlayers = playerGrid.getNearby(sx, sy, w, h);
+            Set<Targetable> nearby = playerGrid.getNearby(sx, sy, w, h);
 
-            for (Player player : nearbyPlayers) {
-                // Check for collision with an enemy player
-                if (!player.isDead() && player.getTeam() != bullet.getTeam()) {
-                    Vector2D playerCenter = new Vector2D(player.getX() + PLAYER_SIZE / 2, player.getY() + PLAYER_SIZE / 2);
-                    if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, playerCenter, PLAYER_SIZE / 2)) {
-                        Player shooter = players.get(bullet.getShooterId());
-                        double finalDamage = bullet.getDamage();
-                        if (shooter != null) {
-                            finalDamage *= shooter.getDamageMultiplier();
-                        }
+            for (Targetable target : nearby) {
+                if (target instanceof Player player) {
+                    // Check for collision with an enemy player
+                    if (!player.isDead() && player.getTeam() != bullet.getTeam()) {
+                        Vector2D playerCenter = player.position();
+                        if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, playerCenter, PLAYER_SIZE / 2)) {
+                            Player shooter = players.get(bullet.getShooterId());
 
-                        // Apply damage and check if it was a kill
-                        if (player.takeDamage(finalDamage)) {
-                            killPlayer(player, shooter);
+                            // Apply damage and check if it was a kill
+                            if (player.takeDamage(bullet.getDamage())) {
+                                killPlayer(player, shooter);
+                            }
+                            bullet.getOnDestructionAction()
+                                    .map(action -> action.apply(bullet))
+                                    .ifPresent(this::applyBulletEffect);
+                            return true; // Remove bullet on hit
                         }
-                        bullet.getOnDestructionAction()
-                                .map(action -> action.apply(bullet))
-                                .ifPresent(this::applyBulletEffect);
-                        return true; // Remove bullet on hit
                     }
+                } else if (target instanceof Turret turret) {
+                    if (turret.getTeam() != bullet.getTeam()) {
+                        Vector2D position = turret.position();
+                        if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, position, turret.getRadius())) {
+                            // Apply damage and check if it was a kill
+                            turret.takeDamage(bullet.getDamage());
+                            bullet.getOnDestructionAction()
+                                    .map(action -> action.apply(bullet))
+                                    .ifPresent(this::applyBulletEffect);
+                            return true; // Remove bullet on hit
+                        }
+                    }
+                } else {
+                    throw new UnsupportedOperationException("fix for other targets");
                 }
             }
 
             // Check bullet-turret collisions
             for (Turret turret : turrets) {
-                Vector2D turretPos = new Vector2D(turret.getX(), turret.getY());
+                Vector2D turretPos = turret.position();
                 if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, turretPos, turret.getRadius())) {
                     Player bulletOwner = players.get(bullet.getShooterId());
                     Player turretOwner = players.get(turret.getOwnerId());
@@ -734,7 +775,7 @@ public abstract class AbstractGameStateManager {
                         continue; // Skip friendly fire
                     }
 
-                    turret.setHp(turret.getHp() - bullet.getDamage());
+                    turret.takeDamage(bullet.getDamage());
                     bullet.getOnDestructionAction()
                             .map(action -> action.apply(bullet))
                             .ifPresent(this::applyBulletEffect);
@@ -821,12 +862,14 @@ public abstract class AbstractGameStateManager {
     protected void updatePowerUps() {
         List<PowerUp> consumedPowerUps = new ArrayList<>();
         for (PowerUp powerUp : powerUps) {
-            Set<Player> nearbyPlayers = playerGrid.getNearby(powerUp.getPosition().x() - PLAYER_SIZE, powerUp.getPosition().y() - PLAYER_SIZE, PLAYER_SIZE * 2, PLAYER_SIZE * 2);
-            for (Player player : nearbyPlayers) {
-                if (!player.isDead() && isColliding(player, powerUp)) {
-                    applyPowerUp(player, powerUp);
-                    consumedPowerUps.add(powerUp);
-                    break; // Power-up is consumed, move to the next one
+            Set<Targetable> nearbyPlayers = playerGrid.getNearby(powerUp.getPosition().x() - PLAYER_SIZE, powerUp.getPosition().y() - PLAYER_SIZE, PLAYER_SIZE * 2, PLAYER_SIZE * 2);
+            for (Targetable target : nearbyPlayers) {
+                if (target instanceof Player player) {
+                    if (!player.isDead() && isColliding(player, powerUp)) {
+                        applyPowerUp(player, powerUp);
+                        consumedPowerUps.add(powerUp);
+                        break; // Power-up is consumed, move to the next one
+                    }
                 }
             }
         }
@@ -855,7 +898,7 @@ public abstract class AbstractGameStateManager {
         for (Player player : players.values()) {
             if (player.isDead() && currentTime >= player.getRespawnTime()) {
                 player.setDead(false);
-                player.resetHealth();
+                player.resetHp();
                 player.finishReload();
                 player.applyArmorUp(RESPAWN_IMMUNITY_DURATION);
                 setValidSpawnPosition(player);
@@ -864,7 +907,7 @@ public abstract class AbstractGameStateManager {
     }
 
     protected boolean isColliding(Player player, PowerUp powerUp) {
-        return player.getCenter().distanceSquared(powerUp.getPosition()) < (PLAYER_SIZE * PLAYER_SIZE); // Using squared distance for efficiency
+        return player.position().distanceSquared(powerUp.getPosition()) < (PLAYER_SIZE * PLAYER_SIZE); // Using squared distance for efficiency
     }
 
     /**
@@ -1023,7 +1066,7 @@ public abstract class AbstractGameStateManager {
         // First, do a quick check using bounding circles to see if the objects are even close.
         double playerRadius = PLAYER_SIZE / 2.0;
         double combinedRadius = playerRadius + obstacle.getBoundingRadius();
-        double distanceSq = player.getCenter().distanceSquared(obstacle.getCenter());
+        double distanceSq = player.position().distanceSquared(obstacle.getCenter());
 
         // If the distance between centers is greater than their combined radii, they can't be colliding.
         if (distanceSq > combinedRadius * combinedRadius) {
@@ -1033,7 +1076,7 @@ public abstract class AbstractGameStateManager {
         // --- Narrow Phase Check ---
         // The broad phase passed, so now we do the expensive, precise check.
         return CollisionUtils.checkCirclePolygonCollision(
-                player.getCenter(), playerRadius, obstacle.vertices());
+                player.position(), playerRadius, obstacle.vertices());
     }
 
     /**

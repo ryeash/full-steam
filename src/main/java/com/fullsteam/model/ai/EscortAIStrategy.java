@@ -35,7 +35,7 @@ public class EscortAIStrategy implements IAIStrategy {
         double proximitySq = Config.ESCORT_PLAYER_PROXIMITY * Config.ESCORT_PLAYER_PROXIMITY;
         Set<Integer> teamsNearPayload = allPlayers.stream()
                 .filter(p -> !p.isDead())
-                .filter(p -> p.getCenter().distanceSquared(payloadCenter) < proximitySq)
+                .filter(p -> p.position().distanceSquared(payloadCenter) < proximitySq)
                 .map(Player::getTeam)
                 .collect(Collectors.toSet());
 
@@ -169,11 +169,11 @@ public class EscortAIStrategy implements IAIStrategy {
             }
 
             // Check if the enemy is near the payload
-            if (other.getCenter().distanceSquared(payloadCenter) > radiusSq) {
+            if (other.position().distanceSquared(payloadCenter) > radiusSq) {
                 continue;
             }
 
-            double distanceSq = self.getCenter().distanceSquared(other.getCenter());
+            double distanceSq = self.position().distanceSquared(other.position());
             if (distanceSq < minDistanceSq) {
                 minDistanceSq = distanceSq;
                 closestEnemy = other;

@@ -2,7 +2,7 @@ package com.fullsteam.model;
 
 import com.fullsteam.Config;
 
-public class Crate implements HasId {
+public class Crate implements HasId, HasLife, Targetable {
     private final long id;
     private final long ownerId;
     private final double x;
@@ -38,20 +38,32 @@ public class Crate implements HasId {
         return y;
     }
 
+    @Override
+    public Vector2D position() {
+        return new Vector2D(x, y);
+    }
+
     public double getSize() {
         return size;
     }
 
+    @Override
     public double getHp() {
         return hp;
+    }
+
+    @Override
+    public void setHp(double hp) {
+        this.hp = hp;
     }
 
     public double getMaxHp() {
         return maxHp;
     }
 
-    public void takeDamage(double damage) {
+    public boolean takeDamage(double damage) {
         this.hp -= damage;
+        return this.hp <= 0;
     }
 
     public boolean isDestroyed() {

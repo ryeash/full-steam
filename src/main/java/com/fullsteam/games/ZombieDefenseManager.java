@@ -128,21 +128,21 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         if (waveNumber > 5 && random < 0.15) { // 15% chance for a Brute
             zombie.setPlayerName("Brute");
             zombie.setWeapon(WeaponFactory.HEAVY_ZOMBIE_CLAW);
-            zombie.setMaxHealth(300);
-            zombie.setSpeed(Config.ZOMBIE_SPEED - .6);
+            zombie.setMaxHp(300);
+            zombie.setSpeed(Config.ZOMBIE_SPEED - .05);
         } else if (waveNumber > 3 && random < 0.30) { // 30% chance for a Runner
             zombie.setPlayerName("Runner");
             zombie.setWeapon(WeaponFactory.ZOMBIE_CLAW);
-            zombie.setMaxHealth(50);
-            zombie.setSpeed(Config.ZOMBIE_SPEED + .6);
+            zombie.setMaxHp(50);
+            zombie.setSpeed(Config.ZOMBIE_SPEED + .05);
         } else {
             zombie.setPlayerName("Zombie");
             zombie.setWeapon(WeaponFactory.ZOMBIE_CLAW);
-            zombie.setMaxHealth(50);
+            zombie.setMaxHp(50);
             zombie.setSpeed(Config.ZOMBIE_SPEED);
         }
         zombie.setDefaultSpeed(zombie.getSpeed());
-        zombie.resetHealth();
+        zombie.resetHp();
         // Spawn zombies at the edges of the map
         setZombieSpawnPosition(zombie);
         players.put(playerId, zombie);

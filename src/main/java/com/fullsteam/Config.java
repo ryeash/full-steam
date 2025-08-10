@@ -75,7 +75,7 @@ public class Config {
     public static final double HAZARD_SLOW_FACTOR = getDouble("game.hazard.slow_factor", 0.5); // 50% speed
     public static final double HAZARD_DAMAGE_FACTOR = getDouble("game.hazard.damage_factor", 0.5); // damage per tick;
     public static final long RESPAWN_IMMUNITY_DURATION = getLong("game.respawn_immunity_duration", 2000);
-    public static final int MAX_TURRETS_PER_PLAYER = getInt("game.max_turrets_per_player", 2);
+    public static final int MAX_TURRETS_PER_PLAYER = getInt("game.max_turrets_per_player", 4);
 
     // --- Power Ups ---
     public static final double POWER_UP_SPEED_BOOST_FACTOR = getDouble("game.powerup.speed_boost_factor", 1.5);

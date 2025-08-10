@@ -133,7 +133,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
                 sendGameEvent(GameEvent.red("The Lone Wolf grows stronger! Damage is now " + (int) (newDamageMultiplier * 100) + "%."));
                 for (Player player : players.values()) {
                     player.setDead(false);
-                    player.resetHealth();
+                    player.resetHp();
                     player.finishReload();
                     player.applyArmorUp(RESPAWN_IMMUNITY_DURATION);
                     setValidSpawnPosition(player);
@@ -177,7 +177,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
                 Player player = players.get(loneWolfId);
                 if (player != null) {
                     player.setDamageBoostEndTime(0);
-                    player.setMaxHealth(Config.DEFAULT_PLAYER_HEALTH);
+                    player.setMaxHp(Config.DEFAULT_PLAYER_HEALTH);
                     player.setTeam(2);
                 }
             }
@@ -209,10 +209,10 @@ public class LoneWolfManager extends AbstractGameStateManager {
         Player player = players.get(loneWolfId);
         if (player != null) {
             player.setTeam(1);
-            player.setMaxHealth(Config.DEFAULT_PLAYER_HEALTH * Config.LONE_WOLF_HEALTH_MULTIPLIER);
+            player.setMaxHp(Config.DEFAULT_PLAYER_HEALTH * Config.LONE_WOLF_HEALTH_MULTIPLIER);
             player.setDamageMultiplier(1 + (loneWolfDeaths * Config.LONE_WOLF_DAMAGE_BOOST_PER_DEATH));
             player.setDamageBoostEndTime(Long.MAX_VALUE);
-            player.resetHealth();
+            player.resetHp();
             sendGameEvent(GameEvent.red(player.getPlayerName() + " is the Lone Wolf!"));
         }
     }

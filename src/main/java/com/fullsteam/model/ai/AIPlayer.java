@@ -11,6 +11,8 @@ import com.fullsteam.model.Player;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.PowerUpType;
 import com.fullsteam.model.RandomNames;
+import com.fullsteam.model.Targetable;
+import com.fullsteam.model.Turret;
 import com.fullsteam.model.Vector2D;
 
 import java.util.List;
@@ -102,7 +104,7 @@ public class AIPlayer extends Player {
      * @param playerGrid The spatial grid for proximity queries.
      * @return An Optional containing a {@link ShootAction} if the AI decides to shoot this frame.
      */
-    public Optional<ShootAction> update(GameState gameState, SpatialGrid<Player> playerGrid, long delta) {
+    public Optional<ShootAction> update(GameState gameState, SpatialGrid<Targetable> playerGrid, long delta) {
         if (isDead()) {
             setVelocity(Vector2D.ZERO);
             super.update(delta); // Still need to call this to update position based on zero velocity
@@ -120,7 +122,7 @@ public class AIPlayer extends Player {
         updatePhysics(delta);
 
         // 4. Handle aiming and shooting logic, which is independent of movement.
-        return decideOnShooting(playerGrid, gameState.obstacles());
+        return decideOnShooting(gameState, playerGrid);
     }
 
     /**
@@ -168,17 +170,10 @@ public class AIPlayer extends Player {
         super.update(delta);
     }
 
-    /**
-     * Determines if the AI should shoot and at what.
-     *
-     * @param playerGrid The spatial grid for finding nearby players.
-     * @param obstacles  The list of obstacles for line-of-sight checks.
-     * @return An Optional {@link ShootAction} if a valid target is found and the AI can shoot.
-     */
-    private Optional<ShootAction> decideOnShooting(SpatialGrid<Player> playerGrid, List<Obstacle> obstacles) {
-        Player targetToShoot = findBestShootingTarget(playerGrid, obstacles);
+    private Optional<ShootAction> decideOnShooting(GameState gameState, SpatialGrid<Targetable> playerGrid) {
+        Optional<Targetable> bestTargetInfo = findBestTarget(gameState, playerGrid);
 
-        if (targetToShoot == null) {
+        if (bestTargetInfo.isEmpty()) {
             // If no target, but we are moving, aim in the direction of movement.
             if (getVelocity().magnitudeSq() > 0.01) {
                 aimInDirection(getVelocity());
@@ -186,8 +181,10 @@ public class AIPlayer extends Player {
             return Optional.empty();
         }
 
+        Targetable finalTarget = bestTargetInfo.get();
+        Vector2D directionToTarget = finalTarget.position().subtract(position());
+
         // Aim at the target.
-        Vector2D directionToTarget = targetToShoot.getCenter().subtract(getCenter());
         aimInDirection(directionToTarget);
 
         // Check if we are able to fire (not reloading, cooldown is over, etc.).
@@ -196,8 +193,8 @@ public class AIPlayer extends Player {
         }
 
         // Respect the AI's reaction time, but adjust for target priority
-        if (currentTarget == targetToShoot) {
-            long reactionTimeNeeded = calculateReactionTimeForTarget(targetToShoot);
+        if (finalTarget instanceof Player p && currentTarget == p) {
+            long reactionTimeNeeded = calculateReactionTimeForTarget(currentTarget);
             if (System.currentTimeMillis() - timeTargetAcquired < reactionTimeNeeded) {
                 return Optional.empty(); // Still "reacting", don't shoot yet.
             }
@@ -213,7 +210,7 @@ public class AIPlayer extends Player {
     private Vector2D calculateObjectiveForce(List<Obstacle> obstacles) {
         return switch (currentState) {
             case ATTACKING -> calculateAttackForce(obstacles);
-            case FLEEING -> calculateFleeForce(currentTarget.getCenter(), obstacles);
+            case FLEEING -> calculateFleeForce(currentTarget.position(), obstacles);
             case CAPTURING_OBJECTIVE -> calculateSeekForce(this.objectiveTargetPoint, obstacles);
             default -> calculateWanderForce(obstacles);
         };
@@ -243,14 +240,14 @@ public class AIPlayer extends Player {
 
         // If we are reloading OR we are already within our ideal engagement range,
         // prioritize strafing to be evasive.
-        if (isReloading() || getCenter().distanceSquared(currentTarget.getCenter()) < idealRangeSq) {
-            Vector2D toTarget = currentTarget.getCenter().subtract(getCenter());
+        if (isReloading() || position().distanceSquared(currentTarget.position()) < idealRangeSq) {
+            Vector2D toTarget = currentTarget.position().subtract(position());
             // Get a perpendicular vector for strafing.
             Vector2D strafeDirection = strafeRight ? new Vector2D(toTarget.y(), -toTarget.x()) : new Vector2D(-toTarget.y(), toTarget.x());
             return calculateSteerForce(strafeDirection.normalize(), obstacles);
         } else {
             // Otherwise, we are out of range and not reloading, so advance on the target.
-            return calculateSeekForce(currentTarget.getCenter(), obstacles);
+            return calculateSeekForce(currentTarget.position(), obstacles);
         }
     }
 
@@ -261,7 +258,7 @@ public class AIPlayer extends Player {
         if (target == null) {
             return calculateWanderForce(obstacles);
         }
-        Vector2D desiredDirection = target.subtract(getCenter()).normalize();
+        Vector2D desiredDirection = target.subtract(position()).normalize();
         return calculateSteerForce(desiredDirection, obstacles);
     }
 
@@ -272,7 +269,7 @@ public class AIPlayer extends Player {
         if (target == null) {
             return calculateWanderForce(obstacles);
         }
-        Vector2D desiredDirection = getCenter().subtract(target).normalize();
+        Vector2D desiredDirection = position().subtract(target).normalize();
         return calculateSteerForce(desiredDirection, obstacles);
     }
 
@@ -291,7 +288,7 @@ public class AIPlayer extends Player {
             }
         }
         // If we are just wandering randomly.
-        else if (wanderTarget == null || getCenter().distanceSquared(wanderTarget) < 100 * 100) {
+        else if (wanderTarget == null || position().distanceSquared(wanderTarget) < 100 * 100) {
             double x = ThreadLocalRandom.current().nextDouble(50, Config.GAME_WIDTH - 50);
             double y = ThreadLocalRandom.current().nextDouble(50, Config.GAME_HEIGHT - 50);
             wanderTarget = new Vector2D(x, y);
@@ -328,8 +325,8 @@ public class AIPlayer extends Player {
     private void aimInDirection(Vector2D direction) {
         if (direction.magnitudeSq() == 0) return;
         Vector2D normalized = direction.normalize();
-        setMouseX(getCenter().x() + normalized.x() * 100);
-        setMouseY(getCenter().y() + normalized.y() * 100);
+        setMouseX(position().x() + normalized.x() * 100);
+        setMouseY(position().y() + normalized.y() * 100);
     }
 
     /**
@@ -343,31 +340,57 @@ public class AIPlayer extends Player {
     }
 
     /**
+     * Finds the best overall target, considering both players and turrets.
+     */
+    private Optional<Targetable> findBestTarget(GameState gameState, SpatialGrid<Targetable> playerGrid) {
+        Targetable bestTarget = findBestShootingTarget(playerGrid, gameState.obstacles());
+        return Optional.ofNullable(bestTarget);
+    }
+
+    /**
      * Finds the best enemy player to shoot at, prioritizing high-value targets over pure distance.
      */
-    private Player findBestShootingTarget(SpatialGrid<Player> playerGrid, List<Obstacle> obstacles) {
-        Player bestTarget = null;
+    private Targetable findBestShootingTarget(SpatialGrid<Targetable> playerGrid, List<Obstacle> obstacles) {
+        Targetable bestTarget = null;
         double bestScore = Double.MAX_VALUE;
         double attackRange = getWeapon().getBulletRange();
         double attackRangeSq = attackRange * attackRange;
 
-        Set<Player> nearbyPlayers = playerGrid.getNearby(getX() - attackRange, getY() - attackRange, attackRange * 2, attackRange * 2);
+        Set<Targetable> nearTargets = playerGrid.getNearby(getX() - attackRange, getY() - attackRange, attackRange * 2, attackRange * 2);
 
-        for (Player potentialTarget : nearbyPlayers) {
-            if (potentialTarget.getId() == this.getId() || potentialTarget.isDead() || potentialTarget.getTeam() == this.getTeam()) {
-                continue;
-            }
+        for (Targetable potentialTarget : nearTargets) {
+            if (potentialTarget instanceof Player player) {
+                if (player.getId() == this.getId() || player.isDead() || player.getTeam() == this.getTeam()) {
+                    continue;
+                }
 
-            double distanceSq = this.getCenter().distanceSquared(potentialTarget.getCenter());
-            if (distanceSq < attackRangeSq) {
-                if (findBlockingObstacle(this.getCenter(), potentialTarget.getCenter(), obstacles) == null) {
-                    // Calculate priority score (lower = better)
-                    double score = calculateTargetPriorityScore(potentialTarget, distanceSq);
-                    if (score < bestScore) {
-                        bestScore = score;
+                double distanceSq = this.position().distanceSquared(player.position());
+                if (distanceSq < attackRangeSq) {
+                    if (findBlockingObstacle(this.position(), player.position(), obstacles) == null) {
+                        // Calculate priority score (lower = better)
+                        double score = calculateTargetPriorityScore(player, distanceSq);
+                        if (score < bestScore) {
+                            bestScore = score;
+                            bestTarget = player;
+                        }
+                    }
+                }
+            } else if (potentialTarget instanceof Turret turret) {
+                if (turret.getTeam() == this.getTeam()) {
+                    continue; // Don't shoot friendly turrets
+                }
+
+                Vector2D turretCenter = turret.position();
+                double turretScore = Math.sqrt(position().distanceSquared(turretCenter));
+                if (turretScore < bestScore) {
+                    if (findBlockingObstacle(this.position(), turretCenter, obstacles) == null) {
+                        // Simple distance-based priority for now.
+                        bestScore = turretScore;
                         bestTarget = potentialTarget;
                     }
                 }
+            } else {
+                throw new UnsupportedOperationException("fix for other targetables");
             }
         }
         return bestTarget;
@@ -386,7 +409,7 @@ public class AIPlayer extends Player {
         }
 
         // High priority: Low health enemies (easy kills)
-        double healthRatio = target.getCurrentHealth() / target.getMaxHealth();
+        double healthRatio = target.getHp() / target.getMaxHp();
         if (healthRatio < 0.3) {
             baseScore *= 0.5;
         }
@@ -413,7 +436,7 @@ public class AIPlayer extends Player {
         long baseReactionTime = this.reactionTimeMs;
 
         // High priority targets get much faster reactions
-        double healthRatio = target.getCurrentHealth() / target.getMaxHealth();
+        double healthRatio = target.getHp() / target.getMaxHp();
         if (healthRatio < 0.3) {
             baseReactionTime = (long) (baseReactionTime * 0.4); // 60% faster for low-health targets
         }
@@ -471,16 +494,16 @@ public class AIPlayer extends Player {
      */
     private Vector2D findClearPath(Vector2D desiredDirection, List<Obstacle> obstacles) {
         double feelerLength = 60.0 + (getSpeed() * 5); // Dynamic feeler based on speed
-        Vector2D feelerEnd = getCenter().add(desiredDirection.multiply(feelerLength));
-        Obstacle blockingObstacle = findBlockingObstacle(getCenter(), feelerEnd, obstacles);
+        Vector2D feelerEnd = position().add(desiredDirection.multiply(feelerLength));
+        Obstacle blockingObstacle = findBlockingObstacle(position(), feelerEnd, obstacles);
 
         if (blockingObstacle == null) {
             return desiredDirection; // Path is clear.
         }
 
         // Path is blocked, so we need to slide.
-        Vector2D closestPointOnObstacle = findClosestPointOnObstacle(getCenter(), blockingObstacle);
-        Vector2D avoidanceDirection = getCenter().subtract(closestPointOnObstacle).normalize();
+        Vector2D closestPointOnObstacle = findClosestPointOnObstacle(position(), blockingObstacle);
+        Vector2D avoidanceDirection = position().subtract(closestPointOnObstacle).normalize();
         double projection = desiredDirection.dot(avoidanceDirection);
         Vector2D slideDirection = desiredDirection.subtract(avoidanceDirection.multiply(projection));
 
@@ -536,8 +559,8 @@ public class AIPlayer extends Player {
 
         for (Hazard hazard : hazards) {
             double awarenessRadius = hazard.radius() + 20;
-            if (getCenter().distanceSquared(hazard.position()) < awarenessRadius * awarenessRadius) {
-                Vector2D fleeDirection = getCenter().subtract(hazard.position());
+            if (position().distanceSquared(hazard.position()) < awarenessRadius * awarenessRadius) {
+                Vector2D fleeDirection = position().subtract(hazard.position());
                 double weight = (hazard.type() == Hazard.Type.DAMAGE) ? 0.25 : 0.05;
                 totalAvoidanceForce = totalAvoidanceForce.add(fleeDirection.normalize().multiply(weight));
             }
@@ -555,15 +578,15 @@ public class AIPlayer extends Player {
         for (Obstacle obstacle : obstacles) {
             // Broad Phase: Check if the AI's "personal space" bubble overlaps the obstacle's bounding circle.
             double combinedRadius = separationRadius + obstacle.getBoundingRadius();
-            if (getCenter().distanceSquared(obstacle.getCenter()) > combinedRadius * combinedRadius) {
+            if (position().distanceSquared(obstacle.getCenter()) > combinedRadius * combinedRadius) {
                 continue; // Not close enough to worry about.
             }
 
             // Narrow Phase: We are close, so find the exact closest point to push away from.
-            Vector2D closestPoint = findClosestPointOnObstacle(getCenter(), obstacle);
-            double distanceSq = getCenter().distanceSquared(closestPoint);
+            Vector2D closestPoint = findClosestPointOnObstacle(position(), obstacle);
+            double distanceSq = position().distanceSquared(closestPoint);
             if (distanceSq < separationRadius * separationRadius) {
-                Vector2D fleeDirection = getCenter().subtract(closestPoint);
+                Vector2D fleeDirection = position().subtract(closestPoint);
                 double strength = 1.0 - (Math.sqrt(distanceSq) / separationRadius);
                 totalSeparationForce = totalSeparationForce.add(fleeDirection.normalize().multiply(strength));
             }
@@ -580,25 +603,27 @@ public class AIPlayer extends Player {
 
         // Avoid powered-up enemies
         for (Player player : gameState.players()) {
-            if (player.getTeam() == this.getTeam() || player.isDead()) continue;
+            if (player.getTeam() == this.getTeam() || player.isDead()) {
+                continue;
+            }
             boolean isThreat = player.getArmorUpEndTime() > currentTime || player.getDamageBoostEndTime() > currentTime;
-            if (isThreat && getCenter().distanceSquared(player.getCenter()) < 400 * 400) {
-                totalInfluenceForce = totalInfluenceForce.add(getCenter().subtract(player.getCenter()).normalize().multiply(1.0));
+            if (isThreat && position().distanceSquared(player.position()) < 400 * 400) {
+                totalInfluenceForce = totalInfluenceForce.add(position().subtract(player.position()).normalize().multiply(1.0));
             }
         }
 
         // Seek valuable power-ups
         if (gameState.powerUps() != null) {
             for (PowerUp powerUp : gameState.powerUps()) {
-                if (getCenter().distanceSquared(powerUp.getPosition()) < 500 * 500) {
+                if (position().distanceSquared(powerUp.getPosition()) < 500 * 500) {
                     double weight = 0.5; // Default attraction
                     if (powerUp.getType() == PowerUpType.HEALTH_PACK) {
-                        weight = 1.5 * (1.0 - (getCurrentHealth() / getMaxHealth()));
+                        weight = 1.5 * (1.0 - (getHp() / getMaxHp()));
                     } else if (powerUp.getType() == PowerUpType.ARMOR_UP || powerUp.getType() == PowerUpType.DAMAGE_BOOST) {
                         weight = 1.0;
                     }
                     if (weight > 0.1) {
-                        totalInfluenceForce = totalInfluenceForce.add(powerUp.getPosition().subtract(getCenter()).normalize().multiply(weight));
+                        totalInfluenceForce = totalInfluenceForce.add(powerUp.getPosition().subtract(position()).normalize().multiply(weight));
                     }
                 }
             }

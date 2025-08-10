@@ -5,7 +5,8 @@ import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
 import org.apache.commons.lang3.StringUtils;
 
-public class Player implements HasId {
+
+public class Player implements HasId, HasLife, Targetable {
     protected final long id;
     protected String playerName;
     protected double x;
@@ -20,8 +21,8 @@ public class Player implements HasId {
     protected double defaultSpeed;
     protected int team;
     protected Weapon weapon;
-    protected double currentHealth;
-    protected double maxHealth;
+    protected double hp;
+    protected double maxHp;
     protected double mouseX;
     protected double mouseY;
     @JsonIgnore
@@ -57,8 +58,8 @@ public class Player implements HasId {
         this.speed = Config.DEFAULT_PLAYER_SPEED;
         this.defaultSpeed = Config.DEFAULT_PLAYER_SPEED;
         setWeapon(weapon);
-        this.currentHealth = Config.DEFAULT_PLAYER_HEALTH;
-        this.maxHealth = Config.DEFAULT_PLAYER_HEALTH;
+        this.hp = Config.DEFAULT_PLAYER_HEALTH;
+        this.maxHp = Config.DEFAULT_PLAYER_HEALTH;
         this.velocityY = 0;
         this.lastInputTime = System.currentTimeMillis();
         this.isDead = false;
@@ -150,6 +151,10 @@ public class Player implements HasId {
         this.y = y;
     }
 
+    public Vector2D position() {
+        return new Vector2D(x + Config.PLAYER_SIZE / 2.0, y + Config.PLAYER_SIZE / 2.0);
+    }
+
     public double getMouseX() {
         return mouseX;
     }
@@ -164,10 +169,6 @@ public class Player implements HasId {
 
     public void setMouseY(double mouseY) {
         this.mouseY = mouseY;
-    }
-
-    public Vector2D getCenter() {
-        return new Vector2D(this.x + (Config.PLAYER_SIZE / 2.0), this.y + (Config.PLAYER_SIZE / 2.0));
     }
 
     public void setVelocity(Vector2D velocity) {
@@ -281,12 +282,12 @@ public class Player implements HasId {
         this.isReloading = false;
     }
 
-    public double getCurrentHealth() {
-        return currentHealth;
+    public double getHp() {
+        return hp;
     }
 
-    public void setCurrentHealth(double currentHealth) {
-        this.currentHealth = currentHealth;
+    public void setHp(double hp) {
+        this.hp = hp;
     }
 
     public int getCurrentAmmoInMagazine() {
@@ -316,23 +317,23 @@ public class Player implements HasId {
         if (System.currentTimeMillis() < this.armorUpEndTime && amount > 0) {
             return false; // Invincible, do not take damage
         }
-        this.currentHealth -= amount;
-        if (this.currentHealth > this.maxHealth) {
-            this.currentHealth = this.maxHealth;
+        this.hp -= amount;
+        if (this.hp > this.maxHp) {
+            this.hp = this.maxHp;
         }
-        return this.currentHealth <= 0;
+        return this.hp <= 0;
     }
 
-    public double getMaxHealth() {
-        return maxHealth;
+    public double getMaxHp() {
+        return maxHp;
     }
 
-    public void setMaxHealth(double maxHealth) {
-        this.maxHealth = maxHealth;
+    public void setMaxHp(double maxHp) {
+        this.maxHp = maxHp;
     }
 
-    public void resetHealth() {
-        this.currentHealth = this.maxHealth;
+    public void resetHp() {
+        this.hp = this.maxHp;
     }
 
     /**

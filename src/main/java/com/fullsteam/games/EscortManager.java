@@ -50,7 +50,7 @@ public class EscortManager extends AbstractTeamBasedManager {
         Set<Integer> teamsNearPayload = players.values()
                 .stream()
                 .filter(p -> !p.isDead())
-                .filter(p -> p.getCenter().distanceSquared(payloadCenter) < proximitySq)
+                .filter(p -> p.position().distanceSquared(payloadCenter) < proximitySq)
                 .map(Player::getTeam)
                 .collect(Collectors.toSet());
 

@@ -95,7 +95,7 @@ public class EliminationManager extends AbstractTeamBasedManager {
         roundDecided = false;
         for (Player player : players.values()) {
             player.setDead(false);
-            player.resetHealth();
+            player.resetHp();
             player.finishReload();
             setValidSpawnPosition(player);
         }
