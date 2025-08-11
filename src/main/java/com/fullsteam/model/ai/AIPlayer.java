@@ -493,7 +493,7 @@ public class AIPlayer extends Player {
      * Implements "wall sliding" by projecting the desired movement direction away from an obstacle's normal.
      */
     private Vector2D findClearPath(Vector2D desiredDirection, List<Obstacle> obstacles) {
-        double feelerLength = 60.0 + (getSpeed() * 5); // Dynamic feeler based on speed
+        double feelerLength = 15.0 + (getSpeed() * 5); // Dynamic feeler based on speed
         Vector2D feelerEnd = position().add(desiredDirection.multiply(feelerLength));
         Obstacle blockingObstacle = findBlockingObstacle(position(), feelerEnd, obstacles);
 
