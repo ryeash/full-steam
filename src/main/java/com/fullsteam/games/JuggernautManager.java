@@ -5,15 +5,13 @@ import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
-import com.fullsteam.model.ai.AIArchetype;
-import com.fullsteam.model.ai.AIPlayer;
+import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.ai.JuggernautAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.JuggernautInfo;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -25,27 +23,19 @@ import static com.fullsteam.Config.JUGGERNAUT_SELECTION_DELAY_MS;
  * A round-based game mode where each team has one "Juggernaut".
  * A team scores by eliminating the enemy Juggernaut.
  */
+@GameName("Juggernaut")
 public class JuggernautManager extends AbstractTeamBasedManager {
 
-    private String team1Juggernaut;
-    private String team2Juggernaut;
+    private Long team1Juggernaut;
+    private Long team2Juggernaut;
 
     public JuggernautManager(GameLobby gameLobby) {
         super(gameLobby);
     }
 
     @Override
-    public String gameType() {
-        return "Juggernaut";
-    }
-
-    @Override
-    public void addAIPlayer(int team) {
-        String playerId = "ai-" + UUID.randomUUID();
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new JuggernautAIStrategy(), AIArchetype.randomArchetype());
-        setValidSpawnPosition(player);
-        players.put(playerId, player);
-        log.info("AI Player {} (Juggernaut Strategy) joined team {}", playerId, team);
+    protected IAIStrategy buildAIStrategy() {
+        return new JuggernautAIStrategy();
     }
 
     @Override
@@ -55,16 +45,16 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected void updatePlayers() {
+    protected void updatePlayers(long delta) {
         if (team1Juggernaut == null || team2Juggernaut == null) {
             // freeze until the juggernauts are selected
             return;
         }
-        super.updatePlayers();
+        super.updatePlayers(delta);
     }
 
     @Override
-    public void acceptPlayerInput(String playerId, PlayerInput input) {
+    public void acceptPlayerInput(Long playerId, PlayerInput input) {
         if (team1Juggernaut == null || team2Juggernaut == null) {
             // freeze until the juggernauts are selected
             return;
@@ -122,8 +112,8 @@ public class JuggernautManager extends AbstractTeamBasedManager {
         team1Juggernaut = null;
         team2Juggernaut = null;
         for (Player player : players.values()) {
-            player.setMaxHealth(Config.DEFAULT_PLAYER_HEALTH);
-            player.setCurrentHealth(Config.DEFAULT_PLAYER_HEALTH);
+            player.setMaxHp(Config.DEFAULT_PLAYER_HEALTH);
+            player.setHp(Config.DEFAULT_PLAYER_HEALTH);
         }
         sendGameEvent(GameEvent.info("Starting new round!"));
         sendGameEvent(GameEvent.blue("Will select new juggernauts in " + (JUGGERNAUT_SELECTION_DELAY_MS / 1000) + " seconds"));
@@ -146,8 +136,8 @@ public class JuggernautManager extends AbstractTeamBasedManager {
             } else {
                 team2Juggernaut = juggernaut.getId();
             }
-            juggernaut.setCurrentHealth(JUGGERNAUT_HEALTH);
-            juggernaut.setMaxHealth(JUGGERNAUT_HEALTH);
+            juggernaut.setHp(JUGGERNAUT_HEALTH);
+            juggernaut.setMaxHp(JUGGERNAUT_HEALTH);
             sendGameEvent(GameEvent.team(team, "%s is Team %d's Juggernaut!".formatted(juggernaut.getPlayerName(), team)));
             log.info("{} is the new Juggernaut for team {}", juggernaut.getPlayerName(), team);
         } else {

@@ -7,7 +7,7 @@ import java.util.function.Function;
 
 import static com.fullsteam.Config.ID_COUNTER;
 
-public class Bullet implements HasId{
+public class Bullet implements HasId {
     private final long id = ID_COUNTER.incrementAndGet();
     private double x;
     private double y;
@@ -18,7 +18,7 @@ public class Bullet implements HasId{
     @JsonIgnore
     private final double velocityY;
     @JsonIgnore
-    private final String shooterId;
+    private final long shooterId;
     @JsonIgnore
     private final double damage;
     @JsonIgnore
@@ -32,11 +32,11 @@ public class Bullet implements HasId{
     @JsonIgnore
     private final Function<Bullet, BulletEffect> onDestructionAction;
 
-    public Bullet(double x, double y, double velocityX, double velocityY, String shooterId, int team, double damage, double speed, double range, double bulletSpeedDecay) {
+    public Bullet(double x, double y, double velocityX, double velocityY, long shooterId, int team, double damage, double speed, double range, double bulletSpeedDecay) {
         this(x, y, velocityX, velocityY, shooterId, team, damage, speed, range, bulletSpeedDecay, null);
     }
 
-    public Bullet(double x, double y, double velocityX, double velocityY, String shooterId, int team, double damage, double speed, double range, double bulletSpeedDecay, Function<Bullet, BulletEffect> onDestructionAction) {
+    public Bullet(double x, double y, double velocityX, double velocityY, long shooterId, int team, double damage, double speed, double range, double bulletSpeedDecay, Function<Bullet, BulletEffect> onDestructionAction) {
         this.x = x;
         this.y = y;
         this.velocityX = velocityX;
@@ -51,11 +51,16 @@ public class Bullet implements HasId{
         this.onDestructionAction = onDestructionAction;
     }
 
-    public void update() {
-        x += velocityX * speed;
-        y += velocityY * speed;
-        distanceTraveled += speed;
-        speed *= bulletSpeedDecay;
+    public void update(long delta) {
+        double deltaSeconds = (double) delta / 1000.0;
+        // Update position
+        Vector2D start = new Vector2D(x, y);
+        x += deltaSeconds * velocityX * speed;
+        y += deltaSeconds * velocityY * speed;
+        Vector2D end = new Vector2D(x, y);
+        // Apply speed decay
+        speed *= Math.pow(bulletSpeedDecay, deltaSeconds);
+        distanceTraveled += Math.sqrt(start.distanceSquared(end));
     }
 
     /**
@@ -94,7 +99,7 @@ public class Bullet implements HasId{
         return velocityY;
     }
 
-    public String getShooterId() {
+    public long getShooterId() {
         return shooterId;
     }
 
@@ -104,5 +109,9 @@ public class Bullet implements HasId{
 
     public double getDamage() {
         return damage;
+    }
+
+    public double getSpeed() {
+        return speed;
     }
 }

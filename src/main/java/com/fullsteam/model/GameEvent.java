@@ -15,7 +15,7 @@ import com.fullsteam.Config;
 public record GameEvent(String message,
                         EventType type,
                         long expirationTime,
-                        @JsonInclude(Include.NON_NULL) String playerId) {
+                        @JsonInclude(Include.NON_NULL) Long playerId) {
     public enum EventType {
         FLAG_PICKUP,
         FLAG_DROP,
@@ -32,7 +32,7 @@ public record GameEvent(String message,
         return team(team, message, null);
     }
 
-    public static GameEvent team(int team, String message, String playerId) {
+    public static GameEvent team(int team, String message, Long playerId) {
         EventType type;
         if (team == 1) {
             type = EventType.GREEN;
@@ -48,7 +48,7 @@ public record GameEvent(String message,
         return red(message, null);
     }
 
-    public static GameEvent red(String message, String playerId) {
+    public static GameEvent red(String message, Long playerId) {
         return new GameEvent(message, EventType.RED, System.currentTimeMillis() + Config.GAME_EVENT_DURATION_MS, playerId);
     }
 
@@ -56,7 +56,7 @@ public record GameEvent(String message,
         return green(message, null);
     }
 
-    public static GameEvent green(String message, String playerId) {
+    public static GameEvent green(String message, Long playerId) {
         return new GameEvent(message, EventType.GREEN, System.currentTimeMillis() + Config.GAME_EVENT_DURATION_MS, playerId);
     }
 
@@ -64,7 +64,7 @@ public record GameEvent(String message,
         return yellow(message, null);
     }
 
-    public static GameEvent yellow(String message, String playerId) {
+    public static GameEvent yellow(String message, Long playerId) {
         return new GameEvent(message, EventType.YELLOW, System.currentTimeMillis() + Config.GAME_EVENT_DURATION_MS, playerId);
     }
 
@@ -72,7 +72,7 @@ public record GameEvent(String message,
         return blue(message, null);
     }
 
-    public static GameEvent blue(String message, String playerId) {
+    public static GameEvent blue(String message, Long playerId) {
         return new GameEvent(message, EventType.BLUE, System.currentTimeMillis() + Config.GAME_EVENT_DURATION_MS, playerId);
     }
 
@@ -80,7 +80,7 @@ public record GameEvent(String message,
         return info(message, null);
     }
 
-    public static GameEvent info(String message, String playerId) {
+    public static GameEvent info(String message, Long playerId) {
         return new GameEvent(message, EventType.GENERIC_INFO, System.currentTimeMillis() + Config.GAME_EVENT_DURATION_MS, playerId);
     }
 

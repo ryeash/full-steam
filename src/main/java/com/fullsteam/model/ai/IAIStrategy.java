@@ -4,6 +4,7 @@ import com.fullsteam.model.GameState;
 import com.fullsteam.model.Player;
 
 import java.util.Collection;
+import java.util.Objects;
 
 import static com.fullsteam.Config.VISION_RANGE;
 
@@ -25,7 +26,7 @@ public interface IAIStrategy {
 
         for (Player other : allPlayers) {
             // Skip self, teammates, or dead players
-            if (other.getId().equals(self.getId()) || other.getTeam() == self.getTeam() || other.isDead()) {
+            if (Objects.equals(other.getId(), self.getId()) || other.getTeam() == self.getTeam() || other.isDead()) {
                 continue;
             }
 
@@ -46,6 +47,6 @@ public interface IAIStrategy {
             return false;
         }
         double rangeSq = range * range;
-        return self.getCenter().distanceSq(target.getCenter()) < rangeSq;
+        return self.position().distanceSquared(target.position()) < rangeSq;
     }
 }

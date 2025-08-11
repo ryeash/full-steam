@@ -4,11 +4,9 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.Hill;
-import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
-import com.fullsteam.model.ai.AIArchetype;
-import com.fullsteam.model.ai.AIPlayer;
+import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.ai.KingOfTheHillAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.KingOfTheHillInfo;
@@ -16,19 +14,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static com.fullsteam.Config.KOTH_HILL_KEEP_OUT_RADIUS;
 import static com.fullsteam.Config.KOTH_HILL_RADIUS;
 import static com.fullsteam.Config.KOTH_POINTS_PER_SECOND;
 import static com.fullsteam.Config.KOTH_SCORE_TO_WIN;
-import static com.fullsteam.Config.OBSTACLE_COUNT;
 
 /**
  * Manages the game logic for the King of the Hill mode.
  * The objective is to control a central point to accumulate score.
  */
+@GameName("King of the Hill")
 public class KingOfTheHillManager extends AbstractTeamBasedManager {
 
     private static final Logger log = LoggerFactory.getLogger(KingOfTheHillManager.class);
@@ -43,17 +40,8 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    public String gameType() {
-        return "King of the Hill";
-    }
-
-    @Override
-    public void addAIPlayer(int team) {
-        String playerId = "ai-" + UUID.randomUUID();
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new KingOfTheHillAIStrategy(), AIArchetype.randomArchetype());
-        setValidSpawnPosition(player);
-        players.put(playerId, player);
-        log.info("AI Player {} (CTF Strategy) joined team {}", playerId, team);
+    protected IAIStrategy buildAIStrategy() {
+        return new KingOfTheHillAIStrategy();
     }
 
     @Override
@@ -86,7 +74,7 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
         List<Player> playersOnHill = players.values().stream()
                 .filter(p -> !p.isDead())
                 .filter(p -> {
-                    double distanceSq = Vector2D.distanceSq(p.getCenter(), hill.position());
+                    double distanceSq = p.position().distanceSquared(hill.position());
                     return distanceSq < hill.radiusSq();
                 })
                 .toList();
@@ -123,36 +111,20 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected void updateGame() {
+    protected void updateGame(long delta) {
         teamBalancer.balanceTeams(players);
-        super.updateGame();
+        super.updateGame(delta);
     }
 
     @Override
     protected void generateObstacles() {
-        obstacles.clear();
-
-        for (int i = 0; i < OBSTACLE_COUNT / 2; i++) {
-            Obstacle newObstacle;
-            boolean isColliding;
-            int attempts = 0; // Safety break to prevent infinite loops
-            do {
-                newObstacle = Obstacle.createRandomPolygonObstacle();
-                // Check if the new obstacle intersects with the hill's keep-out zone.
-                isColliding = CollisionUtils.checkCirclePolygonCollision(
-                        this.hill.position(),
-                        KOTH_HILL_KEEP_OUT_RADIUS,
-                        newObstacle.vertices());
-                attempts++;
-            } while (isColliding && attempts < 100); // Keep trying until it's clear or we give up
-
-            if (!isColliding) {
-                obstacles.add(newObstacle);
-                obstacles.add(newObstacle.create180Clone());
-            } else {
-                log.warn("Could not place an obstacle without colliding with the hill after 100 attempts.");
-            }
-        }
-        log.info("Generated {} obstacles for King of the Hill, avoiding the central hill area.", obstacles.size());
+        generateObstacles(newObstacle -> {
+            // Check if the new obstacle intersects with the hill's keep-out zone.
+            boolean isColliding = CollisionUtils.checkCirclePolygonCollision(
+                    this.hill.position(),
+                    KOTH_HILL_KEEP_OUT_RADIUS,
+                    newObstacle.vertices());
+            return !isColliding;
+        });
     }
 }

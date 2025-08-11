@@ -3,14 +3,14 @@ package com.fullsteam.model.gamemodes;
 public final class JuggernautInfo extends GameInfo {
     private final int team1Score;
     private final int team2Score;
-    private final String team1Juggernaut;
-    private final String team2Juggernaut;
+    private final Long team1Juggernaut;
+    private final Long team2Juggernaut;
     private final long roundTimeRemainingSeconds;
 
     public JuggernautInfo(int team1Score,
                           int team2Score,
-                          String team1Juggernaut,
-                          String team2Juggernaut,
+                          Long team1Juggernaut,
+                          Long team2Juggernaut,
                           long roundTimeRemainingSeconds) {
         this.team1Score = team1Score;
         this.team2Score = team2Score;
@@ -32,11 +32,11 @@ public final class JuggernautInfo extends GameInfo {
         return team2Score;
     }
 
-    public String getTeam1Juggernaut() {
+    public Long getTeam1Juggernaut() {
         return team1Juggernaut;
     }
 
-    public String getTeam2Juggernaut() {
+    public Long getTeam2Juggernaut() {
         return team2Juggernaut;
     }
 

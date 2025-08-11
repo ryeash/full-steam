@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Top-Down Shooter</title>
-    <script src="https://unpkg.com/@msgpack/msgpack@2.7.2/dist.es5+umd/msgpack.min.js"></script>
+    <title>Full Steam</title>
     <style>
         body {
             margin: 0;
@@ -316,7 +315,7 @@
     </div>
 </div>
 
-<script>
+<script type="text/javascript">
     class GameUIManager {
         constructor(gameInstance) {
             this.game = gameInstance;
@@ -472,16 +471,10 @@
                 this.lastScoreboardUpdateTime = now;
             }
 
-            if (this.game.playerId) {
-                const localPlayer = gameState.players.find(p => p.id === this.game.playerId);
-                this.game.isLocalPlayerDead = localPlayer ? localPlayer.dead : false;
-                if (localPlayer && localPlayer.weapon) {
-                    // If the weapon from the server is different from the one in the UI
-                    if (this.elements.weaponSelector.value !== localPlayer.weapon.name) {
-                        this.elements.weaponSelector.value = localPlayer.weapon.name;
-                        // Save the change to localStorage so it persists
-                        localStorage.setItem('weaponName', localPlayer.weapon.name);
-                    }
+            if (this.game.playerId && this.game.localPlayer && this.game.localPlayer.weapon) {
+                if (this.elements.weaponSelector.value !== this.game.localPlayer.weapon.name) {
+                    this.elements.weaponSelector.value = this.game.localPlayer.weapon.name;
+                    localStorage.setItem('weaponName', this.game.localPlayer.weapon.name);
                 }
             }
         }
@@ -519,11 +512,10 @@
 
     class Game {
         constructor() {
-            this.decoder = new MessagePack.Decoder();
             this.canvas = document.getElementById('gameCanvas');
             this.ctx = this.canvas.getContext('2d');
             this.ws = null;
-            this.resetGameState();
+            
             this.keys = {};
             this.mouse = { x: 0, y: 0, down: false };
             this.playerId = null;
@@ -546,9 +538,22 @@
             this.backgroundCtx = this.backgroundCanvas.getContext('2d');
             this.currentGameType = '';
             this.backgroundNeedsRedraw = true;
+            this.localPlayer = null;
 
+            // Interpolation system
+            this.previousGameState = null;
+            this.lastUpdateTime = 0;
+            this.interpolationTime = 100; // ms to interpolate over
+            this.interpolatedPlayers = new Map();
+            this.interpolatedBullets = new Map();
+            
+            this.isRenderLoopRunning = false;
+            this.lastFrameTime = 0;
+            this.frameCount = 0;
+            this.fps = 0;
+            this.lastFpsTime = 0;
+            this.resetGameState();
             this.uiManager = new GameUIManager(this);
-
             this.loadPlayerName();
             this.setupEventListeners();
             this.connect();
@@ -556,8 +561,188 @@
         }
 
         resetGameState() {
-            this.gameState = { players: [], bullets: [], explosions: [], poisonClouds: [], obstacles: [], deathMarkers: [], powerUps: [], info: null, serverTime: 0 };
+            this.gameState = { players: [], bullets: [], explosions: [], poisonClouds: [], obstacles: [], powerUps: [], turrets: [], info: null, serverTime: 0 };
             this.gameEvents = [];
+            this.previousGameState = null;
+            this.lastUpdateTime = 0;
+            this.interpolatedPlayers.clear();
+            this.interpolatedBullets.clear();
+        }
+
+        // Linear interpolation function
+        lerp(start, end, t) {
+            return start + (end - start) * t;
+        }
+
+        // Update interpolation data when new game state arrives
+        updateInterpolation(newGameState) {
+            const currentTime = performance.now();
+            
+            // Store previous state for interpolation
+            if (this.gameState) {
+                this.previousGameState = structuredClone(this.gameState);
+                this.lastUpdateTime = currentTime;
+            }
+            
+            // Update current state
+            this.gameState = newGameState;
+            
+            // Clean up interpolation data for disconnected players
+            if (this.gameState.players) {
+                const currentPlayerIds = new Set(this.gameState.players.map(p => p.id));
+                for (const playerId of this.interpolatedPlayers.keys()) {
+                    if (!currentPlayerIds.has(playerId)) {
+                        this.interpolatedPlayers.delete(playerId);
+                    }
+                }
+                
+                // Initialize interpolated positions for new players
+                this.gameState.players.forEach(player => {
+                    if (!this.interpolatedPlayers.has(player.id)) {
+                        this.interpolatedPlayers.set(player.id, {
+                            x: player.x,
+                            y: player.y,
+                            mouseX: player.mouseX,
+                            mouseY: player.mouseY
+                        });
+                    }
+                });
+            }
+
+            // Clean up interpolation data for expired bullets
+            if (this.gameState.bullets) {
+                const currentBulletIds = new Set(this.gameState.bullets.map(b => b.id));
+                for (const bulletId of this.interpolatedBullets.keys()) {
+                    if (!currentBulletIds.has(bulletId)) {
+                        this.interpolatedBullets.delete(bulletId);
+                    }
+                }
+                
+                // Initialize interpolated positions for new bullets
+                this.gameState.bullets.forEach(bullet => {
+                    if (!this.interpolatedBullets.has(bullet.id)) {
+                        this.interpolatedBullets.set(bullet.id, {
+                            x: bullet.x,
+                            y: bullet.y
+                        });
+                    }
+                });
+            }
+        }
+
+        // Get interpolated positions for rendering
+        getInterpolatedPositions(renderTime) {
+            if (!this.previousGameState || !this.gameState) {
+                return {
+                    players: this.gameState?.players || [],
+                    bullets: this.gameState?.bullets || []
+                };
+            }
+
+            // Use render time for more accurate interpolation
+            const currentTime = renderTime || performance.now();
+            const timeSinceUpdate = currentTime - this.lastUpdateTime;
+            const t = Math.min(Math.max(timeSinceUpdate / this.interpolationTime, 0.0), 1.0);
+            
+            if (t > 1.0 && timeSinceUpdate > this.interpolationTime * 2) {
+                // If we haven't received an update in a long time, don't interpolate
+                return {
+                    players: this.gameState?.players || [],
+                    bullets: this.gameState?.bullets || []
+                };
+            }
+
+            // Interpolate player positions
+            const interpolatedPlayers = [];
+            if (this.gameState.players) {
+                this.gameState.players.forEach(currentPlayer => {
+                    const previousPlayer = this.previousGameState?.players?.find(p => p.id === currentPlayer.id);
+                    
+                    if (previousPlayer && !currentPlayer.dead && !previousPlayer.dead) {
+                        // Check if player teleported/respawned (distance too large for normal movement)
+                        const distance = Math.sqrt(
+                            Math.pow(currentPlayer.x - previousPlayer.x, 2) + 
+                            Math.pow(currentPlayer.y - previousPlayer.y, 2)
+                        );
+                        const maxReasonableDistance = 100; // Adjust based on game mechanics
+                        
+                        if (distance > maxReasonableDistance) {
+                            // Player likely teleported, don't interpolate
+                            interpolatedPlayers.push(currentPlayer);
+                            this.interpolatedPlayers.set(currentPlayer.id, {
+                                x: currentPlayer.x,
+                                y: currentPlayer.y,
+                                mouseX: currentPlayer.mouseX,
+                                mouseY: currentPlayer.mouseY
+                            });
+                        } else {
+                            // Normal movement, interpolate
+                            const interpolatedPlayer = { ...currentPlayer };
+                            interpolatedPlayer.x = this.lerp(previousPlayer.x, currentPlayer.x, t);
+                            interpolatedPlayer.y = this.lerp(previousPlayer.y, currentPlayer.y, t);
+                            
+                            // Don't interpolate mouse position for local player (use live position)
+                            if (currentPlayer.id !== this.playerId) {
+                                interpolatedPlayer.mouseX = this.lerp(previousPlayer.mouseX, currentPlayer.mouseX, t);
+                                interpolatedPlayer.mouseY = this.lerp(previousPlayer.mouseY, currentPlayer.mouseY, t);
+                            }
+                            
+                            interpolatedPlayers.push(interpolatedPlayer);
+                            
+                            // Update stored interpolated position
+                            this.interpolatedPlayers.set(currentPlayer.id, {
+                                x: interpolatedPlayer.x,
+                                y: interpolatedPlayer.y,
+                                mouseX: interpolatedPlayer.mouseX,
+                                mouseY: interpolatedPlayer.mouseY
+                            });
+                        }
+                    } else {
+                        // No previous position, player just respawned, or player is dead - use current position
+                        interpolatedPlayers.push(currentPlayer);
+                        this.interpolatedPlayers.set(currentPlayer.id, {
+                            x: currentPlayer.x,
+                            y: currentPlayer.y,
+                            mouseX: currentPlayer.mouseX,
+                            mouseY: currentPlayer.mouseY
+                        });
+                    }
+                });
+            }
+
+            // Interpolate bullet positions using ID-based tracking
+            const interpolatedBullets = [];
+            if (this.gameState.bullets) {
+                this.gameState.bullets.forEach(currentBullet => {
+                    const previousBullet = this.previousGameState?.bullets?.find(b => b.id === currentBullet.id);
+                    
+                    if (previousBullet) {
+                        // Create interpolated bullet
+                        const interpolatedBullet = { ...currentBullet };
+                        interpolatedBullet.x = this.lerp(previousBullet.x, currentBullet.x, t);
+                        interpolatedBullet.y = this.lerp(previousBullet.y, currentBullet.y, t);
+                        interpolatedBullets.push(interpolatedBullet);
+                        
+                        // Update stored interpolated position
+                        this.interpolatedBullets.set(currentBullet.id, {
+                            x: interpolatedBullet.x,
+                            y: interpolatedBullet.y
+                        });
+                    } else {
+                        // New bullet, use current position
+                        interpolatedBullets.push(currentBullet);
+                        this.interpolatedBullets.set(currentBullet.id, {
+                            x: currentBullet.x,
+                            y: currentBullet.y
+                        });
+                    }
+                });
+            }
+
+            return {
+                players: interpolatedPlayers,
+                bullets: interpolatedBullets
+            };
         }
 
         connect() {
@@ -593,15 +778,9 @@
             };
 
             this.ws.onmessage = (event) => {
-                let data;
-                // Check if the data is binary (ArrayBuffer) or text (String)
-                if (event.data instanceof ArrayBuffer) {
-                    // Decode the MessagePack payload
-                    data = this.decoder.decode(event.data);
-                } else {
-                    // Fallback for text-based messages like welcome, pong, etc.
-                    data = JSON.parse(event.data);
-                }
+                const textDecoder = new TextDecoder();
+                const jsonString = textDecoder.decode(event.data);
+                let data = JSON.parse(jsonString);
 
                 if (data.type === 'pong') {
                     this.latency = Date.now() - this.pingStartTime;
@@ -630,7 +809,10 @@
                     const event = data.event;
                     this.gameEvents.push(event);
                 } else {
-                    this.gameState = data;
+                    // Use interpolation system for game state updates
+                    this.updateInterpolation(data);
+                    this.localPlayer = data.players.find(p => p.id === this.playerId);
+                    this.isLocalPlayerDead = this.localPlayer && this.localPlayer.dead;
                     this.uiManager.update(this.gameState);
                 }
             };
@@ -639,6 +821,7 @@
                 document.getElementById('status').textContent = 'Disconnected';
                 document.getElementById('status').style.color = '#F44336';
                 this.resetGameState();
+                // Keep render loop running to show disconnected state
             };
 
             this.ws.onerror = (error) => {
@@ -678,6 +861,8 @@
                 this.keys = {};
                 this.mouse.down = false;
             });
+
+            this.canvas.addEventListener('dragstart', (e) => e.preventDefault());
 
             document.getElementById('playerNameInput').addEventListener('change', () => {
                 this.sendConfigChange();
@@ -775,13 +960,12 @@
 
                 input.shooting = this.gamepad.buttons[7] && this.gamepad.buttons[7].value > 0.5;
                 input.reload = this.gamepad.buttons[2] && this.gamepad.buttons[2].pressed;
-                input.placingObstacle = this.gamepad.buttons[0] && this.gamepad.buttons[0].pressed; // A button
+                input.placingObstacle = this.gamepad.buttons[5] && this.gamepad.buttons[5].pressed; // R1/RB button
 
                 const swapButtonPressed = this.gamepad.buttons[3] && this.gamepad.buttons[3].pressed; // Y or Triangle
                 if (swapButtonPressed && !this.gamepadWeaponSwapPressed) {
-                    const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
-                    if (localPlayer && localPlayer.weapon && this.weaponNames.length > 0) {
-                        const currentWeaponName = localPlayer.weapon.name;
+                    if (this.localPlayer && this.localPlayer.weapon && this.weaponNames.length > 0) {
+                        const currentWeaponName = this.localPlayer.weapon.name;
                         const currentIndex = this.weaponNames.indexOf(currentWeaponName);
                         if (currentIndex !== -1) {
                             const nextIndex = (currentIndex + 1) % this.weaponNames.length;
@@ -797,10 +981,9 @@
                     this.gamepadAim.y = rightStickY / aimMagnitude;
                 }
 
-                const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
-                if (localPlayer) {
-                    const playerCenterX = localPlayer.x + 10;
-                    const playerCenterY = localPlayer.y + 10;
+                if (this.localPlayer) {
+                    const playerCenterX = this.localPlayer.x + 10;
+                    const playerCenterY = this.localPlayer.y + 10;
                     input.mouseX = playerCenterX + this.gamepadAim.x * 100;
                     input.mouseY = playerCenterY + this.gamepadAim.y * 100;
                 }
@@ -822,7 +1005,7 @@
                 input.mouseX = this.mouse.x;
                 input.mouseY = this.mouse.y;
                 input.reload = !!this.keys['KeyR'];
-                input.placingObstacle = !!this.keys['KeyB'];
+                input.placingObstacle = !!this.keys['KeyE'];
             }
             this.ws.send(JSON.stringify(input));
         }
@@ -939,43 +1122,32 @@
             console.log("Pre-rendered static background.");
         }
 
-        render() {
+        render(currentTime) {
             if (this.backgroundNeedsRedraw && this.gameState.info) {                this.preRenderBackground();
                 this.backgroundNeedsRedraw = false;
             }
 
             this.ctx.drawImage(this.backgroundCanvas, 0, 0);
 
-            if (this.gameState.deathMarkers) {
-                this.ctx.strokeStyle = 'rgba(200, 0, 0, 0.6)';
-                this.ctx.lineWidth = 3;
-                const markerSize = 10;
-
-                this.gameState.deathMarkers.forEach(marker => {
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(marker.x - markerSize, marker.y - markerSize);
-                    this.ctx.lineTo(marker.x + markerSize, marker.y + markerSize);
-                    this.ctx.stroke();
-
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(marker.x + markerSize, marker.y - markerSize);
-                    this.ctx.lineTo(marker.x - markerSize, marker.y + markerSize);
-                    this.ctx.stroke();
-                });
-            }
-
             this.drawPowerUps();
             this.drawCrates();
             this.drawExplosions();
             this.drawPoisonClouds();
+            this.drawTurrets();
 
+            // Get interpolated positions for smooth rendering
+            const interpolated = this.getInterpolatedPositions(currentTime);
+            
+            // Store interpolation factor for debug display
+            this.lastInterpolationFactor = this.lastUpdateTime ? 
+                Math.min(Math.max((currentTime - this.lastUpdateTime) / this.interpolationTime, 0.0), 1.0) : 0;
 
-            this.gameState.players.forEach(player => {
+            interpolated.players.forEach(player => {
                 this.drawPlayer(player);
             });
 
-            if (this.gameState.bullets) {
-                this.gameState.bullets.forEach(bullet => {
+            if (interpolated.bullets) {
+                interpolated.bullets.forEach(bullet => {
                     this.ctx.fillStyle = bullet.team === 1 ? '#81C784' : '#E57373';
                     this.ctx.beginPath();
                     this.ctx.arc(bullet.x, bullet.y, 3, 0, 2 * Math.PI);
@@ -989,8 +1161,7 @@
             const aimMagnitude = Math.sqrt(rightStickX * rightStickX + rightStickY * rightStickY);
 
             if (!this.isSpectator && this.isGamepadActive && aimMagnitude > deadzone) {
-                const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
-                if (localPlayer) {
+                if (this.localPlayer && !this.localPlayer.dead) {
                     // Get the normalized direction of the stick
                     const aimDirX = rightStickX / aimMagnitude;
                     const aimDirY = rightStickY / aimMagnitude;
@@ -1001,8 +1172,8 @@
                     // This makes the crosshair appear close for small movements and move further out for larger ones.
                     const crosshairDist = 40 + (effectiveMagnitude * 60);
 
-                    const playerCenterX = localPlayer.x + 10;
-                    const playerCenterY = localPlayer.y + 10;
+                    const playerCenterX = this.localPlayer.x + 10;
+                    const playerCenterY = this.localPlayer.y + 10;
 
                     const crosshairX = playerCenterX + aimDirX * crosshairDist;
                     const crosshairY = playerCenterY + aimDirY * crosshairDist;
@@ -1027,10 +1198,16 @@
                 this.ctx.stroke();
             }
 
+            this.drawHill();
+            this.drawFlags();
+            this.drawOddball();
+            this.drawPayload();
+            this.drawGameEvents();
+            this.drawDebugInfo(currentTime);
+
             if (this.isLocalPlayerDead && this.shouldDrawRespawnOverlay) {
-                const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
-                if (localPlayer && localPlayer.respawnTime && this.gameState.serverTime > 0) {
-                    const remainingTime = Math.max(0, (localPlayer.respawnTime - this.gameState.serverTime) / 1000);
+                if (this.localPlayer && this.localPlayer.respawnTime && this.gameState.serverTime > 0) {
+                    const remainingTime = Math.max(0, (this.localPlayer.respawnTime - this.gameState.serverTime) / 1000);
                     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
                     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                     this.ctx.fillStyle = 'white';
@@ -1040,13 +1217,6 @@
                     this.ctx.fillText(`Respawning in ${remainingTime.toFixed(1)}s`, this.canvas.width / 2, this.canvas.height / 2);
                 }
             }
-
-            this.drawHill();
-            this.drawFlags();
-            this.drawOddball();
-            this.drawPayload();
-            this.drawLoneWolfHud();
-            this.drawGameEvents();
         }
 
         drawPowerUps() {
@@ -1058,9 +1228,9 @@
             this.ctx.textBaseline = 'middle';
 
             this.gameState.powerUps.forEach(powerUp => {
-                const size = 20;
-                const centerX = powerUp.position.x + size / 2;
-                const centerY = powerUp.position.y + size / 2;
+                const size = 15;
+                const centerX = powerUp.position.x;
+                const centerY = powerUp.position.y;
 
                 this.ctx.globalAlpha = 0.8;
                 this.ctx.beginPath();
@@ -1089,7 +1259,7 @@
 
                 this.ctx.globalAlpha = 1.0;
                 if (icon) {
-                    this.ctx.fillText(icon, centerX, centerY);
+                    this.ctx.fillText(icon, centerX, centerY + 2);
                 }
             });
 
@@ -1143,12 +1313,13 @@
                 const now = this.gameState.serverTime;
                 if (!now) return; // Don't draw if we don't have a server time yet
 
-                const age = now - explosion.creationTime;
-                const lifetime = explosion.duration;
+                // TODO: better math that doesn't rely on lifetime
+                const lifetime = 300; // All explosions last for .3 seconds.
+                const timeRemaining = explosion.expiration - now;
 
-                if (age < 0 || age > lifetime) return;
+                if (timeRemaining < 0 || timeRemaining > lifetime) return;
 
-                const progress = age / lifetime; // 0.0 to 1.0
+                const progress = 1 - (timeRemaining / lifetime); // 0.0 to 1.0
 
                 // Animate the radius to expand quickly
                 const peakTime = 0.3; // Time to reach max size
@@ -1184,12 +1355,13 @@
                 const now = this.gameState.serverTime;
                 if (!now) return;
 
-                const age = now - cloud.creationTime;
-                const lifetime = cloud.duration;
+                // TODO: better math that doesn't rely on lifetime
+                const lifetime = 5000; // All poison clouds last for 5 seconds.
+                const timeRemaining = cloud.expiration - now;
 
-                if (age < 0 || age > lifetime) return;
+                if (timeRemaining < 0 || timeRemaining > lifetime) return;
 
-                const progress = age / lifetime; // 0.0 to 1.0
+                const progress = 1 - (timeRemaining / lifetime); // 0.0 to 1.0
 
                 // Let the cloud expand to full size then linger
                 const expandTime = 0.2; // 20% of lifetime to expand
@@ -1211,6 +1383,70 @@
                 this.ctx.beginPath();
                 this.ctx.arc(cloud.x, cloud.y, currentRadius, 0, 2 * Math.PI);
                 this.ctx.fill();
+            });
+            this.ctx.restore();
+        }
+
+        drawTurrets() {
+            if (!this.gameState.turrets) return;
+
+            this.ctx.save();
+            this.gameState.turrets.forEach(turret => {
+                const turretX = turret.x;
+                const turretY = turret.y;
+                const turretRadius = turret.radius;
+
+                this.ctx.save();
+                this.ctx.translate(turretX, turretY);
+
+                // Draw tripod legs
+                this.ctx.strokeStyle = '#616161'; // Dark grey
+                this.ctx.lineWidth = 4;
+                for (let i = 0; i < 3; i++) {
+                    const legAngle = (i * 2 * Math.PI / 3) + Math.PI / 2;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, 0);
+                    this.ctx.lineTo(Math.cos(legAngle) * turretRadius, Math.sin(legAngle) * turretRadius);
+                    this.ctx.stroke();
+                }
+
+                // Draw base with team color
+                const teamColor = turret.team === 1 ? '#4CAF50' : '#F44336';
+                const darkTeamColor = turret.team === 1 ? '#2E7D32' : '#C62828';
+                this.ctx.fillStyle = teamColor;
+                this.ctx.strokeStyle = darkTeamColor;
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(0, 0, turretRadius * 0.6, 0, 2 * Math.PI);
+                this.ctx.fill();
+                this.ctx.stroke();
+
+                // Draw rotating barrel
+                this.ctx.rotate(turret.angle);
+                this.ctx.fillStyle = '#424242'; // Darker grey for barrel
+                this.ctx.strokeStyle = '#212121';
+                this.ctx.lineWidth = 1;
+                this.ctx.fillRect(0, -4, turretRadius * 1.2, 8);
+                this.ctx.strokeRect(0, -4, turretRadius * 1.2, 8);
+
+                this.ctx.restore(); // Restore from translate/rotate
+
+                // Draw health bar
+                if (turret.hp < turret.maxHp) {
+                    const healthPercentage = Math.max(0, turret.hp / turret.maxHp);
+                    const barWidth = turretRadius * 2;
+                    const barHeight = 5;
+                    const barX = turretX - turretRadius;
+                    const barY = turretY - turretRadius - 15;
+
+                    this.ctx.fillStyle = '#333';
+                    this.ctx.fillRect(barX, barY, barWidth, barHeight);
+                    this.ctx.fillStyle = healthPercentage > 0.5 ? '#4CAF50' : (healthPercentage > 0.2 ? '#FFC107' : '#F44336');
+                    this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
+                    this.ctx.strokeStyle = '#111';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+                }
             });
             this.ctx.restore();
         }
@@ -1267,20 +1503,6 @@
             this.ctx.restore();
         }
 
-        drawFlags() {
-            const gameInfo = this.gameState.info;
-            if (!gameInfo || gameInfo.type !== 'Capture the Flag') {
-                return;
-            }
-
-            if (gameInfo.team1Flag) {
-                this.drawSingleFlag(gameInfo.team1Flag);
-            }
-            if (gameInfo.team2Flag) {
-                this.drawSingleFlag(gameInfo.team2Flag);
-            }
-        }
-
         drawOddball() {
             const gameInfo = this.gameState.info;
             if (!gameInfo || gameInfo.type !== 'Oddball' || !gameInfo.oddball) {
@@ -1321,6 +1543,20 @@
             }
 
             this.ctx.restore();
+        }
+
+        drawFlags() {
+            const gameInfo = this.gameState.info;
+            if (!gameInfo || gameInfo.type !== 'Capture the Flag') {
+                return;
+            }
+
+            if (gameInfo.team1Flag) {
+                this.drawSingleFlag(gameInfo.team1Flag);
+            }
+            if (gameInfo.team2Flag) {
+                this.drawSingleFlag(gameInfo.team2Flag);
+            }
         }
 
         drawSingleFlag(flag) {
@@ -1491,13 +1727,28 @@
 
         drawPlayer(player) {
             if (player.dead) {
+                this.ctx.save();
+                this.ctx.strokeStyle = 'rgba(200, 0, 0, 0.6)';
+                this.ctx.lineWidth = 3;
+                const markerSize = 10;
+                // draw death marker
+                this.ctx.beginPath();
+                this.ctx.moveTo(player.x - markerSize, player.y - markerSize);
+                this.ctx.lineTo(player.x + markerSize, player.y + markerSize);
+                this.ctx.stroke();
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(player.x + markerSize, player.y - markerSize);
+                this.ctx.lineTo(player.x - markerSize, player.y + markerSize);
+                this.ctx.stroke();
+                this.ctx.restore();
                 return;
             }
 
             const myself = player.id === this.playerId;
             const playerSize = 20;
-            const playerCenterX = player.x + playerSize / 2;
-            const playerCenterY = player.y + playerSize / 2;
+            const playerCenterX = player.x;
+            const playerCenterY = player.y;
 
             // --- Add respawn ping effect ---
             const PING_DURATION = 1000;
@@ -1518,6 +1769,14 @@
                     this.ctx.stroke();
                     this.ctx.restore();
                 }
+            } else if(myself) {
+                this.ctx.save();
+                this.ctx.strokeStyle = `rgba(255, 215, 0, 0.5)`; // Gold, fading out
+                this.ctx.lineWidth = 3;
+                this.ctx.beginPath();
+                this.ctx.arc(playerCenterX, playerCenterY, 20, 0, 2 * Math.PI);
+                this.ctx.stroke();
+                this.ctx.restore();
             }
 
             this.ctx.fillStyle = player.team === 1 ? '#4CAF50' : '#F44336';
@@ -1543,32 +1802,25 @@
             }
             this.ctx.rotate(angle);
 
+            // --- Draw Weapon ---
             this.ctx.fillStyle = '#9E9E9E';
             this.ctx.strokeStyle = '#616161';
             this.ctx.lineWidth = 1;
-            this.ctx.fillRect(0, -3, 15, 6);
-            this.ctx.strokeRect(0, -3, 15, 6);
+            // Draw the weapon extending slightly from the player's center
+            this.ctx.fillRect(3, -3, 13, 6);
+            this.ctx.strokeRect(3, -3, 13, 6);
             this.ctx.restore();
 
             const gameInfo = this.gameState.info;
             if (gameInfo && gameInfo.type === 'Capture the Flag') {
                 const enemyFlag = player.team === 1 ? gameInfo.team2Flag : gameInfo.team1Flag;
                 if (enemyFlag && enemyFlag.state === 'CARRIED' && enemyFlag.carrierId === player.id) {
-                    const flagColor = player.team === 1 ? '#F44336' : '#4CAF50';
                     this.ctx.save();
-                    this.ctx.translate(playerCenterX, player.y - 35);
-
-                    this.ctx.strokeStyle = '#333';
-                    this.ctx.lineWidth = 1;
-                    this.ctx.fillStyle = flagColor;
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(0, 0);
-                    this.ctx.lineTo(12, -6);
-                    this.ctx.lineTo(0, -12);
-                    this.ctx.closePath();
-                    this.ctx.fill();
-                    this.ctx.stroke();
-
+                    this.ctx.font = '18px Arial';
+                    this.ctx.textAlign = 'center';
+                    // Use red flag for team 1 and green flag for team 2
+                    const flagEmoji = player.team === 1 ? '🔴🚩' : '🟢🚩';
+                    this.ctx.fillText(flagEmoji, playerCenterX, player.y - 30);
                     this.ctx.restore();
                 }
             }
@@ -1577,16 +1829,9 @@
                 const oddball = gameInfo.oddball;
                 if (oddball.state === 'CARRIED' && oddball.carrierId === player.id) {
                     this.ctx.save();
-                    this.ctx.translate(playerCenterX, player.y - 35);
-
-                    this.ctx.fillStyle = '#FFD700';
-                    this.ctx.strokeStyle = 'white';
-                    this.ctx.lineWidth = 1;
-                    this.ctx.beginPath();
-                    this.ctx.arc(0, 0, 8, 0, 2 * Math.PI);
-                    this.ctx.fill();
-                    this.ctx.stroke();
-
+                    this.ctx.font = '18px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('🔆', playerCenterX, player.y - 30);
                     this.ctx.restore();
                 }
             }
@@ -1594,7 +1839,7 @@
             if (gameInfo && gameInfo.type === 'Juggernaut'
                     && (gameInfo.team1Juggernaut === player.id || gameInfo.team2Juggernaut == player.id)) {
                 this.ctx.save();
-                this.ctx.font = '24px Arial';
+                this.ctx.font = '18px Arial';
                 this.ctx.textAlign = 'center';
                 this.ctx.fillText('👑', playerCenterX, player.y - 30);
                 this.ctx.restore();
@@ -1632,7 +1877,7 @@
             }
 
             const maxHealth = player.maxHealth || 100;
-            const healthPercentage = Math.max(0, player.currentHealth / maxHealth);
+            const healthPercentage = Math.max(0, player.hp / maxHealth);
             const healthBarRadius = playerSize / 2 + 4;
             const healthBarThickness = 3;
 
@@ -1700,48 +1945,82 @@
             this.ctx.restore();
         }
 
-        drawLoneWolfHud() {
-            const gameInfo = this.gameState.info;
-            if (!gameInfo || gameInfo.type !== 'LoneWolfManager' || !gameInfo.gameModeMetadata) {
-                return;
+        drawDebugInfo(currentTime) {
+            // Optional FPS display (can be toggled with a key)
+            if (this.keys['F3'] || localStorage.getItem('showFPS') === 'true') {
+                this.ctx.save();
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                this.ctx.fillRect(10, this.canvas.height - 95, 200, 85);
+                
+                this.ctx.fillStyle = '#00FF00';
+                this.ctx.font = '14px monospace';
+                this.ctx.textAlign = 'left';
+                this.ctx.textBaseline = 'top';
+                
+                const timeSinceLastUpdate = this.lastUpdateTime ? (currentTime - this.lastUpdateTime) : 0;
+                
+                this.ctx.fillText(`FPS: ${this.fps}`, 15, this.canvas.height - 90);
+                this.ctx.fillText(`Ping: ${this.latency}ms`, 15, this.canvas.height - 75);
+                this.ctx.fillText(`Last Update: ${timeSinceLastUpdate.toFixed(0)}ms ago`, 15, this.canvas.height - 60);
+                this.ctx.fillText(`Interp Factor: ${(this.lastInterpolationFactor || 0).toFixed(2)}`, 15, this.canvas.height - 45);
+                this.ctx.fillText(`Players: ${this.gameState?.players?.length || 0}`, 15, this.canvas.height - 30);
+                this.ctx.fillText(`Bullets: ${this.gameState?.bullets?.length || 0}`, 15, this.canvas.height - 15);
+                
+                this.ctx.restore();
             }
-
-            const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
-            if (!localPlayer || localPlayer.team !== 1) { // Only show for the Lone Wolf
-                return;
-            }
-
-            const targets = gameInfo.gameModeMetadata.hunterTargets || [];
-            if (targets.length === 0) {
-                return;
-            }
-
-            this.ctx.save();
-            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            this.ctx.font = '16px Arial';
-            this.ctx.textAlign = 'left';
-            this.ctx.textBaseline = 'top';
-            this.ctx.shadowColor = 'black';
-            this.ctx.shadowBlur = 3;
-
-            this.ctx.fillText('Remaining Targets:', 10, 50);
-
-            this.ctx.font = '14px Arial';
-            targets.forEach((name, index) => {
-                this.ctx.fillText(`- ${name}`, 15, 75 + (index * 20));
-            });
-
-            this.ctx.restore();
         }
 
         startGameLoop() {
+            // Start input sending loop (20 Hz)
             setInterval(() => this.sendInput(), 50);
-            const renderLoop = () => {
-                this.pollGamepad();
-                this.render();
+            
+            // Start independent render loop
+            this.startRenderLoop();
+        }
+        
+        startRenderLoop() {
+            if (this.isRenderLoopRunning) {
+                return;
+            }
+            
+            this.isRenderLoopRunning = true;
+            this.lastFrameTime = performance.now();
+            this.lastFpsTime = this.lastFrameTime;
+            
+            const renderLoop = (currentTime) => {
+                if (!this.isRenderLoopRunning) return;
+                
+                // Calculate frame timing
+                const deltaTime = currentTime - this.lastFrameTime;
+                this.lastFrameTime = currentTime;
+                
+                // Update FPS counter
+                this.frameCount++;
+                if (currentTime - this.lastFpsTime >= 1000) {
+                    this.fps = Math.round((this.frameCount * 1000) / (currentTime - this.lastFpsTime));
+                    this.frameCount = 0;
+                    this.lastFpsTime = currentTime;
+                }
+                
+                // Update game systems independent of network
+                this.update(deltaTime);
+                
+                // Render frame
+                this.render(currentTime);
+                
+                // Schedule next frame
                 requestAnimationFrame(renderLoop);
             };
-            renderLoop();
+            
+            renderLoop(this.lastFrameTime);
+        }
+        
+        stopRenderLoop() {
+            this.isRenderLoopRunning = false;
+        }
+        
+        update(deltaTime) {
+            this.pollGamepad();
         }
     }
 

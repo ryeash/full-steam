@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Game Lobby</title>
+    <title>Full Steam Game Lobby</title>
     <style>
         body {
             margin: 0;
@@ -93,7 +93,7 @@
 
     <div id="player-count">Global Players: 0/0</div>
 
-    <h2>Create a New Game</h2>
+    <h2>Join or Create Game</h2>
     <div id="create-buttons">
         <!-- "Create Game" buttons will be populated by JavaScript -->
     </div>
@@ -104,7 +104,7 @@
     </ul>
 </div>
 
-<script>
+<script type="text/javascript">
     const gamesList = document.getElementById('games-list');
     const createButtons = document.getElementById('create-buttons');
     const playerCount = document.getElementById('player-count');
@@ -130,7 +130,7 @@
         if (lobbyInfo.gameTypes) {
             lobbyInfo.gameTypes.forEach(gameType => {
                 const button = document.createElement('button');
-                button.textContent = `Create ${(gameType || '').replace('Manager', '')}`;
+                button.textContent = `${gameType}`;
                 button.onclick = () => createGame(gameType);
                 createButtons.appendChild(button);
             });
@@ -153,7 +153,7 @@
 
                 listItem.innerHTML = `
                     <div>
-                        <span><b>${(game.gameType || '').replace('Manager', '')}</b></span>
+                        <span><b>${game.gameType}</b></span>
                         <span>Players: ${game.playerCount} / ${game.maxPlayers}</span>
                         <span style="font-size: 0.8em; color: #aaa;">ID: ${game.gameId}</span>
                     </div>

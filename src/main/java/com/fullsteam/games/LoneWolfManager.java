@@ -5,32 +5,27 @@ import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
-import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
-import com.fullsteam.model.ai.DeathmatchAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.LoneWolfInfo;
 import io.netty.channel.Channel;
 
-import java.util.UUID;
+import java.util.Objects;
 
 import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
+import static com.fullsteam.Config.RESPAWN_IMMUNITY_DURATION;
 
+@GameName("Lone Wolf")
 public class LoneWolfManager extends AbstractGameStateManager {
 
     private static final long AI_FILL_CHECK_INTERVAL_MS = 5000; // 5 seconds
     private long lastAIFillCheckTime = 0;
 
-    private String loneWolfId;
+    private Long loneWolfId;
     private int loneWolfDeaths = 0;
 
     public LoneWolfManager(GameLobby gameLobby) {
         super(gameLobby);
-    }
-
-    @Override
-    public String gameType() {
-        return "Lone Wolf";
     }
 
     @Override
@@ -49,8 +44,8 @@ public class LoneWolfManager extends AbstractGameStateManager {
     }
 
     @Override
-    protected void updateGame() {
-        super.updateGame();
+    protected void updateGame(long delta) {
+        super.updateGame(delta);
         long currentTime = System.currentTimeMillis();
         if ((currentTime - lastAIFillCheckTime) > AI_FILL_CHECK_INTERVAL_MS) {
             balanceTeams();
@@ -85,17 +80,13 @@ public class LoneWolfManager extends AbstractGameStateManager {
     }
 
     @Override
-    public void addAIPlayer(int team) {
-        String playerId = "ai-" + UUID.randomUUID();
+    public AIPlayer addAIPlayer(int team) {
         // All AI in this mode are hunters with a deathmatch strategy
-        AIPlayer player = new AIPlayer(playerId, 0, 0, 2, new DeathmatchAIStrategy(), AIArchetype.randomArchetype());
-        setValidSpawnPosition(player);
-        players.put(playerId, player);
-        log.info("AI Hunter {} joined at position ({}, {})", playerId, player.getX(), player.getY());
+        return super.addAIPlayer(2);
     }
 
     @Override
-    public Player addPlayer(String playerId, Channel channel) {
+    public Player addPlayer(long playerId, Channel channel) {
         Player player;
         // The first player to join is the Lone Wolf
         if (loneWolfId == null) {
@@ -115,7 +106,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
     }
 
     @Override
-    public void handlePlayerConfigChange(String playerId, PlayerConfigRequest request) {
+    public void handlePlayerConfigChange(Long playerId, PlayerConfigRequest request) {
         Player player = players.get(playerId);
         if (player != null && request.isRequestTeamChange()) {
             if (player.getTeam() == 1) {
@@ -132,7 +123,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
     protected void killPlayer(Player victim, Player shooter) {
         super.killPlayer(victim, shooter); // Handle basic kill logic first
 
-        if (victim.getId().equals(loneWolfId)) {
+        if (Objects.equals(victim.getId(), loneWolfId)) {
             loneWolfDeaths++;
             Player loneWolf = players.get(loneWolfId);
             if (loneWolf != null && loneWolfDeaths < Config.LONE_WOLF_LIVES) {
@@ -140,9 +131,15 @@ public class LoneWolfManager extends AbstractGameStateManager {
                 loneWolf.setDamageMultiplier(newDamageMultiplier);
                 loneWolf.setDamageBoostEndTime(Long.MAX_VALUE);
                 sendGameEvent(GameEvent.red("The Lone Wolf grows stronger! Damage is now " + (int) (newDamageMultiplier * 100) + "%."));
-                schedule(super::checkAndRespawnPlayers, Config.RESPAWN_DELAY_MS);
+                for (Player player : players.values()) {
+                    player.setDead(false);
+                    player.resetHp();
+                    player.finishReload();
+                    player.applyArmorUp(RESPAWN_IMMUNITY_DURATION);
+                    setValidSpawnPosition(player);
+                }
             }
-        } else if (shooter != null && shooter.getId().equals(loneWolfId)) {
+        } else if (shooter != null && Objects.equals(shooter.getId(), loneWolfId)) {
             // A hunter was killed by the lone wolf
             sendGameEvent(GameEvent.green("The Lone Wolf has eliminated " + victim.getPlayerName()));
         }
@@ -180,7 +177,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
                 Player player = players.get(loneWolfId);
                 if (player != null) {
                     player.setDamageBoostEndTime(0);
-                    player.setMaxHealth(Config.DEFAULT_PLAYER_HEALTH);
+                    player.setMaxHp(Config.DEFAULT_PLAYER_HEALTH);
                     player.setTeam(2);
                 }
             }
@@ -193,7 +190,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
     protected void resetDamageMultiplier(Player player) {
         // The Lone Wolf's damage multiplier is persistent and managed separately.
         // We only reset the multiplier for the Hunters.
-        if (!player.getId().equals(loneWolfId)) {
+        if (!Objects.equals(player.getId(), loneWolfId)) {
             player.setDamageMultiplier(1.0);
         }
     }
@@ -212,10 +209,10 @@ public class LoneWolfManager extends AbstractGameStateManager {
         Player player = players.get(loneWolfId);
         if (player != null) {
             player.setTeam(1);
-            player.setMaxHealth(Config.DEFAULT_PLAYER_HEALTH * Config.LONE_WOLF_HEALTH_MULTIPLIER);
+            player.setMaxHp(Config.DEFAULT_PLAYER_HEALTH * Config.LONE_WOLF_HEALTH_MULTIPLIER);
             player.setDamageMultiplier(1 + (loneWolfDeaths * Config.LONE_WOLF_DAMAGE_BOOST_PER_DEATH));
             player.setDamageBoostEndTime(Long.MAX_VALUE);
-            player.resetHealth();
+            player.resetHp();
             sendGameEvent(GameEvent.red(player.getPlayerName() + " is the Lone Wolf!"));
         }
     }

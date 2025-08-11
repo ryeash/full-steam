@@ -34,47 +34,57 @@ public class Config {
     // global ID assignment
     public static final AtomicLong ID_COUNTER = new AtomicLong();
 
-
     // --- Server Configuration ---
     public static final int PORT = getInt("server.port", 8080);
 
     // AI
+    public static final long AI_DECISION_COOLDOWN_MS = getLong("ai.decision_cooldown_ms", 800);
     public static final double VISION_RANGE = getDouble("ai.vision_range", 450.0);
     public static final long WANDER_DIRECTION_CHANGE_INTERVAL = getLong("ai.wander_interval_ms", 2000); // ms
     public static final long BASE_REACTION_TIME_MS = getLong("ai.base_reaction_ms", 600);
-    public static final double BASE_AIM_INACCURACY_RADIANS = getDouble("ai.base_aim_inaccuracy", 0.1);
+    public static final double BASE_AIM_INACCURACY_RADIANS = getDouble("ai.base_aim_inaccuracy", 0.2);
     public static final long BASE_STRAFE_INTERVAL_MS = getLong("ai.base_strafe_interval_ms", 1500);
-    public static final double AI_MAX_FORCE = getDouble("ai.max_force", 0.2); // The maximum steering force, controls turning ability
+    public static final double AI_MAX_FORCE = getDouble("ai.max_force", 0.25); // The maximum steering force, controls turning ability
 
     // Lobby
     public static final long CLEANUP_INTERVAL_SECONDS = getLong("lobby.cleanup_interval_s", 10);
     public static final int MAX_GLOBAL_PLAYERS = getInt("lobby.max_global_players", 50);
+    public static final int MAX_SPECTATORS_PER_GAME = getInt("lobby.max_spectators_per_game", 5);
 
     // Game
     public static final int GAME_WIDTH = getInt("game.width", 1000);
     public static final int GAME_HEIGHT = getInt("game.height", 800);
-    public static final int TICK_RATE = getInt("game.tick_rate", 60);
-    public static final int OBSTACLE_COUNT = getInt("game.obstacle_count", 8);
-    public static final long DEATH_MARKER_DURATION_MS = getLong("game.death_marker_duration_ms", 5000); // Marker lasts 5 seconds
+    public static final int TICK_RATE = getInt("game.tick_rate", 30);
+    public static final boolean ALLOW_NAME_CHANGE = getProp("game.allow_name_change", true, Boolean::valueOf);
+    public static final int OBSTACLE_COUNT = getInt("game.obstacle_count", 6);
     public static final long GAME_EVENT_DURATION_MS = getLong("game.game_event_duration_ms", 6000); // 4 seconds for events to be on screen
     public static final long NEXT_ROUND_DELAY_MS = getLong("game.next_round_delay_ms", 6000); // 3-second delay between rounds
     public static final long RESPAWN_DELAY_MS = getLong("game.respawn_delay_ms", 5_000);
     public static final double PLAYER_SIZE = getDouble("game.player_size", 20.0);
+    public static final double PLAYER_RADIUS = PLAYER_SIZE / 2;
     public static final double DEFAULT_PLAYER_HEALTH = getDouble("game.default_player_health", 100.0);
-    public static final double DEFAULT_PLAYER_SPEED = getDouble("game.default_player_speed", 3.0);
-    public static final double ZOMBIE_SPEED = getDouble("game.zombie_speed", 1.2); // Slower than players
+    public static final double DEFAULT_PLAYER_SPEED = getDouble("game.default_player_speed", .18);
+    public static final double ZOMBIE_SPEED = getDouble("game.zombie_speed", DEFAULT_PLAYER_SPEED / 2); // Slower than players
     public static final long ROUND_DURATION_SECONDS = getLong("game.round_duration_s", 180);
     public static final long AFK_TIMEOUT_MS = getLong("game.afk_timeout_ms", (ROUND_DURATION_SECONDS * 1000) + 10_000L);
     public static final double SPAWN_HORIZONTAL_PADDING = getDouble("game.spawn_padding_h", 50.0);
     public static final double SPAWN_VERTICAL_PADDING = getDouble("game.spawn_padding_v", 50.0);
-    public static final double SPAWN_MIDFIELD_BUFFER = getDouble("game.spawn_midfield_buffer", 100.0);
+    public static final double SPAWN_MIDFIELD_BUFFER = getDouble("game.spawn_midfield_buffer", 300.0);
     public static final int MAX_PLAYERS_PER_TEAM = getInt("game.max_players_per_team", 5);
     public static final int HAZARD_COUNT = getInt("game.hazard.count", 2);
     public static final double HAZARD_SLOW_FACTOR = getDouble("game.hazard.slow_factor", 0.5); // 50% speed
     public static final double HAZARD_DAMAGE_FACTOR = getDouble("game.hazard.damage_factor", 0.5); // damage per tick;
+    public static final long RESPAWN_IMMUNITY_DURATION = getLong("game.respawn_immunity_duration", 2000);
+    public static final int MAX_TURRETS_PER_PLAYER = getInt("game.max_turrets_per_player", 2);
+    public static final double TURRET_INACCURACY = getDouble("game.turret_inaccuracy", .3);
+
+    // --- Power Ups ---
     public static final double POWER_UP_SPEED_BOOST_FACTOR = getDouble("game.powerup.speed_boost_factor", 1.5);
-    public static final double DAMAGE_BOOST_MULTIPLIER = getDouble("game.powerup.damage_boost_multiplier", 1.5);
-    public static final long RESPAWN_IMMUNITY_DURATION = getLong("game.powerup.damage_boost_multiplier", 1500);
+    public static final double POWER_UP_DAMAGE_BOOST_MULTIPLIER = getDouble("game.powerup.damage_boost_multiplier", 1.5);
+    public static final long POWER_UP_HEALTH_RECOVERY = getLong("game.powerup.health_recovery", 50);
+    public static final long POWER_UP_SPEED_BOOST_DURATION = getLong("game.powerup.speed_boost_duration", 5000);
+    public static final long POWER_UP_ARMOR_UP_DURATION = getLong("game.powerup.armor_up_duration", 3000);
+    public static final long POWER_UP_DAMAGE_BOOST_DURATION = getLong("game.powerup.damage_boost_duration", 5000);
 
     // --- Capture the Flag (CTF) Game Mode ---
     public static final int CTF_SCORE_TO_WIN = getInt("game.ctf.score_to_win", 3);
@@ -110,7 +120,7 @@ public class Config {
     // --- Escort Game Mode ---
     public static final double ESCORT_OBSTACLE_WIDTH = getDouble("game.escort.obstacle_width", 50.0);
     public static final double ESCORT_OBSTACLE_HEIGHT = getDouble("game.escort.obstacle_height", 40.0);
-    public static final double ESCORT_OBSTACLE_SPEED = getDouble("game.escort.obstacle_speed", 1.0);
+    public static final double ESCORT_OBSTACLE_SPEED = getDouble("game.escort.obstacle_speed", .1);
     public static final double ESCORT_PLAYER_PROXIMITY = getDouble("game.escort.player_proximity", 100.0);
 
     // --- Lone Wolf Game Mode ---
@@ -119,6 +129,6 @@ public class Config {
     public static final double LONE_WOLF_DAMAGE_BOOST_PER_DEATH = getDouble("game.lonewolf.damage_boost_per_death", 0.50);
 
     // --- Builder Game Mode ---
-    public static final int BUILDER_MAX_OBSTACLES = getInt("game.builder.max_obstacles", 50);
-    public static final int BUILDER_CRATE_HEALTH = getInt("game.builder.crate_health", 1000);
+    public static final int BUILDER_MAX_OBSTACLES = getInt("game.builder.max_obstacles", 100);
+    public static final int BUILDER_CRATE_HEALTH = getInt("game.builder.crate_health", 300);
 }

@@ -7,6 +7,7 @@ import com.fullsteam.model.gamemodes.CaptureTheFlagInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
 
 import java.util.Collection;
+import java.util.Objects;
 
 public class CaptureTheFlagAIStrategy implements IAIStrategy {
 
@@ -26,7 +27,7 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
         // --- Pre-computation: Get key state information once ---
         Flag myFlag = self.getTeam() == 1 ? ctf.getTeam1Flag() : ctf.getTeam2Flag();
         Flag enemyFlag = self.getTeam() == 1 ? ctf.getTeam2Flag() : ctf.getTeam1Flag();
-        boolean amICarryingFlag = self.getId().equals(enemyFlag.carrierId());
+        boolean amICarryingFlag = Objects.equals(self.getId(), enemyFlag.carrierId());
 
         // --- Universal Priority #1: Handle flag carrier logic ---
         if (handleFlagCarrierLogic(self, allPlayers, myFlag, amICarryingFlag)) {
@@ -75,10 +76,10 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
      * A well-rounded strategy that serves as the default behavior.
      */
     private void runBalancedLogic(AIPlayer self, Collection<Player> allPlayers, Flag myFlag, Flag enemyFlag, boolean amICarryingFlag) {
-        // Priority 1: An enemy is nearby. ATTACK!
-        Player closestEnemy = findClosestEnemy(self, allPlayers);
-        if (closestEnemy != null) {
-            self.setCurrentTarget(closestEnemy);
+        // Priority 1: Hunt enemy flag carrier with extreme prejudice!
+        Player enemyFlagCarrier = findEnemyFlagCarrier(self, allPlayers, enemyFlag);
+        if (enemyFlagCarrier != null) {
+            self.setCurrentTarget(enemyFlagCarrier);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
@@ -102,23 +103,40 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
             return;
         }
 
-        // Priority 4: All is well, wander and defend our flag's general area.
+        // Priority 4: An enemy is nearby and no objectives are available. ATTACK!
+        Player closestEnemy = findClosestEnemy(self, allPlayers);
+        if (closestEnemy != null && isInRange(self, closestEnemy, 400)) { // Only attack if reasonably close
+            self.setCurrentTarget(closestEnemy);
+            self.setCurrentState(AIPlayer.AIState.ATTACKING);
+            return;
+        }
+
+        // Priority 5: All is well, wander and defend our flag's general area.
         self.setCurrentState(AIPlayer.AIState.WANDERING);
         self.setObjectiveTargetPoint(myFlag.basePosition());
     }
 
     /**
-     * Warrior: Always seeks combat first, plays the objective second.
+     * Warrior: Prioritizes hunting flag carriers, then general combat, then objectives.
      */
     private void prioritizeCombat(AIPlayer self, Collection<Player> allPlayers, Flag myFlag, Flag enemyFlag, boolean amICarryingFlag) {
-        // The Warrior's #1 priority is always to fight.
+        // Even warriors prioritize hunting enemy flag carriers
+        Player enemyFlagCarrier = findEnemyFlagCarrier(self, allPlayers, enemyFlag);
+        if (enemyFlagCarrier != null) {
+            self.setCurrentTarget(enemyFlagCarrier);
+            self.setCurrentState(AIPlayer.AIState.ATTACKING);
+            return;
+        }
+
+        // The Warrior's #2 priority is always to fight anyone else.
         Player closestEnemy = findClosestEnemy(self, allPlayers);
         if (closestEnemy != null) {
             self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
-        // If no one is around to fight, it will play the objective as a secondary goal.
+        
+        // If no one is around to fight, it will play the objective as a tertiary goal.
         runBalancedLogic(self, allPlayers, myFlag, enemyFlag, amICarryingFlag);
     }
 
@@ -126,20 +144,28 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
      * Guardian: Prioritizes flag defense and recovery above all else.
      */
     private void prioritizeDefense(AIPlayer self, Collection<Player> allPlayers, Flag myFlag, Flag enemyFlag, boolean amICarryingFlag) {
-        // The Guardian's #1 priority is recovering our flag.
+        // Priority #1: Hunt enemy flag carrier with extreme prejudice!
+        Player enemyFlagCarrier = findEnemyFlagCarrier(self, allPlayers, enemyFlag);
+        if (enemyFlagCarrier != null) {
+            self.setCurrentTarget(enemyFlagCarrier);
+            self.setCurrentState(AIPlayer.AIState.ATTACKING);
+            return;
+        }
+
+        // Priority #2: Recovering our flag.
         if (myFlag.state() == Flag.FlagState.DROPPED) {
             self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
             self.setObjectiveTargetPoint(myFlag.position());
             return;
         }
 
-        // Priority #2 is defending our flag at the base.
+        // Priority #3: Defending our flag at the base.
         if (myFlag.state() == Flag.FlagState.AT_BASE) {
             self.setCurrentState(AIPlayer.AIState.WANDERING); // Patrol the base
             self.setObjectiveTargetPoint(myFlag.basePosition());
             // If an enemy gets close while we're defending, attack them.
             Player closestEnemy = findClosestEnemy(self, allPlayers);
-            if (closestEnemy != null && isInRange(self, closestEnemy, 300)) { // Defend a 300-unit radius
+            if (closestEnemy != null && isInRange(self, closestEnemy, 400)) { // Defend a 400-unit radius
                 self.setCurrentTarget(closestEnemy);
                 self.setCurrentState(AIPlayer.AIState.ATTACKING);
             }
@@ -151,10 +177,25 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
     }
 
     /**
-     * Objective Hound: Aggressively pursues the enemy flag, ignoring most combat.
+     * Objective Hound: Aggressively pursues the enemy flag, prioritizing flag-related tasks.
      */
     private void prioritizeObjective(AIPlayer self, Collection<Player> allPlayers, Flag myFlag, Flag enemyFlag, boolean amICarryingFlag) {
-        // Priority 1: grabbing the enemy flag if it's available.
+        // Priority 1: Hunt enemy flag carrier with relentless determination!
+        Player enemyFlagCarrier = findEnemyFlagCarrier(self, allPlayers, enemyFlag);
+        if (enemyFlagCarrier != null) {
+            self.setCurrentTarget(enemyFlagCarrier);
+            self.setCurrentState(AIPlayer.AIState.ATTACKING);
+            return;
+        }
+
+        // Priority 2: Our flag is dropped - secure it first!
+        if (myFlag.state() == Flag.FlagState.DROPPED) {
+            self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
+            self.setObjectiveTargetPoint(myFlag.position());
+            return;
+        }
+
+        // Priority 3: Grabbing the enemy flag if it's available.
         if (enemyFlag.state() == Flag.FlagState.AT_BASE) {
             self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
             self.setObjectiveTargetPoint(enemyFlag.basePosition());
@@ -166,15 +207,38 @@ public class CaptureTheFlagAIStrategy implements IAIStrategy {
             return;
         }
 
-        // If it can't go for the enemy flag, it will fight anyone directly in its way.
+        // Priority 4: Only fight enemies that are blocking objective paths or very close
         Player closestEnemy = findClosestEnemy(self, allPlayers);
-        if (closestEnemy != null) {
+        if (closestEnemy != null && isInRange(self, closestEnemy, 250)) { // Only engage if very close
             self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
 
-        // Otherwise, it will help with defense as a last resort.
-        runBalancedLogic(self, allPlayers, myFlag, enemyFlag, amICarryingFlag);
+        // Priority 5: Move toward enemy base to be ready for flag opportunities
+        self.setCurrentState(AIPlayer.AIState.WANDERING);
+        self.setObjectiveTargetPoint(enemyFlag.basePosition());
+    }
+
+    /**
+     * Finds the enemy player who is currently carrying our flag.
+     * This is the highest priority target for all AI archetypes.
+     */
+    private Player findEnemyFlagCarrier(AIPlayer self, Collection<Player> allPlayers, Flag enemyFlag) {
+        if (enemyFlag.state() != Flag.FlagState.CARRIED) {
+            return null; // No one is carrying the flag
+        }
+
+        Long carrierId = enemyFlag.carrierId();
+        if (carrierId == null) {
+            return null; // No carrier ID available
+        }
+
+        return allPlayers.stream()
+                .filter(player -> !player.isDead())
+                .filter(player -> player.getTeam() != self.getTeam()) // Only enemy players
+                .filter(player -> Objects.equals(player.getId(), carrierId))
+                .findFirst()
+                .orElse(null);
     }
 }

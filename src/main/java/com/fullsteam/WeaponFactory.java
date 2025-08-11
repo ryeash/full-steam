@@ -2,8 +2,10 @@ package com.fullsteam;
 
 import com.fullsteam.model.Explosion;
 import com.fullsteam.model.PoisonCloud;
+import com.fullsteam.model.Turret;
 import com.fullsteam.model.Weapon;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -113,15 +115,15 @@ public class WeaponFactory {
         addPreset(new Weapon(
                 "Street Sweeper",
                 "SW",
-                27,  // Fire Rate
+                25,  // Fire Rate
                 5,  // Damage
                 2,  // Range
-                0,  // Speed
+                3,  // Speed
                 0,  // Speed Decay
-                -20, // Accuracy
+                -25, // Accuracy
                 70, // Multi-shot
-                14,  // Magazine Size
-                2,  // Reload Speed
+                16,  // Magazine Size
+                4,  // Reload Speed
                 null
         ));
 
@@ -131,8 +133,8 @@ public class WeaponFactory {
                 19, // Fire Rate
                 15, // Damage
                 4,  // Range
-                18, // Speed
-                9,  // Speed Decay
+                12, // Speed
+                15,  // Speed Decay
                 8,  // Accuracy
                 10, // Multi-shot
                 2,  // Magazine Size
@@ -230,11 +232,29 @@ public class WeaponFactory {
                 null
         ));
 
+        addPreset(new Weapon(
+                "Engineer Wrench",
+                "EW", // Revolver
+                3,  // Fire Rate
+                0, // Damage
+                -1,  // Range
+                15, // Speed
+                0,  // Speed Decay
+                0, // Accuracy
+                0,  // Multi-shot
+                0,  // Magazine Size (6 shots)
+                4,  // Reload Speed
+                Turret::create
+        ));
+
         // Pre-sort the weapon names for faster access.
         weaponNames = weaponPresets.keySet().stream().sorted().toList();
 
         // Cache the weapon array for faster random access.
-        weaponArray = weaponPresets.values().toArray(new Weapon[0]);
+        weaponArray = weaponPresets.values()
+                .stream()
+                .sorted(Comparator.comparing(Weapon::getName))
+                .toArray(Weapon[]::new);
     }
 
     /**
@@ -302,6 +322,10 @@ public class WeaponFactory {
     }
 
     public static Weapon getRandomWeapon() {
-        return weaponArray[ThreadLocalRandom.current().nextInt(weaponArray.length)];
+        Weapon random = null;
+        while (random == null || random.getName().equals("Engineer Wrench")) {
+            random = weaponArray[ThreadLocalRandom.current().nextInt(weaponArray.length)];
+        }
+        return random;
     }
 }

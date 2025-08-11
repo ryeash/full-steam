@@ -14,6 +14,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import static com.fullsteam.Config.MAX_GLOBAL_PLAYERS;
@@ -21,7 +23,7 @@ import static com.fullsteam.Config.MAX_GLOBAL_PLAYERS;
 public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     private static final Logger log = LoggerFactory.getLogger(GameWebSocketHandler.class);
     public static final AttributeKey<AbstractGameStateManager> GAME_STATE_MANAGER_KEY = AttributeKey.valueOf("gameStateManager");
-    public static final AttributeKey<String> PLAYER_ID_KEY = AttributeKey.valueOf("playerId");
+    public static final AttributeKey<Long> PLAYER_ID_KEY = AttributeKey.valueOf("playerId");
     public static final AttributeKey<Boolean> IS_SPECTATOR_KEY = AttributeKey.valueOf("isSpectator");
 
     private final GameLobby gameLobby;
@@ -52,7 +54,7 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
                     gameLobby.spectateGame(ctx.channel(), gameId);
                 } else if (parts.length > 0 && "game".equals(parts[0]) && parts.length > 2) {
                     String gameId = parts[1];
-                    String gameType = parts[2];
+                    String gameType = URLDecoder.decode(parts[2], StandardCharsets.UTF_8);
                     gameLobby.joinGame(ctx.channel(), gameId, gameType);
                 } else {
                     throw new IllegalArgumentException("Invalid connection URI: " + uri);
@@ -68,13 +70,7 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
     }
 
     @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        log.info("Channel {} became active, awaiting handshake.", ctx.channel().id());
-        super.channelActive(ctx);
-    }
-
-    @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+    public void channelInactive(ChannelHandlerContext ctx) {
         // Clean up the player from their specific game
         AbstractGameStateManager game = ctx.channel().attr(GAME_STATE_MANAGER_KEY).get();
         if (game != null) {
@@ -82,7 +78,7 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
             if (isSpectator != null && isSpectator) {
                 game.removeSpectator(ctx.channel());
             } else {
-                String playerId = ctx.channel().attr(PLAYER_ID_KEY).get();
+                Long playerId = ctx.channel().attr(PLAYER_ID_KEY).get();
                 if (playerId != null) {
                     game.removePlayer(playerId);
                 }
@@ -93,13 +89,13 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) throws Exception {
+    protected void channelRead0(ChannelHandlerContext ctx, TextWebSocketFrame msg) {
         // Retrieve the correct GameStateManager and Player ID from the channel's attributes
         AbstractGameStateManager game = ctx.channel().attr(GAME_STATE_MANAGER_KEY).get();
         if (ctx.channel().hasAttr(IS_SPECTATOR_KEY)) {
             return; // Spectators don't send input
         }
-        String playerId = ctx.channel().attr(PLAYER_ID_KEY).get();
+        Long playerId = ctx.channel().attr(PLAYER_ID_KEY).get();
 
         if (game == null || playerId == null) {
             log.warn("Received message from a channel without a game session. Closing.");
@@ -113,15 +109,15 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
 
         switch (type) {
             case "ping":
-                ctx.channel().writeAndFlush(Jackson.msgPackFrame(Map.of("type", "pong")));
-                break;
-            case "playerInput":
-                PlayerInput input = Jackson.treeToValue(rootNode, PlayerInput.class);
-                game.acceptPlayerInput(playerId, input);
+                ctx.channel().writeAndFlush(Jackson.msgFrame(Map.of("type", "pong")));
                 break;
             case "configChange":
                 PlayerConfigRequest request = Jackson.treeToValue(rootNode, PlayerConfigRequest.class);
                 game.handlePlayerConfigChange(playerId, request);
+                break;
+            case "playerInput":
+                PlayerInput input = Jackson.treeToValue(rootNode, PlayerInput.class);
+                game.acceptPlayerInput(playerId, input);
                 break;
             default:
                 log.warn("Received unknown message type '{}' from player {}", type, playerId);
@@ -130,17 +126,21 @@ public class GameWebSocketHandler extends SimpleChannelInboundHandler<TextWebSoc
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        String playerId = playerId(ctx);
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        Long playerId = playerId(ctx);
         log.error("WebSocket error for player {}: {}", playerId, cause.getMessage());
         ctx.close();
     }
 
-    public static String playerId(ChannelHandlerContext ctx) {
-        return ctx.channel().id().asShortText();
+    public static Long playerId(ChannelHandlerContext ctx) {
+        return playerId(ctx.channel());
     }
 
-    public static String playerId(Channel ch) {
-        return ch.id().asShortText();
+    public static Long playerId(Channel ch) {
+        if (ch.attr(PLAYER_ID_KEY).get() == null) {
+            return ch.attr(PLAYER_ID_KEY).setIfAbsent(Config.ID_COUNTER.incrementAndGet());
+        } else {
+            return ch.attr(PLAYER_ID_KEY).get();
+        }
     }
 }

@@ -75,24 +75,24 @@ public class JuggernautAIStrategy implements IAIStrategy {
 
         // Priority 2: No immediate threats, so hunt the other Juggernaut.
         self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
-        self.setObjectiveTargetPoint(enemyJuggernaut.getCenter());
+        self.setObjectiveTargetPoint(enemyJuggernaut.position());
     }
 
     /**
      * Offensive logic for Warriors and Objective Hounds.
      */
     private void prioritizeOffense(AIPlayer self, Collection<Player> allPlayers, Player enemyJuggernaut) {
-        // Priority 1: An enemy is nearby. ATTACK!
+        // Priority 1: Hunt the enemy Juggernaut with extreme focus!
+        self.setCurrentTarget(enemyJuggernaut);
+        self.setCurrentState(AIPlayer.AIState.ATTACKING);
+
+        // Only get distracted by nearby enemies if they're very close
         Player closestEnemy = findClosestEnemy(self, allPlayers);
-        if (closestEnemy != null) {
+        if (closestEnemy != null && isInRange(self, closestEnemy, 200) && 
+            !Objects.equals(closestEnemy.getId(), enemyJuggernaut.getId())) {
             self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
-            return;
         }
-
-        // Priority 2: No immediate threats, so hunt the enemy Juggernaut.
-        self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
-        self.setObjectiveTargetPoint(enemyJuggernaut.getCenter());
     }
 
     /**
@@ -101,7 +101,7 @@ public class JuggernautAIStrategy implements IAIStrategy {
     private void prioritizeDefense(AIPlayer self, Collection<Player> allPlayers, Player myJuggernaut) {
         // Priority 1: An enemy is near our Juggernaut. INTERCEPT!
         Player closestEnemy = findClosestEnemy(self, allPlayers);
-        if (closestEnemy != null && closestEnemy.getCenter().distanceSq(myJuggernaut.getCenter()) < 400 * 400) { // 400 unit guard radius
+        if (closestEnemy != null && closestEnemy.position().distanceSquared(myJuggernaut.position()) < 400 * 400) { // 400 unit guard radius
             self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
@@ -109,19 +109,19 @@ public class JuggernautAIStrategy implements IAIStrategy {
 
         // Priority 2: No immediate threats, so patrol around our Juggernaut.
         self.setCurrentState(AIPlayer.AIState.WANDERING);
-        self.setObjectiveTargetPoint(myJuggernaut.getCenter());
+        self.setObjectiveTargetPoint(myJuggernaut.position());
     }
 
     /**
      * Helper to find the Juggernaut player object for a given team.
      */
     private Optional<Player> findJuggernautForTeam(Collection<Player> players, int team, JuggernautInfo j) {
-        String juggernautId = team == 1 ? j.getTeam1Juggernaut() : j.getTeam2Juggernaut();
+        Long juggernautId = team == 1 ? j.getTeam1Juggernaut() : j.getTeam2Juggernaut();
         if (juggernautId == null) {
             return Optional.empty();
         }
         return players.stream()
-                .filter(p -> p.getId().equals(juggernautId))
+                .filter(p -> Objects.equals(p.getId(), juggernautId))
                 .findFirst();
     }
 }

@@ -1,6 +1,5 @@
 package com.fullsteam.model.ai;
 
-import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.Obstacle;
@@ -10,6 +9,7 @@ import com.fullsteam.model.gamemodes.EscortGameInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
 
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -35,7 +35,7 @@ public class EscortAIStrategy implements IAIStrategy {
         double proximitySq = Config.ESCORT_PLAYER_PROXIMITY * Config.ESCORT_PLAYER_PROXIMITY;
         Set<Integer> teamsNearPayload = allPlayers.stream()
                 .filter(p -> !p.isDead())
-                .filter(p -> p.getCenter().distanceSq(payloadCenter) < proximitySq)
+                .filter(p -> p.position().distanceSquared(payloadCenter) < proximitySq)
                 .map(Player::getTeam)
                 .collect(Collectors.toSet());
 
@@ -63,36 +63,43 @@ public class EscortAIStrategy implements IAIStrategy {
      * Default, well-rounded behavior.
      */
     private void runBalancedLogic(AIPlayer self, Player closestEnemy, Vector2D payloadCenter, boolean isOurTeamPushing) {
-        // Priority 1: An enemy is very close. ATTACK!
-        if (closestEnemy != null && self.getCenter().distanceSq(closestEnemy.getCenter()) < 250 * 250) {
-            self.setCurrentTarget(closestEnemy);
-            self.setCurrentState(AIPlayer.AIState.ATTACKING);
-            return;
-        }
-
-        // Priority 2: Our team is pushing the payload. DEFEND IT!
+        // Priority 1: Our team is pushing the payload. DEFEND IT!
         if (isOurTeamPushing) {
             self.setCurrentState(AIPlayer.AIState.WANDERING); // Patrol near the payload
             self.setObjectiveTargetPoint(payloadCenter);
-        } else {
-            // Priority 3: The payload is stalled or pushed by the enemy. GET TO THE PAYLOAD!
-            self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
-            self.setObjectiveTargetPoint(payloadCenter);
+            
+            // Attack any enemies that get close to the payload
+            if (closestEnemy != null && isInRange(self, closestEnemy, 400)) {
+                self.setCurrentTarget(closestEnemy);
+                self.setCurrentState(AIPlayer.AIState.ATTACKING);
+            }
+            return;
+        }
+
+        // Priority 2: The payload is stalled or pushed by the enemy. GET TO THE PAYLOAD!
+        self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
+        self.setObjectiveTargetPoint(payloadCenter);
+
+        // Priority 3: An enemy is nearby but not threatening payload. ATTACK if close!
+        if (closestEnemy != null && isInRange(self, closestEnemy, 350)) {
+            self.setCurrentTarget(closestEnemy);
+            self.setCurrentState(AIPlayer.AIState.ATTACKING);
         }
     }
 
     /**
-     * Warrior: Fights first, asks questions later.
+     * Warrior: Prioritizes combat but still respects payload objectives.
      */
     private void prioritizeCombat(AIPlayer self, Player closestEnemy, Vector2D payloadCenter, boolean isOurTeamPushing) {
-        // The Warrior's #1 priority is always to fight.
-        if (closestEnemy != null) {
+        // Priority #1: Fight, but stay relatively close to the payload
+        if (closestEnemy != null && isInRange(self, closestEnemy, 600)) {
             self.setCurrentTarget(closestEnemy);
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
-        // If no one is around to fight, it will play the objective.
-        runBalancedLogic(self, null, payloadCenter, isOurTeamPushing);
+        
+        // Priority #2: No nearby enemies, help with the payload objective
+        runBalancedLogic(self, closestEnemy, payloadCenter, isOurTeamPushing);
     }
 
     /**
@@ -157,16 +164,16 @@ public class EscortAIStrategy implements IAIStrategy {
 
         for (Player other : allPlayers) {
             // Skip self, teammates, or dead players
-            if (other.getId().equals(self.getId()) || other.getTeam() == self.getTeam() || other.isDead()) {
+            if (Objects.equals(other.getId(), self.getId()) || other.getTeam() == self.getTeam() || other.isDead()) {
                 continue;
             }
 
             // Check if the enemy is near the payload
-            if (other.getCenter().distanceSq(payloadCenter) > radiusSq) {
+            if (other.position().distanceSquared(payloadCenter) > radiusSq) {
                 continue;
             }
 
-            double distanceSq = self.getCenter().distanceSq(other.getCenter());
+            double distanceSq = self.position().distanceSquared(other.position());
             if (distanceSq < minDistanceSq) {
                 minDistanceSq = distanceSq;
                 closestEnemy = other;

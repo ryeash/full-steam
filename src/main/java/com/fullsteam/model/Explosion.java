@@ -7,17 +7,19 @@ public class Explosion implements BulletEffect {
     private final long id;
     private final double x;
     private final double y;
-    private final String shooterId;
+    @JsonIgnore
+    private final long shooterId;
+    @JsonIgnore
     private final int team;
     private final double size;
+    @JsonIgnore
     private final double damage;
-    private final long duration;
-    private final long creationTime;
+    private final long expiration;
 
     @JsonIgnore
     private boolean damageApplied = false;
 
-    public Explosion(double x, double y, String shooterId, int team, double size, double damage, long duration) {
+    public Explosion(double x, double y, long shooterId, int team, double size, double damage, long duration) {
         this.id = Config.ID_COUNTER.incrementAndGet();
         this.x = x;
         this.y = y;
@@ -25,8 +27,7 @@ public class Explosion implements BulletEffect {
         this.team = team;
         this.size = size;
         this.damage = damage;
-        this.duration = duration;
-        this.creationTime = System.currentTimeMillis();
+        this.expiration = System.currentTimeMillis() + duration;
     }
 
     public static Explosion rocket(Bullet bullet) {
@@ -64,7 +65,7 @@ public class Explosion implements BulletEffect {
         return y;
     }
 
-    public String getShooterId() {
+    public long getShooterId() {
         return shooterId;
     }
 
@@ -80,17 +81,13 @@ public class Explosion implements BulletEffect {
         return damage;
     }
 
-    public long getDuration() {
-        return duration;
-    }
-
-    public long getCreationTime() {
-        return creationTime;
+    public long getExpiration() {
+        return expiration;
     }
 
     @JsonIgnore
     public boolean isExpired() {
-        return System.currentTimeMillis() > creationTime + duration;
+        return System.currentTimeMillis() > expiration;
     }
 
     @JsonIgnore

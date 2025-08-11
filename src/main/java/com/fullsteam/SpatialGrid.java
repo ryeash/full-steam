@@ -64,14 +64,6 @@ public class SpatialGrid<T> {
         return nearbyObjects;
     }
 
-    /**
-     * Creates a unique 64-bit key from a 2D grid coordinate.
-     * This is more memory-efficient than using a String or a custom Point object as a key.
-     *
-     * @param col The grid column.
-     * @param row The grid row.
-     * @return A unique long key representing the cell.
-     */
     private long toKey(int col, int row) {
         return ((long) col << 32) | (row & 0xFFFFFFFFL);
     }

@@ -63,7 +63,7 @@ public abstract class AbstractTeamBasedManager extends AbstractGameStateManager 
     }
 
     @Override
-    protected void updateGame() {
+    protected void updateGame(long delta) {
         teamBalancer.balanceTeams(players);
 
         // Check if we need to send the 10-second warning.
@@ -74,6 +74,6 @@ public abstract class AbstractTeamBasedManager extends AbstractGameStateManager 
                 sent10SecondWarning = true;
             }
         }
-        super.updateGame();
+        super.updateGame(delta);
     }
 }

@@ -14,7 +14,6 @@ import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.ZombieDefenseInfo;
 import io.netty.channel.Channel;
 
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -26,6 +25,7 @@ import static com.fullsteam.Config.ZOMBIE_TIME_BETWEEN_WAVES_MS;
  * A cooperative PvE game mode where human players (Team 1) defend against
  * waves of AI-controlled zombies (Team 2).
  */
+@GameName("Zombie Defense")
 public class ZombieDefenseManager extends AbstractGameStateManager {
 
     private static final long WAVE_WARNING_TIME_MS = 5_000; // 5 seconds before the wave hits
@@ -38,12 +38,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     }
 
     @Override
-    public String gameType() {
-        return "Zombie Defense";
-    }
-
-    @Override
-    public Player addPlayer(String playerId, Channel channel) {
+    public Player addPlayer(long playerId, Channel channel) {
         // All human players are on Team 1 (Survivors)
         Player player = new Player(playerId, 0, 0, 1);
         setValidSpawnPosition(player); // This will spawn them inside the house
@@ -73,8 +68,8 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     }
 
     @Override
-    protected void updateGame() {
-        super.updateGame();
+    protected void updateGame(long delta) {
+        super.updateGame(delta);
         if (System.currentTimeMillis() >= nextWaveTime) {
             spawnNextWave();
         }
@@ -124,7 +119,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     }
 
     private void spawnZombie() {
-        String playerId = "zombie-" + UUID.randomUUID();
+        long playerId = Config.ID_COUNTER.incrementAndGet();
         // Zombies are on Team 2
         AIPlayer zombie = new AIPlayer(playerId, 0, 0, 2, new ZombieAIStrategy(), AIArchetype.randomArchetype());
         double random = ThreadLocalRandom.current().nextDouble();
@@ -133,21 +128,21 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         if (waveNumber > 5 && random < 0.15) { // 15% chance for a Brute
             zombie.setPlayerName("Brute");
             zombie.setWeapon(WeaponFactory.HEAVY_ZOMBIE_CLAW);
-            zombie.setMaxHealth(300);
-            zombie.setSpeed(Config.ZOMBIE_SPEED - .6);
+            zombie.setMaxHp(300);
+            zombie.setSpeed(Config.ZOMBIE_SPEED - .05);
         } else if (waveNumber > 3 && random < 0.30) { // 30% chance for a Runner
             zombie.setPlayerName("Runner");
             zombie.setWeapon(WeaponFactory.ZOMBIE_CLAW);
-            zombie.setMaxHealth(50);
-            zombie.setSpeed(Config.ZOMBIE_SPEED + .6);
+            zombie.setMaxHp(50);
+            zombie.setSpeed(Config.ZOMBIE_SPEED + .05);
         } else {
             zombie.setPlayerName("Zombie");
             zombie.setWeapon(WeaponFactory.ZOMBIE_CLAW);
-            zombie.setMaxHealth(50);
+            zombie.setMaxHp(50);
             zombie.setSpeed(Config.ZOMBIE_SPEED);
         }
         zombie.setDefaultSpeed(zombie.getSpeed());
-        zombie.resetHealth();
+        zombie.resetHp();
         // Spawn zombies at the edges of the map
         setZombieSpawnPosition(zombie);
         players.put(playerId, zombie);
@@ -175,7 +170,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         long humansAlive = players.values().stream()
                 .filter(p -> p.getTeam() == 1 && !p.isDead())
                 .count();
-        // Use an if / else if structure to prevent incorrect win conditions
+        // Use an if / else-if structure to prevent incorrect win conditions
         if (humansAlive == 0 && hasHumanPlayers()) {
             log.info("All survivors have been eliminated. Zombies win!");
             sendGameEvent(GameEvent.info("The horde has won! Game Over."));

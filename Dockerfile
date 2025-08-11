@@ -4,14 +4,11 @@ ARG GITHUB_REPO_URL=https://github.com/ryeash/full-steam
 ARG BRANCH=master
 
 # Clone the repository
-RUN git clone ${GITHUB_REPO_URL} /app
+RUN git clone --depth 1 --branch "${BRANCH}" --single-branch ${GITHUB_REPO_URL} /app
 WORKDIR /app
 
-# Checkout a specific branch if provided
-RUN if [ "${BRANCH}" != "master" ]; then git checkout ${BRANCH}; fi
-
 # Build the project with Gradle
-RUN gradle clean shadowJar --no-daemon
+RUN gradle clean shadowJar --no-daemon --no-build-cache
 
 # Stage 2: Runtime Stage
 FROM amazoncorretto:21-alpine-jdk

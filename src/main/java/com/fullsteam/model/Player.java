@@ -5,8 +5,9 @@ import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
 import org.apache.commons.lang3.StringUtils;
 
-public class Player {
-    protected final String id;
+
+public class Player implements HasId, HasLife, Targetable {
+    protected final long id;
     protected String playerName;
     protected double x;
     protected double y;
@@ -20,10 +21,8 @@ public class Player {
     protected double defaultSpeed;
     protected int team;
     protected Weapon weapon;
-    protected double currentHealth;
-    protected double maxHealth;
-    @JsonIgnore
-    protected transient long lastShotTime;
+    protected double hp;
+    protected double maxHp;
     protected double mouseX;
     protected double mouseY;
     @JsonIgnore
@@ -41,15 +40,16 @@ public class Player {
     public long speedBoostEndTime;
     public long armorUpEndTime;
     public long damageBoostEndTime;
+    @JsonIgnore
     public double damageMultiplier;
     @JsonIgnore
     private long alternateActionCooldown;
 
-    public Player(String id, double x, double y, int team) {
-        this(id, id, x, y, team, WeaponFactory.getDefaultWeapon());
+    public Player(long id, double x, double y, int team) {
+        this(id, RandomNames.randomName(), x, y, team, WeaponFactory.getDefaultWeapon());
     }
 
-    public Player(String id, String playerName, double x, double y, int team, Weapon weapon) {
+    public Player(long id, String playerName, double x, double y, int team, Weapon weapon) {
         this.id = id;
         this.playerName = playerName;
         this.x = x;
@@ -58,15 +58,14 @@ public class Player {
         this.speed = Config.DEFAULT_PLAYER_SPEED;
         this.defaultSpeed = Config.DEFAULT_PLAYER_SPEED;
         setWeapon(weapon);
-        this.currentHealth = Config.DEFAULT_PLAYER_HEALTH;
-        this.maxHealth = Config.DEFAULT_PLAYER_HEALTH;
+        this.hp = Config.DEFAULT_PLAYER_HEALTH;
+        this.maxHp = Config.DEFAULT_PLAYER_HEALTH;
         this.velocityY = 0;
-        this.lastShotTime = 0;
         this.lastInputTime = System.currentTimeMillis();
         this.isDead = false;
         this.respawnTime = 0;
         this.kills = 0;
-        this.deaths = 0;        
+        this.deaths = 0;
         this.mouseX = x;
         this.mouseY = y;
         this.currentAmmoInMagazine = weapon.getRoundsPerMagazine();
@@ -80,9 +79,9 @@ public class Player {
         this.alternateActionCooldown = 0;
     }
 
-    public void update() {
-        x += velocityX;
-        y += velocityY;
+    public void update(long delta) {
+        x += delta * velocityX;
+        y += delta * velocityY;
     }
 
     public boolean canShoot() {
@@ -95,12 +94,11 @@ public class Player {
     /**
      * Fires the weapon, decrements ammo, and sets the cooldown.
      */
-    public void shoot(double aimAngle) {
+    public void shoot() {
         if (!canShoot()) {
             return;
         }
         this.nextShotTime = System.currentTimeMillis() + weapon.getFireRateCooldown();
-        this.lastShotTime = System.currentTimeMillis();
         this.currentAmmoInMagazine -= weapon.getBulletsPerShot();
     }
 
@@ -124,8 +122,8 @@ public class Player {
         this.currentAmmoInMagazine = weapon.getRoundsPerMagazine();
     }
 
-    // Getters and setters
-    public String getId() {
+    @Override
+    public long id() {
         return id;
     }
 
@@ -153,6 +151,10 @@ public class Player {
         this.y = y;
     }
 
+    public Vector2D position() {
+        return new Vector2D(x, y);
+    }
+
     public double getMouseX() {
         return mouseX;
     }
@@ -167,10 +169,6 @@ public class Player {
 
     public void setMouseY(double mouseY) {
         this.mouseY = mouseY;
-    }
-
-    public Vector2D getCenter() {
-        return new Vector2D(this.x + (Config.PLAYER_SIZE / 2.0), this.y + (Config.PLAYER_SIZE / 2.0));
     }
 
     public void setVelocity(Vector2D velocity) {
@@ -284,12 +282,12 @@ public class Player {
         this.isReloading = false;
     }
 
-    public double getCurrentHealth() {
-        return currentHealth;
+    public double getHp() {
+        return hp;
     }
 
-    public void setCurrentHealth(double currentHealth) {
-        this.currentHealth = currentHealth;
+    public void setHp(double hp) {
+        this.hp = hp;
     }
 
     public int getCurrentAmmoInMagazine() {
@@ -319,23 +317,23 @@ public class Player {
         if (System.currentTimeMillis() < this.armorUpEndTime && amount > 0) {
             return false; // Invincible, do not take damage
         }
-        this.currentHealth -= amount;
-        if (this.currentHealth > this.maxHealth) {
-            this.currentHealth = this.maxHealth;
+        this.hp -= amount;
+        if (this.hp > this.maxHp) {
+            this.hp = this.maxHp;
         }
-        return this.currentHealth <= 0;
+        return this.hp <= 0;
     }
 
-    public double getMaxHealth() {
-        return maxHealth;
+    public double getMaxHp() {
+        return maxHp;
     }
 
-    public void setMaxHealth(double maxHealth) {
-        this.maxHealth = maxHealth;
+    public void setMaxHp(double maxHp) {
+        this.maxHp = maxHp;
     }
 
-    public void resetHealth() {
-        this.currentHealth = this.maxHealth;
+    public void resetHp() {
+        this.hp = this.maxHp;
     }
 
     /**
@@ -366,7 +364,7 @@ public class Player {
 
     public void applyDamageBoost(long durationMs) {
         this.damageBoostEndTime = System.currentTimeMillis() + durationMs;
-        this.damageMultiplier = Config.DAMAGE_BOOST_MULTIPLIER;
+        this.damageMultiplier = Config.POWER_UP_DAMAGE_BOOST_MULTIPLIER;
     }
 
     public long getDamageBoostEndTime() {

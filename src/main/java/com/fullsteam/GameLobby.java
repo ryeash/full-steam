@@ -6,6 +6,7 @@ import com.fullsteam.games.CaptureTheFlagManager;
 import com.fullsteam.games.EliminationManager;
 import com.fullsteam.games.EscortManager;
 import com.fullsteam.games.FreeForAllManager;
+import com.fullsteam.games.GameName;
 import com.fullsteam.games.GunMasterManager;
 import com.fullsteam.games.JuggernautManager;
 import com.fullsteam.games.KingOfTheHillManager;
@@ -24,9 +25,10 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -38,7 +40,7 @@ import static com.fullsteam.GameWebSocketHandler.PLAYER_ID_KEY;
 public class GameLobby {
     private static final Logger log = LoggerFactory.getLogger(GameLobby.class);
 
-    private final AtomicInteger globalPlayerCount = new AtomicInteger(0);
+    private final Semaphore globalPlayerCountSemaphore = new Semaphore(MAX_GLOBAL_PLAYERS);
     private final Map<Long, AbstractGameStateManager> activeGames = new ConcurrentHashMap<>();
     private final List<GameMode> GAME_ROTATION = new ArrayList<>();
 
@@ -75,7 +77,7 @@ public class GameLobby {
     public List<String> getGameTypes() {
         return GAME_ROTATION.stream()
                 .map(GameMode::type)
-                .map(Class::getSimpleName)
+                .map(t -> t.getAnnotation(GameName.class).value())
                 .toList();
     }
 
@@ -83,7 +85,11 @@ public class GameLobby {
         GAME_ROTATION.add(new GameMode(type, builder));
     }
 
-    public void joinGame(Channel channel, String gameIdStr, String gameTypeStr) {
+    /**
+     * This entire method is synchronized to prevent race conditions during matchmaking.
+     * This ensures that two players cannot simultaneously create a new game or overfill an existing one.
+     */
+    public synchronized void joinGame(Channel channel, String gameIdStr, String gameTypeStr) {
         AbstractGameStateManager gameToJoin = null;
 
         // 1. Try to join by specific game ID
@@ -93,8 +99,9 @@ public class GameLobby {
                 AbstractGameStateManager game = activeGames.get(gameId);
                 if (game != null) {
                     if (!game.isFull()) {
-                        gameToJoin = game;
                         log.info("Player {} joining specific game by ID: {}", GameWebSocketHandler.playerId(channel), gameId);
+                        joinGame(channel, game);
+                        return; // Player has joined, matchmaking is complete.
                     } else {
                         log.warn("Player {} attempted to join full game {}. Will try to find another game of the same type.", GameWebSocketHandler.playerId(channel), gameId);
                         // If the requested game is full, we can try to find another of the same type.
@@ -109,7 +116,7 @@ public class GameLobby {
         }
 
         // 2. If no game found by ID, try to find/create by game type
-        if (gameToJoin == null && gameTypeStr != null && !gameTypeStr.isEmpty() && !gameTypeStr.equals("null")) {
+        if (gameTypeStr != null && !gameTypeStr.isEmpty() && !gameTypeStr.equals("null")) {
             Class<? extends AbstractGameStateManager> gameTypeClass = findGameTypeClass(gameTypeStr);
             if (gameTypeClass != null) {
                 log.info("Player {} looking for game of type: {}", GameWebSocketHandler.playerId(channel), gameTypeStr);
@@ -132,14 +139,22 @@ public class GameLobby {
 
     public void spectateGame(Channel channel, String gameIdStr) {
         long gameId = Long.parseLong(gameIdStr);
-        AbstractGameStateManager game = activeGames.get(gameId); // Assuming you have a map of active games
+        AbstractGameStateManager game = activeGames.get(gameId);
 
         if (game != null) {
-            game.addSpectator(channel);
-            // Associate the game and a spectator flag with the channel for cleanup on disconnect
-            channel.attr(GameWebSocketHandler.GAME_STATE_MANAGER_KEY).set(game);
-            channel.attr(GameWebSocketHandler.IS_SPECTATOR_KEY).set(true);
-            log.info("Channel {} is now spectating game {}", channel.id().asShortText(), gameId);
+            synchronized (game) {
+                if (!game.isSpectatorsFull()) {
+                    game.addSpectator(channel);
+                    // Associate the game and a spectator flag with the channel for cleanup on disconnect
+                    channel.attr(GameWebSocketHandler.GAME_STATE_MANAGER_KEY).set(game);
+                    channel.attr(GameWebSocketHandler.IS_SPECTATOR_KEY).set(true);
+                    log.info("Channel {} is now spectating game {}", channel.id().asShortText(), gameId);
+                } else {
+                    log.warn("Spectator failed to join game {}: spectator slots are full.", gameId);
+                    playerDisconnected(); // Decrement the count since the connection will be closed
+                    channel.close();
+                }
+            }
         } else {
             log.warn("Spectator tried to join non-existent game {}", gameId);
             playerDisconnected(); // Decrement the count since the connection will be closed
@@ -149,7 +164,8 @@ public class GameLobby {
 
     private Class<? extends AbstractGameStateManager> findGameTypeClass(String gameTypeStr) {
         for (GameMode mode : GAME_ROTATION) {
-            if (mode.type().getSimpleName().equalsIgnoreCase(gameTypeStr)) {
+            if (mode.type().getSimpleName().equalsIgnoreCase(gameTypeStr)
+                || mode.type().getAnnotation(GameName.class).value().equals(gameTypeStr)) {
                 return mode.type();
             }
         }
@@ -158,7 +174,7 @@ public class GameLobby {
 
     public void joinGame(Channel ctx, AbstractGameStateManager game) {
         // Add the player to that specific game instance
-        String playerId = GameWebSocketHandler.playerId(ctx);
+        Long playerId = GameWebSocketHandler.playerId(ctx);
         Player player = game.addPlayer(playerId, ctx);
         log.info("Player {} connected and joined game {}", playerId, game.getGameId());
 
@@ -168,9 +184,9 @@ public class GameLobby {
 
         // Send welcome message
         WelcomeMessage welcomeMessage = new WelcomeMessage(player.getId(), player.getTeam(), game.getGameId());
-        ctx.writeAndFlush(Jackson.msgPackFrame(welcomeMessage));
+        ctx.writeAndFlush(Jackson.msgFrame(welcomeMessage));
 
-        game.sendGameEvent(GameEvent.info(String.format("Joining: %s (%d)!", game.gameType(), game.getGameId())));
+        game.sendGameEvent(GameEvent.info(String.format("Joining: %s (%d)!", game.gameType(), game.getGameId()), playerId));
     }
 
     // Finds an available game or creates a new one
@@ -217,33 +233,22 @@ public class GameLobby {
         // Then, remove them to avoid concurrent modification issues
         for (Long gameId : gamesToRemove) {
             log.info("Game {} has no human players. Removing from lobby.", gameId);
-            removeGame(gameId);
+            Optional.ofNullable(activeGames.get(gameId))
+                    .filter(g -> !g.hasHumanPlayers())
+                    .map(AbstractGameStateManager::getGameId)
+                    .ifPresent(this::removeGame);
         }
     }
 
     public boolean tryAcceptNewPlayer() {
-        // Atomically check and increment if below the limit
-        int currentCount = globalPlayerCount.get();
-        if (currentCount >= MAX_GLOBAL_PLAYERS) {
-            return false; // Server is full
-        }
-        // Attempt to increment, but double-check in case of a race condition
-        if (globalPlayerCount.compareAndSet(currentCount, currentCount + 1)) {
-            return true; // Success
-        }
-        // If compareAndSet failed, another thread beat us. Retry or fail.
-        // For simplicity, we can just re-check the condition.
-        return globalPlayerCount.get() < MAX_GLOBAL_PLAYERS;
+        return globalPlayerCountSemaphore.tryAcquire();
     }
 
-    /**
-     * Decrements the global player count when a player disconnects.
-     */
     public void playerDisconnected() {
-        globalPlayerCount.decrementAndGet();
+        globalPlayerCountSemaphore.release();
     }
 
     public int getGlobalPlayerCount() {
-        return globalPlayerCount.get();
+        return MAX_GLOBAL_PLAYERS - globalPlayerCountSemaphore.availablePermits();
     }
 }

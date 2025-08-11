@@ -6,17 +6,16 @@ import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
-import com.fullsteam.model.ai.AIArchetype;
-import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.EscortAIStrategy;
+import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.gamemodes.EscortGameInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
 
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@GameName("Escort")
 public class EscortManager extends AbstractTeamBasedManager {
 
     private Obstacle payload;
@@ -27,40 +26,31 @@ public class EscortManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    public String gameType() {
-        return "Escort";
-    }
-
-    @Override
-    public void addAIPlayer(int team) {
-        String playerId = "ai-" + UUID.randomUUID();
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new EscortAIStrategy(), AIArchetype.randomArchetype());
-        setValidSpawnPosition(player);
-        players.put(playerId, player);
-        log.info("AI Player {} (Escort Strategy) joined team {}", playerId, team);
+    protected IAIStrategy buildAIStrategy() {
+        return new EscortAIStrategy();
     }
 
     @Override
     public void startNewRound() {
-        obstacles.clear();
         super.startNewRound();
-        payload = Obstacle.createRectangle(
+        payload = new Obstacle(Obstacle.createRectangle(
                 (Config.GAME_WIDTH - Config.ESCORT_OBSTACLE_WIDTH) / 2,
                 (Config.GAME_HEIGHT - Config.ESCORT_OBSTACLE_HEIGHT) / 2,
                 Config.ESCORT_OBSTACLE_WIDTH,
-                Config.ESCORT_OBSTACLE_HEIGHT);
+                Config.ESCORT_OBSTACLE_HEIGHT).vertices(), false);
+        obstacles.add(payload);
     }
 
     @Override
-    protected void updateGame() {
-        // 1. Determine payload movement based on last frame's state
+    protected void updateGame(long delta) {
+        // Determine payload movement based on last frame's state
         Vector2D payloadCenter = getPayloadCenter();
         double proximitySq = Config.ESCORT_PLAYER_PROXIMITY * Config.ESCORT_PLAYER_PROXIMITY;
 
         Set<Integer> teamsNearPayload = players.values()
                 .stream()
                 .filter(p -> !p.isDead())
-                .filter(p -> p.getCenter().distanceSq(payloadCenter) < proximitySq)
+                .filter(p -> p.position().distanceSquared(payloadCenter) < proximitySq)
                 .map(Player::getTeam)
                 .collect(Collectors.toSet());
 
@@ -68,32 +58,28 @@ public class EscortManager extends AbstractTeamBasedManager {
         // If only one team is near the payload, it moves.
         // Team 1 (Green) pushes Right (positive X), Team 2 (Red) pushes Left (negative X).
         if (teamsNearPayload.contains(1) && !teamsNearPayload.contains(2)) {
-            moveX = Config.ESCORT_OBSTACLE_SPEED;
+            moveX = delta * Config.ESCORT_OBSTACLE_SPEED;
         } else if (teamsNearPayload.contains(2) && !teamsNearPayload.contains(1)) {
-            moveX = -Config.ESCORT_OBSTACLE_SPEED;
+            moveX = delta * -Config.ESCORT_OBSTACLE_SPEED;
         }
 
-        // 2. Update payload to its new position for this frame, checking boundaries
+        // Update payload to its new position for this frame, checking boundaries
         if (moveX != 0) {
             double finalDelta = moveX;
             Obstacle nextPayload = new Obstacle(payload.vertices()
                     .stream()
                     .map(v -> v.add(new Vector2D(finalDelta, 0)))
-                    .toList());
+                    .toList(), false);
 
             double minX = nextPayload.vertices().stream().mapToDouble(Vector2D::x).min().orElse(0);
             double maxX = nextPayload.vertices().stream().mapToDouble(Vector2D::x).max().orElse(0);
             if (minX >= 0 && maxX <= Config.GAME_WIDTH) {
+                obstacles.remove(payload);
                 this.payload = nextPayload;
+                obstacles.add(payload);
             }
         }
-
-        // 3. Set up obstacles for this frame's physics, making the payload solid
-        obstacles.clear();
-        obstacles.add(this.payload);
-
-        // 4. Run the main game loop (updates players, bullets, checks collisions)
-        super.updateGame();
+        super.updateGame(delta);
     }
 
     @Override
@@ -113,7 +99,6 @@ public class EscortManager extends AbstractTeamBasedManager {
             return true;
         }
 
-        // If time runs out, the team that pushed the payload past the centerline wins.
         if (System.currentTimeMillis() >= roundEndTime) {
             sendGameEvent(GameEvent.red("The payload was not delivered in time"));
             return true;
@@ -123,7 +108,21 @@ public class EscortManager extends AbstractTeamBasedManager {
 
     @Override
     protected void generateObstacles() {
-        obstacles.clear();
+        super.generateObstacles(o -> {
+            // The obstacle is valid only if it does NOT overlap with the payload corridor.
+            // This means the obstacle must be entirely above the corridor OR entirely below it.
+            // Define the vertical "keep-out" zone for the payload path.
+            // This is the vertical center of the map, plus the payload's height, plus a safety buffer.
+            double safetyBuffer = 50.0;
+            double pathCorridorHeight = Config.ESCORT_OBSTACLE_HEIGHT + (2 * safetyBuffer);
+            double pathTopY = (Config.GAME_HEIGHT / 2.0) - (pathCorridorHeight / 2.0);
+            double pathBottomY = (Config.GAME_HEIGHT / 2.0) + (pathCorridorHeight / 2.0);
+            double obstacleMinY = o.vertices().stream().mapToDouble(Vector2D::y).min().orElse(0);
+            double obstacleMaxY = o.vertices().stream().mapToDouble(Vector2D::y).max().orElse(0);
+            boolean isAbove = obstacleMaxY < pathTopY;
+            boolean isBelow = obstacleMinY > pathBottomY;
+            return isAbove || isBelow;
+        });
     }
 
     private Vector2D getPayloadCenter() {

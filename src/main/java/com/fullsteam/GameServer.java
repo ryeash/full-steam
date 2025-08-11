@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 import static com.fullsteam.Config.PORT;
 
 public class GameServer {
-    private static final Logger logger = LoggerFactory.getLogger(GameServer.class);
+    private static final Logger log = LoggerFactory.getLogger(GameServer.class);
 
     public static void main(String[] args) throws InterruptedException {
         new GameServer().start();
@@ -56,7 +56,7 @@ public class GameServer {
                     });
 
             ChannelFuture future = bootstrap.bind(PORT).sync();
-            logger.info("Game server started on port {}", PORT);
+            log.info("Game server started on port {}", PORT);
             future.channel().closeFuture().sync();
         } finally {
             bossGroup.shutdownGracefully();

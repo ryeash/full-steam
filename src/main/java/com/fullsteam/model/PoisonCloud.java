@@ -5,23 +5,25 @@ import com.fullsteam.Config;
 
 /**
  * Represents a lingering cloud that applies damage over time to players within its radius.
- * This is a type of {@link BulletEffect} that is created upon a bullet's destruction.
+ * This is a type of {@link BulletEffect} that is created upon a bullet'''s destruction.
  */
 public class PoisonCloud implements BulletEffect {
     private final long id;
     private final double x;
     private final double y;
-    private final String shooterId;
+    @JsonIgnore
+    private final long shooterId;
+    @JsonIgnore
     private final int team;
     private final double radius;
+    @JsonIgnore
     private final double damagePerTick;
-    private final long duration;
-    private final long creationTime;
+    private final long expiration;
 
     @JsonIgnore
     private transient long lastDamageTickTime;
 
-    public PoisonCloud(double x, double y, String shooterId, int team, double radius, double damagePerTick, long duration) {
+    public PoisonCloud(double x, double y, long shooterId, int team, double radius, double damagePerTick, long duration) {
         this.id = Config.ID_COUNTER.incrementAndGet();
         this.x = x;
         this.y = y;
@@ -29,8 +31,7 @@ public class PoisonCloud implements BulletEffect {
         this.team = team;
         this.radius = radius;
         this.damagePerTick = damagePerTick;
-        this.duration = duration;
-        this.creationTime = System.currentTimeMillis();
+        this.expiration = System.currentTimeMillis() + duration;
         this.lastDamageTickTime = System.currentTimeMillis(); // Start ticking immediately
     }
 
@@ -61,7 +62,7 @@ public class PoisonCloud implements BulletEffect {
         return y;
     }
 
-    public String getShooterId() {
+    public long getShooterId() {
         return shooterId;
     }
 
@@ -77,17 +78,13 @@ public class PoisonCloud implements BulletEffect {
         return damagePerTick;
     }
 
-    public long getDuration() {
-        return duration;
-    }
-
-    public long getCreationTime() {
-        return creationTime;
+    public long getExpiration() {
+        return expiration;
     }
 
     @JsonIgnore
     public boolean isExpired() {
-        return System.currentTimeMillis() > creationTime + duration;
+        return System.currentTimeMillis() > expiration;
     }
 
     @JsonIgnore
