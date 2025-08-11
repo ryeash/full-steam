@@ -6,6 +6,7 @@ import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
 
 import java.util.Collection;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class DeathmatchAIStrategy implements IAIStrategy {
     @Override
@@ -60,6 +61,7 @@ public class DeathmatchAIStrategy implements IAIStrategy {
         } else {
             // No enemies in sight, so wander to find one
             self.setCurrentState(AIPlayer.AIState.WANDERING);
+            self.setObjectiveTargetPoint(null); // Clear any previous objective
         }
     }
 
@@ -84,10 +86,9 @@ public class DeathmatchAIStrategy implements IAIStrategy {
                 self.setCurrentState(AIPlayer.AIState.ATTACKING);
             }
         } else {
-            // More aggressive wandering - use CAPTURING_OBJECTIVE to move faster
-            self.setCurrentState(AIPlayer.AIState.CAPTURING_OBJECTIVE);
-            // Pick a point in the center of the map for hunting
-            self.setObjectiveTargetPoint(new Vector2D(Config.GAME_WIDTH / 2.0, Config.GAME_HEIGHT / 2.0));
+            // More aggressive wandering - pick a random area to hunt instead of center
+            self.setCurrentState(AIPlayer.AIState.WANDERING);
+            self.setObjectiveTargetPoint(generateHuntingArea(self));
         }
     }
 
@@ -97,8 +98,9 @@ public class DeathmatchAIStrategy implements IAIStrategy {
      */
     private void prioritizeDefense(AIPlayer self, Player closestEnemy) {
         if (closestEnemy == null) {
-            // No enemies, patrol center area
+            // No enemies, patrol a defensive area instead of center
             self.setCurrentState(AIPlayer.AIState.WANDERING);
+            self.setObjectiveTargetPoint(generateDefensiveArea(self));
             return;
         }
 
@@ -130,4 +132,51 @@ public class DeathmatchAIStrategy implements IAIStrategy {
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
         }
     }
+
+    /**
+     * Generates a hunting area for aggressive AI archetypes.
+     * Creates distributed areas across the map instead of clustering at center.
+     */
+    private Vector2D generateHuntingArea(AIPlayer self) {
+        // Define multiple hunting zones to distribute AI across the map
+        double zoneWidth = Config.GAME_WIDTH / 3.0;
+        double zoneHeight = Config.GAME_HEIGHT / 3.0;
+        
+        // Pick a random zone (9 zones total in a 3x3 grid)
+        int zoneX = ThreadLocalRandom.current().nextInt(3);
+        int zoneY = ThreadLocalRandom.current().nextInt(3);
+        
+        // Generate a point within the selected zone
+        double x = (zoneX * zoneWidth) + ThreadLocalRandom.current().nextDouble(zoneWidth);
+        double y = (zoneY * zoneHeight) + ThreadLocalRandom.current().nextDouble(zoneHeight);
+        
+        // Ensure we stay within map bounds with some padding
+        x = Math.max(50, Math.min(Config.GAME_WIDTH - 50, x));
+        y = Math.max(50, Math.min(Config.GAME_HEIGHT - 50, y));
+        
+        return new Vector2D(x, y);
+    }
+
+    /**
+     * Generates a defensive area for Guardian archetypes.
+     * Prefers areas closer to their team's side of the map.
+     */
+    private Vector2D generateDefensiveArea(AIPlayer self) {
+        double x, y;
+        
+        if (self.getTeam() == 1) {
+            // Team 1 prefers left side of map
+            x = ThreadLocalRandom.current().nextDouble(50, Config.GAME_WIDTH * 0.6);
+        } else {
+            // Team 2 prefers right side of map  
+            x = ThreadLocalRandom.current().nextDouble(Config.GAME_WIDTH * 0.4, Config.GAME_WIDTH - 50);
+        }
+        
+        // Patrol the full height but avoid edges
+        y = ThreadLocalRandom.current().nextDouble(50, Config.GAME_HEIGHT - 50);
+        
+        return new Vector2D(x, y);
+    }
+
+
 }
