@@ -6,25 +6,28 @@ import com.fullsteam.model.Crate;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
+import com.fullsteam.model.Targetable;
 import com.fullsteam.model.gamemodes.BuilderGameInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static com.fullsteam.Config.PLAYER_RADIUS;
 import static com.fullsteam.Config.PLAYER_SIZE;
+import static org.apache.commons.lang3.BooleanUtils.forEach;
 
 @GameName("Builder")
 public class BuilderManager extends AbstractFreeForAllManager {
 
     private static final double CRATE_SIZE = 30.0;
     private static final double PLACEMENT_DISTANCE = CRATE_SIZE * 2;
-    private static final double PLACEMENT_SEARCH_RADIUS = PLACEMENT_DISTANCE + 5;
-    private static final int PLACEMENT_SEARCH_STEPS = 8;
 
-    private final List<Crate> crates = new CopyOnWriteArrayList<>();
+    private final List<Crate> crates = Collections.synchronizedList(new LinkedList<>());
 
     public BuilderManager(GameLobby gameLobby) {
         super(gameLobby);
@@ -51,27 +54,10 @@ public class BuilderManager extends AbstractFreeForAllManager {
     }
 
     @Override
-    protected void updateBullets(long delta) {
-        super.updateBullets(delta);
-        bullets.removeIf(bullet -> {
-            for (Crate crate : crates) {
-                // AABB collision check, assuming crate's (x,y) is its top-left corner.
-                if (bullet.getX() >= crate.getX() &&
-                    bullet.getX() <= crate.getX() + crate.getSize() &&
-                    bullet.getY() >= crate.getY() &&
-                    bullet.getY() <= crate.getY() + crate.getSize()) {
-                    crate.takeDamage(bullet.getDamage());
-                    if (crate.isDestroyed()) {
-                        crates.remove(crate);
-                    }
-                    bullet.getOnDestructionAction()
-                            .map(action -> action.apply(bullet))
-                            .ifPresent(this::applyBulletEffect);
-                    return true;
-                }
-            }
-            return false;
-        });
+    protected void populateSpatialGrids() {
+        for (Crate crate : crates) {
+            targetGrid.insert(crate, crate.getX(), crate.getY(), crate.getSize(), crate.getSize());
+        }
     }
 
     @Override
@@ -94,6 +80,8 @@ public class BuilderManager extends AbstractFreeForAllManager {
 
     @Override
     protected void updatePlayers(long delta) {
+        crates.removeIf(Crate::isDestroyed);
+
         // Temporarily add crates as obstacles for collision detection purposes.
         // This allows us to reuse the collision logic from the superclass.
         List<Obstacle> crateObstacles = new ArrayList<>();
@@ -144,16 +132,18 @@ public class BuilderManager extends AbstractFreeForAllManager {
         double snappedY = Math.round(idealY / CRATE_SIZE) * CRATE_SIZE;
 
         if (!isCollidingWithAnyCrate(snappedX, snappedY) && !isCollidingWithAnyPlayer(snappedX, snappedY)) {
-            crates.add(new Crate(playerId, snappedX, snappedY, CRATE_SIZE, Config.BUILDER_CRATE_HEALTH));
+            Crate crate = new Crate(playerId, snappedX, snappedY, CRATE_SIZE, Config.BUILDER_CRATE_HEALTH);
+            crates.add(crate);
+            targetGrid.insert(crate, crate.getX(), crate.getY(), crate.getSize(), crate.getSize());
         }
     }
 
     private boolean isCollidingWithAnyCrate(double newCrateX, double newCrateY) {
         for (Crate existingCrate : crates) {
             if (newCrateX < existingCrate.getX() + existingCrate.getSize() &&
-                newCrateX + CRATE_SIZE > existingCrate.getX() &&
-                newCrateY < existingCrate.getY() + existingCrate.getSize() &&
-                newCrateY + CRATE_SIZE > existingCrate.getY()) {
+                    newCrateX + CRATE_SIZE > existingCrate.getX() &&
+                    newCrateY < existingCrate.getY() + existingCrate.getSize() &&
+                    newCrateY + CRATE_SIZE > existingCrate.getY()) {
                 return true;
             }
         }
@@ -164,9 +154,9 @@ public class BuilderManager extends AbstractFreeForAllManager {
         for (Player player : players.values()) {
             // AABB collision check
             if (crateX < player.getX() + PLAYER_SIZE &&
-                crateX + CRATE_SIZE > player.getX() &&
-                crateY < player.getY() + PLAYER_SIZE &&
-                crateY + CRATE_SIZE > player.getY()) {
+                    crateX + CRATE_SIZE > player.getX() &&
+                    crateY < player.getY() + PLAYER_SIZE &&
+                    crateY + CRATE_SIZE > player.getY()) {
                 return true;
             }
         }

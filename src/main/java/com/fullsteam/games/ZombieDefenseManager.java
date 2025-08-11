@@ -10,6 +10,7 @@ import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.ZombieAIStrategy;
+import com.fullsteam.model.ai.ZombiePlayer;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.ZombieDefenseInfo;
 import io.netty.channel.Channel;
@@ -121,25 +122,25 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     private void spawnZombie() {
         long playerId = Config.ID_COUNTER.incrementAndGet();
         // Zombies are on Team 2
-        AIPlayer zombie = new AIPlayer(playerId, 0, 0, 2, new ZombieAIStrategy(), AIArchetype.randomArchetype());
+        AIPlayer zombie;
         double random = ThreadLocalRandom.current().nextDouble();
 
         // Introduce special zombies in later waves
         if (waveNumber > 5 && random < 0.15) { // 15% chance for a Brute
+            zombie = new ZombiePlayer(playerId, 0, 0, 2, Config.ZOMBIE_SPEED - .05);
             zombie.setPlayerName("Brute");
             zombie.setWeapon(WeaponFactory.HEAVY_ZOMBIE_CLAW);
             zombie.setMaxHp(300);
-            zombie.setSpeed(Config.ZOMBIE_SPEED - .05);
         } else if (waveNumber > 3 && random < 0.30) { // 30% chance for a Runner
+            zombie = new ZombiePlayer(playerId, 0, 0, 2, Config.ZOMBIE_SPEED + .05);
             zombie.setPlayerName("Runner");
             zombie.setWeapon(WeaponFactory.ZOMBIE_CLAW);
             zombie.setMaxHp(50);
-            zombie.setSpeed(Config.ZOMBIE_SPEED + .05);
         } else {
+            zombie = new ZombiePlayer(playerId, 0, 0, 2, Config.ZOMBIE_SPEED);
             zombie.setPlayerName("Zombie");
             zombie.setWeapon(WeaponFactory.ZOMBIE_CLAW);
             zombie.setMaxHp(50);
-            zombie.setSpeed(Config.ZOMBIE_SPEED);
         }
         zombie.setDefaultSpeed(zombie.getSpeed());
         zombie.resetHp();

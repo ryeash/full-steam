@@ -22,7 +22,7 @@ public class CollisionUtils {
             Vector2D p2 = polygon.get(j);
 
             if (((p1.y() > point.y()) != (p2.y() > point.y())) &&
-                (point.x() < (p2.x() - p1.x()) * (point.y() - p1.y()) / (p2.y() - p1.y()) + p1.x())) {
+                    (point.x() < (p2.x() - p1.x()) * (point.y() - p1.y()) / (p2.y() - p1.y()) + p1.x())) {
                 isInside = !isInside;
             }
         }
@@ -88,6 +88,41 @@ public class CollisionUtils {
             }
         }
         return false;
+    }
+
+    /**
+     * Checks if a line segment intersects with an axis-aligned rectangle.
+     *
+     * @param lineStart The start point of the line segment
+     * @param lineEnd   The end point of the line segment
+     * @param rectX     The x coordinate of the rectangle's top-left corner
+     * @param rectY     The y coordinate of the rectangle's top-left corner
+     * @param rectW     The width of the rectangle
+     * @param rectH     The height of the rectangle
+     * @return true if the line intersects the rectangle, false otherwise
+     */
+    public static boolean checkLineRectangleCollision(Vector2D lineStart, Vector2D lineEnd,
+                                                      double rectX, double rectY,
+                                                      double rectW, double rectH) {
+        // First check if either endpoint is inside the rectangle
+        if (isPointInRectangle(lineStart, rectX, rectY, rectW, rectH) ||
+                isPointInRectangle(lineEnd, rectX, rectY, rectW, rectH)) {
+            return true;
+        }
+
+        // Create the four edges of the rectangle
+        Vector2D topLeft = new Vector2D(rectX, rectY);
+        Vector2D topRight = new Vector2D(rectX + rectW, rectY);
+        Vector2D bottomLeft = new Vector2D(rectX, rectY + rectH);
+        Vector2D bottomRight = new Vector2D(rectX + rectW, rectY + rectH);
+
+        return checkLinePolygonCollision(lineStart, lineEnd, List.of(topLeft, topRight, bottomRight, bottomLeft));
+    }
+
+    private static boolean isPointInRectangle(Vector2D point, double rectX, double rectY,
+                                              double rectW, double rectH) {
+        return point.x() >= rectX && point.x() <= rectX + rectW &&
+                point.y() >= rectY && point.y() <= rectY + rectH;
     }
 
     /**

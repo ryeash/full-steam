@@ -43,7 +43,7 @@ public class AIPlayer extends Player {
 
     // --- AI State & Strategy ---
     private transient AIState currentState = AIState.WANDERING;
-    private transient Player currentTarget;
+    protected transient Player currentTarget;
     private transient Vector2D objectiveTargetPoint;
     private transient Vector2D wanderTarget;
     private transient final IAIStrategy aiStrategy;
@@ -322,7 +322,7 @@ public class AIPlayer extends Player {
     /**
      * Sets the player's mouse coordinates to aim in a specific direction.
      */
-    private void aimInDirection(Vector2D direction) {
+    protected void aimInDirection(Vector2D direction) {
         if (direction.magnitudeSq() == 0) return;
         Vector2D normalized = direction.normalize();
         setMouseX(position().x() + normalized.x() * 100);

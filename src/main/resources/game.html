@@ -1279,7 +1279,8 @@
                 this.ctx.lineWidth = 2;
                 this.ctx.fillRect(crate.x, crate.y, crate.size, crate.size);
                 this.ctx.strokeRect(crate.x, crate.y, crate.size, crate.size);
-
+            });
+            this.gameState.info.crates.forEach(crate => {
                 // Draw health bar if damaged
                 if (crate.hp < crate.maxHp) {
                     const healthPercentage = Math.max(0, crate.hp / crate.maxHp);
@@ -1876,8 +1877,8 @@
                 this.ctx.textBaseline = 'alphabetic';
             }
 
-            const maxHealth = player.maxHealth || 100;
-            const healthPercentage = Math.max(0, player.hp / maxHealth);
+            const maxHp = player.maxHp || 100;
+            const healthPercentage = Math.max(0, player.hp / maxHp);
             const healthBarRadius = playerSize / 2 + 4;
             const healthBarThickness = 3;
 
