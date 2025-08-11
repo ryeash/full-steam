@@ -1,6 +1,5 @@
 package com.fullsteam.model.ai;
 
-import com.fullsteam.Config;
 import com.fullsteam.SpatialGrid;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.GameState;
@@ -102,16 +101,5 @@ public class ZombiePlayer extends AIPlayer {
 
     public Player getCurrentTarget() {
         return super.currentTarget;
-    }
-}
-
-/**
- * Simple strategy for zombies that focuses on pure pursuit
- */
-class ZombieStrategy implements IAIStrategy {
-    @Override
-    public void updateAIState(AIPlayer ai, GameState gameState) {
-        // Zombies are always in attack mode
-        ai.setCurrentState(AIPlayer.AIState.ATTACKING);
     }
 }

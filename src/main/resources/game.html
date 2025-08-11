@@ -1131,6 +1131,7 @@
 
             this.drawPowerUps();
             this.drawCrates();
+            this.drawCratePreview();
             this.drawExplosions();
             this.drawPoisonClouds();
             this.drawTurrets();
@@ -1254,6 +1255,10 @@
                         this.ctx.fillStyle = 'rgba(229, 57, 53, 0.7)';
                         icon = '⚔️';
                         break;
+                    case 'INVISIBILITY':
+                        this.ctx.fillStyle = 'rgba(155, 89, 182, 0.7)';
+                        icon = '👻';
+                        break;
                 }
                 this.ctx.fill();
 
@@ -1303,6 +1308,54 @@
                     this.ctx.strokeRect(barX, barY, barWidth, barHeight);
                 }
             });
+            this.ctx.restore();
+        }
+
+        drawCratePreview() {
+            // Only show preview in Builder mode and when not spectating
+            if (!this.gameState.info ||
+                this.gameState.info.type !== 'Builder' ||
+                this.isSpectator ||
+                this.isLocalPlayerDead) {
+                return;
+            }
+
+            const CRATE_SIZE = 30.0; // Match the server-side constant
+            const PLAYER_RADIUS = 10.0;
+            const PLACEMENT_DISTANCE = CRATE_SIZE * 2;
+
+            // Get local player
+            const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
+            if (!localPlayer) return;
+
+            // Calculate placement position
+            const dx = localPlayer.mouseX - localPlayer.x;
+            const dy = localPlayer.mouseY - localPlayer.y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const baseAngle = (length > 0.1) ? Math.atan2(dy, dx) : 0.0;
+
+            // Calculate the ideal placement location
+            const idealX = localPlayer.x + PLAYER_RADIUS - (CRATE_SIZE / 2.0) +
+                          Math.cos(baseAngle) * PLACEMENT_DISTANCE;
+            const idealY = localPlayer.y + PLAYER_RADIUS - (CRATE_SIZE / 2.0) +
+                          Math.sin(baseAngle) * PLACEMENT_DISTANCE;
+
+            // Snap to grid
+            const snappedX = Math.round(idealX / CRATE_SIZE) * CRATE_SIZE;
+            const snappedY = Math.round(idealY / CRATE_SIZE) * CRATE_SIZE;
+
+            // Draw the preview
+            this.ctx.save();
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([5, 5]);
+
+            this.ctx.beginPath();
+            this.ctx.rect(snappedX, snappedY, CRATE_SIZE, CRATE_SIZE);
+            this.ctx.fill();
+            this.ctx.stroke();
+
             this.ctx.restore();
         }
 
@@ -1707,7 +1760,7 @@
             this.ctx.shadowBlur = 5;
 
             const startY = 50;
-            this.gameEvents.forEach((event, index) => {
+            this.gameEvents.slice(-6).forEach((event, index) => {
                 const yPos = startY + (index * 25);
                 switch (event.type) {
                     case 'FLAG_CAPTURE': this.ctx.fillStyle = '#FFD700'; break;

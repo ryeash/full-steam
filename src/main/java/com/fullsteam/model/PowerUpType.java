@@ -4,5 +4,6 @@ public enum PowerUpType {
     HEALTH_PACK,
     SPEED_BOOST,
     ARMOR_UP,
-    DAMAGE_BOOST
+    DAMAGE_BOOST,
+    INVISIBILITY
 }

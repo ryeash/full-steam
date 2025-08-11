@@ -66,6 +66,7 @@ import static com.fullsteam.Config.PLAYER_SIZE;
 import static com.fullsteam.Config.POWER_UP_ARMOR_UP_DURATION;
 import static com.fullsteam.Config.POWER_UP_DAMAGE_BOOST_DURATION;
 import static com.fullsteam.Config.POWER_UP_HEALTH_RECOVERY;
+import static com.fullsteam.Config.POWER_UP_INVISIBILITY_DURATION;
 import static com.fullsteam.Config.POWER_UP_SPEED_BOOST_DURATION;
 import static com.fullsteam.Config.POWER_UP_SPEED_BOOST_FACTOR;
 import static com.fullsteam.Config.RESPAWN_DELAY_MS;
@@ -366,7 +367,7 @@ public abstract class AbstractGameStateManager {
 
     protected void updateTurrets(long delta) {
         GameState gameState = new GameState(
-                players.values(),
+                players.values().stream().filter(p -> p.getInvisibilityEndTime() > System.currentTimeMillis()).toList(),
                 bullets,
                 explosions,
                 poisonClouds,
@@ -591,7 +592,7 @@ public abstract class AbstractGameStateManager {
 
     protected void updatePlayers(long delta) {
         GameState gameState = new GameState(
-                players.values(),
+                players.values().stream().filter(p -> p.getInvisibilityEndTime() > System.currentTimeMillis()).toList(),
                 bullets,
                 explosions,
                 poisonClouds,
@@ -815,14 +816,14 @@ public abstract class AbstractGameStateManager {
         victim.setRespawnTime(System.currentTimeMillis() + RESPAWN_DELAY_MS);
         victim.setVelocityX(0);
         victim.setVelocityY(0);
+        victim.setInvisibilityEndTime(0);
+        victim.setDamageMultiplier(1.0);
         removePlayerTurrets(victim);
 
         if (shooter != null) {
             shooter.incrementKills();
-            if (!this.getClass().equals(ZombieDefenseManager.class)) {
-                sendGameEvent(GameEvent.yellow("You were eliminated by %s (%s)".formatted(shooter.getPlayerName(), shooter.getWeapon().getName()), victim.id()));
-                sendGameEvent(GameEvent.blue("You eliminated %s".formatted(victim.getPlayerName()), shooter.id()));
-            }
+            sendGameEvent(GameEvent.yellow("You were eliminated by %s (%s)".formatted(shooter.getPlayerName(), shooter.getWeapon().getName()), victim.id()));
+            sendGameEvent(GameEvent.blue("You eliminated %s".formatted(victim.getPlayerName()), shooter.id()));
         }
 
         // If an AI player's performance is unbalanced, give it a new random weapon.
@@ -850,20 +851,18 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void updatePowerUps() {
-        List<PowerUp> consumedPowerUps = new ArrayList<>();
-        for (PowerUp powerUp : powerUps) {
+        powerUps.removeIf(powerUp -> {
             Set<Targetable> nearbyPlayers = targetGrid.getNearby(powerUp.getPosition().x() - PLAYER_SIZE, powerUp.getPosition().y() - PLAYER_SIZE, PLAYER_SIZE * 2, PLAYER_SIZE * 2);
             for (Targetable target : nearbyPlayers) {
                 if (target instanceof Player player) {
                     if (!player.isDead() && isColliding(player, powerUp)) {
                         applyPowerUp(player, powerUp);
-                        consumedPowerUps.add(powerUp);
-                        break; // Power-up is consumed, move to the next one
+                        return true; // Power-up is consumed, remove it
                     }
                 }
             }
-        }
-        powerUps.removeAll(consumedPowerUps);
+            return false;
+        });
     }
 
     protected void applyPowerUp(Player player, PowerUp powerUp) {
@@ -879,6 +878,9 @@ public abstract class AbstractGameStateManager {
                 break;
             case DAMAGE_BOOST:
                 player.applyDamageBoost(POWER_UP_DAMAGE_BOOST_DURATION);
+                break;
+            case INVISIBILITY:
+                player.setInvisibilityEndTime(System.currentTimeMillis() + POWER_UP_INVISIBILITY_DURATION);
                 break;
         }
     }
@@ -912,7 +914,7 @@ public abstract class AbstractGameStateManager {
         GameInfo gameInfo = buildGameState();
 
         GameState state = new GameState(
-                players.values(),
+                players.values().stream().filter(p -> p.getInvisibilityEndTime() < System.currentTimeMillis()).toList(),
                 bullets,
                 explosions,
                 poisonClouds,
