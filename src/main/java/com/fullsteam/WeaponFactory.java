@@ -266,14 +266,14 @@ public class WeaponFactory {
             "Claw",
             "C",
             5,
-            20,
+            5,
             -1,
-            27,
+            15,
             0,
             0,
             10,
             19,
-            20,
+            47,
             null
     );
     public static final Weapon HEAVY_ZOMBIE_CLAW = new Weapon(
