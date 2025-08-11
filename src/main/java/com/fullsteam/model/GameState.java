@@ -12,7 +12,6 @@ public record GameState(Collection<Player> players,
                         List<Turret> turrets,
                         List<Obstacle> obstacles,
                         List<Hazard> hazards,
-                        List<DeathMarker> deathMarkers,
                         List<PowerUp> powerUps,
                         long serverTime,
                         GameInfo info) {

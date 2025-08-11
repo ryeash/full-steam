@@ -57,11 +57,11 @@ public class Config {
     public static final int TICK_RATE = getInt("game.tick_rate", 30);
     public static final boolean ALLOW_NAME_CHANGE = getProp("game.allow_name_change", true, Boolean::valueOf);
     public static final int OBSTACLE_COUNT = getInt("game.obstacle_count", 6);
-    public static final long DEATH_MARKER_DURATION_MS = getLong("game.death_marker_duration_ms", 5000); // Marker lasts 5 seconds
     public static final long GAME_EVENT_DURATION_MS = getLong("game.game_event_duration_ms", 6000); // 4 seconds for events to be on screen
     public static final long NEXT_ROUND_DELAY_MS = getLong("game.next_round_delay_ms", 6000); // 3-second delay between rounds
     public static final long RESPAWN_DELAY_MS = getLong("game.respawn_delay_ms", 5_000);
     public static final double PLAYER_SIZE = getDouble("game.player_size", 20.0);
+    public static final double PLAYER_RADIUS = PLAYER_SIZE / 2;
     public static final double DEFAULT_PLAYER_HEALTH = getDouble("game.default_player_health", 100.0);
     public static final double DEFAULT_PLAYER_SPEED = getDouble("game.default_player_speed", .18);
     public static final double ZOMBIE_SPEED = getDouble("game.zombie_speed", DEFAULT_PLAYER_SPEED / 2); // Slower than players
@@ -71,11 +71,12 @@ public class Config {
     public static final double SPAWN_VERTICAL_PADDING = getDouble("game.spawn_padding_v", 50.0);
     public static final double SPAWN_MIDFIELD_BUFFER = getDouble("game.spawn_midfield_buffer", 300.0);
     public static final int MAX_PLAYERS_PER_TEAM = getInt("game.max_players_per_team", 5);
-    public static final int HAZARD_COUNT = getInt("game.hazard.count", 0);
+    public static final int HAZARD_COUNT = getInt("game.hazard.count", 2);
     public static final double HAZARD_SLOW_FACTOR = getDouble("game.hazard.slow_factor", 0.5); // 50% speed
     public static final double HAZARD_DAMAGE_FACTOR = getDouble("game.hazard.damage_factor", 0.5); // damage per tick;
     public static final long RESPAWN_IMMUNITY_DURATION = getLong("game.respawn_immunity_duration", 2000);
-    public static final int MAX_TURRETS_PER_PLAYER = getInt("game.max_turrets_per_player", 4);
+    public static final int MAX_TURRETS_PER_PLAYER = getInt("game.max_turrets_per_player", 2);
+    public static final double TURRET_INACCURACY = getDouble("game.turret_inaccuracy", .3);
 
     // --- Power Ups ---
     public static final double POWER_UP_SPEED_BOOST_FACTOR = getDouble("game.powerup.speed_boost_factor", 1.5);

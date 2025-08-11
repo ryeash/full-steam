@@ -8,7 +8,6 @@ import com.fullsteam.SpatialGrid;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.Bullet;
 import com.fullsteam.model.BulletEffect;
-import com.fullsteam.model.DeathMarker;
 import com.fullsteam.model.Explosion;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
@@ -51,7 +50,6 @@ import java.util.function.Predicate;
 
 import static com.fullsteam.CollisionUtils.checkObstacleOverlap;
 import static com.fullsteam.Config.AFK_TIMEOUT_MS;
-import static com.fullsteam.Config.DEATH_MARKER_DURATION_MS;
 import static com.fullsteam.Config.GAME_HEIGHT;
 import static com.fullsteam.Config.GAME_WIDTH;
 import static com.fullsteam.Config.HAZARD_COUNT;
@@ -62,6 +60,7 @@ import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
 import static com.fullsteam.Config.MAX_SPECTATORS_PER_GAME;
 import static com.fullsteam.Config.MAX_TURRETS_PER_PLAYER;
 import static com.fullsteam.Config.OBSTACLE_COUNT;
+import static com.fullsteam.Config.PLAYER_RADIUS;
 import static com.fullsteam.Config.PLAYER_SIZE;
 import static com.fullsteam.Config.POWER_UP_ARMOR_UP_DURATION;
 import static com.fullsteam.Config.POWER_UP_DAMAGE_BOOST_DURATION;
@@ -75,6 +74,7 @@ import static com.fullsteam.Config.SPAWN_HORIZONTAL_PADDING;
 import static com.fullsteam.Config.SPAWN_MIDFIELD_BUFFER;
 import static com.fullsteam.Config.SPAWN_VERTICAL_PADDING;
 import static com.fullsteam.Config.TICK_RATE;
+import static com.fullsteam.Config.TURRET_INACCURACY;
 
 public abstract class AbstractGameStateManager {
     protected final Logger log = LoggerFactory.getLogger(getClass());
@@ -91,7 +91,6 @@ public abstract class AbstractGameStateManager {
     protected final List<Turret> turrets = Collections.synchronizedList(new LinkedList<>());
     protected final List<Obstacle> obstacles = Collections.synchronizedList(new LinkedList<>());
     protected final List<Hazard> hazards = Collections.synchronizedList(new LinkedList<>());
-    protected final List<DeathMarker> deathMarkers = Collections.synchronizedList(new LinkedList<>());
     protected final List<PowerUp> powerUps = Collections.synchronizedList(new LinkedList<>());
     protected final SpatialGrid<Targetable> playerGrid;
     protected boolean isRoundOver = false;
@@ -280,8 +279,8 @@ public abstract class AbstractGameStateManager {
         if (input.isShooting()) {
             if (player.canShoot()) {
                 // Calculate bullet direction based on mouse position
-                double dx = input.getMouseX() - (player.getX() + PLAYER_SIZE / 2.0);
-                double dy = input.getMouseY() - (player.getY() + PLAYER_SIZE / 2.0);
+                double dx = input.getMouseX() - player.getX();
+                double dy = input.getMouseY() - player.getY();
                 double length = Math.sqrt(dx * dx + dy * dy);
 
                 if (length > 0) {
@@ -299,8 +298,8 @@ public abstract class AbstractGameStateManager {
             return;
         }
         Weapon weapon = player.getWeapon();
-        double bulletX = player.getX() + (PLAYER_SIZE / 2.0);
-        double bulletY = player.getY() + (PLAYER_SIZE / 2.0);
+        double bulletX = player.getX();
+        double bulletY = player.getY();
 
         // Fire all bullets for this shot (or whatever is left in the magazine)
         int bulletsToFire = Math.min(weapon.getBulletsPerShot(), player.getCurrentAmmoInMagazine());
@@ -351,7 +350,6 @@ public abstract class AbstractGameStateManager {
             }
             checkAfkPlayers();
             checkAndRespawnPlayers();
-            updateDeathMarkers();
             updatePowerUps();
             updatePlayers(delta);
             updateBullets(delta);
@@ -374,13 +372,17 @@ public abstract class AbstractGameStateManager {
                 turrets,
                 obstacles,
                 hazards,
-                deathMarkers,
                 powerUps,
                 System.currentTimeMillis(),
                 null // GameInfo is not needed for turret AI
         );
 
         turrets.removeIf(turret -> {
+            boolean inObstacle = obstacles.stream()
+                    .anyMatch(o -> CollisionUtils.checkCirclePolygonCollision(turret.position(), turret.getRadius(), o.vertices()));
+            if (inObstacle) {
+                return true;
+            }
             if (turret.getHp() <= 0) {
                 explosions.add(new Explosion(turret.getX(),
                         turret.getY(),
@@ -389,13 +391,10 @@ public abstract class AbstractGameStateManager {
                         PLAYER_SIZE, // size/radius
                         0, // damage
                         300));
-                // TODO: add explosion effect on turret death
                 return true;
             }
-
             Optional<Turret.ShootAction> shootAction = turret.update(gameState, playerGrid);
             shootAction.ifPresent(action -> fireTurretWeapon(turret, Math.atan2(action.directionY(), action.directionX())));
-
             return false;
         });
     }
@@ -517,7 +516,6 @@ public abstract class AbstractGameStateManager {
             isRoundOver = false;
             // Clear transient game objects
             bullets.clear();
-            deathMarkers.clear();
             poisonClouds.clear();
             turrets.clear();
             powerUps.clear();
@@ -545,11 +543,6 @@ public abstract class AbstractGameStateManager {
         } catch (Throwable t) {
             log.error("error resetting game state", t);
         }
-    }
-
-
-    protected void updateDeathMarkers() {
-        deathMarkers.removeIf(marker -> System.currentTimeMillis() >= marker.expirationTime());
     }
 
     /**
@@ -594,7 +587,6 @@ public abstract class AbstractGameStateManager {
                 turrets,
                 obstacles,
                 hazards,
-                deathMarkers,
                 powerUps,
                 System.currentTimeMillis(),
                 null
@@ -733,7 +725,7 @@ public abstract class AbstractGameStateManager {
                     // Check for collision with an enemy player
                     if (!player.isDead() && player.getTeam() != bullet.getTeam()) {
                         Vector2D playerCenter = player.position();
-                        if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, playerCenter, PLAYER_SIZE / 2)) {
+                        if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, playerCenter, PLAYER_RADIUS)) {
                             Player shooter = players.get(bullet.getShooterId());
 
                             // Apply damage and check if it was a kill
@@ -841,13 +833,6 @@ public abstract class AbstractGameStateManager {
                 log.info("{} performance (K/D: {}/{}) triggered a weapon change from {} to {}.", victim.getPlayerName(), kills, deaths, oldWeapon.getName(), victim.getWeapon().getName());
             }
         }
-
-        // Add the death marker
-        double markerX = victim.getX() + (PLAYER_SIZE / 2); // Center of the player
-        double markerY = victim.getY() + (PLAYER_SIZE / 2);
-        long expiration = System.currentTimeMillis() + DEATH_MARKER_DURATION_MS;
-        deathMarkers.add(new DeathMarker(ID_COUNTER.incrementAndGet(), markerX, markerY, expiration));
-
         if (ThreadLocalRandom.current().nextDouble() < 0.25) { // 25% chance to drop a power-up
             spawnPowerUp(new Vector2D(victim.getX(), victim.getY()));
         }
@@ -929,7 +914,7 @@ public abstract class AbstractGameStateManager {
                 turrets,
                 obstacles.stream().filter(Obstacle::isRendered).toList(),
                 hazards,
-                deathMarkers, // null playerId gets only public events
+                // null playerId gets only public events
                 powerUps,
                 System.currentTimeMillis(),
                 gameInfo
@@ -1036,12 +1021,11 @@ public abstract class AbstractGameStateManager {
             }
 
             // Next, check if the spawn point is inside a damage hazard.
-            Vector2D playerCenter = new Vector2D(player.getX() + PLAYER_SIZE / 2, player.getY() + PLAYER_SIZE / 2);
             for (Hazard hazard : hazards) {
                 if (hazard.type() == Hazard.Type.DAMAGE) {
                     // Check if the player's center is inside the hazard's radius.
                     // This is a simplified check, but consistent with how hazards affect players during the game.
-                    if (playerCenter.distanceSquared(hazard.position()) < hazard.radiusSq()) {
+                    if (player.position().distanceSquared(hazard.position()) < hazard.radiusSq()) {
                         invalidPosition = true;
                         break; // Exit the for loop and try a new position
                     }
@@ -1064,8 +1048,7 @@ public abstract class AbstractGameStateManager {
     protected boolean isColliding(Player player, Obstacle obstacle) {
         // --- Broad Phase Check ---
         // First, do a quick check using bounding circles to see if the objects are even close.
-        double playerRadius = PLAYER_SIZE / 2.0;
-        double combinedRadius = playerRadius + obstacle.getBoundingRadius();
+        double combinedRadius = PLAYER_RADIUS + obstacle.getBoundingRadius();
         double distanceSq = player.position().distanceSquared(obstacle.getCenter());
 
         // If the distance between centers is greater than their combined radii, they can't be colliding.
@@ -1075,8 +1058,7 @@ public abstract class AbstractGameStateManager {
 
         // --- Narrow Phase Check ---
         // The broad phase passed, so now we do the expensive, precise check.
-        return CollisionUtils.checkCirclePolygonCollision(
-                player.position(), playerRadius, obstacle.vertices());
+        return CollisionUtils.checkCirclePolygonCollision(player.position(), PLAYER_RADIUS, obstacle.vertices());
     }
 
     /**
@@ -1175,7 +1157,8 @@ public abstract class AbstractGameStateManager {
 
         for (int i = 0; i < weapon.getBulletsPerShot(); i++) {
             double spread = ThreadLocalRandom.current().nextGaussian() * (weapon.getBulletSpread() / 6.0);
-            double finalAngle = aimAngle + spread;
+            double inaccuracy = (ThreadLocalRandom.current().nextDouble() - 0.5) * 2 * TURRET_INACCURACY;
+            double finalAngle = aimAngle + spread + inaccuracy;
 
             Bullet bullet = new Bullet(
                     turret.getX(),

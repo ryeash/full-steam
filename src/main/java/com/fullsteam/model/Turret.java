@@ -299,6 +299,6 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
     }
 
     public static Turret create(Bullet bullet) {
-        return new Turret(Config.ID_COUNTER.incrementAndGet(), bullet.getShooterId(), bullet.getTeam(), bullet.getX(), bullet.getY(), Config.PLAYER_SIZE / 2, WeaponFactory.getDefaultWeapon(), 0);
+        return new Turret(Config.ID_COUNTER.incrementAndGet(), bullet.getShooterId(), bullet.getTeam(), bullet.getX(), bullet.getY(), Config.PLAYER_RADIUS, WeaponFactory.getDefaultWeapon(), 0);
     }
 }

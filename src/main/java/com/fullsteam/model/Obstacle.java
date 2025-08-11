@@ -4,8 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fullsteam.Config;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -110,5 +110,19 @@ public class Obstacle implements HasId {
         vertices.add(new Vector2D(x + width, y + height));
         vertices.add(new Vector2D(x, y + height));
         return new Obstacle(vertices);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        Obstacle obstacle = (Obstacle) o;
+        return id == obstacle.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
     }
 }

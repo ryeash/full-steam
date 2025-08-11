@@ -152,7 +152,7 @@ public class Player implements HasId, HasLife, Targetable {
     }
 
     public Vector2D position() {
-        return new Vector2D(x + Config.PLAYER_SIZE / 2.0, y + Config.PLAYER_SIZE / 2.0);
+        return new Vector2D(x, y);
     }
 
     public double getMouseX() {

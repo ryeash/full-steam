@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import static com.fullsteam.Config.PLAYER_RADIUS;
 import static com.fullsteam.Config.PLAYER_SIZE;
 
 @GameName("Builder")
@@ -129,14 +130,14 @@ public class BuilderManager extends AbstractFreeForAllManager {
             return;
         }
 
-        double dx = input.getMouseX() - (player.getX() + PLAYER_SIZE / 2.0);
-        double dy = input.getMouseY() - (player.getY() + PLAYER_SIZE / 2.0);
+        double dx = input.getMouseX() - player.getX();
+        double dy = input.getMouseY() - player.getY();
         double length = Math.sqrt(dx * dx + dy * dy);
         double baseAngle = (length > 0.1) ? Math.atan2(dy, dx) : 0.0D;
 
         // Calculate the ideal placement location.
-        double idealX = player.getX() + (PLAYER_SIZE / 2.0) - (CRATE_SIZE / 2.0) + Math.cos(baseAngle) * PLACEMENT_DISTANCE;
-        double idealY = player.getY() + (PLAYER_SIZE / 2.0) - (CRATE_SIZE / 2.0) + Math.sin(baseAngle) * PLACEMENT_DISTANCE;
+        double idealX = player.getX() + PLAYER_RADIUS - (CRATE_SIZE / 2.0) + Math.cos(baseAngle) * PLACEMENT_DISTANCE;
+        double idealY = player.getY() + PLAYER_RADIUS - (CRATE_SIZE / 2.0) + Math.sin(baseAngle) * PLACEMENT_DISTANCE;
 
         // Snap the initial target position to the grid.
         double snappedX = Math.round(idealX / CRATE_SIZE) * CRATE_SIZE;

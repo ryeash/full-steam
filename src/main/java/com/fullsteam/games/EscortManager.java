@@ -38,11 +38,12 @@ public class EscortManager extends AbstractTeamBasedManager {
                 (Config.GAME_HEIGHT - Config.ESCORT_OBSTACLE_HEIGHT) / 2,
                 Config.ESCORT_OBSTACLE_WIDTH,
                 Config.ESCORT_OBSTACLE_HEIGHT).vertices(), false);
+        obstacles.add(payload);
     }
 
     @Override
     protected void updateGame(long delta) {
-        // 1. Determine payload movement based on last frame's state
+        // Determine payload movement based on last frame's state
         Vector2D payloadCenter = getPayloadCenter();
         double proximitySq = Config.ESCORT_PLAYER_PROXIMITY * Config.ESCORT_PLAYER_PROXIMITY;
 
@@ -62,7 +63,7 @@ public class EscortManager extends AbstractTeamBasedManager {
             moveX = delta * -Config.ESCORT_OBSTACLE_SPEED;
         }
 
-        // 2. Update payload to its new position for this frame, checking boundaries
+        // Update payload to its new position for this frame, checking boundaries
         if (moveX != 0) {
             double finalDelta = moveX;
             Obstacle nextPayload = new Obstacle(payload.vertices()
@@ -73,14 +74,11 @@ public class EscortManager extends AbstractTeamBasedManager {
             double minX = nextPayload.vertices().stream().mapToDouble(Vector2D::x).min().orElse(0);
             double maxX = nextPayload.vertices().stream().mapToDouble(Vector2D::x).max().orElse(0);
             if (minX >= 0 && maxX <= Config.GAME_WIDTH) {
+                obstacles.remove(payload);
                 this.payload = nextPayload;
+                obstacles.add(payload);
             }
         }
-
-        // 3. Set up obstacles for this frame's physics, making the payload solid
-        obstacles.add(this.payload);
-
-        // 4. Run the main game loop (updates players, bullets, checks collisions)
         super.updateGame(delta);
     }
 
@@ -101,7 +99,6 @@ public class EscortManager extends AbstractTeamBasedManager {
             return true;
         }
 
-        // If time runs out, the team that pushed the payload past the centerline wins.
         if (System.currentTimeMillis() >= roundEndTime) {
             sendGameEvent(GameEvent.red("The payload was not delivered in time"));
             return true;
