@@ -32,7 +32,6 @@ public class EscortManager extends AbstractTeamBasedManager {
 
     @Override
     public void startNewRound() {
-        obstacles.clear();
         super.startNewRound();
         payload = new Obstacle(Obstacle.createRectangle(
                 (Config.GAME_WIDTH - Config.ESCORT_OBSTACLE_WIDTH) / 2,
@@ -79,13 +78,10 @@ public class EscortManager extends AbstractTeamBasedManager {
         }
 
         // 3. Set up obstacles for this frame's physics, making the payload solid
-        obstacles.clear();
         obstacles.add(this.payload);
 
         // 4. Run the main game loop (updates players, bullets, checks collisions)
         super.updateGame(delta);
-
-        obstacles.clear();
     }
 
     @Override
@@ -115,7 +111,21 @@ public class EscortManager extends AbstractTeamBasedManager {
 
     @Override
     protected void generateObstacles() {
-        obstacles.clear();
+        super.generateObstacles(o -> {
+            // The obstacle is valid only if it does NOT overlap with the payload corridor.
+            // This means the obstacle must be entirely above the corridor OR entirely below it.
+            // Define the vertical "keep-out" zone for the payload path.
+            // This is the vertical center of the map, plus the payload's height, plus a safety buffer.
+            double safetyBuffer = 50.0;
+            double pathCorridorHeight = Config.ESCORT_OBSTACLE_HEIGHT + (2 * safetyBuffer);
+            double pathTopY = (Config.GAME_HEIGHT / 2.0) - (pathCorridorHeight / 2.0);
+            double pathBottomY = (Config.GAME_HEIGHT / 2.0) + (pathCorridorHeight / 2.0);
+            double obstacleMinY = o.vertices().stream().mapToDouble(Vector2D::y).min().orElse(0);
+            double obstacleMaxY = o.vertices().stream().mapToDouble(Vector2D::y).max().orElse(0);
+            boolean isAbove = obstacleMaxY < pathTopY;
+            boolean isBelow = obstacleMinY > pathBottomY;
+            return isAbove || isBelow;
+        });
     }
 
     private Vector2D getPayloadCenter() {
