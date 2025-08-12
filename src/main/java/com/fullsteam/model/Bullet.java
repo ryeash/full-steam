@@ -3,7 +3,7 @@ package com.fullsteam.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.Optional;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 import static com.fullsteam.Config.ID_COUNTER;
 
@@ -30,13 +30,13 @@ public class Bullet implements HasId {
     @JsonIgnore
     private double distanceTraveled;
     @JsonIgnore
-    private final Function<Bullet, BulletEffect> onDestructionAction;
+    private final BiFunction<Bullet, Object, BulletEffect> onDestructionAction;
 
     public Bullet(double x, double y, double velocityX, double velocityY, long shooterId, int team, double damage, double speed, double range, double bulletSpeedDecay) {
         this(x, y, velocityX, velocityY, shooterId, team, damage, speed, range, bulletSpeedDecay, null);
     }
 
-    public Bullet(double x, double y, double velocityX, double velocityY, long shooterId, int team, double damage, double speed, double range, double bulletSpeedDecay, Function<Bullet, BulletEffect> onDestructionAction) {
+    public Bullet(double x, double y, double velocityX, double velocityY, long shooterId, int team, double damage, double speed, double range, double bulletSpeedDecay, BiFunction<Bullet, Object, BulletEffect> onDestructionAction) {
         this.x = x;
         this.y = y;
         this.velocityX = velocityX;
@@ -74,7 +74,7 @@ public class Bullet implements HasId {
     }
 
     @JsonIgnore
-    public Optional<Function<Bullet, BulletEffect>> getOnDestructionAction() {
+    public Optional<BiFunction<Bullet, Object, BulletEffect>> getOnDestructionAction() {
         return Optional.ofNullable(onDestructionAction);
     }
 

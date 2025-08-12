@@ -38,7 +38,7 @@ public class PoisonCloud implements BulletEffect {
     /**
      * A static factory method for creating a standard poison cloud from a bullet.
      */
-    public static PoisonCloud create(Bullet bullet) {
+    public static PoisonCloud create(Bullet bullet, Object destructionSource) {
         return new PoisonCloud(
                 bullet.getX(),
                 bullet.getY(),

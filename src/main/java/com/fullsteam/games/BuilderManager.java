@@ -1,25 +1,19 @@
 package com.fullsteam.games;
 
+import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.Crate;
-import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
-import com.fullsteam.model.Targetable;
 import com.fullsteam.model.gamemodes.BuilderGameInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 import static com.fullsteam.Config.PLAYER_RADIUS;
-import static com.fullsteam.Config.PLAYER_SIZE;
-import static org.apache.commons.lang3.BooleanUtils.forEach;
 
 @GameName("Builder")
 public class BuilderManager extends AbstractFreeForAllManager {
@@ -81,22 +75,16 @@ public class BuilderManager extends AbstractFreeForAllManager {
     @Override
     protected void updatePlayers(long delta) {
         crates.removeIf(Crate::isDestroyed);
-
         // Temporarily add crates as obstacles for collision detection purposes.
         // This allows us to reuse the collision logic from the superclass.
-        List<Obstacle> crateObstacles = new ArrayList<>();
-        for (Crate crate : crates) {
-            Obstacle o = Obstacle.createRectangle(crate.getX(), crate.getY(), crate.getSize(), crate.getSize());
-            crateObstacles.add(o);
-        }
-        obstacles.addAll(crateObstacles);
+        obstacles.addAll(crates);
 
         try {
             // Now the super method will handle collision with both permanent obstacles and crates.
             super.updatePlayers(delta);
         } finally {
             // Clean up the temporary crate obstacles to ensure they don't persist.
-            obstacles.removeAll(crateObstacles);
+            obstacles.removeAll(crates);
         }
     }
 
@@ -131,32 +119,28 @@ public class BuilderManager extends AbstractFreeForAllManager {
         double snappedX = Math.round(idealX / CRATE_SIZE) * CRATE_SIZE;
         double snappedY = Math.round(idealY / CRATE_SIZE) * CRATE_SIZE;
 
-        if (!isCollidingWithAnyCrate(snappedX, snappedY) && !isCollidingWithAnyPlayer(snappedX, snappedY)) {
-            Crate crate = new Crate(playerId, snappedX, snappedY, CRATE_SIZE, Config.BUILDER_CRATE_HEALTH);
+        Crate crate = new Crate(playerId, snappedX, snappedY, CRATE_SIZE, Config.BUILDER_CRATE_HEALTH);
+        if (!isCollidingWithAnyCrate(crate) && !isCollidingWithAnyPlayer(crate)) {
             crates.add(crate);
             targetGrid.insert(crate, crate.getX(), crate.getY(), crate.getSize(), crate.getSize());
         }
     }
 
-    private boolean isCollidingWithAnyCrate(double newCrateX, double newCrateY) {
+    private boolean isCollidingWithAnyCrate(Crate newCrate) {
         for (Crate existingCrate : crates) {
-            if (newCrateX < existingCrate.getX() + existingCrate.getSize() &&
-                    newCrateX + CRATE_SIZE > existingCrate.getX() &&
-                    newCrateY < existingCrate.getY() + existingCrate.getSize() &&
-                    newCrateY + CRATE_SIZE > existingCrate.getY()) {
+            if (newCrate.getX() < existingCrate.getX() + existingCrate.getSize() &&
+                    newCrate.getX() + CRATE_SIZE > existingCrate.getX() &&
+                    newCrate.getY() < existingCrate.getY() + existingCrate.getSize() &&
+                    newCrate.getY() + CRATE_SIZE > existingCrate.getY()) {
                 return true;
             }
         }
         return false;
     }
 
-    private boolean isCollidingWithAnyPlayer(double crateX, double crateY) {
+    private boolean isCollidingWithAnyPlayer(Crate newCrate) {
         for (Player player : players.values()) {
-            // AABB collision check
-            if (crateX < player.getX() + PLAYER_SIZE &&
-                    crateX + CRATE_SIZE > player.getX() &&
-                    crateY < player.getY() + PLAYER_SIZE &&
-                    crateY + CRATE_SIZE > player.getY()) {
+            if (CollisionUtils.checkCirclePolygonCollision(player.position(), PLAYER_RADIUS, newCrate.getVertices())) {
                 return true;
             }
         }

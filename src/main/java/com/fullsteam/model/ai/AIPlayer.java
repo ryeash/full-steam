@@ -133,11 +133,11 @@ public class AIPlayer extends Player {
         // --- Priority 1: Immediate Survival ---
         // Highest priority: A strong, short-range force to avoid getting stuck on walls.
         Vector2D separationForce = calculateObstacleSeparationForce(gameState.obstacles());
-        applyForce(separationForce, 5.0); // High weight to override other behaviors
+        applyForce(separationForce, 3.0); // High weight to override other behaviors
 
         // High priority: Flee from damaging hazards.
         Vector2D hazardForce = calculateHazardAvoidanceForce(gameState.hazards());
-        applyForce(hazardForce, 4.0);
+        applyForce(hazardForce, 2.0);
 
         // --- Priority 2: Tactical Decisions ---
         // Mid priority: React to power-ups (seek good ones, avoid powered-up enemies).
@@ -153,7 +153,7 @@ public class AIPlayer extends Player {
 
         // Execute the primary movement behavior based on the current state.
         Vector2D objectiveForce = calculateObjectiveForce(gameState.obstacles());
-        applyForce(objectiveForce, 1.0);
+        applyForce(objectiveForce, 3.0);
     }
 
     /**
@@ -358,7 +358,10 @@ public class AIPlayer extends Player {
 
         for (Targetable potentialTarget : nearTargets) {
             if (potentialTarget instanceof Player player) {
-                if (player.getId() == this.getId() || player.isDead() || player.getTeam() == this.getTeam()) {
+                if (player.getId() == this.getId()
+                        || player.isDead()
+                        || player.getTeam() == this.getTeam()
+                        || player.getInvisibilityEndTime() > System.currentTimeMillis()) {
                     continue;
                 }
 
@@ -473,14 +476,7 @@ public class AIPlayer extends Player {
             if (obstacle == null) {
                 continue;
             }
-            // Broad Phase: Check if the "feeler" line segment intersects the obstacle's bounding circle.
-            // If not, we can skip the expensive polygon check.
-            if (!CollisionUtils.checkLineCircleCollision(start, end, obstacle.getCenter(), obstacle.getBoundingRadius())) {
-                continue;
-            }
-
-            // Narrow Phase: The feeler is close, so now do the precise check.
-            if (CollisionUtils.checkLinePolygonCollision(start, end, obstacle.vertices())) {
+            if (CollisionUtils.checkLinePolygonCollision(start, end, obstacle)) {
                 return obstacle;
             }
         }
@@ -605,7 +601,7 @@ public class AIPlayer extends Player {
                 continue;
             }
             boolean isThreat = player.getArmorUpEndTime() > currentTime || player.getDamageBoostEndTime() > currentTime;
-            if (isThreat && position().distanceSquared(player.position()) < 400 * 400) {
+            if (isThreat && position().distanceSquared(player.position()) < 400) {
                 totalInfluenceForce = totalInfluenceForce.add(position().subtract(player.position()).normalize().multiply(1.0));
             }
         }
@@ -613,7 +609,7 @@ public class AIPlayer extends Player {
         // Seek valuable power-ups
         if (gameState.powerUps() != null) {
             for (PowerUp powerUp : gameState.powerUps()) {
-                if (position().distanceSquared(powerUp.getPosition()) < 500 * 500) {
+                if (position().distanceSquared(powerUp.getPosition()) < 200) {
                     double weight = 0.5; // Default attraction
                     if (powerUp.getType() == PowerUpType.HEALTH_PACK) {
                         weight = 1.5 * (1.0 - (getHp() / getMaxHp()));
@@ -634,7 +630,7 @@ public class AIPlayer extends Player {
     public void setCurrentState(AIState state) {
         if (this.currentState != state) {
             this.stateChangeTime = System.currentTimeMillis();
-            
+
             // Clear objective points when entering pure wandering to prevent clustering
             if (state == AIState.WANDERING && this.currentState != AIState.WANDERING) {
                 this.objectiveTargetPoint = null;
@@ -663,31 +659,31 @@ public class AIPlayer extends Player {
         // Prefer areas closer to team's side of the map to encourage territorial behavior
         double teamBias = getTeam() == 1 ? 0.3 : 0.7; // Team 1 left, Team 2 right
         double variance = 0.4; // Allow some exploration to other areas
-        
+
         // Generate x coordinate with team bias but allow cross-map movement
         double xBias = teamBias + (ThreadLocalRandom.current().nextGaussian() * variance);
         xBias = Math.max(0.1, Math.min(0.9, xBias)); // Clamp to reasonable bounds
         double x = Config.GAME_WIDTH * xBias;
-        
+
         // Generate y coordinate more randomly to encourage vertical movement
         double y = ThreadLocalRandom.current().nextDouble(50, Config.GAME_HEIGHT - 50);
-        
+
         // Add some avoidance of center area when no specific objective
         double centerX = Config.GAME_WIDTH / 2.0;
         double centerY = Config.GAME_HEIGHT / 2.0;
         double distFromCenter = Math.sqrt((x - centerX) * (x - centerX) + (y - centerY) * (y - centerY));
-        
+
         // If too close to center, push away slightly
         if (distFromCenter < 100) {
             double pushAngle = Math.atan2(y - centerY, x - centerX);
             x = centerX + Math.cos(pushAngle) * 120;
             y = centerY + Math.sin(pushAngle) * 120;
         }
-        
+
         // Ensure we stay within map bounds
         x = Math.max(50, Math.min(Config.GAME_WIDTH - 50, x));
         y = Math.max(50, Math.min(Config.GAME_HEIGHT - 50, y));
-        
+
         return new Vector2D(x, y);
     }
 }

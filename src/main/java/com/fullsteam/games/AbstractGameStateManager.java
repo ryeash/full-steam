@@ -367,7 +367,7 @@ public abstract class AbstractGameStateManager {
 
     protected void updateTurrets(long delta) {
         GameState gameState = new GameState(
-                players.values().stream().filter(p -> p.getInvisibilityEndTime() > System.currentTimeMillis()).toList(),
+                players.values().stream().filter(p -> p.getInvisibilityEndTime() < System.currentTimeMillis()).toList(),
                 bullets,
                 explosions,
                 poisonClouds,
@@ -424,40 +424,43 @@ public abstract class AbstractGameStateManager {
 
                 Set<Targetable> nearbyPlayers = targetGrid.getNearby(explosion.getX() - explosion.getSize(), explosion.getY() - explosion.getSize(), explosion.getSize() * 2, explosion.getSize() * 2);
                 for (Targetable t : nearbyPlayers) {
-                    if (t instanceof Player p) {
-                        if (p.isDead()) {
-                            continue;
-                        }
+                    switch (t) {
+                        case Player p -> {
+                            if (p.isDead()) {
+                                continue;
+                            }
 
-                        // Prevent friendly fire, but allow self-damage
-                        if (shooter != null && p.getTeam() == shooter.getTeam() && !Objects.equals(p.getId(), shooter.getId())) {
-                            continue;
-                        }
+                            // Prevent friendly fire, but allow self-damage
+                            if (shooter != null && p.getTeam() == shooter.getTeam() && !Objects.equals(p.getId(), shooter.getId())) {
+                                continue;
+                            }
 
-                        if (p.position().distanceSquared(explosionCenter) < radiusSq) {
-                            if (p.takeDamage(explosion.getDamage())) {
-                                killPlayer(p, shooter);
+                            if (p.position().distanceSquared(explosionCenter) < radiusSq) {
+                                if (p.takeDamage(explosion.getDamage())) {
+                                    killPlayer(p, shooter);
+                                }
                             }
                         }
-                    } else if (t instanceof Turret turret) {
-                        // Prevent friendly fire, but allow self-damage
-                        if (shooter != null && turret.getTeam() == shooter.getTeam() && !Objects.equals(turret.getId(), shooter.getId())) {
-                            continue;
+                        case Turret turret -> {
+                            // Prevent friendly fire, but allow self-damage
+                            if (shooter != null && turret.getTeam() == shooter.getTeam() && !Objects.equals(turret.getId(), shooter.getId())) {
+                                continue;
+                            }
+                            if (turret.position().distanceSquared(explosionCenter) < radiusSq) {
+                                turret.takeDamage(explosion.getDamage());
+                            }
                         }
-                        if (turret.position().distanceSquared(explosionCenter) < radiusSq) {
-                            turret.takeDamage(explosion.getDamage());
+                        case Crate crate -> {
+                            if (CollisionUtils.checkCirclePolygonCollision(
+                                    explosionCenter,
+                                    explosion.getSize(),
+                                    crate.getVertices())) {
+                                // If the explosion hits a crate, apply damage to it.
+                                crate.takeDamage(explosion.getDamage());
+                            }
                         }
-                    } else if (t instanceof Crate crate) {
-                        // TODO: probably a more efficient way to handle circle-rectangle collision
-                        if (CollisionUtils.checkCirclePolygonCollision(
-                                explosionCenter,
-                                explosion.getSize(),
-                                crate.getVertices())) {
-                            // If the explosion hits a crate, apply damage to it.
-                            crate.takeDamage(explosion.getDamage());
-                        }
-                    } else {
-                        throw new UnsupportedOperationException("fix for other targetable things");
+                        case null, default ->
+                                throw new UnsupportedOperationException("fix for other targetable things");
                     }
                 }
                 explosion.markDamageApplied(); // Mark it so damage isn't applied again.
@@ -482,32 +485,34 @@ public abstract class AbstractGameStateManager {
 
                 Set<Targetable> nearbyPlayers = targetGrid.getNearby(cloud.getX() - cloud.getRadius(), cloud.getY() - cloud.getRadius(), cloud.getRadius() * 2, cloud.getRadius() * 2);
                 for (Targetable t : nearbyPlayers) {
-                    if (t instanceof Player p) {
-                        if (p.isDead()) {
-                            continue;
-                        }
-                        // Prevent friendly fire, but allow self-damage
-                        if (shooter != null && p.getTeam() == shooter.getTeam() && !Objects.equals(p.getId(), shooter.getId())) {
-                            continue;
-                        }
+                    switch (t) {
+                        case Player p -> {
+                            if (p.isDead()) {
+                                continue;
+                            }
+                            // Prevent friendly fire, but allow self-damage
+                            if (shooter != null && p.getTeam() == shooter.getTeam() && !Objects.equals(p.getId(), shooter.getId())) {
+                                continue;
+                            }
 
-                        if (p.position().distanceSquared(cloudCenter) < radiusSq) {
-                            if (p.takeDamage(cloud.getDamagePerTick())) {
-                                killPlayer(p, shooter);
+                            if (p.position().distanceSquared(cloudCenter) < radiusSq) {
+                                if (p.takeDamage(cloud.getDamagePerTick())) {
+                                    killPlayer(p, shooter);
+                                }
                             }
                         }
-                    } else if (t instanceof Turret turret) {
-                        if (shooter != null && turret.getTeam() == shooter.getTeam() && !Objects.equals(turret.getId(), shooter.getId())) {
-                            continue;
+                        case Turret turret -> {
+                            if (shooter != null && turret.getTeam() == shooter.getTeam() && !Objects.equals(turret.getId(), shooter.getId())) {
+                                continue;
+                            }
+                            if (turret.position().distanceSquared(cloudCenter) < radiusSq) {
+                                turret.takeDamage(cloud.getDamagePerTick());
+                            }
                         }
-                        if (turret.position().distanceSquared(cloudCenter) < radiusSq) {
-                            turret.takeDamage(cloud.getDamagePerTick());
+                        case Crate ignored -> {
+                            // Crates are immune to poison clouds
                         }
-                    } else if (t instanceof Crate crate) {
-                        // Crates are immune to poison clouds, but we can handle other targetables if needed.
-                        continue;
-                    } else {
-                        throw new UnsupportedOperationException("fix for other targetables");
+                        case null, default -> throw new UnsupportedOperationException("fix for other targetables");
                     }
                 }
                 cloud.setLastDamageTickTime(currentTime);
@@ -592,7 +597,7 @@ public abstract class AbstractGameStateManager {
 
     protected void updatePlayers(long delta) {
         GameState gameState = new GameState(
-                players.values().stream().filter(p -> p.getInvisibilityEndTime() > System.currentTimeMillis()).toList(),
+                players.values().stream().filter(p -> p.getInvisibilityEndTime() < System.currentTimeMillis()).toList(),
                 bullets,
                 explosions,
                 poisonClouds,
@@ -711,19 +716,14 @@ public abstract class AbstractGameStateManager {
 
             // Check bullet-obstacle collisions using the line segment
             for (Obstacle obstacle : obstacles) {
-                if (CollisionUtils.checkLinePolygonCollision(oldPos, newPos, obstacle.vertices())) {
-                    // When a bullet hits an obstacle, trigger its on-destruction effect.
-                    bullet.getOnDestructionAction()
-                            .map(action -> action.apply(bullet))
-                            .ifPresent(this::applyBulletEffect);
+                if (CollisionUtils.checkLinePolygonCollision(oldPos, newPos, obstacle)) {
+                    applyBulletDestructionEffect(bullet, obstacle);
                     return true;
                 }
             }
 
             if (bullet.hasExceededMaxDistance() || bullet.getSpeed() < 10) {
-                bullet.getOnDestructionAction()
-                        .map(action -> action.apply(bullet))
-                        .ifPresent(this::applyBulletEffect);
+                applyBulletDestructionEffect(bullet, null); // null source indicates distance surpassed
                 return true;
             }
 
@@ -735,53 +735,52 @@ public abstract class AbstractGameStateManager {
             Set<Targetable> nearby = targetGrid.getNearby(sx, sy, w, h);
 
             for (Targetable target : nearby) {
-                if (target instanceof Player player) {
-                    // Check for collision with an enemy player
-                    if (!player.isDead() && player.getTeam() != bullet.getTeam()) {
-                        Vector2D playerCenter = player.position();
-                        if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, playerCenter, PLAYER_RADIUS)) {
-                            Player shooter = players.get(bullet.getShooterId());
+                switch (target) {
+                    case Player player -> {
+                        // Check for collision with an enemy player
+                        if (!player.isDead() && player.getTeam() != bullet.getTeam()) {
+                            Vector2D playerCenter = player.position();
+                            if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, playerCenter, PLAYER_RADIUS)) {
+                                Player shooter = players.get(bullet.getShooterId());
 
-                            // Apply damage and check if it was a kill
-                            if (player.takeDamage(bullet.getDamage())) {
-                                killPlayer(player, shooter);
+                                // Apply damage and check if it was a kill
+                                if (player.takeDamage(bullet.getDamage())) {
+                                    killPlayer(player, shooter);
+                                }
+                                applyBulletDestructionEffect(bullet, player);
+                                return true; // Remove bullet on hit
                             }
-                            bullet.getOnDestructionAction()
-                                    .map(action -> action.apply(bullet))
-                                    .ifPresent(this::applyBulletEffect);
-                            return true; // Remove bullet on hit
                         }
                     }
-                } else if (target instanceof Turret turret) {
-                    if (turret.getTeam() != bullet.getTeam()) {
-                        Vector2D position = turret.position();
-                        if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, position, turret.getRadius())) {
-                            // Apply damage and check if it was a kill
-                            turret.takeDamage(bullet.getDamage());
-                            bullet.getOnDestructionAction()
-                                    .map(action -> action.apply(bullet))
-                                    .ifPresent(this::applyBulletEffect);
-                            return true; // Remove bullet on hit
+                    case Turret turret -> {
+                        if (turret.getTeam() != bullet.getTeam()) {
+                            Vector2D position = turret.position();
+                            if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, position, turret.getRadius())) {
+                                // Apply damage and check if it was a kill
+                                turret.takeDamage(bullet.getDamage());
+                                applyBulletDestructionEffect(bullet, target);
+                                return true; // Remove bullet on hit
+                            }
                         }
                     }
-                } else if (target instanceof Crate crate) {
-                    if (!crate.isDestroyed() &&
-                            CollisionUtils.checkLineRectangleCollision(
-                                    oldPos, newPos,
-                                    crate.getX(), crate.getY(),
-                                    crate.getSize(), crate.getSize())) {
-                        crate.takeDamage(bullet.getDamage());
-                        bullet.getOnDestructionAction()
-                                .map(action -> action.apply(bullet))
-                                .ifPresent(this::applyBulletEffect);
-                        return true;
+                    case Crate crate -> {
+                        if (!crate.isDestroyed() && CollisionUtils.checkLinePolygonCollision(oldPos, newPos, crate)) {
+                            crate.takeDamage(bullet.getDamage());
+                            applyBulletDestructionEffect(bullet, crate);
+                            return true;
+                        }
                     }
-                } else {
-                    throw new UnsupportedOperationException("fix for other targets");
+                    case null, default -> throw new UnsupportedOperationException("fix for other targets");
                 }
             }
             return false;
         });
+    }
+
+    protected void applyBulletDestructionEffect(Bullet bullet, Object destructionSource) {
+        bullet.getOnDestructionAction()
+                .map(action -> action.apply(bullet, destructionSource))
+                .ifPresent(this::applyBulletEffect);
     }
 
     protected void applyBulletEffect(BulletEffect bulletEffect) {

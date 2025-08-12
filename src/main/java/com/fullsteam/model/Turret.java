@@ -150,8 +150,8 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
 
     public boolean canShoot() {
         return !reloading
-               && currentAmmoInMagazine > 0
-               && System.currentTimeMillis() >= nextShotTime;
+                && currentAmmoInMagazine > 0
+                && System.currentTimeMillis() >= nextShotTime;
     }
 
     public void shoot() {
@@ -251,16 +251,16 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
         Vector2D turretPos = new Vector2D(getX(), getY());
         Set<Targetable> nearbyPlayers = playerGrid.getNearby(getX() - getWeapon().getBulletRange(), getY() - getWeapon().getBulletRange(), getWeapon().getBulletRange() * 2, getWeapon().getBulletRange() * 2);
         for (Targetable p : nearbyPlayers) {
-            if (!(p instanceof Player player)) {
-                continue;
-            }
-            if (player.isDead() || player.getTeam() == owner.getTeam()) {
+            if (!(p instanceof Player player)
+                    || player.isDead()
+                    || player.getTeam() == owner.getTeam()
+                    || player.getInvisibilityEndTime() > System.currentTimeMillis()) {
                 continue;
             }
             double distSq = turretPos.distanceSquared(p.position());
             if (distSq < rangeSq && distSq < minDistanceSq) {
                 // TODO: broadphase / narrowphase
-                boolean isBlocked = gameState.obstacles().stream().anyMatch(obstacle -> CollisionUtils.checkLinePolygonCollision(turretPos, p.position(), obstacle.vertices()));
+                boolean isBlocked = gameState.obstacles().stream().anyMatch(obstacle -> CollisionUtils.checkLinePolygonCollision(turretPos, p.position(), obstacle));
                 if (!isBlocked) {
                     minDistanceSq = distSq;
                     bestTarget = p;
@@ -288,7 +288,7 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
 
             if (distSq < rangeSq && distSq < minDistanceSq) {
                 boolean isBlocked = gameState.obstacles().stream()
-                        .anyMatch(obstacle -> CollisionUtils.checkLinePolygonCollision(turretPos, otherTurretPos, obstacle.vertices()));
+                        .anyMatch(obstacle -> CollisionUtils.checkLinePolygonCollision(turretPos, otherTurretPos, obstacle));
                 if (!isBlocked) {
                     minDistanceSq = distSq;
                     bestTarget = otherTurret;
@@ -298,7 +298,14 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
         return bestTarget;
     }
 
-    public static Turret create(Bullet bullet) {
-        return new Turret(Config.ID_COUNTER.incrementAndGet(), bullet.getShooterId(), bullet.getTeam(), bullet.getX(), bullet.getY(), Config.PLAYER_RADIUS, WeaponFactory.getDefaultWeapon(), 0);
+    public static Turret create(Bullet bullet, Object destructionSource) {
+        return new Turret(Config.ID_COUNTER.incrementAndGet(),
+                bullet.getShooterId(),
+                bullet.getTeam(),
+                bullet.getX(),
+                bullet.getY(),
+                Config.PLAYER_RADIUS,
+                WeaponFactory.getDefaultWeapon(),
+                0);
     }
 }

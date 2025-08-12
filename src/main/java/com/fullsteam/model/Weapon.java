@@ -2,7 +2,7 @@ package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 /**
  * Represents a weapon with customizable stats based on a point system.
@@ -35,7 +35,7 @@ public class Weapon {
     @JsonIgnore
     private final long reloadTime; // Time in ms to reload
     @JsonIgnore
-    private final Function<Bullet, BulletEffect> onBulletDestruction;
+    private final BiFunction<Bullet, Object, BulletEffect> onBulletDestruction;
 
     /**
      * Creates a new Weapon by converting stat points into game values.
@@ -51,7 +51,7 @@ public class Weapon {
      * @param magazineSizePoints Points for magazine size. More points = more rounds.
      * @param reloadSpeedPoints  Points for reload speed. More points = less reload time.
      */
-    public Weapon(String name, String shortName, int fireRatePoints, int damagePoints, int rangePoints, int speedPoints, int speedDecayPoints, int accuracyPoints, int multiShotPoints, int magazineSizePoints, int reloadSpeedPoints, Function<Bullet, BulletEffect> onBulletDestruction) {
+    public Weapon(String name, String shortName, int fireRatePoints, int damagePoints, int rangePoints, int speedPoints, int speedDecayPoints, int accuracyPoints, int multiShotPoints, int magazineSizePoints, int reloadSpeedPoints, BiFunction<Bullet, Object, BulletEffect> onBulletDestruction) {
         this.name = name;
         this.shortName = shortName;
 
@@ -86,7 +86,7 @@ public class Weapon {
         // Accuracy (Spread in radians): Base 0.5. Each point reduces spread by 0.015.
         this.bulletSpread = Math.max(0.0, 0.75 - (accuracyPoints * 0.05));
 
-        // Multi-shot: Base 1 bullet. Every 15 points adds an additional bullet.
+        // Multi-shot: Base 1 bullet. Every 10 points adds an additional bullet.
         this.bulletsPerShot = 1 + (multiShotPoints / 10);
 
         // Magazine Size: Base 6 rounds. Each point adds 3 rounds.
@@ -95,7 +95,6 @@ public class Weapon {
         // Reload Time (ms): Base 5000ms. Each point reduces time by 200ms. Minimum of 500ms.
         this.reloadTime = Math.max(500L, 4000L - (reloadSpeedPoints * 200L));
 
-        // TODO: fix the points for destruction
         this.onBulletDestruction = onBulletDestruction;
     }
 
@@ -143,7 +142,7 @@ public class Weapon {
         return reloadTime;
     }
 
-    public Function<Bullet, BulletEffect> getOnBulletDestruction() {
+    public BiFunction<Bullet, Object, BulletEffect> getOnBulletDestruction() {
         return onBulletDestruction;
     }
 }

@@ -30,7 +30,7 @@ public class Explosion implements BulletEffect {
         this.expiration = System.currentTimeMillis() + duration;
     }
 
-    public static Explosion rocket(Bullet bullet) {
+    public static Explosion rocket(Bullet bullet, Object destructionSource) {
         return new Explosion(
                 bullet.getX(),
                 bullet.getY(),
@@ -41,7 +41,7 @@ public class Explosion implements BulletEffect {
                 300); // duration ms
     }
 
-    public static Explosion grenade(Bullet bullet) {
+    public static Explosion grenade(Bullet bullet, Object destructionSource) {
         return new Explosion(
                 bullet.getX(),
                 bullet.getY(),
