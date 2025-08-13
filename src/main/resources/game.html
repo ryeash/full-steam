@@ -1435,65 +1435,106 @@
             this.ctx.restore();
         }
 
-        // TODO: make this more visually interesting
         drawSlowField(field) {
-            const ctx = this.ctx;
-            ctx.save();
-
+            this.ctx.save();
             const now = this.gameState.serverTime;
             if (!now) return;
 
             // TODO: better math that doesn't rely on lifetime
-            const lifetime = 7000;
+            const lifetime = 7000; // All slow fields last for 7 seconds.
             const timeRemaining = field.expiration - now;
 
             if (timeRemaining < 0 || timeRemaining > lifetime) return;
 
             const progress = 1 - (timeRemaining / lifetime); // 0.0 to 1.0
+
+            // Let the field expand to full size then linger
             const expandTime = 0.2; // 20% of lifetime to expand
             const radiusProgress = Math.min(1.0, progress / expandTime);
             const currentRadius = field.radius * radiusProgress;
+
             // Fade out over the whole duration
-            const alpha = (1.0 - progress) * 0.6; // Max alpha 0.6
+            const alpha = (1.0 - progress) * 0.5; // Max alpha 0.5 (slightly lower than poison)
 
-            // Set base colors based on team
-            const teamColors = {
-                1: [`rgba(0, 230, 150, ${alpha})`, `rgba(0, 230, 120, ${alpha})`],  // Team 1: Blue tones
-                2: [`rgba(230, 0, 150, ${alpha})`, `rgba(230, 0, 120, ${alpha})`]   // Team 2: Pink tones
-            };
-
-            const [baseColor, pulseColor] = teamColors[field.team] || ['rgba(150, 150, 150, 0.2)', 'rgba(150, 150, 150, 0.4)'];
-
-            // Create gradient for the slow field
-            const gradient = ctx.createRadialGradient(
+            // Draw the base field with a more subtle gradient
+            const gradient = this.ctx.createRadialGradient(
                 field.x, field.y, 0,
-                field.x, field.y, field.radius
+                field.x, field.y, currentRadius
             );
 
-            gradient.addColorStop(0, pulseColor);
-            gradient.addColorStop(0.7, baseColor);
-            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-            // Draw the main field effect
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.arc(field.x, field.y, field.radius, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Add a subtle pattern to indicate slowing effect
-            ctx.strokeStyle = pulseColor;
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 10]);
-
-            // Draw concentric circles for visual effect
-            for (let i = 1; i <= 3; i++) {
-                const radius = field.radius * (i / 3);
-                ctx.beginPath();
-                ctx.arc(field.x, field.y, radius, 0, Math.PI * 2);
-                ctx.stroke();
+            // Use ice/frost-like colors to suggest slowing
+            if (field.team === 1) {
+                gradient.addColorStop(0, `rgba(173, 216, 230, ${alpha * 0.7})`); // Light blue
+                gradient.addColorStop(0.7, `rgba(100, 149, 237, ${alpha * 0.5})`); // Medium blue
+                gradient.addColorStop(1, `rgba(65, 105, 225, 0)`); // Fade to transparent
+            } else if (field.team === 2) {
+                gradient.addColorStop(0, `rgba(255, 182, 193, ${alpha * 0.7})`); // Light pink
+                gradient.addColorStop(0.7, `rgba(219, 112, 147, ${alpha * 0.5})`); // Medium pink
+                gradient.addColorStop(1, `rgba(199, 21, 133, 0)`); // Fade to transparent
+            } else {
+                gradient.addColorStop(0, `rgba(176, 196, 222, ${alpha * 0.7})`); // Light steel blue
+                gradient.addColorStop(0.7, `rgba(119, 136, 153, ${alpha * 0.5})`); // Light slate gray
+                gradient.addColorStop(1, `rgba(70, 130, 180, 0)`); // Fade to transparent
             }
 
-            ctx.restore();
+            this.ctx.fillStyle = gradient;
+            this.ctx.beginPath();
+            this.ctx.arc(field.x, field.y, currentRadius, 0, 2 * Math.PI);
+            this.ctx.fill();
+
+            // Add animated ripple rings to suggest slow/impediment effect
+            const time = now / 1000; // Convert to seconds for smoother animation
+            const numRings = 3;
+            
+            // Set team-specific ring colors
+            let ringColor;
+            if (field.team === 1) {
+                ringColor = `rgba(100, 149, 237, ${alpha * 0.8})`; // Blue
+            } else if (field.team === 2) {
+                ringColor = `rgba(219, 112, 147, ${alpha * 0.8})`; // Pink
+            } else {
+                ringColor = `rgba(119, 136, 153, ${alpha * 0.8})`; // Gray
+            }
+
+            this.ctx.strokeStyle = ringColor;
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([8, 12]); // Dashed pattern suggests broken/slow movement
+
+            for (let i = 0; i < numRings; i++) {
+                const ringOffset = (time * 0.5 + i * 0.8) % 2.0; // Slow animation cycle
+                const ringRadius = (currentRadius * 0.3) + (ringOffset * currentRadius * 0.35);
+                const ringAlpha = alpha * (1.0 - ringOffset * 0.5); // Fade as rings expand
+                
+                if (ringRadius <= currentRadius) {
+                    this.ctx.globalAlpha = ringAlpha;
+                    this.ctx.beginPath();
+                    this.ctx.arc(field.x, field.y, ringRadius, 0, 2 * Math.PI);
+                    this.ctx.stroke();
+                }
+            }
+
+            // Add crystalline/frost pattern at center to reinforce "freezing/slowing" theme
+            this.ctx.globalAlpha = alpha * 0.6;
+            this.ctx.setLineDash([]); // Solid lines for center pattern
+            this.ctx.lineWidth = 1.5;
+            
+            const centerPattern = 6; // Number of lines radiating from center
+            const centerRadius = Math.min(15, currentRadius * 0.3);
+            
+            for (let i = 0; i < centerPattern; i++) {
+                const angle = (i * 2 * Math.PI / centerPattern) + (time * 0.2); // Slow rotation
+                const x1 = field.x + Math.cos(angle) * (centerRadius * 0.3);
+                const y1 = field.y + Math.sin(angle) * (centerRadius * 0.3);
+                const x2 = field.x + Math.cos(angle) * centerRadius;
+                const y2 = field.y + Math.sin(angle) * centerRadius;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(x1, y1);
+                this.ctx.lineTo(x2, y2);
+                this.ctx.stroke();
+            }
+
+            this.ctx.restore();
         }
 
         drawTurrets() {
