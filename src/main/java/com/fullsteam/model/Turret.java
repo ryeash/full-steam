@@ -259,7 +259,6 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
             }
             double distSq = turretPos.distanceSquared(p.position());
             if (distSq < rangeSq && distSq < minDistanceSq) {
-                // TODO: broadphase / narrowphase
                 boolean isBlocked = gameState.obstacles().stream().anyMatch(obstacle -> CollisionUtils.checkLinePolygonCollision(turretPos, p.position(), obstacle));
                 if (!isBlocked) {
                     minDistanceSq = distSq;
