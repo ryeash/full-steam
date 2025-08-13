@@ -7,31 +7,18 @@ import com.fullsteam.Config;
  * Represents a lingering cloud that applies damage over time to players within its radius.
  * This is a type of {@link BulletEffect} that is created upon a bullet'''s destruction.
  */
-public class PoisonCloud implements BulletEffect {
-    private final long id;
-    private final double x;
-    private final double y;
+public class PoisonCloud extends AbstractFieldEffect implements BulletEffect {
     @JsonIgnore
     private final long shooterId;
     @JsonIgnore
-    private final int team;
-    private final double radius;
-    @JsonIgnore
     private final double damagePerTick;
-    private final long expiration;
-
     @JsonIgnore
     private transient long lastDamageTickTime;
 
     public PoisonCloud(double x, double y, long shooterId, int team, double radius, double damagePerTick, long duration) {
-        this.id = Config.ID_COUNTER.incrementAndGet();
-        this.x = x;
-        this.y = y;
+        super(Type.POISON, Config.ID_COUNTER.incrementAndGet(), x, y, radius, team, System.currentTimeMillis() + duration);
         this.shooterId = shooterId;
-        this.team = team;
-        this.radius = radius;
         this.damagePerTick = damagePerTick;
-        this.expiration = System.currentTimeMillis() + duration;
         this.lastDamageTickTime = System.currentTimeMillis(); // Start ticking immediately
     }
 
@@ -49,42 +36,12 @@ public class PoisonCloud implements BulletEffect {
                 5000); // 5 seconds duration
     }
 
-    @Override
-    public long id() {
-        return id;
-    }
-
-    public double getX() {
-        return x;
-    }
-
-    public double getY() {
-        return y;
-    }
-
     public long getShooterId() {
         return shooterId;
     }
 
-    public int getTeam() {
-        return team;
-    }
-
-    public double getRadius() {
-        return radius;
-    }
-
     public double getDamagePerTick() {
         return damagePerTick;
-    }
-
-    public long getExpiration() {
-        return expiration;
-    }
-
-    @JsonIgnore
-    public boolean isExpired() {
-        return System.currentTimeMillis() > expiration;
     }
 
     @JsonIgnore

@@ -38,11 +38,6 @@ public class BuilderManager extends AbstractFreeForAllManager {
     }
 
     @Override
-    protected void generateHazards() {
-        // no hazards
-    }
-
-    @Override
     protected GameInfo buildGameState() {
         return new BuilderGameInfo(crates);
     }

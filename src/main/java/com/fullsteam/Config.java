@@ -42,7 +42,7 @@ public class Config {
     public static final double VISION_RANGE = getDouble("ai.vision_range", 450.0);
     public static final long WANDER_DIRECTION_CHANGE_INTERVAL = getLong("ai.wander_interval_ms", 2000); // ms
     public static final long BASE_REACTION_TIME_MS = getLong("ai.base_reaction_ms", 600);
-    public static final double BASE_AIM_INACCURACY_RADIANS = getDouble("ai.base_aim_inaccuracy", 0.2);
+    public static final double BASE_AIM_INACCURACY_RADIANS = getDouble("ai.base_aim_inaccuracy", 0.4);
     public static final long BASE_STRAFE_INTERVAL_MS = getLong("ai.base_strafe_interval_ms", 1500);
     public static final double AI_MAX_FORCE = getDouble("ai.max_force", .5); // The maximum steering force, controls turning ability
 
@@ -71,12 +71,10 @@ public class Config {
     public static final double SPAWN_VERTICAL_PADDING = getDouble("game.spawn_padding_v", 50.0);
     public static final double SPAWN_MIDFIELD_BUFFER = getDouble("game.spawn_midfield_buffer", 300.0);
     public static final int MAX_PLAYERS_PER_TEAM = getInt("game.max_players_per_team", 5);
-    public static final int HAZARD_COUNT = getInt("game.hazard.count", 2);
-    public static final double HAZARD_SLOW_FACTOR = getDouble("game.hazard.slow_factor", 0.5); // 50% speed
-    public static final double HAZARD_DAMAGE_FACTOR = getDouble("game.hazard.damage_factor", 0.5); // damage per tick;
+    public static final double SLOW_FIELD_FACTOR = getDouble("game.slow_field_factor", 0.5); // 50% speed
     public static final long RESPAWN_IMMUNITY_DURATION = getLong("game.respawn_immunity_duration", 2000);
     public static final int MAX_TURRETS_PER_PLAYER = getInt("game.max_turrets_per_player", 2);
-    public static final double TURRET_INACCURACY = getDouble("game.turret_inaccuracy", .3);
+    public static final double TURRET_INACCURACY = getDouble("game.turret_inaccuracy", .2);
 
     // --- Power Ups ---
     public static final double POWER_UP_SPEED_BOOST_FACTOR = getDouble("game.powerup.speed_boost_factor", 1.5);

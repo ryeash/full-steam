@@ -4,8 +4,8 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.SpatialGrid;
 import com.fullsteam.WeaponFactory;
+import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameState;
-import com.fullsteam.model.Hazard;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PowerUp;
@@ -133,11 +133,11 @@ public class AIPlayer extends Player {
         // --- Priority 1: Immediate Survival ---
         // Highest priority: A strong, short-range force to avoid getting stuck on walls.
         Vector2D separationForce = calculateObstacleSeparationForce(gameState.obstacles());
-        applyForce(separationForce, 3.0); // High weight to override other behaviors
+        applyForce(separationForce, 5.0); // High weight to override other behaviors
 
         // High priority: Flee from damaging hazards.
-        Vector2D hazardForce = calculateHazardAvoidanceForce(gameState.hazards());
-        applyForce(hazardForce, 2.0);
+        Vector2D hazardForce = calculateHazardAvoidanceForce(gameState.fieldEffects());
+        applyForce(hazardForce, 4.0);
 
         // --- Priority 2: Tactical Decisions ---
         // Mid priority: React to power-ups (seek good ones, avoid powered-up enemies).
@@ -153,7 +153,7 @@ public class AIPlayer extends Player {
 
         // Execute the primary movement behavior based on the current state.
         Vector2D objectiveForce = calculateObjectiveForce(gameState.obstacles());
-        applyForce(objectiveForce, 3.0);
+        applyForce(objectiveForce, 1.0);
     }
 
     /**
@@ -358,10 +358,7 @@ public class AIPlayer extends Player {
 
         for (Targetable potentialTarget : nearTargets) {
             if (potentialTarget instanceof Player player) {
-                if (player.getId() == this.getId()
-                        || player.isDead()
-                        || player.getTeam() == this.getTeam()
-                        || player.getInvisibilityEndTime() > System.currentTimeMillis()) {
+                if (player.getId() == this.getId() || player.isDead() || player.getTeam() == this.getTeam()) {
                     continue;
                 }
 
@@ -476,7 +473,14 @@ public class AIPlayer extends Player {
             if (obstacle == null) {
                 continue;
             }
-            if (CollisionUtils.checkLinePolygonCollision(start, end, obstacle)) {
+            // Broad Phase: Check if the "feeler" line segment intersects the obstacle's bounding circle.
+            // If not, we can skip the expensive polygon check.
+            if (!CollisionUtils.checkLineCircleCollision(start, end, obstacle.getCenter(), obstacle.getBoundingRadius())) {
+                continue;
+            }
+
+            // Narrow Phase: The feeler is close, so now do the precise check.
+            if (CollisionUtils.checkLinePolygonCollision(start, end, obstacle.vertices())) {
                 return obstacle;
             }
         }
@@ -547,15 +551,19 @@ public class AIPlayer extends Player {
     /**
      * Calculates a steering force to flee from dangerous hazards.
      */
-    private Vector2D calculateHazardAvoidanceForce(List<Hazard> hazards) {
+    private Vector2D calculateHazardAvoidanceForce(List<FieldEffect> fieldEffects) {
         Vector2D totalAvoidanceForce = Vector2D.ZERO;
-        if (hazards == null) return totalAvoidanceForce;
+        if (fieldEffects == null) return totalAvoidanceForce;
 
-        for (Hazard hazard : hazards) {
-            double awarenessRadius = hazard.radius() + 20;
-            if (position().distanceSquared(hazard.position()) < awarenessRadius * awarenessRadius) {
-                Vector2D fleeDirection = position().subtract(hazard.position());
-                double weight = (hazard.type() == Hazard.Type.DAMAGE) ? 0.25 : 0.05;
+        for (FieldEffect fieldEffect : fieldEffects) {
+            double awarenessRadius = fieldEffect.getRadius() + 20;
+            if (position().distanceSquared(fieldEffect.position()) < awarenessRadius * awarenessRadius) {
+                Vector2D fleeDirection = position().subtract(fieldEffect.position());
+                double weight = switch (fieldEffect.getType()) {
+                    case EXPLOSION -> 0.5;
+                    case POISON -> 0.25;
+                    default -> 0.1;
+                };
                 totalAvoidanceForce = totalAvoidanceForce.add(fleeDirection.normalize().multiply(weight));
             }
         }
@@ -601,7 +609,7 @@ public class AIPlayer extends Player {
                 continue;
             }
             boolean isThreat = player.getArmorUpEndTime() > currentTime || player.getDamageBoostEndTime() > currentTime;
-            if (isThreat && position().distanceSquared(player.position()) < 400) {
+            if (isThreat && position().distanceSquared(player.position()) < 400 * 400) {
                 totalInfluenceForce = totalInfluenceForce.add(position().subtract(player.position()).normalize().multiply(1.0));
             }
         }
@@ -609,7 +617,7 @@ public class AIPlayer extends Player {
         // Seek valuable power-ups
         if (gameState.powerUps() != null) {
             for (PowerUp powerUp : gameState.powerUps()) {
-                if (position().distanceSquared(powerUp.getPosition()) < 200) {
+                if (position().distanceSquared(powerUp.getPosition()) < 500 * 500) {
                     double weight = 0.5; // Default attraction
                     if (powerUp.getType() == PowerUpType.HEALTH_PACK) {
                         weight = 1.5 * (1.0 - (getHp() / getMaxHp()));

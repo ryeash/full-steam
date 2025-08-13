@@ -3,9 +3,7 @@ package com.fullsteam.games;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.Hazard;
 import com.fullsteam.model.Player;
-import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.DeathmatchAIStrategy;
@@ -148,15 +146,6 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
             if (isColliding(player, obstacles)) {
                 invalidPosition = true;
                 continue;
-            }
-
-            for (Hazard hazard : hazards) {
-                if (hazard.type() == Hazard.Type.DAMAGE) {
-                    if (player.position().distanceSquared(hazard.position()) < hazard.radiusSq()) {
-                        invalidPosition = true;
-                        break;
-                    }
-                }
             }
 
             for (Player other : players.values()) {
