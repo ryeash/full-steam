@@ -178,6 +178,4 @@ public class DeathmatchAIStrategy implements IAIStrategy {
 
         return new Vector2D(x, y);
     }
-
-
 }

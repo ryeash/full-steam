@@ -982,10 +982,8 @@
                 }
 
                 if (this.localPlayer) {
-                    const playerCenterX = this.localPlayer.x + 10;
-                    const playerCenterY = this.localPlayer.y + 10;
-                    input.mouseX = playerCenterX + this.gamepadAim.x * 100;
-                    input.mouseY = playerCenterY + this.gamepadAim.y * 100;
+                    input.mouseX = this.localPlayer.x + this.gamepadAim.x * 100;
+                    input.mouseY = this.localPlayer.y + this.gamepadAim.y * 100;
                 }
             } else {
                 let moveX = 0;
@@ -1162,11 +1160,8 @@
                     // This makes the crosshair appear close for small movements and move further out for larger ones.
                     const crosshairDist = 40 + (effectiveMagnitude * 60);
 
-                    const playerCenterX = this.localPlayer.x + 10;
-                    const playerCenterY = this.localPlayer.y + 10;
-
-                    const crosshairX = playerCenterX + aimDirX * crosshairDist;
-                    const crosshairY = playerCenterY + aimDirY * crosshairDist;
+                    const crosshairX = this.localPlayer.x + aimDirX * crosshairDist;
+                    const crosshairY = this.localPlayer.y + aimDirY * crosshairDist;
 
                     this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
                     this.ctx.lineWidth = 2;
@@ -1313,20 +1308,18 @@
             const PLAYER_RADIUS = 10.0;
             const PLACEMENT_DISTANCE = CRATE_SIZE * 2;
 
-            // Get local player
-            const localPlayer = this.gameState.players.find(p => p.id === this.playerId);
-            if (!localPlayer) return;
+            if (!this.localPlayer) return;
 
             // Calculate placement position
-            const dx = localPlayer.mouseX - localPlayer.x;
-            const dy = localPlayer.mouseY - localPlayer.y;
+            const dx = this.localPlayer.mouseX - this.localPlayer.x;
+            const dy = this.localPlayer.mouseY - this.localPlayer.y;
             const length = Math.sqrt(dx * dx + dy * dy);
             const baseAngle = (length > 0.1) ? Math.atan2(dy, dx) : 0.0;
 
             // Calculate the ideal placement location
-            const idealX = localPlayer.x + PLAYER_RADIUS - (CRATE_SIZE / 2.0) +
+            const idealX = this.localPlayer.x + PLAYER_RADIUS - (CRATE_SIZE / 2.0) +
                           Math.cos(baseAngle) * PLACEMENT_DISTANCE;
-            const idealY = localPlayer.y + PLAYER_RADIUS - (CRATE_SIZE / 2.0) +
+            const idealY = this.localPlayer.y + PLAYER_RADIUS - (CRATE_SIZE / 2.0) +
                           Math.sin(baseAngle) * PLACEMENT_DISTANCE;
 
             // Snap to grid
