@@ -2,7 +2,7 @@ package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 /**
  * Represents a weapon with customizable stats based on a point system.
@@ -35,7 +35,7 @@ public class Weapon {
     @JsonIgnore
     private final long reloadTime; // Time in ms to reload
     @JsonIgnore
-    private final Function<Bullet, BulletEffect> onBulletDestruction;
+    private final BiFunction<Bullet, Object, BulletEffect> onBulletDestruction;
 
     /**
      * Creates a new Weapon by converting stat points into game values.
@@ -51,7 +51,7 @@ public class Weapon {
      * @param magazineSizePoints Points for magazine size. More points = more rounds.
      * @param reloadSpeedPoints  Points for reload speed. More points = less reload time.
      */
-    public Weapon(String name, String shortName, int fireRatePoints, int damagePoints, int rangePoints, int speedPoints, int speedDecayPoints, int accuracyPoints, int multiShotPoints, int magazineSizePoints, int reloadSpeedPoints, Function<Bullet, BulletEffect> onBulletDestruction) {
+    public Weapon(String name, String shortName, int fireRatePoints, int damagePoints, int rangePoints, int speedPoints, int speedDecayPoints, int accuracyPoints, int multiShotPoints, int magazineSizePoints, int reloadSpeedPoints, BiFunction<Bullet, Object, BulletEffect> onBulletDestruction) {
         this.name = name;
         this.shortName = shortName;
 
@@ -71,31 +71,30 @@ public class Weapon {
         // Fire Rate (Cooldown in ms): Base 1000ms. Each point reduces cooldown by 25ms.
         this.fireRateCooldown = 1000 - (fireRatePoints * 25L);
 
-        // Damage: Base 10. Each point adds 2 damage.
-        this.bulletDamage = 10 + (damagePoints * 2);
+        // Damage: Each point adds 1.6 damage.
+        this.bulletDamage = damagePoints * 1.6;
 
-        // Range: Base 100 units. Each point adds 50 units.
-        this.bulletRange = 100 + (rangePoints * 50);
+        // Range: Base 120 units. Each point adds 30 units.
+        this.bulletRange = 120 + (rangePoints * 30);
 
-        // Bullet Speed: Base 18 units/sec. Each point adds 1.2 units/sec.
-        this.bulletSpeed = 180 + (speedPoints * 50);
+        // Bullet Speed: Base 120 units/sec. Each point adds 1.2 units/sec.
+        this.bulletSpeed = 120 + (speedPoints * 50);
 
         // Bullet Speed Decay: Base 0.4 (60% decay per second). Each point adds 0.06, up to 1.0 (no decay).
-        this.bulletSpeedDecay = 0.4 + (speedDecayPoints * 0.06);
+        this.bulletSpeedDecay = 0.3 + (speedDecayPoints * 0.07);
 
-        // Accuracy (Spread in radians): Base 0.5. Each point reduces spread by 0.015.
-        this.bulletSpread = Math.max(0.0, 0.75 - (accuracyPoints * 0.05));
+        // Accuracy (Spread in radians): Starting at 0 radians (perfect accuracy), negative accuracy adds spread.
+        this.bulletSpread = 0 + (-accuracyPoints * 0.05);
 
-        // Multi-shot: Base 1 bullet. Every 15 points adds an additional bullet.
+        // Multi-shot: Base 1 bullet. Every 10 points adds an additional bullet.
         this.bulletsPerShot = 1 + (multiShotPoints / 10);
 
         // Magazine Size: Base 6 rounds. Each point adds 3 rounds.
-        this.roundsPerMagazine = Math.max(1, 6 + (magazineSizePoints * 3));
+        this.roundsPerMagazine = Math.max(1, magazineSizePoints * 3);
 
         // Reload Time (ms): Base 5000ms. Each point reduces time by 200ms. Minimum of 500ms.
         this.reloadTime = Math.max(500L, 4000L - (reloadSpeedPoints * 200L));
 
-        // TODO: fix the points for destruction
         this.onBulletDestruction = onBulletDestruction;
     }
 
@@ -143,7 +142,7 @@ public class Weapon {
         return reloadTime;
     }
 
-    public Function<Bullet, BulletEffect> getOnBulletDestruction() {
+    public BiFunction<Bullet, Object, BulletEffect> getOnBulletDestruction() {
         return onBulletDestruction;
     }
 }

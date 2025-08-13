@@ -4,8 +4,8 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.SpatialGrid;
 import com.fullsteam.WeaponFactory;
+import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameState;
-import com.fullsteam.model.Hazard;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PowerUp;
@@ -43,7 +43,7 @@ public class AIPlayer extends Player {
 
     // --- AI State & Strategy ---
     private transient AIState currentState = AIState.WANDERING;
-    private transient Player currentTarget;
+    protected transient Player currentTarget;
     private transient Vector2D objectiveTargetPoint;
     private transient Vector2D wanderTarget;
     private transient final IAIStrategy aiStrategy;
@@ -136,7 +136,7 @@ public class AIPlayer extends Player {
         applyForce(separationForce, 5.0); // High weight to override other behaviors
 
         // High priority: Flee from damaging hazards.
-        Vector2D hazardForce = calculateHazardAvoidanceForce(gameState.hazards());
+        Vector2D hazardForce = calculateHazardAvoidanceForce(gameState.fieldEffects());
         applyForce(hazardForce, 4.0);
 
         // --- Priority 2: Tactical Decisions ---
@@ -281,17 +281,15 @@ public class AIPlayer extends Player {
         if (objectiveTargetPoint != null) {
             long currentTime = System.currentTimeMillis();
             if (wanderTarget == null || currentTime - lastWanderDirectionChangeTime > WANDER_DIRECTION_CHANGE_INTERVAL) {
-                double wanderRadius = 150.0;
+                double wanderRadius = 100.0; // Reduced from 150 to spread out more
                 double randomAngle = ThreadLocalRandom.current().nextDouble(0, 2 * Math.PI);
                 wanderTarget = objectiveTargetPoint.add(new Vector2D(Math.cos(randomAngle), Math.sin(randomAngle)).multiply(wanderRadius));
                 lastWanderDirectionChangeTime = currentTime;
             }
         }
-        // If we are just wandering randomly.
+        // If we are just wandering randomly, use improved distribution.
         else if (wanderTarget == null || position().distanceSquared(wanderTarget) < 100 * 100) {
-            double x = ThreadLocalRandom.current().nextDouble(50, Config.GAME_WIDTH - 50);
-            double y = ThreadLocalRandom.current().nextDouble(50, Config.GAME_HEIGHT - 50);
-            wanderTarget = new Vector2D(x, y);
+            wanderTarget = generateDistributedWanderTarget();
         }
         return calculateSeekForce(wanderTarget, obstacles);
     }
@@ -322,7 +320,7 @@ public class AIPlayer extends Player {
     /**
      * Sets the player's mouse coordinates to aim in a specific direction.
      */
-    private void aimInDirection(Vector2D direction) {
+    protected void aimInDirection(Vector2D direction) {
         if (direction.magnitudeSq() == 0) return;
         Vector2D normalized = direction.normalize();
         setMouseX(position().x() + normalized.x() * 100);
@@ -493,7 +491,7 @@ public class AIPlayer extends Player {
      * Implements "wall sliding" by projecting the desired movement direction away from an obstacle's normal.
      */
     private Vector2D findClearPath(Vector2D desiredDirection, List<Obstacle> obstacles) {
-        double feelerLength = 60.0 + (getSpeed() * 5); // Dynamic feeler based on speed
+        double feelerLength = 15.0 + (getSpeed() * 5); // Dynamic feeler based on speed
         Vector2D feelerEnd = position().add(desiredDirection.multiply(feelerLength));
         Obstacle blockingObstacle = findBlockingObstacle(position(), feelerEnd, obstacles);
 
@@ -553,15 +551,19 @@ public class AIPlayer extends Player {
     /**
      * Calculates a steering force to flee from dangerous hazards.
      */
-    private Vector2D calculateHazardAvoidanceForce(List<Hazard> hazards) {
+    private Vector2D calculateHazardAvoidanceForce(List<FieldEffect> fieldEffects) {
         Vector2D totalAvoidanceForce = Vector2D.ZERO;
-        if (hazards == null) return totalAvoidanceForce;
+        if (fieldEffects == null) return totalAvoidanceForce;
 
-        for (Hazard hazard : hazards) {
-            double awarenessRadius = hazard.radius() + 20;
-            if (position().distanceSquared(hazard.position()) < awarenessRadius * awarenessRadius) {
-                Vector2D fleeDirection = position().subtract(hazard.position());
-                double weight = (hazard.type() == Hazard.Type.DAMAGE) ? 0.25 : 0.05;
+        for (FieldEffect fieldEffect : fieldEffects) {
+            double awarenessRadius = fieldEffect.getRadius() + 20;
+            if (position().distanceSquared(fieldEffect.position()) < awarenessRadius * awarenessRadius) {
+                Vector2D fleeDirection = position().subtract(fieldEffect.position());
+                double weight = switch (fieldEffect.getType()) {
+                    case EXPLOSION -> 0.5;
+                    case POISON -> 0.25;
+                    default -> 0.1;
+                };
                 totalAvoidanceForce = totalAvoidanceForce.add(fleeDirection.normalize().multiply(weight));
             }
         }
@@ -636,6 +638,12 @@ public class AIPlayer extends Player {
     public void setCurrentState(AIState state) {
         if (this.currentState != state) {
             this.stateChangeTime = System.currentTimeMillis();
+
+            // Clear objective points when entering pure wandering to prevent clustering
+            if (state == AIState.WANDERING && this.currentState != AIState.WANDERING) {
+                this.objectiveTargetPoint = null;
+                this.wanderTarget = null; // Force new wander target selection
+            }
         }
         this.currentState = state;
     }
@@ -649,5 +657,41 @@ public class AIPlayer extends Player {
             this.timeTargetAcquired = System.currentTimeMillis();
         }
         this.currentTarget = target;
+    }
+
+    /**
+     * Generates a distributed wander target that avoids clustering in the center.
+     * Uses team preference and avoids recently visited areas.
+     */
+    private Vector2D generateDistributedWanderTarget() {
+        // Prefer areas closer to team's side of the map to encourage territorial behavior
+        double teamBias = getTeam() == 1 ? 0.3 : 0.7; // Team 1 left, Team 2 right
+        double variance = 0.4; // Allow some exploration to other areas
+
+        // Generate x coordinate with team bias but allow cross-map movement
+        double xBias = teamBias + (ThreadLocalRandom.current().nextGaussian() * variance);
+        xBias = Math.max(0.1, Math.min(0.9, xBias)); // Clamp to reasonable bounds
+        double x = Config.GAME_WIDTH * xBias;
+
+        // Generate y coordinate more randomly to encourage vertical movement
+        double y = ThreadLocalRandom.current().nextDouble(50, Config.GAME_HEIGHT - 50);
+
+        // Add some avoidance of center area when no specific objective
+        double centerX = Config.GAME_WIDTH / 2.0;
+        double centerY = Config.GAME_HEIGHT / 2.0;
+        double distFromCenter = Math.sqrt((x - centerX) * (x - centerX) + (y - centerY) * (y - centerY));
+
+        // If too close to center, push away slightly
+        if (distFromCenter < 100) {
+            double pushAngle = Math.atan2(y - centerY, x - centerX);
+            x = centerX + Math.cos(pushAngle) * 120;
+            y = centerY + Math.sin(pushAngle) * 120;
+        }
+
+        // Ensure we stay within map bounds
+        x = Math.max(50, Math.min(Config.GAME_WIDTH - 50, x));
+        y = Math.max(50, Math.min(Config.GAME_HEIGHT - 50, y));
+
+        return new Vector2D(x, y);
     }
 }

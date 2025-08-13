@@ -22,7 +22,7 @@ public class CollisionUtils {
             Vector2D p2 = polygon.get(j);
 
             if (((p1.y() > point.y()) != (p2.y() > point.y())) &&
-                (point.x() < (p2.x() - p1.x()) * (point.y() - p1.y()) / (p2.y() - p1.y()) + p1.x())) {
+                    (point.x() < (p2.x() - p1.x()) * (point.y() - p1.y()) / (p2.y() - p1.y()) + p1.x())) {
                 isInside = !isInside;
             }
         }
@@ -88,6 +88,11 @@ public class CollisionUtils {
             }
         }
         return false;
+    }
+
+    public static boolean checkLinePolygonCollision(Vector2D p1, Vector2D p2, Obstacle obstacle) {
+        return checkLineCircleCollision(p1, p2, obstacle.getCenter(), obstacle.getBoundingRadius())
+                && checkLinePolygonCollision(p1, p2, obstacle.getVertices());
     }
 
     /**

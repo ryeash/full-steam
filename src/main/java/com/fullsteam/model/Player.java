@@ -5,7 +5,6 @@ import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
 import org.apache.commons.lang3.StringUtils;
 
-
 public class Player implements HasId, HasLife, Targetable {
     protected final long id;
     protected String playerName;
@@ -41,9 +40,9 @@ public class Player implements HasId, HasLife, Targetable {
     public long armorUpEndTime;
     public long damageBoostEndTime;
     @JsonIgnore
-    public double damageMultiplier;
+    public long invisibilityEndTime;
     @JsonIgnore
-    private long alternateActionCooldown;
+    public double damageMultiplier;
 
     public Player(long id, double x, double y, int team) {
         this(id, RandomNames.randomName(), x, y, team, WeaponFactory.getDefaultWeapon());
@@ -76,7 +75,7 @@ public class Player implements HasId, HasLife, Targetable {
         this.armorUpEndTime = 0;
         this.damageBoostEndTime = 0;
         this.damageMultiplier = 1.0;
-        this.alternateActionCooldown = 0;
+        this.invisibilityEndTime = 0;
     }
 
     public void update(long delta) {
@@ -86,9 +85,9 @@ public class Player implements HasId, HasLife, Targetable {
 
     public boolean canShoot() {
         return !isDead()
-               && !isReloading
-               && currentAmmoInMagazine > 0
-               && System.currentTimeMillis() >= nextShotTime;
+                && !isReloading
+                && currentAmmoInMagazine > 0
+                && System.currentTimeMillis() >= nextShotTime;
     }
 
     /**
@@ -383,11 +382,12 @@ public class Player implements HasId, HasLife, Targetable {
         this.damageMultiplier = damageMultiplier;
     }
 
-    public long getAlternateActionCooldown() {
-        return alternateActionCooldown;
+    public long getInvisibilityEndTime() {
+        return invisibilityEndTime;
     }
 
-    public void setAlternateActionCooldown(long alternateActionCooldown) {
-        this.alternateActionCooldown = alternateActionCooldown;
+    public void setInvisibilityEndTime(long endTime) {
+        this.invisibilityEndTime = endTime;
     }
 }
+

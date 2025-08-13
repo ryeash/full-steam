@@ -2,6 +2,7 @@ package com.fullsteam;
 
 import com.fullsteam.model.Explosion;
 import com.fullsteam.model.PoisonCloud;
+import com.fullsteam.model.SlowField;
 import com.fullsteam.model.Turret;
 import com.fullsteam.model.Weapon;
 
@@ -26,13 +27,13 @@ public class WeaponFactory {
                 "Assault",
                 "A",
                 30, // Fire Rate
-                20, // Damage
-                6,  // Range
-                8,  // Speed
+                22, // Damage
+                10,  // Range
+                10,  // Speed
                 8,  // Speed Decay
-                10, // Accuracy
+                0, // Accuracy
                 0,  // Multi-shot
-                8, // Magazine Size
+                10, // Magazine Size
                 10,  // Reload Speed
                 null
         ));
@@ -41,14 +42,14 @@ public class WeaponFactory {
                 "Sniper Rifle",
                 "SR",
                 0,  // Fire Rate
-                35, // Damage
-                18, // Range
-                15, // Speed
-                10, // Speed Decay (no decay)
-                16, // Accuracy
+                45, // Damage
+                28, // Range
+                13, // Speed
+                6, // Speed Decay (no decay)
+                0, // Accuracy
                 0,  // Multi-shot
-                0,  // Magazine Size
-                6,  // Reload Speed
+                3,  // Magazine Size
+                5,  // Reload Speed
                 null
         ));
 
@@ -56,13 +57,13 @@ public class WeaponFactory {
                 "SMG",
                 "SMG",
                 34, // Fire Rate
-                11, // Damage
+                13, // Damage
                 4,  // Range
                 10, // Speed
                 5,  // Speed Decay
-                5,  // Accuracy
+                0,  // Accuracy
                 0,  // Multi-shot
-                17, // Magazine Size
+                20, // Magazine Size
                 14,  // Reload Speed
                 null
         ));
@@ -71,29 +72,29 @@ public class WeaponFactory {
                 "Minigun",
                 "M",
                 40, // Fire Rate
-                6,  // Damage
-                1,  // Range
-                12, // Speed
-                2,  // Speed Decay
-                0,  // Accuracy
+                8,  // Damage
+                3,  // Range
+                10, // Speed
+                6,  // Speed Decay
+                -10,  // Accuracy
                 0,  // Multi-shot
-                31, // Magazine Size
-                8,  // Reload Speed
+                33, // Magazine Size
+                10,  // Reload Speed
                 null
         ));
 
         addPreset(new Weapon(
                 "Flamethrower",
                 "F",
-                38, // Fire Rate
-                10, // Damage
-                1,  // Range
-                1,  // Speed
-                0,  // Speed Decay (max decay)
-                5,  // Accuracy
+                37, // Fire Rate
+                14, // Damage
+                2,  // Range
+                5,  // Speed
+                2,  // Speed Decay
+                -6,  // Accuracy
                 0,  // Multi-shot
-                31, // Magazine Size
-                14,  // Reload Speed
+                33, // Magazine Size
+                13,  // Reload Speed
                 null
         ));
 
@@ -101,13 +102,13 @@ public class WeaponFactory {
                 "Shotgun",
                 "S",
                 4,  // Fire Rate
-                10, // Damage
-                4,  // Range
-                10, // Speed
+                14, // Damage
+                8,  // Range
+                9, // Speed
                 2,  // Speed Decay
-                2,  // Accuracy
+                -9,  // Accuracy
                 50, // Multi-shot
-                8,  // Magazine Size
+                12,  // Magazine Size
                 10,  // Reload Speed
                 null
         ));
@@ -115,14 +116,14 @@ public class WeaponFactory {
         addPreset(new Weapon(
                 "Street Sweeper",
                 "SW",
-                25,  // Fire Rate
-                5,  // Damage
+                24,  // Fire Rate
+                7,  // Damage
                 2,  // Range
                 3,  // Speed
                 0,  // Speed Decay
-                -25, // Accuracy
-                70, // Multi-shot
-                16,  // Magazine Size
+                -47, // Accuracy
+                80, // Multi-shot
+                27,  // Magazine Size
                 4,  // Reload Speed
                 null
         ));
@@ -130,14 +131,14 @@ public class WeaponFactory {
         addPreset(new Weapon(
                 "Twin Sixes",
                 "T6s",
-                19, // Fire Rate
-                15, // Damage
-                4,  // Range
+                22, // Fire Rate
+                19, // Damage
+                5,  // Range
                 12, // Speed
                 15,  // Speed Decay
-                8,  // Accuracy
+                -2,  // Accuracy
                 10, // Multi-shot
-                2,  // Magazine Size
+                4,  // Magazine Size
                 15,  // Reload Speed
                 null
         ));
@@ -145,15 +146,15 @@ public class WeaponFactory {
         addPreset(new Weapon(
                 "Rocket",
                 "R",
-                5, // Fire Rate
-                -5, // Damage
-                18,  // Range
-                18, // Speed
-                10,  // Speed Decay
-                1,  // Accuracy
+                0, // Fire Rate
+                0, // Damage
+                17,  // Range
+                16, // Speed
+                9,  // Speed Decay
+                0,  // Accuracy
                 0, // Multi-shot
-                -2,  // Magazine Size
-                -5,  // Reload Speed
+                0,  // Magazine Size
+                -2,  // Reload Speed
                 Explosion::rocket
         ));
 
@@ -162,29 +163,44 @@ public class WeaponFactory {
                 "GR",
                 1, // Fire Rate
                 0, // Damage
-                20,  // Range
+                19,  // Range
                 9, // Speed
-                0,  // Speed Decay
+                1,  // Speed Decay
                 0,  // Accuracy
                 0, // Multi-shot
-                0,  // Magazine Size
-                10,  // Reload Speed
+                4,  // Magazine Size
+                6,  // Reload Speed
                 Explosion::grenade
         ));
 
         addPreset(new Weapon(
                 "Poison Launcher",
                 "P",
-                2, // Fire Rate
+                4, // Fire Rate
                 0, // Damage (damage is from the cloud)
                 14,// Range
                 8, // Speed
                 2, // Speed Decay
-                5, // Accuracy
+                0, // Accuracy
                 0, // Multi-shot
-                0, // Magazine Size
+                3, // Magazine Size
                 9, // Reload Speed
                 PoisonCloud::create
+        ));
+
+        addPreset(new Weapon(
+                "Ice Storm",
+                "IS",
+                4, // Fire Rate
+                0, // Damage (damage is from the cloud)
+                14,// Range
+                8, // Speed
+                2, // Speed Decay
+                0, // Accuracy
+                0, // Multi-shot
+                3, // Magazine Size
+                9, // Reload Speed
+                SlowField::create
         ));
 
         addPreset(new Weapon(
@@ -192,27 +208,27 @@ public class WeaponFactory {
                 "MR",
                 10, // Fire Rate
                 30, // Damage
-                15, // Range
-                12, // Speed
-                6,  // Speed Decay
-                14, // Accuracy
+                20, // Range
+                15, // Speed
+                9,  // Speed Decay
+                0, // Accuracy
                 0,  // Multi-shot
-                5,  // Magazine Size
-                8,  // Reload Speed
+                6,  // Magazine Size
+                10,  // Reload Speed
                 null
         ));
 
         addPreset(new Weapon(
                 "Tactical Rifle",
                 "TR",
-                8,  // Fire Rate
-                12, // Damage
-                8,  // Range
-                10, // Speed
-                8,  // Speed Decay
-                12, // Accuracy
+                11,  // Fire Rate
+                17, // Damage
+                12,  // Range
+                12, // Speed
+                10,  // Speed Decay
+                -2, // Accuracy
                 20, // Multi-shot (3-round burst)
-                10, // Magazine Size
+                8, // Magazine Size
                 12, // Reload Speed
                 null
         ));
@@ -222,27 +238,27 @@ public class WeaponFactory {
                 "REV", // Revolver
                 3,  // Fire Rate
                 55, // Damage
-                4,  // Range
-                15, // Speed
-                8,  // Speed Decay
-                11, // Accuracy
+                6,  // Range
+                13, // Speed
+                12,  // Speed Decay
+                0, // Accuracy
                 0,  // Multi-shot
-                0,  // Magazine Size (6 shots)
-                4,  // Reload Speed
+                3,  // Magazine Size (6 shots)
+                8,  // Reload Speed
                 null
         ));
 
         addPreset(new Weapon(
                 "Engineer Wrench",
                 "EW", // Revolver
-                3,  // Fire Rate
+                25,  // Fire Rate
                 0, // Damage
-                -1,  // Range
+                -5,  // Range
                 15, // Speed
                 0,  // Speed Decay
                 0, // Accuracy
                 0,  // Multi-shot
-                0,  // Magazine Size (6 shots)
+                1,  // Magazine Size (3 shots)
                 4,  // Reload Speed
                 Turret::create
         ));
@@ -266,14 +282,14 @@ public class WeaponFactory {
             "Claw",
             "C",
             5,
-            20,
+            5,
             -1,
-            27,
+            15,
             0,
             0,
             10,
             19,
-            20,
+            47,
             null
     );
     public static final Weapon HEAVY_ZOMBIE_CLAW = new Weapon(
@@ -321,9 +337,11 @@ public class WeaponFactory {
         return weaponArray[0];
     }
 
+    private static final List<String> RANDOM_EXCEPTIONS = List.of("Engineer Wrench", "Ice Storm");
+
     public static Weapon getRandomWeapon() {
         Weapon random = null;
-        while (random == null || random.getName().equals("Engineer Wrench")) {
+        while (random == null || RANDOM_EXCEPTIONS.contains(random.getName())) {
             random = weaponArray[ThreadLocalRandom.current().nextInt(weaponArray.length)];
         }
         return random;

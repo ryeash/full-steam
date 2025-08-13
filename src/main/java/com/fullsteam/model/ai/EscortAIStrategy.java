@@ -67,7 +67,7 @@ public class EscortAIStrategy implements IAIStrategy {
         if (isOurTeamPushing) {
             self.setCurrentState(AIPlayer.AIState.WANDERING); // Patrol near the payload
             self.setObjectiveTargetPoint(payloadCenter);
-            
+
             // Attack any enemies that get close to the payload
             if (closestEnemy != null && isInRange(self, closestEnemy, 400)) {
                 self.setCurrentTarget(closestEnemy);
@@ -97,7 +97,7 @@ public class EscortAIStrategy implements IAIStrategy {
             self.setCurrentState(AIPlayer.AIState.ATTACKING);
             return;
         }
-        
+
         // Priority #2: No nearby enemies, help with the payload objective
         runBalancedLogic(self, closestEnemy, payloadCenter, isOurTeamPushing);
     }
@@ -144,12 +144,11 @@ public class EscortAIStrategy implements IAIStrategy {
      * Calculates the geometric center of the payload obstacle.
      */
     private Vector2D getPayloadCenter(Obstacle payload) {
-        if (payload == null || payload.vertices().isEmpty()) {
+        if (payload == null) {
             return new Vector2D(Config.GAME_WIDTH / 2.0, Config.GAME_HEIGHT / 2.0);
+        } else {
+            return payload.getCenter();
         }
-        return payload.vertices().stream()
-                .reduce(Vector2D.ZERO, Vector2D::add)
-                .multiply(1.0 / payload.vertices().size());
     }
 
     /**

@@ -110,6 +110,10 @@ public record Vector2D(double x,
         return dx * dx + dy * dy;
     }
 
+    public double distance(Vector2D other) {
+        return Math.sqrt(distanceSquared(other));
+    }
+
     /**
      * Calculates the dot product of this vector and another.
      * The dot product is a scalar value that represents the angular

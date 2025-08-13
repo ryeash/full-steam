@@ -561,7 +561,7 @@
         }
 
         resetGameState() {
-            this.gameState = { players: [], bullets: [], explosions: [], poisonClouds: [], obstacles: [], powerUps: [], turrets: [], info: null, serverTime: 0 };
+            this.gameState = { players: [], bullets: [], fieldEffects: [], obstacles: [], powerUps: [], turrets: [], info: null, serverTime: 0 };
             this.gameEvents = [];
             this.previousGameState = null;
             this.lastUpdateTime = 0;
@@ -982,10 +982,8 @@
                 }
 
                 if (this.localPlayer) {
-                    const playerCenterX = this.localPlayer.x + 10;
-                    const playerCenterY = this.localPlayer.y + 10;
-                    input.mouseX = playerCenterX + this.gamepadAim.x * 100;
-                    input.mouseY = playerCenterY + this.gamepadAim.y * 100;
+                    input.mouseX = this.localPlayer.x + this.gamepadAim.x * 100;
+                    input.mouseY = this.localPlayer.y + this.gamepadAim.y * 100;
                 }
             } else {
                 let moveX = 0;
@@ -1076,16 +1074,6 @@
             bCtx.fillStyle = '#333';
             bCtx.fillRect(0, 0, this.backgroundCanvas.width, this.backgroundCanvas.height);
 
-            if (this.gameState.hazards) {
-                this.gameState.hazards.forEach(hazard => {
-                    if (hazard.type === 'SLOW') {
-                        this.drawSandPit(bCtx, hazard);
-                    } else if (hazard.type === 'DAMAGE') {
-                        this.drawFirePit(bCtx, hazard);
-                    }
-                });
-            }
-
             bCtx.save();
             bCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
             bCtx.lineWidth = 2;
@@ -1123,7 +1111,8 @@
         }
 
         render(currentTime) {
-            if (this.backgroundNeedsRedraw && this.gameState.info) {                this.preRenderBackground();
+            if (this.backgroundNeedsRedraw && this.gameState.info) {
+                this.preRenderBackground();
                 this.backgroundNeedsRedraw = false;
             }
 
@@ -1131,20 +1120,19 @@
 
             this.drawPowerUps();
             this.drawCrates();
-            this.drawExplosions();
-            this.drawPoisonClouds();
+            this.drawCratePreview();
+            this.drawFieldEffects();
             this.drawTurrets();
 
             // Get interpolated positions for smooth rendering
             const interpolated = this.getInterpolatedPositions(currentTime);
             
             // Store interpolation factor for debug display
-            this.lastInterpolationFactor = this.lastUpdateTime ? 
-                Math.min(Math.max((currentTime - this.lastUpdateTime) / this.interpolationTime, 0.0), 1.0) : 0;
+            this.lastInterpolationFactor = this.lastUpdateTime
+                ? Math.min(Math.max((currentTime - this.lastUpdateTime) / this.interpolationTime, 0.0), 1.0)
+                : 0;
 
-            interpolated.players.forEach(player => {
-                this.drawPlayer(player);
-            });
+            interpolated.players.forEach(player => this.drawPlayer(player));
 
             if (interpolated.bullets) {
                 interpolated.bullets.forEach(bullet => {
@@ -1172,11 +1160,8 @@
                     // This makes the crosshair appear close for small movements and move further out for larger ones.
                     const crosshairDist = 40 + (effectiveMagnitude * 60);
 
-                    const playerCenterX = this.localPlayer.x + 10;
-                    const playerCenterY = this.localPlayer.y + 10;
-
-                    const crosshairX = playerCenterX + aimDirX * crosshairDist;
-                    const crosshairY = playerCenterY + aimDirY * crosshairDist;
+                    const crosshairX = this.localPlayer.x + aimDirX * crosshairDist;
+                    const crosshairY = this.localPlayer.y + aimDirY * crosshairDist;
 
                     this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
                     this.ctx.lineWidth = 2;
@@ -1254,6 +1239,10 @@
                         this.ctx.fillStyle = 'rgba(229, 57, 53, 0.7)';
                         icon = '⚔️';
                         break;
+                    case 'INVISIBILITY':
+                        this.ctx.fillStyle = 'rgba(155, 89, 182, 0.7)';
+                        icon = '👻';
+                        break;
                 }
                 this.ctx.fill();
 
@@ -1279,7 +1268,8 @@
                 this.ctx.lineWidth = 2;
                 this.ctx.fillRect(crate.x, crate.y, crate.size, crate.size);
                 this.ctx.strokeRect(crate.x, crate.y, crate.size, crate.size);
-
+            });
+            this.gameState.info.crates.forEach(crate => {
                 // Draw health bar if damaged
                 if (crate.hp < crate.maxHp) {
                     const healthPercentage = Math.max(0, crate.hp / crate.maxHp);
@@ -1305,85 +1295,238 @@
             this.ctx.restore();
         }
 
-        drawExplosions() {
-            if (!this.gameState.explosions) return;
-
-            this.ctx.save();
-            this.gameState.explosions.forEach(explosion => {
-                const now = this.gameState.serverTime;
-                if (!now) return; // Don't draw if we don't have a server time yet
-
-                // TODO: better math that doesn't rely on lifetime
-                const lifetime = 300; // All explosions last for .3 seconds.
-                const timeRemaining = explosion.expiration - now;
-
-                if (timeRemaining < 0 || timeRemaining > lifetime) return;
-
-                const progress = 1 - (timeRemaining / lifetime); // 0.0 to 1.0
-
-                // Animate the radius to expand quickly
-                const peakTime = 0.3; // Time to reach max size
-                const radiusProgress = Math.min(1.0, progress / peakTime);
-                const currentRadius = explosion.size * radiusProgress;
-
-                // Fade out over the whole duration
-                const alpha = 1.0 - progress;
-
-                const gradient = this.ctx.createRadialGradient(
-                    explosion.x, explosion.y, 0,
-                    explosion.x, explosion.y, currentRadius
-                );
-                gradient.addColorStop(0, `rgba(255, 255, 150, ${alpha * 0.9})`);
-                gradient.addColorStop(0.5, `rgba(255, 100, 0, ${alpha * 0.7})`);
-                gradient.addColorStop(1, `rgba(200, 0, 0, 0)`); // Fade to fully transparent at the edge
-
-                this.ctx.fillStyle = gradient;
-                this.ctx.beginPath();
-                this.ctx.arc(explosion.x, explosion.y, currentRadius, 0, 2 * Math.PI);
-                this.ctx.fill();
-            });
-            this.ctx.restore();
-        }
-
-        drawPoisonClouds() {
-            if (!this.gameState.poisonClouds) {
+        drawCratePreview() {
+            // Only show preview in Builder mode and when not spectating
+            if (!this.gameState.info ||
+                this.gameState.info.type !== 'Builder' ||
+                this.isSpectator ||
+                this.isLocalPlayerDead) {
                 return;
             }
 
+            const CRATE_SIZE = 30.0; // Match the server-side constant
+            const PLAYER_RADIUS = 10.0;
+            const PLACEMENT_DISTANCE = CRATE_SIZE * 2;
+
+            if (!this.localPlayer) return;
+
+            // Calculate placement position
+            const dx = this.localPlayer.mouseX - this.localPlayer.x;
+            const dy = this.localPlayer.mouseY - this.localPlayer.y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const baseAngle = (length > 0.1) ? Math.atan2(dy, dx) : 0.0;
+
+            // Calculate the ideal placement location
+            const idealX = this.localPlayer.x + PLAYER_RADIUS - (CRATE_SIZE / 2.0) +
+                          Math.cos(baseAngle) * PLACEMENT_DISTANCE;
+            const idealY = this.localPlayer.y + PLAYER_RADIUS - (CRATE_SIZE / 2.0) +
+                          Math.sin(baseAngle) * PLACEMENT_DISTANCE;
+
+            // Snap to grid
+            const snappedX = Math.round(idealX / CRATE_SIZE) * CRATE_SIZE;
+            const snappedY = Math.round(idealY / CRATE_SIZE) * CRATE_SIZE;
+
+            // Draw the preview
             this.ctx.save();
-            this.gameState.poisonClouds.forEach(cloud => {
-                const now = this.gameState.serverTime;
-                if (!now) return;
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([5, 5]);
 
-                // TODO: better math that doesn't rely on lifetime
-                const lifetime = 5000; // All poison clouds last for 5 seconds.
-                const timeRemaining = cloud.expiration - now;
+            this.ctx.beginPath();
+            this.ctx.rect(snappedX, snappedY, CRATE_SIZE, CRATE_SIZE);
+            this.ctx.fill();
+            this.ctx.stroke();
 
-                if (timeRemaining < 0 || timeRemaining > lifetime) return;
+            this.ctx.restore();
+        }
 
-                const progress = 1 - (timeRemaining / lifetime); // 0.0 to 1.0
+        drawFieldEffects() {
+            if (!this.gameState.fieldEffects) return;
 
-                // Let the cloud expand to full size then linger
-                const expandTime = 0.2; // 20% of lifetime to expand
-                const radiusProgress = Math.min(1.0, progress / expandTime);
-                const currentRadius = cloud.radius * radiusProgress;
-
-                // Fade out over the whole duration
-                const alpha = (1.0 - progress) * 0.6; // Max alpha 0.6
-
-                const gradient = this.ctx.createRadialGradient(
-                    cloud.x, cloud.y, 0,
-                    cloud.x, cloud.y, currentRadius
-                );
-                gradient.addColorStop(0, `rgba(129, 199, 132, ${alpha})`); // Light green
-                gradient.addColorStop(0.7, `rgba(56, 142, 60, ${alpha * 0.8})`); // Darker green
-                gradient.addColorStop(1, `rgba(27, 94, 32, 0)`); // Fade to transparent
-
-                this.ctx.fillStyle = gradient;
-                this.ctx.beginPath();
-                this.ctx.arc(cloud.x, cloud.y, currentRadius, 0, 2 * Math.PI);
-                this.ctx.fill();
+            this.ctx.save();
+            this.gameState.fieldEffects.forEach(effect => {
+                if(effect.type == 'EXPLOSION') {
+                    this.drawExplosion(effect);
+                } else if (effect.type == 'POISON') {
+                    this.drawPoisonCloud(effect);
+                } else if (effect.type == 'SLOW') {
+                    this.drawSlowField(effect);
+                }
             });
+        }
+
+        drawExplosion(explosion) {
+            this.ctx.save();
+            const now = this.gameState.serverTime;
+            if (!now) return; // Don't draw if we don't have a server time yet
+
+            // TODO: better math that doesn't rely on lifetime
+            const lifetime = 300; // All explosions last for .3 seconds.
+            const timeRemaining = explosion.expiration - now;
+
+            if (timeRemaining < 0 || timeRemaining > lifetime) return;
+
+            const progress = 1 - (timeRemaining / lifetime); // 0.0 to 1.0
+
+            // Animate the radius to expand quickly
+            const peakTime = 0.3; // Time to reach max size
+            const radiusProgress = Math.min(1.0, progress / peakTime);
+            const currentRadius = explosion.radius * radiusProgress;
+
+            // Fade out over the whole duration
+            const alpha = 1.0 - progress;
+
+            const gradient = this.ctx.createRadialGradient(
+                explosion.x, explosion.y, 0,
+                explosion.x, explosion.y, currentRadius
+            );
+            gradient.addColorStop(0, `rgba(255, 255, 150, ${alpha * 0.9})`);
+            gradient.addColorStop(0.5, `rgba(255, 100, 0, ${alpha * 0.7})`);
+            gradient.addColorStop(1, `rgba(200, 0, 0, 0)`); // Fade to fully transparent at the edge
+
+            this.ctx.fillStyle = gradient;
+            this.ctx.beginPath();
+            this.ctx.arc(explosion.x, explosion.y, currentRadius, 0, 2 * Math.PI);
+            this.ctx.fill();
+            this.ctx.restore();
+        }
+
+        drawPoisonCloud(cloud) {
+            this.ctx.save();
+            const now = this.gameState.serverTime;
+            if (!now) return;
+
+            // TODO: better math that doesn't rely on lifetime
+            const lifetime = 5000; // All poison clouds last for 5 seconds.
+            const timeRemaining = cloud.expiration - now;
+
+            if (timeRemaining < 0 || timeRemaining > lifetime) return;
+
+            const progress = 1 - (timeRemaining / lifetime); // 0.0 to 1.0
+
+            // Let the cloud expand to full size then linger
+            const expandTime = 0.2; // 20% of lifetime to expand
+            const radiusProgress = Math.min(1.0, progress / expandTime);
+            const currentRadius = cloud.radius * radiusProgress;
+
+            // Fade out over the whole duration
+            const alpha = (1.0 - progress) * 0.6; // Max alpha 0.6
+
+            const gradient = this.ctx.createRadialGradient(
+                cloud.x, cloud.y, 0,
+                cloud.x, cloud.y, currentRadius
+            );
+            gradient.addColorStop(0, `rgba(129, 199, 132, ${alpha})`); // Light green
+            gradient.addColorStop(0.7, `rgba(56, 142, 60, ${alpha * 0.8})`); // Darker green
+            gradient.addColorStop(1, `rgba(27, 94, 32, 0)`); // Fade to transparent
+
+            this.ctx.fillStyle = gradient;
+            this.ctx.beginPath();
+            this.ctx.arc(cloud.x, cloud.y, currentRadius, 0, 2 * Math.PI);
+            this.ctx.fill();
+            this.ctx.restore();
+        }
+
+        drawSlowField(field) {
+            this.ctx.save();
+            const now = this.gameState.serverTime;
+            if (!now) return;
+
+            // TODO: better math that doesn't rely on lifetime
+            const lifetime = 7000; // All slow fields last for 7 seconds.
+            const timeRemaining = field.expiration - now;
+
+            if (timeRemaining < 0 || timeRemaining > lifetime) return;
+
+            const progress = 1 - (timeRemaining / lifetime); // 0.0 to 1.0
+
+            // Let the field expand to full size then linger
+            const expandTime = 0.2; // 20% of lifetime to expand
+            const radiusProgress = Math.min(1.0, progress / expandTime);
+            const currentRadius = field.radius * radiusProgress;
+
+            // Fade out over the whole duration
+            const alpha = (1.0 - progress) * 0.5; // Max alpha 0.5 (slightly lower than poison)
+
+            // Draw the base field with a more subtle gradient
+            const gradient = this.ctx.createRadialGradient(
+                field.x, field.y, 0,
+                field.x, field.y, currentRadius
+            );
+
+            // Use ice/frost-like colors to suggest slowing
+            if (field.team === 1) {
+                gradient.addColorStop(0, `rgba(173, 216, 230, ${alpha * 0.7})`); // Light blue
+                gradient.addColorStop(0.7, `rgba(100, 149, 237, ${alpha * 0.5})`); // Medium blue
+                gradient.addColorStop(1, `rgba(65, 105, 225, 0)`); // Fade to transparent
+            } else if (field.team === 2) {
+                gradient.addColorStop(0, `rgba(255, 182, 193, ${alpha * 0.7})`); // Light pink
+                gradient.addColorStop(0.7, `rgba(219, 112, 147, ${alpha * 0.5})`); // Medium pink
+                gradient.addColorStop(1, `rgba(199, 21, 133, 0)`); // Fade to transparent
+            } else {
+                gradient.addColorStop(0, `rgba(176, 196, 222, ${alpha * 0.7})`); // Light steel blue
+                gradient.addColorStop(0.7, `rgba(119, 136, 153, ${alpha * 0.5})`); // Light slate gray
+                gradient.addColorStop(1, `rgba(70, 130, 180, 0)`); // Fade to transparent
+            }
+
+            this.ctx.fillStyle = gradient;
+            this.ctx.beginPath();
+            this.ctx.arc(field.x, field.y, currentRadius, 0, 2 * Math.PI);
+            this.ctx.fill();
+
+            // Add animated ripple rings to suggest slow/impediment effect
+            const time = now / 1000; // Convert to seconds for smoother animation
+            const numRings = 3;
+            
+            // Set team-specific ring colors
+            let ringColor;
+            if (field.team === 1) {
+                ringColor = `rgba(100, 149, 237, ${alpha * 0.8})`; // Blue
+            } else if (field.team === 2) {
+                ringColor = `rgba(219, 112, 147, ${alpha * 0.8})`; // Pink
+            } else {
+                ringColor = `rgba(119, 136, 153, ${alpha * 0.8})`; // Gray
+            }
+
+            this.ctx.strokeStyle = ringColor;
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([8, 12]); // Dashed pattern suggests broken/slow movement
+
+            for (let i = 0; i < numRings; i++) {
+                const ringOffset = (time * 0.5 + i * 0.8) % 2.0; // Slow animation cycle
+                const ringRadius = (currentRadius * 0.3) + (ringOffset * currentRadius * 0.35);
+                const ringAlpha = alpha * (1.0 - ringOffset * 0.5); // Fade as rings expand
+                
+                if (ringRadius <= currentRadius) {
+                    this.ctx.globalAlpha = ringAlpha;
+                    this.ctx.beginPath();
+                    this.ctx.arc(field.x, field.y, ringRadius, 0, 2 * Math.PI);
+                    this.ctx.stroke();
+                }
+            }
+
+            // Add crystalline/frost pattern at center to reinforce "freezing/slowing" theme
+            this.ctx.globalAlpha = alpha * 0.6;
+            this.ctx.setLineDash([]); // Solid lines for center pattern
+            this.ctx.lineWidth = 1.5;
+            
+            const centerPattern = 6; // Number of lines radiating from center
+            const centerRadius = Math.min(15, currentRadius * 0.3);
+            
+            for (let i = 0; i < centerPattern; i++) {
+                const angle = (i * 2 * Math.PI / centerPattern) + (time * 0.2); // Slow rotation
+                const x1 = field.x + Math.cos(angle) * (centerRadius * 0.3);
+                const y1 = field.y + Math.sin(angle) * (centerRadius * 0.3);
+                const x2 = field.x + Math.cos(angle) * centerRadius;
+                const y2 = field.y + Math.sin(angle) * centerRadius;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(x1, y1);
+                this.ctx.lineTo(x2, y2);
+                this.ctx.stroke();
+            }
+
             this.ctx.restore();
         }
 
@@ -1610,81 +1753,6 @@
             this.ctx.restore();
         }
 
-        drawSandPit(bCtx, hazard) {
-            const pos = hazard.position;
-            const baseRadius = hazard.radius;
-            bCtx.save();
-
-            bCtx.beginPath();
-            const segments = 40;
-            const angleStep = (2 * Math.PI) / segments;
-            const radiusVariation = baseRadius * 0.12;
-
-            for (let i = 0; i <= segments; i++) {
-                const angle = i * angleStep;
-                const waveOffset = Math.sin(angle * 6) * radiusVariation * 0.6;
-                const randomOffset = (Math.random() - 0.5) * 2 * radiusVariation * 0.4;
-                const currentRadius = baseRadius + waveOffset + randomOffset;
-                const x = pos.x + Math.cos(angle) * currentRadius;
-                const y = pos.y + Math.sin(angle) * currentRadius;
-
-                if (i === 0) {
-                    bCtx.moveTo(x, y);
-                } else {
-                    bCtx.lineTo(x, y);
-                }
-            }
-            bCtx.closePath();
-
-            bCtx.fillStyle = '#A0785A';
-            bCtx.fill();
-
-            bCtx.fillStyle = 'rgba(90, 60, 40, 0.15)';
-            const speckleCount = Math.floor(baseRadius * 1.4);
-
-            for (let i = 0; i < speckleCount; i++) {
-                const angle = Math.random() * 2 * Math.PI;
-                const r = Math.random() * baseRadius * 0.9;
-                const speckleX = pos.x + Math.cos(angle) * r;
-                const speckleY = pos.y + Math.sin(angle) * r;
-
-                bCtx.beginPath();
-                bCtx.arc(speckleX, speckleY, Math.random() * 1.3 + 1, 0, 2 * Math.PI);
-                bCtx.fill();
-            }
-            bCtx.restore();
-        }
-
-        drawFirePit(bCtx, hazard) {
-            const pos = hazard.position;
-            const radius = hazard.radius;
-            bCtx.save();
-
-            const gradient = bCtx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, radius);
-            gradient.addColorStop(0, 'rgba(255, 235, 59, 0.9)');
-            gradient.addColorStop(0.6, 'rgba(255, 87, 34, 0.8)');
-            gradient.addColorStop(1, 'rgba(198, 40, 40, 0.6)');
-
-            bCtx.fillStyle = gradient;
-            bCtx.beginPath();
-            bCtx.arc(pos.x, pos.y, radius, 0, 2 * Math.PI);
-            bCtx.fill();
-
-            bCtx.strokeStyle = 'rgba(40, 20, 10, 0.4)';
-            bCtx.lineWidth = 2;
-            const crackCount = Math.floor(radius / 8);
-            for (let i = 0; i < crackCount; i++) {
-                const startAngle = Math.random() * 2 * Math.PI;
-                const endAngle = startAngle + (Math.random() - 0.5) * 0.8;
-                const crackRadius = Math.random() * radius * 0.9;
-                bCtx.beginPath();
-                bCtx.arc(pos.x, pos.y, crackRadius, startAngle, endAngle);
-                bCtx.stroke();
-            }
-
-            bCtx.restore();
-        }
-
         drawGameEvents() {
             const now = Date.now();
             // Filter out expired events in-place for performance
@@ -1706,7 +1774,7 @@
             this.ctx.shadowBlur = 5;
 
             const startY = 50;
-            this.gameEvents.forEach((event, index) => {
+            this.gameEvents.slice(-6).forEach((event, index) => {
                 const yPos = startY + (index * 25);
                 switch (event.type) {
                     case 'FLAG_CAPTURE': this.ctx.fillStyle = '#FFD700'; break;
@@ -1876,8 +1944,8 @@
                 this.ctx.textBaseline = 'alphabetic';
             }
 
-            const maxHealth = player.maxHealth || 100;
-            const healthPercentage = Math.max(0, player.hp / maxHealth);
+            const maxHp = player.maxHp || 100;
+            const healthPercentage = Math.max(0, player.hp / maxHp);
             const healthBarRadius = playerSize / 2 + 4;
             const healthBarThickness = 3;
 

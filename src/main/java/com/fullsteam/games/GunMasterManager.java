@@ -96,13 +96,13 @@ public class GunMasterManager extends AbstractFreeForAllManager {
         // Disallow weapon changes
         if (request.getWeaponName() != null && !request.getWeaponName().isEmpty()) {
             sendGameEvent(GameEvent.team(player.getTeam(), "Weapon selection is disabled in Gun Master!"));
-            return;
+            request.setWeaponName(currentGlobalWeapon.getName());
         }
 
         // Disallow team changes
         if (request.isRequestTeamChange()) {
             sendGameEvent(GameEvent.team(player.getTeam(), "There are no teams in Gun Master!"));
-            return;
+            request.setRequestTeamChange(false);
         }
         super.handlePlayerConfigChange(playerId, request);
     }
