@@ -1356,7 +1356,7 @@
                 if(effect.type == 'EXPLOSION') {
                     this.drawExplosion(effect);
                 } else if (effect.type == 'POISON') {
-                    this.drawPoisonClouds(effect);
+                    this.drawPoisonCloud(effect);
                 } else if (effect.type == 'SLOW') {
                     this.drawSlowField(effect);
                 }
@@ -1399,7 +1399,7 @@
             this.ctx.restore();
         }
 
-        drawPoisonClouds(cloud) {
+        drawPoisonCloud(cloud) {
             this.ctx.save();
             const now = this.gameState.serverTime;
             if (!now) return;

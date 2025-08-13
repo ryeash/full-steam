@@ -522,8 +522,10 @@ public abstract class AbstractGameStateManager {
     protected void updateSlowField(SlowField slowField) {
         Set<Targetable> nearbyPlayers = targetGrid.getNearby(slowField.getX() - slowField.getRadius(), slowField.getY() - slowField.getRadius(), slowField.getRadius() * 2, slowField.getRadius() * 2);
         for (Targetable t : nearbyPlayers) {
-            if (t instanceof Player p) {
-                if (!p.isDead() && p.getTeam() != slowField.getTeam()) {
+            if (t instanceof Player p && !p.isDead() && p.getTeam() != slowField.getTeam()) {
+                Vector2D cloudCenter = new Vector2D(slowField.getX(), slowField.getY());
+                double radiusSq = slowField.getRadius() * slowField.getRadius();
+                if (p.position().distanceSquared(cloudCenter) < radiusSq) {
                     p.setSpeed(p.getDefaultSpeed() * slowField.getSlowFactor());
                 }
             }

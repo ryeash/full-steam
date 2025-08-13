@@ -189,8 +189,8 @@ public class WeaponFactory {
         ));
 
         addPreset(new Weapon(
-                "Glue Launcher",
-                "GL",
+                "Ice Storm",
+                "IS",
                 4, // Fire Rate
                 0, // Damage (damage is from the cloud)
                 14,// Range
@@ -337,7 +337,7 @@ public class WeaponFactory {
         return weaponArray[0];
     }
 
-    private static final List<String> RANDOM_EXCEPTIONS = List.of("Engineer Wrench", "Glue Launcher");
+    private static final List<String> RANDOM_EXCEPTIONS = List.of("Engineer Wrench", "Ice Storm");
 
     public static Weapon getRandomWeapon() {
         Weapon random = null;

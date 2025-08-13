@@ -71,7 +71,7 @@ public class Config {
     public static final double SPAWN_VERTICAL_PADDING = getDouble("game.spawn_padding_v", 50.0);
     public static final double SPAWN_MIDFIELD_BUFFER = getDouble("game.spawn_midfield_buffer", 300.0);
     public static final int MAX_PLAYERS_PER_TEAM = getInt("game.max_players_per_team", 5);
-    public static final double SLOW_FIELD_FACTOR = getDouble("game.slow_field_factor", 0.5); // 50% speed
+    public static final double SLOW_FIELD_FACTOR = getDouble("game.slow_field_factor", 0.33); // 33% speed
     public static final long RESPAWN_IMMUNITY_DURATION = getLong("game.respawn_immunity_duration", 2000);
     public static final int MAX_TURRETS_PER_PLAYER = getInt("game.max_turrets_per_player", 2);
     public static final double TURRET_INACCURACY = getDouble("game.turret_inaccuracy", .2);
