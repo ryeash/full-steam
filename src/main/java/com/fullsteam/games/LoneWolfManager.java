@@ -196,7 +196,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
     }
 
     @Override
-    protected GameInfo buildGameState() {
+    protected GameInfo buildGameInfo() {
         return new LoneWolfInfo(Config.LONE_WOLF_LIVES - loneWolfDeaths);
     }
 

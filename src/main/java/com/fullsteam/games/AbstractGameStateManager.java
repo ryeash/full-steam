@@ -21,6 +21,7 @@ import com.fullsteam.model.PoisonCloud;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.PowerUpType;
 import com.fullsteam.model.SlowField;
+import com.fullsteam.model.SmokeCloud;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Turret;
 import com.fullsteam.model.Vector2D;
@@ -386,10 +387,12 @@ public abstract class AbstractGameStateManager {
                         300));
                 return true;
             }
-            Optional<Turret.ShootAction> shootAction = turret.update(gameState, targetGrid);
-            shootAction.ifPresent(action -> fireTurretWeapon(turret, Math.atan2(action.directionY(), action.directionX())));
             return false;
         });
+        for (Turret turret : turrets) {
+            Optional<Turret.ShootAction> shootAction = turret.update(gameState, targetGrid);
+            shootAction.ifPresent(action -> fireTurretWeapon(turret, Math.atan2(action.directionY(), action.directionX())));
+        }
     }
 
     protected void populateSpatialGrids() {
@@ -410,6 +413,8 @@ public abstract class AbstractGameStateManager {
                 updatePoisonClouds(poisonCloud);
             } else if (fieldEffect instanceof SlowField slowField) {
                 updateSlowField(slowField);
+            } else if (fieldEffect instanceof SmokeCloud smokeCloud) {
+                updateSmokeField(smokeCloud);
             } else {
                 throw new UnsupportedOperationException("unsupported field effect type: " + fieldEffect.getClass().getSimpleName());
             }
@@ -428,7 +433,7 @@ public abstract class AbstractGameStateManager {
             double radiusSq = explosion.getRadius() * explosion.getRadius();
             Player shooter = players.get(explosion.getShooterId());
 
-            Set<Targetable> nearbyPlayers = targetGrid.getNearby(explosion.getX() - explosion.getRadius(), explosion.getY() - explosion.getRadius(), explosion.getRadius() * 2, explosion.getRadius() * 2);
+            Set<Targetable> nearbyPlayers = targetGrid.getNearby(explosion.position(), explosion.getRadius());
             for (Targetable t : nearbyPlayers) {
                 switch (t) {
                     case Player p -> {
@@ -479,11 +484,11 @@ public abstract class AbstractGameStateManager {
         long currentTime = System.currentTimeMillis();
         // Damage players inside the cloud, ticking every 500ms
         if (currentTime > cloud.getLastDamageTickTime() + 500) {
-            Vector2D cloudCenter = new Vector2D(cloud.getX(), cloud.getY());
-            double radiusSq = cloud.getRadius() * cloud.getRadius();
+            Vector2D cloudCenter = cloud.position();
+            double radiusSq = cloud.getRadiusSquared();
             Player shooter = players.get(cloud.getShooterId());
 
-            Set<Targetable> nearbyPlayers = targetGrid.getNearby(cloud.getX() - cloud.getRadius(), cloud.getY() - cloud.getRadius(), cloud.getRadius() * 2, cloud.getRadius() * 2);
+            Set<Targetable> nearbyPlayers = targetGrid.getNearby(cloud.position(), cloud.getRadius());
             for (Targetable t : nearbyPlayers) {
                 switch (t) {
                     case Player p -> {
@@ -520,13 +525,22 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void updateSlowField(SlowField slowField) {
-        Set<Targetable> nearbyPlayers = targetGrid.getNearby(slowField.getX() - slowField.getRadius(), slowField.getY() - slowField.getRadius(), slowField.getRadius() * 2, slowField.getRadius() * 2);
+        Set<Targetable> nearbyPlayers = targetGrid.getNearby(slowField.position(), slowField.getRadius());
         for (Targetable t : nearbyPlayers) {
             if (t instanceof Player p && !p.isDead() && p.getTeam() != slowField.getTeam()) {
-                Vector2D cloudCenter = new Vector2D(slowField.getX(), slowField.getY());
-                double radiusSq = slowField.getRadius() * slowField.getRadius();
-                if (p.position().distanceSquared(cloudCenter) < radiusSq) {
+                if (p.position().distanceSquared(slowField.position()) < slowField.getRadiusSquared()) {
                     p.setSpeed(p.getDefaultSpeed() * slowField.getSlowFactor());
+                }
+            }
+        }
+    }
+
+    protected void updateSmokeField(SmokeCloud smokeCloud) {
+        Set<Targetable> nearbyPlayers = targetGrid.getNearby(smokeCloud.position(), smokeCloud.getRadius());
+        for (Targetable t : nearbyPlayers) {
+            if (t instanceof Player p && !p.isDead()) {
+                if (p.position().distanceSquared(smokeCloud.position()) < smokeCloud.getRadiusSquared()) {
+                    p.setVisionObscured(true);
                 }
             }
         }
@@ -555,6 +569,8 @@ public abstract class AbstractGameStateManager {
                 player.finishReload();
                 player.setDead(false); // Ensure they are alive
                 setValidSpawnPosition(player); // Move them to a spawn point
+                player.restoreSpeed();
+                player.setVisionObscured(false);
                 if (!(player instanceof AIPlayer)) {
                     playerChannels.get(player.getId())
                             .writeAndFlush(Jackson.msgFrame(new WelcomeMessage(player.getId(), player.getTeam(), gameId)));
@@ -626,6 +642,7 @@ public abstract class AbstractGameStateManager {
 
             // Apply movement and environmental effects.
             player.restoreSpeed(); // Start with default speed.
+            player.setVisionObscured(false);
             resetDamageMultiplier(player);
 
             updateFieldEffects(delta);
@@ -641,7 +658,7 @@ public abstract class AbstractGameStateManager {
 
             // Let the AI make its decisions first, then apply movement
             if (player instanceof AIPlayer ai) {
-                Optional<AIPlayer.ShootAction> shootAction = ai.update(gameState, targetGrid, delta);
+                Optional<AIPlayer.ShootAction> shootAction = ai.update(ai.isVisionObscured() ? blindedGameState(ai, true) : gameState, targetGrid, delta);
                 if (shootAction.isPresent()) {
                     if (ai.canShoot()) {
                         AIPlayer.ShootAction action = shootAction.get();
@@ -898,10 +915,10 @@ public abstract class AbstractGameStateManager {
      *
      * @return The fully constructed GameState object.
      */
-    protected abstract GameInfo buildGameState();
+    protected abstract GameInfo buildGameInfo();
 
     protected void sendGameState() {
-        GameInfo gameInfo = buildGameState();
+        GameInfo gameInfo = buildGameInfo();
 
         GameState state = new GameState(
                 players.values().stream().filter(p -> p.getInvisibilityEndTime() < System.currentTimeMillis()).toList(),
@@ -909,7 +926,6 @@ public abstract class AbstractGameStateManager {
                 fieldEffects,
                 turrets,
                 obstacles.stream().filter(Obstacle::isRendered).toList(),
-                // null playerId gets only public events
                 powerUps,
                 System.currentTimeMillis(),
                 gameInfo
@@ -919,7 +935,11 @@ public abstract class AbstractGameStateManager {
         // Send state to all players
         playerChannels.forEach((playerId, channel) -> {
             if (channel.isActive() && channel.isOpen()) {
-                channel.writeAndFlush(frame.retainedDuplicate()).addListener(future -> { // retainedDuplicate is crucial
+                Player player = players.get(playerId);
+                BinaryWebSocketFrame frameToSend = player.isVisionObscured()
+                        ? Jackson.msgFrame(blindedGameState(player, false))
+                        : frame;
+                channel.writeAndFlush(frameToSend.retainedDuplicate()).addListener(future -> { // retainedDuplicate is crucial
                     if (!future.isSuccess()) {
                         log.error("Failed to send game state to player {}. Closing channel.", playerId, future.cause());
                         channel.close();
@@ -1140,5 +1160,18 @@ public abstract class AbstractGameStateManager {
             bullets.add(bullet);
         }
         turret.shoot();
+    }
+
+    protected GameState blindedGameState(Player player, boolean includeAllObstacles) {
+        return new GameState(
+                List.of(player),
+                List.of(),
+                fieldEffects,
+                List.of(),
+                includeAllObstacles ? obstacles : obstacles.stream().filter(Obstacle::isRendered).toList(),
+                List.of(),
+                System.currentTimeMillis(),
+                buildGameInfo()
+        );
     }
 }

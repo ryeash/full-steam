@@ -38,7 +38,7 @@ public class BuilderManager extends AbstractFreeForAllManager {
     }
 
     @Override
-    protected GameInfo buildGameState() {
+    protected GameInfo buildGameInfo() {
         return new BuilderGameInfo(crates);
     }
 

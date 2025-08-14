@@ -32,7 +32,7 @@ public class PoisonCloud extends AbstractFieldEffect implements BulletEffect {
                 bullet.getShooterId(),
                 bullet.getTeam(),
                 80,    // radius
-                6,     // damage per tick
+                8,     // damage per tick
                 5000); // 5 seconds duration
     }
 

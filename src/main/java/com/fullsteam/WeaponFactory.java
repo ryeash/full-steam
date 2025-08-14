@@ -3,13 +3,14 @@ package com.fullsteam;
 import com.fullsteam.model.Explosion;
 import com.fullsteam.model.PoisonCloud;
 import com.fullsteam.model.SlowField;
+import com.fullsteam.model.SmokeCloud;
 import com.fullsteam.model.Turret;
 import com.fullsteam.model.Weapon;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -18,7 +19,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public class WeaponFactory {
 
-    private static final Map<String, Weapon> weaponPresets = new ConcurrentHashMap<>();
+    private static final Map<String, Weapon> weaponPresets = new HashMap<>();
     private static final List<String> weaponNames;
     private static final Weapon[] weaponArray;
 
@@ -204,6 +205,21 @@ public class WeaponFactory {
         ));
 
         addPreset(new Weapon(
+                "Smoke Launcher",
+                "SM",
+                4, // Fire Rate
+                0, // Damage (damage is from the cloud)
+                14,// Range
+                8, // Speed
+                2, // Speed Decay
+                0, // Accuracy
+                0, // Multi-shot
+                3, // Magazine Size
+                9, // Reload Speed
+                SmokeCloud::create
+        ));
+
+        addPreset(new Weapon(
                 "Marksman Rifle",
                 "MR",
                 10, // Fire Rate
@@ -337,7 +353,7 @@ public class WeaponFactory {
         return weaponArray[0];
     }
 
-    private static final List<String> RANDOM_EXCEPTIONS = List.of("Engineer Wrench", "Ice Storm");
+    private static final List<String> RANDOM_EXCEPTIONS = List.of("Engineer Wrench", "Ice Storm", "Smoke Launcher");
 
     public static Weapon getRandomWeapon() {
         Weapon random = null;

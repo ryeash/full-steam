@@ -1,11 +1,15 @@
 package com.fullsteam.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public abstract class AbstractFieldEffect implements FieldEffect {
     private final Type type;
     private final long id;
     private final double x;
     private final double y;
     private final double radius;
+    @JsonIgnore
+    private final double radiusSquared;
     private final int team;
     private final long expiration;
 
@@ -15,6 +19,7 @@ public abstract class AbstractFieldEffect implements FieldEffect {
         this.x = x;
         this.y = y;
         this.radius = radius;
+        this.radiusSquared = radius * radius;
         this.team = team;
         this.expiration = expiration;
     }
@@ -42,6 +47,11 @@ public abstract class AbstractFieldEffect implements FieldEffect {
     @Override
     public double getRadius() {
         return radius;
+    }
+
+    @Override
+    public double getRadiusSquared() {
+        return radiusSquared;
     }
 
     @Override

@@ -5,7 +5,8 @@ public interface FieldEffect extends HasId {
     enum Type {
         EXPLOSION,
         POISON,
-        SLOW
+        SLOW,
+        SMOKE
     }
 
     Type getType();
@@ -39,6 +40,13 @@ public interface FieldEffect extends HasId {
      * @return The radius.
      */
     double getRadius();
+
+    /**
+     * Returns the squared radius of the effect for performance optimization in distance calculations.
+     *
+     * @return The squared radius.
+     */
+    double getRadiusSquared();
 
     /**
      * Returns the team associated with this effect.

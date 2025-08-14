@@ -65,8 +65,7 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     @Override
     protected void killPlayer(Player victim, Player shooter) {
         super.killPlayer(victim, shooter);
-        if (Objects.equals(victim.getId(), team1Juggernaut)
-            || Objects.equals(victim.getId(), team2Juggernaut)) {
+        if (Objects.equals(victim.getId(), team1Juggernaut) || Objects.equals(victim.getId(), team2Juggernaut)) {
             if (shooter != null) {
                 sendGameEvent(GameEvent.info("Team %s Juggernaut %s was eliminated by %s!".formatted(victim.getTeam(), victim.getPlayerName(), shooter.getPlayerName())));
             } else {
@@ -86,8 +85,8 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     @Override
     protected boolean checkEndConditions() {
         if (System.currentTimeMillis() > roundEndTime
-            || team1Score >= JUGGERNAUT_SCORE_TO_WIN
-            || team2Score >= JUGGERNAUT_SCORE_TO_WIN) {
+                || team1Score >= JUGGERNAUT_SCORE_TO_WIN
+                || team2Score >= JUGGERNAUT_SCORE_TO_WIN) {
             sendVictoryMessage();
             return true;
         }
@@ -95,7 +94,7 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected GameInfo buildGameState() {
+    protected GameInfo buildGameInfo() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
         return new JuggernautInfo(

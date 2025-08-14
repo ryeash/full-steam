@@ -11,19 +11,24 @@ import java.util.Set;
 
 public class Turret implements HasId, BulletEffect, HasLife, Targetable {
     private final long id;
+    @JsonIgnore
     private final long ownerId;
     private final int team;
     private final double x;
     private final double y;
     private final double radius;
+    @JsonIgnore
     private final Weapon weapon;
     private double angle;
     private double hp;
     private final double maxHp;
     @JsonIgnore
     private long nextShotTime;
+    @JsonIgnore
     private int currentAmmoInMagazine;
+    @JsonIgnore
     private boolean reloading;
+    @JsonIgnore
     private long reloadCompleteTime;
 
     /**

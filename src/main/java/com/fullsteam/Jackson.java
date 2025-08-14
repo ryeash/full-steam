@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 
@@ -21,7 +22,8 @@ public class Jackson {
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             .configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true)
             .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
-            .setDefaultMergeable(true);
+            .setDefaultMergeable(true)
+            .registerModule(new AfterburnerModule());
 
     public static String writeValueAsString(Object obj) {
         try {
