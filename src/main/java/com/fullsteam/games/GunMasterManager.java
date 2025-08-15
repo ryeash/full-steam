@@ -7,16 +7,12 @@ import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.Weapon;
 import com.fullsteam.model.ai.AIPlayer;
-import com.fullsteam.model.gamemodes.FreeForAllInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.GunMasterInfo;
 import io.netty.channel.Channel;
 
-import java.util.Comparator;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 public class GunMasterManager extends AbstractFreeForAllManager {
 
@@ -106,19 +102,8 @@ public class GunMasterManager extends AbstractFreeForAllManager {
         super.handlePlayerConfigChange(playerId, request);
     }
 
-
     @Override
     protected GameInfo buildGameInfo() {
-        long remainingMillis = roundEndTime - System.currentTimeMillis();
-        long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
-
-        List<FreeForAllInfo.PlayerScore> playerScores = players.values().stream()
-                .sorted(Comparator.comparingInt(Player::getKills).reversed()) // Sort by kills descending
-                .map(player -> new FreeForAllInfo.PlayerScore(player.getPlayerName(), player.getKills()))
-                .collect(Collectors.toList());
-
-        return new GunMasterInfo(
-                playerScores,
-                roundTimeRemainingSeconds);
+        return new GunMasterInfo(Math.max(0, (roundEndTime - System.currentTimeMillis()) / 1000));
     }
 }

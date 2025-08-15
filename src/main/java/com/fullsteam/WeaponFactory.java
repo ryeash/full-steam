@@ -43,10 +43,10 @@ public class WeaponFactory {
                 "Sniper Rifle",
                 "SR",
                 0,  // Fire Rate
-                45, // Damage
+                46, // Damage
                 28, // Range
                 13, // Speed
-                6, // Speed Decay (no decay)
+                5, // Speed Decay
                 0, // Accuracy
                 0,  // Multi-shot
                 3,  // Magazine Size

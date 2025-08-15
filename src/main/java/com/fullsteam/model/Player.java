@@ -39,7 +39,6 @@ public class Player implements HasId, HasLife, Targetable {
     public long speedBoostEndTime;
     public long armorUpEndTime;
     public long damageBoostEndTime;
-    @JsonIgnore
     public long invisibilityEndTime;
     @JsonIgnore
     public double damageMultiplier;

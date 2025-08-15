@@ -22,7 +22,7 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
 
     private static final int MAX_PLAYERS = Config.MAX_PLAYERS_PER_TEAM * 2;
     private static final long AI_FILL_CHECK_INTERVAL_MS = 5000; // 5 seconds
-    private static final double PLAYER_BUFFER_SPAWN_DISTANCE = 100.0;
+    private static final double PLAYER_BUFFER_SPAWN_DISTANCE = 50.0 * 50.0;
 
     private final AtomicInteger teamIdCounter = new AtomicInteger(100);
     protected long roundEndTime = 0;
@@ -126,7 +126,6 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
         setValidSpawnPosition(player);
         players.put(playerId, player);
         playerChannels.put(playerId, channel);
-        log.info("Player {} joined FFA game {} at position ({}, {})", playerId, gameId, player.getX(), player.getY());
         return player;
     }
 

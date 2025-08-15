@@ -1,11 +1,9 @@
 package com.fullsteam.model.gamemodes;
 
-import java.util.List;
+public final class GunMasterInfo extends FreeForAllInfo {
 
-public class GunMasterInfo extends FreeForAllInfo {
-
-    public GunMasterInfo(List<FreeForAllInfo.PlayerScore> scores, long roundTimeRemainingSeconds) {
-        super(scores, roundTimeRemainingSeconds);
+    public GunMasterInfo(long roundTimeRemainingSeconds) {
+        super(roundTimeRemainingSeconds);
     }
 
     @Override

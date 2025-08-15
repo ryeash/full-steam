@@ -374,7 +374,8 @@ public abstract class AbstractGameStateManager {
                 return true;
             }
             if (turret.getHp() <= 0) {
-                fieldEffects.add(new Explosion(turret.getX(),
+                fieldEffects.add(new Explosion(
+                        turret.getX(),
                         turret.getY(),
                         turret.getOwnerId(),
                         turret.getTeam(),
@@ -386,8 +387,8 @@ public abstract class AbstractGameStateManager {
             return false;
         });
         for (Turret turret : turrets) {
-            Optional<Turret.ShootAction> shootAction = turret.update(gameState, targetGrid);
-            shootAction.ifPresent(action -> fireTurretWeapon(turret, Math.atan2(action.directionY(), action.directionX())));
+            turret.update(gameState, targetGrid)
+                    .ifPresent(action -> fireTurretWeapon(turret, Math.atan2(action.directionY(), action.directionX())));
         }
     }
 
@@ -397,7 +398,8 @@ public abstract class AbstractGameStateManager {
             targetGrid.insert(player, player.getX(), player.getY(), PLAYER_SIZE, PLAYER_SIZE);
         }
         for (Turret turret : turrets) {
-            targetGrid.insert(turret, turret.getX(), turret.getY(), turret.getRadius() * 2, turret.getRadius() * 2);
+            double size = turret.getRadius() * 2;
+            targetGrid.insert(turret, turret.getX(), turret.getY(), size, size);
         }
     }
 
@@ -616,16 +618,6 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void updatePlayers(long delta) {
-        GameState gameState = new GameState(
-                players.values().stream().filter(p -> p.getInvisibilityEndTime() < System.currentTimeMillis()).toList(),
-                bullets,
-                fieldEffects,
-                turrets,
-                obstacles,
-                powerUps,
-                System.currentTimeMillis(),
-                null
-        );
         for (Player player : players.values()) {
             double oldX = player.getX();
             double oldY = player.getY();
@@ -654,7 +646,8 @@ public abstract class AbstractGameStateManager {
 
             // Let the AI make its decisions first, then apply movement
             if (player instanceof AIPlayer ai) {
-                Optional<AIPlayer.ShootAction> shootAction = ai.update(ai.isVisionObscured() ? blindedGameState(ai, true) : gameState, targetGrid, delta);
+                GameState gameState = playerGameState(player, null, true);
+                Optional<AIPlayer.ShootAction> shootAction = ai.update(gameState, targetGrid, delta);
                 if (shootAction.isPresent()) {
                     if (ai.canShoot()) {
                         AIPlayer.ShootAction action = shootAction.get();
@@ -839,7 +832,7 @@ public abstract class AbstractGameStateManager {
                 log.info("{} performance (K/D: {}/{}) triggered a weapon change from {} to {}.", victim.getPlayerName(), kills, deaths, oldWeapon.getName(), victim.getWeapon().getName());
             }
         }
-        if (ThreadLocalRandom.current().nextDouble() < 0.25) { // 25% chance to drop a power-up
+        if (ThreadLocalRandom.current().nextDouble() < Config.POWERUP_DROP_RATE) {
             spawnPowerUp(new Vector2D(victim.getX(), victim.getY()));
         }
     }
@@ -913,26 +906,12 @@ public abstract class AbstractGameStateManager {
     protected void sendGameState() {
         GameInfo gameInfo = buildGameInfo();
 
-        GameState state = new GameState(
-                players.values().stream().filter(p -> p.getInvisibilityEndTime() < System.currentTimeMillis()).toList(),
-                bullets,
-                fieldEffects,
-                turrets,
-                obstacles.stream().filter(Obstacle::isRendered).toList(),
-                powerUps,
-                System.currentTimeMillis(),
-                gameInfo
-        );
-        BinaryWebSocketFrame frame = Jackson.msgFrame(state);
-
         // Send state to all players
         playerChannels.forEach((playerId, channel) -> {
             if (channel.isActive() && channel.isOpen()) {
                 Player player = players.get(playerId);
-                BinaryWebSocketFrame frameToSend = player.isVisionObscured()
-                        ? Jackson.msgFrame(blindedGameState(player, false))
-                        : frame;
-                channel.writeAndFlush(frameToSend.retainedDuplicate()).addListener(future -> { // retainedDuplicate is crucial
+                BinaryWebSocketFrame frameToSend = Jackson.msgFrame(playerGameState(player, gameInfo, false));
+                channel.writeAndFlush(frameToSend).addListener(future -> { // retainedDuplicate is crucial
                     if (!future.isSuccess()) {
                         log.error("Failed to send game state to player {}. Closing channel.", playerId, future.cause());
                         channel.close();
@@ -942,6 +921,8 @@ public abstract class AbstractGameStateManager {
         });
 
         // Send to all spectators
+        GameState gameState = spectatorGameState();
+        BinaryWebSocketFrame frame = Jackson.msgFrame(gameState);
         if (!spectatorChannels.isEmpty()) {
             for (Channel spectatorChannel : spectatorChannels) {
                 if (spectatorChannel.isActive() && spectatorChannel.isOpen()) {
@@ -954,8 +935,6 @@ public abstract class AbstractGameStateManager {
                 }
             }
         }
-
-        // Release the original frame after all sends are initiated.
         frame.release();
     }
 
@@ -1022,10 +1001,9 @@ public abstract class AbstractGameStateManager {
             player.setX(x);
             player.setY(y);
 
-            // First, check if the spawn point is inside an obstacle.
+            // check if the spawn point is inside an obstacle.
             if (isColliding(player, obstacles)) {
                 invalidPosition = true;
-                continue; // Try a new position
             }
         } while (invalidPosition);
     }
@@ -1155,33 +1133,41 @@ public abstract class AbstractGameStateManager {
         turret.shoot();
     }
 
-    protected GameState standardGameState(Player player, boolean includeAllObstacles) {
-        List<Player> players = this.players.values()
-                .stream()
-                .filter(p -> p.getId() == player.getId() || p.getInvisibilityEndTime() < System.currentTimeMillis())
-                .toList();
-        return new GameState(
-                players,
+    protected GameState playerGameState(Player player, GameInfo gameInfo, boolean includeAllObstacles) {
+        if (player.isVisionObscured()) {
+            return new GameState(
+                    List.of(player),
+                    List.of(),
+                    fieldEffects,
+                    List.of(),
+                    includeAllObstacles ? obstacles : obstacles.stream().filter(Obstacle::isRendered).toList(),
+                    powerUps,
+                    System.currentTimeMillis(),
+                    gameInfo);
+        } else {
+            return new GameState(
+                    this.players.values()
+                            .stream()
+                            .filter(p -> p.getId() == player.getId() || p.getInvisibilityEndTime() < System.currentTimeMillis())
+                            .toList(),
+                    bullets,
+                    fieldEffects,
+                    turrets,
+                    includeAllObstacles ? obstacles : obstacles.stream().filter(Obstacle::isRendered).toList(),
+                    powerUps,
+                    System.currentTimeMillis(),
+                    gameInfo);
+        }
+    }
+
+    protected GameState spectatorGameState() {
+        return new GameState(players.values(),
                 bullets,
                 fieldEffects,
                 turrets,
-                includeAllObstacles ? obstacles : obstacles.stream().filter(Obstacle::isRendered).toList(),
+                obstacles.stream().filter(Obstacle::isRendered).toList(),
                 powerUps,
                 System.currentTimeMillis(),
-                buildGameInfo()
-        );
-    }
-
-    protected GameState blindedGameState(Player player, boolean includeAllObstacles) {
-        return new GameState(
-                List.of(player),
-                List.of(),
-                fieldEffects,
-                List.of(),
-                includeAllObstacles ? obstacles : obstacles.stream().filter(Obstacle::isRendered).toList(),
-                List.of(),
-                System.currentTimeMillis(),
-                buildGameInfo()
-        );
+                buildGameInfo());
     }
 }

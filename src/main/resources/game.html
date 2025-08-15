@@ -1986,6 +1986,9 @@
             if (player.armorUpEndTime > this.gameState.serverTime) {
                 displayName = `🛡️ ${displayName}`;
             }
+            if (player.invisibilityEndTime > this.gameState.serverTime) {
+                displayName = `👻 ${displayName}`;
+            }
             this.ctx.fillText(displayName, playerCenterX, player.y - 15);
 
             if (myself) {
