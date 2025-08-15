@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -41,7 +42,7 @@ public class GameLobby {
 
     private final Semaphore globalPlayerCountSemaphore = new Semaphore(MAX_GLOBAL_PLAYERS);
     private final Map<Long, ActiveGame> activeGames = new ConcurrentHashMap<>();
-    private final Map<String, Supplier<AbstractGameStateManager>> gameMap = new HashMap<>();
+    private final Map<String, Supplier<AbstractGameStateManager>> gameMap = new LinkedHashMap<>();
 
     public GameLobby() {
         Config.EXECUTOR.scheduleAtFixedRate(this::cleanupEmptyGames, CLEANUP_INTERVAL_SECONDS, CLEANUP_INTERVAL_SECONDS, TimeUnit.SECONDS);
@@ -67,7 +68,6 @@ public class GameLobby {
     public List<String> getGameTypes() {
         return gameMap.keySet()
                 .stream()
-                .sorted()
                 .toList();
     }
 

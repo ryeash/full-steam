@@ -44,6 +44,9 @@ shadowJar {
 }
 
 graalvmNative {
+    agent {
+        enabled = true
+    }
     binaries {
         main {
 //             imageName = 'application'
