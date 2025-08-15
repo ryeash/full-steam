@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id("com.gradleup.shadow") version "8.3.8"
+    id 'org.graalvm.buildtools.native' version '0.11.0'
 }
 
 group = 'com.fullsteam'
@@ -40,4 +41,10 @@ shadowJar {
     archiveVersion.set(project.version)
     archiveClassifier.set('')
     zip64 = true
+}
+
+graalvmNative {
+    binaries.all {
+        resources.autodetect()
+    }
 }

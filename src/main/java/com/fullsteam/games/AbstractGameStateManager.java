@@ -696,8 +696,8 @@ public abstract class AbstractGameStateManager {
             }
 
             // Keep players within game bounds
-            player.setX(Math.max(0, Math.min(GAME_WIDTH - PLAYER_SIZE, player.getX())));
-            player.setY(Math.max(0, Math.min(GAME_HEIGHT - PLAYER_SIZE, player.getY())));
+            player.setX(CollisionUtils.constrain(player.getX(), PLAYER_RADIUS, GAME_WIDTH - PLAYER_RADIUS));
+            player.setY(CollisionUtils.constrain(player.getY(), PLAYER_RADIUS, GAME_HEIGHT - PLAYER_RADIUS));
         }
     }
 
@@ -711,14 +711,6 @@ public abstract class AbstractGameStateManager {
             Vector2D oldPos = new Vector2D(bullet.getX(), bullet.getY());
             bullet.update(delta);
             Vector2D newPos = new Vector2D(bullet.getX(), bullet.getY());
-
-            // Remove bullets that are out of bounds or have traveled max distance
-            if (newPos.x() < 0
-                    || newPos.x() > GAME_WIDTH
-                    || newPos.y() < 0
-                    || newPos.y() > GAME_HEIGHT) {
-                return true;
-            }
 
             // Check bullet-obstacle collisions using the line segment
             for (Obstacle obstacle : obstacles) {
@@ -779,7 +771,12 @@ public abstract class AbstractGameStateManager {
                     case null, default -> throw new UnsupportedOperationException("fix for other targets");
                 }
             }
-            return false;
+
+            // Last check: Remove bullets that will move out of bounds
+            return newPos.x() < 0
+                    || newPos.x() > GAME_WIDTH
+                    || newPos.y() < 0
+                    || newPos.y() > GAME_HEIGHT;
         });
     }
 
@@ -1160,6 +1157,23 @@ public abstract class AbstractGameStateManager {
             bullets.add(bullet);
         }
         turret.shoot();
+    }
+
+    protected GameState standardGameState(Player player, boolean includeAllObstacles) {
+        List<Player> players = this.players.values()
+                .stream()
+                .filter(p -> p.getId() == player.getId() || p.getInvisibilityEndTime() < System.currentTimeMillis())
+                .toList();
+        return new GameState(
+                players,
+                bullets,
+                fieldEffects,
+                turrets,
+                includeAllObstacles ? obstacles : obstacles.stream().filter(Obstacle::isRendered).toList(),
+                powerUps,
+                System.currentTimeMillis(),
+                buildGameInfo()
+        );
     }
 
     protected GameState blindedGameState(Player player, boolean includeAllObstacles) {
