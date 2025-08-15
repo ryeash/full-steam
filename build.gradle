@@ -20,7 +20,7 @@ dependencies {
     implementation "io.netty:netty-codec-http:${nettyVersion}"
     implementation "io.netty:netty-handler:${nettyVersion}"
     implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
-    implementation "com.fasterxml.jackson.module:jackson-module-afterburner:${jacksonVersion}"
+    implementation "com.fasterxml.jackson.module:jackson-module-blackbird:${jacksonVersion}"
     implementation "ch.qos.logback:logback-classic:${logbackVersion}"
     implementation "org.apache.commons:commons-lang3:3.18.0"
 
@@ -53,7 +53,7 @@ graalvmNative {
             mainClass = 'com.fullsteam.GameServer'
 //             debug = true
 //             verbose = true
-//             fallback = true
+            fallback = false
 //             sharedLibrary = false
 //             quickBuild = false
 //             richOutput = false
