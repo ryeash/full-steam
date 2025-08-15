@@ -7,7 +7,9 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.module.blackbird.BlackbirdModule;
+import com.fullsteam.jackson.LobbyInfoSerializer;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 
@@ -23,6 +25,8 @@ public class Jackson {
             .configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true)
             .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
             .setDefaultMergeable(true)
+            .registerModule(new SimpleModule()
+                    .addSerializer(new LobbyInfoSerializer()))
             .registerModule(new BlackbirdModule());
 
     public static String writeValueAsString(Object obj) {
