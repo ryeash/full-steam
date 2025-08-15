@@ -44,7 +44,7 @@ shadowJar {
 }
 
 graalvmNative {
-    mainClass = "com.fullsteam.GameServer"
+    mainClass("com.fullsteam.GameServer")
     binaries.all {
         resources.autodetect()
     }
