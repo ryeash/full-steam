@@ -44,8 +44,34 @@ shadowJar {
 }
 
 graalvmNative {
-    mainClass("com.fullsteam.GameServer")
-    binaries.all {
-        resources.autodetect()
+    binaries {
+        main {
+//             imageName = 'application'
+            mainClass = 'com.fullsteam.GameServer'
+//             debug = true
+//             verbose = true
+//             fallback = true
+//             sharedLibrary = false
+//             quickBuild = false
+//             richOutput = false
+//
+//             systemProperties = [name1: 'value1', name2: 'value2']
+//             configurationFileDirectories.from(file('src/my-config'))
+//             excludeConfig.put("org.example.test:artifact:version", ["^/META-INF/native-image/.*", "^/config/.*"])
+//             excludeConfig.put(file("path/to/artifact.jar"), listOf("^/META-INF/native-image/.*", "^/config/.*"))
+//
+//             // Advanced options
+//             buildArgs.add('--link-at-build-time')
+//             jvmArgs.add('flag')
+//
+//             // Runtime options
+//             runtimeArgs.add('--help')
+
+            useFatJar = true
+        }
+
+        all {
+            resources.autodetect()
+        }
     }
 }
