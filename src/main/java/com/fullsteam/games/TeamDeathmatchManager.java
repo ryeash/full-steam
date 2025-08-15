@@ -7,7 +7,6 @@ import com.fullsteam.model.gamemodes.TeamDeathmatchInfo;
 
 import java.util.concurrent.TimeUnit;
 
-@GameName("Team Deathmatch")
 public class TeamDeathmatchManager extends AbstractTeamBasedManager {
 
     public TeamDeathmatchManager(GameLobby gameLobby) {

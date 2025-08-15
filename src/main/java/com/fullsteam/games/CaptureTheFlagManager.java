@@ -25,7 +25,6 @@ import static com.fullsteam.Config.GAME_HEIGHT;
 import static com.fullsteam.Config.GAME_WIDTH;
 import static com.fullsteam.model.GameEvent.EventType.FLAG_RETURN;
 
-@GameName("Capture the Flag")
 public class CaptureTheFlagManager extends AbstractTeamBasedManager {
 
     private static final Logger log = LoggerFactory.getLogger(CaptureTheFlagManager.class);

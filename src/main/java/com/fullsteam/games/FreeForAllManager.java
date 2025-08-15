@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-@GameName("Free for All")
 public class FreeForAllManager extends AbstractFreeForAllManager {
 
     public FreeForAllManager(GameLobby gameLobby) {

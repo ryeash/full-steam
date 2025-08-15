@@ -68,7 +68,7 @@ graalvmNative {
 //             runtimeArgs.add('--help')
 
             useFatJar = true
-            buildArgs.add('--verbose')
+//             buildArgs.add('--verbose')
             buildArgs.add('--add-opens=java.base/java.nio=ALL-UNNAMED')
             buildArgs.add('--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED')
             buildArgs.add('--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED')

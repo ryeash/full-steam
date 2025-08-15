@@ -101,10 +101,6 @@ public abstract class AbstractGameStateManager {
         this.targetGrid = new SpatialGrid<>(GAME_WIDTH, GAME_HEIGHT, 100, 100);
     }
 
-    public final String gameType() {
-        return getClass().getAnnotation(GameName.class).value();
-    }
-
     public Long getGameId() {
         return gameId;
     }

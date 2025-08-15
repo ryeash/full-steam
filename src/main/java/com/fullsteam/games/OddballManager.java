@@ -23,7 +23,6 @@ import static com.fullsteam.Config.ODDBALL_KEEP_OUT_RADIUS;
 import static com.fullsteam.Config.ODDBALL_POINTS_PER_SECOND;
 import static com.fullsteam.Config.ODDBALL_SCORE_TO_WIN;
 
-@GameName("Oddball")
 public class OddballManager extends AbstractTeamBasedManager {
 
     private static final double BALL_PICKUP_RADIUS_SQ = ODDBALL_BALL_PICKUP_RADIUS * ODDBALL_BALL_PICKUP_RADIUS;

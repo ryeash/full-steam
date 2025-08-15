@@ -23,7 +23,6 @@ import static com.fullsteam.Config.KOTH_SCORE_TO_WIN;
  * Manages the game logic for the King of the Hill mode.
  * The objective is to control a central point to accumulate score.
  */
-@GameName("King of the Hill")
 public class KingOfTheHillManager extends AbstractTeamBasedManager {
 
     private Hill hill;

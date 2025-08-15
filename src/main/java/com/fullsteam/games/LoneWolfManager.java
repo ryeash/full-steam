@@ -15,7 +15,6 @@ import java.util.Objects;
 import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
 import static com.fullsteam.Config.RESPAWN_IMMUNITY_DURATION;
 
-@GameName("Lone Wolf")
 public class LoneWolfManager extends AbstractGameStateManager {
 
     private static final long AI_FILL_CHECK_INTERVAL_MS = 5000; // 5 seconds

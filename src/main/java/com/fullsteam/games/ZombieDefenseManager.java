@@ -24,7 +24,6 @@ import static com.fullsteam.Config.ZOMBIE_TIME_BETWEEN_WAVES_MS;
  * A cooperative PvE game mode where human players (Team 1) defend against
  * waves of AI-controlled zombies (Team 2).
  */
-@GameName("Zombie Defense")
 public class ZombieDefenseManager extends AbstractGameStateManager {
 
     private static final long WAVE_WARNING_TIME_MS = 5_000; // 5 seconds before the wave hits
