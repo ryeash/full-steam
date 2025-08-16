@@ -11,19 +11,26 @@ import java.util.Set;
 
 public class Turret implements HasId, BulletEffect, HasLife, Targetable {
     private final long id;
+    @JsonIgnore
     private final long ownerId;
     private final int team;
     private final double x;
     private final double y;
+    @JsonIgnore
+    private final Vector2D position;
     private final double radius;
+    @JsonIgnore
     private final Weapon weapon;
     private double angle;
     private double hp;
     private final double maxHp;
     @JsonIgnore
     private long nextShotTime;
+    @JsonIgnore
     private int currentAmmoInMagazine;
+    @JsonIgnore
     private boolean reloading;
+    @JsonIgnore
     private long reloadCompleteTime;
 
     /**
@@ -32,18 +39,13 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
     public record ShootAction(double directionX, double directionY) {
     }
 
-    /**
-     * Internal record to hold a potential target and its priority score.
-     */
-    private record TargetInfo(Object target, double score) {
-    }
-
     public Turret(long id, long ownerId, int team, double x, double y, double radius, Weapon weapon, double angle) {
         this.id = id;
         this.ownerId = ownerId;
         this.team = team;
         this.x = x;
         this.y = y;
+        this.position = new Vector2D(x, y);
         this.radius = radius;
         this.weapon = weapon;
         this.angle = angle;
@@ -77,7 +79,7 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
 
     @Override
     public Vector2D position() {
-        return new Vector2D(x, y);
+        return position;
     }
 
     public double getRadius() {
@@ -174,127 +176,51 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
         // Handle reload completion
         if (isReloading() && System.currentTimeMillis() >= getReloadCompleteTime()) {
             finishReload();
-            return Optional.empty();
         }
-
-        // Find the best target
-        Optional<TargetInfo> bestTargetInfo = findBestTarget(gameState, playerGrid);
-
-        if (bestTargetInfo.isPresent()) {
-            Object finalTarget = bestTargetInfo.get().target();
-            Vector2D directionToTarget;
-            Vector2D turretPos = new Vector2D(getX(), getY());
-
-            if (finalTarget instanceof Player p) {
-                directionToTarget = p.position().subtract(turretPos);
-            } else if (finalTarget instanceof Turret t) {
-                directionToTarget = new Vector2D(t.getX(), t.getY()).subtract(turretPos);
-            } else {
-                return Optional.empty(); // Should not happen
-            }
-
-            // Aim at the target
-            setAngle(Math.atan2(directionToTarget.y(), directionToTarget.x()));
-
-            // If we can shoot, return a shoot action
-            if (canShoot()) {
-                return Optional.of(new ShootAction(directionToTarget.x(), directionToTarget.y()));
-            }
-        }
-
-        // If we have no ammo and are not already reloading, start reloading.
+        // If no ammo left and not reloading, start reloading
         if (getCurrentAmmoInMagazine() <= 0 && !isReloading()) {
             startReload();
+            return Optional.empty();
         }
-
+        if (canShoot()) {
+            Set<Targetable> nearby = playerGrid.getNearby(position(), weapon.getBulletRange());
+            return findBestTarget(gameState, nearby)
+                    .map(finalTarget -> {
+                        Vector2D directionToTarget = finalTarget.position().subtract(position());
+                        setAngle(Math.atan2(directionToTarget.y(), directionToTarget.x()));
+                        return new ShootAction(directionToTarget.x(), directionToTarget.y());
+                    });
+        }
         return Optional.empty();
     }
 
-    private Optional<TargetInfo> findBestTarget(GameState gameState, SpatialGrid<Targetable> playerGrid) {
-        Player bestPlayer = findBestPlayerTarget(gameState, playerGrid);
-        Turret bestTurret = findBestTurretTarget(gameState);
-
-        TargetInfo playerTargetInfo = null;
-        if (bestPlayer != null) {
-            // Simple distance-based score for players
-            double score = new Vector2D(getX(), getY()).distanceSquared(bestPlayer.position());
-            playerTargetInfo = new TargetInfo(bestPlayer, score);
-        }
-
-        TargetInfo turretTargetInfo = null;
-        if (bestTurret != null) {
-            // Turrets are static threats. Prioritize them slightly over players at the same distance.
-            double score = new Vector2D(getX(), getY()).distanceSquared(new Vector2D(bestTurret.getX(), bestTurret.getY())) * 0.9; // 10% score reduction to prioritize
-            turretTargetInfo = new TargetInfo(bestTurret, score);
-        }
-
-        if (playerTargetInfo == null) {
-            return Optional.ofNullable(turretTargetInfo);
-        }
-        if (turretTargetInfo == null) {
-            return Optional.of(playerTargetInfo);
-        }
-
-        // Return the target with the lower (better) score
-        return playerTargetInfo.score() < turretTargetInfo.score() ? Optional.of(playerTargetInfo) : Optional.of(turretTargetInfo);
-    }
-
-    private Player findBestPlayerTarget(GameState gameState, SpatialGrid<Targetable> playerGrid) {
+    private Optional<Targetable> findBestTarget(GameState gameState, Set<Targetable> nearbyPlayers) {
         Targetable bestTarget = null;
         double minDistanceSq = Double.MAX_VALUE;
-        Player owner = gameState.players().stream().filter(p -> p.getId() == getOwnerId()).findFirst().orElse(null);
-        if (owner == null) {
-            return null;
-        }
         double effectiveRange = getWeapon().getBulletRange() * 0.75;
         double rangeSq = effectiveRange * effectiveRange;
-        Vector2D turretPos = new Vector2D(getX(), getY());
-        Set<Targetable> nearbyPlayers = playerGrid.getNearby(getX() - getWeapon().getBulletRange(), getY() - getWeapon().getBulletRange(), getWeapon().getBulletRange() * 2, getWeapon().getBulletRange() * 2);
         for (Targetable p : nearbyPlayers) {
-            if (!(p instanceof Player player)
-                    || player.isDead()
-                    || player.getTeam() == owner.getTeam()
-                    || player.getInvisibilityEndTime() > System.currentTimeMillis()) {
-                continue;
+            double distanceSq;
+            if (p instanceof Player player
+                    && !player.isDead()
+                    && player.getTeam() != getTeam()
+                    && player.getInvisibilityEndTime() < System.currentTimeMillis()) {
+                distanceSq = position().distanceSquared(p.position());
+            } else if (p instanceof Turret turret
+                    && turret.getTeam() != getTeam()) {
+                distanceSq = position().distanceSquared(p.position());
+            } else {
+                continue; // Skip if not a valid target
             }
-            double distSq = turretPos.distanceSquared(p.position());
-            if (distSq < rangeSq && distSq < minDistanceSq) {
-                boolean isBlocked = gameState.obstacles().stream().anyMatch(obstacle -> CollisionUtils.checkLinePolygonCollision(turretPos, p.position(), obstacle));
+            if (distanceSq < rangeSq && distanceSq < minDistanceSq) {
+                boolean isBlocked = gameState.obstacles().stream().anyMatch(obstacle -> CollisionUtils.checkLinePolygonCollision(position(), p.position(), obstacle));
                 if (!isBlocked) {
-                    minDistanceSq = distSq;
+                    minDistanceSq = distanceSq;
                     bestTarget = p;
                 }
             }
         }
-        return (Player) bestTarget;
-    }
-
-    private Turret findBestTurretTarget(GameState gameState) {
-        Turret bestTarget = null;
-        double minDistanceSq = Double.MAX_VALUE;
-
-        double effectiveRange = getWeapon().getBulletRange() * 0.75;
-        double rangeSq = effectiveRange * effectiveRange;
-        Vector2D turretPos = new Vector2D(getX(), getY());
-
-        for (Turret otherTurret : gameState.turrets()) {
-            if (otherTurret.getId() == this.id() || otherTurret.getTeam() == this.getTeam()) {
-                continue;
-            }
-
-            Vector2D otherTurretPos = new Vector2D(otherTurret.getX(), otherTurret.getY());
-            double distSq = turretPos.distanceSquared(otherTurretPos);
-
-            if (distSq < rangeSq && distSq < minDistanceSq) {
-                boolean isBlocked = gameState.obstacles().stream()
-                        .anyMatch(obstacle -> CollisionUtils.checkLinePolygonCollision(turretPos, otherTurretPos, obstacle));
-                if (!isBlocked) {
-                    minDistanceSq = distSq;
-                    bestTarget = otherTurret;
-                }
-            }
-        }
-        return bestTarget;
+        return Optional.ofNullable(bestTarget);
     }
 
     public static Turret create(Bullet bullet, Object destructionSource) {

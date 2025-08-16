@@ -10,8 +10,6 @@ import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.ai.KingOfTheHillAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.KingOfTheHillInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -25,10 +23,7 @@ import static com.fullsteam.Config.KOTH_SCORE_TO_WIN;
  * Manages the game logic for the King of the Hill mode.
  * The objective is to control a central point to accumulate score.
  */
-@GameName("King of the Hill")
 public class KingOfTheHillManager extends AbstractTeamBasedManager {
-
-    private static final Logger log = LoggerFactory.getLogger(KingOfTheHillManager.class);
 
     private Hill hill;
 
@@ -99,7 +94,7 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected GameInfo buildGameState() {
+    protected GameInfo buildGameInfo() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
         return new KingOfTheHillInfo(
@@ -108,12 +103,6 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
                 this.team2Score,
                 roundTimeRemainingSeconds
         );
-    }
-
-    @Override
-    protected void updateGame(long delta) {
-        teamBalancer.balanceTeams(players);
-        super.updateGame(delta);
     }
 
     @Override

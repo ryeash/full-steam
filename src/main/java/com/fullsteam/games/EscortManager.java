@@ -15,7 +15,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-@GameName("Escort")
 public class EscortManager extends AbstractTeamBasedManager {
 
     private Obstacle payload;
@@ -137,7 +136,7 @@ public class EscortManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected GameInfo buildGameState() {
+    protected GameInfo buildGameInfo() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
 

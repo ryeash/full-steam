@@ -39,10 +39,11 @@ public class Player implements HasId, HasLife, Targetable {
     public long speedBoostEndTime;
     public long armorUpEndTime;
     public long damageBoostEndTime;
-    @JsonIgnore
     public long invisibilityEndTime;
     @JsonIgnore
     public double damageMultiplier;
+    @JsonIgnore
+    public boolean visionObscured;
 
     public Player(long id, double x, double y, int team) {
         this(id, RandomNames.randomName(), x, y, team, WeaponFactory.getDefaultWeapon());
@@ -388,6 +389,14 @@ public class Player implements HasId, HasLife, Targetable {
 
     public void setInvisibilityEndTime(long endTime) {
         this.invisibilityEndTime = endTime;
+    }
+
+    public boolean isVisionObscured() {
+        return visionObscured;
+    }
+
+    public void setVisionObscured(boolean visionObscured) {
+        this.visionObscured = visionObscured;
     }
 }
 

@@ -1,15 +1,17 @@
 package com.fullsteam;
 
 import com.fullsteam.model.Explosion;
+import com.fullsteam.model.Mine;
 import com.fullsteam.model.PoisonCloud;
 import com.fullsteam.model.SlowField;
+import com.fullsteam.model.SmokeCloud;
 import com.fullsteam.model.Turret;
 import com.fullsteam.model.Weapon;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -18,7 +20,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public class WeaponFactory {
 
-    private static final Map<String, Weapon> weaponPresets = new ConcurrentHashMap<>();
+    private static final Map<String, Weapon> weaponPresets = new HashMap<>();
     private static final List<String> weaponNames;
     private static final Weapon[] weaponArray;
 
@@ -42,10 +44,10 @@ public class WeaponFactory {
                 "Sniper Rifle",
                 "SR",
                 0,  // Fire Rate
-                45, // Damage
+                46, // Damage
                 28, // Range
                 13, // Speed
-                6, // Speed Decay (no decay)
+                5, // Speed Decay
                 0, // Accuracy
                 0,  // Multi-shot
                 3,  // Magazine Size
@@ -56,14 +58,14 @@ public class WeaponFactory {
         addPreset(new Weapon(
                 "SMG",
                 "SMG",
-                34, // Fire Rate
+                36, // Fire Rate
                 13, // Damage
                 4,  // Range
-                10, // Speed
+                11, // Speed
                 5,  // Speed Decay
                 0,  // Accuracy
                 0,  // Multi-shot
-                20, // Magazine Size
+                17, // Magazine Size
                 14,  // Reload Speed
                 null
         ));
@@ -159,7 +161,7 @@ public class WeaponFactory {
         ));
 
         addPreset(new Weapon(
-                "Grenade Launcher",
+                "Grenade (Fragmentation)",
                 "GR",
                 1, // Fire Rate
                 0, // Damage
@@ -174,8 +176,8 @@ public class WeaponFactory {
         ));
 
         addPreset(new Weapon(
-                "Poison Launcher",
-                "P",
+                "Grenade (Poison)",
+                "GP",
                 4, // Fire Rate
                 0, // Damage (damage is from the cloud)
                 14,// Range
@@ -189,8 +191,8 @@ public class WeaponFactory {
         ));
 
         addPreset(new Weapon(
-                "Ice Storm",
-                "IS",
+                "Grenade (Slow)",
+                "GS",
                 4, // Fire Rate
                 0, // Damage (damage is from the cloud)
                 14,// Range
@@ -201,6 +203,21 @@ public class WeaponFactory {
                 3, // Magazine Size
                 9, // Reload Speed
                 SlowField::create
+        ));
+
+        addPreset(new Weapon(
+                "Grenade (Smoke)",
+                "SM",
+                8, // Fire Rate
+                0, // Damage (damage is from the cloud)
+                12,// Range
+                8, // Speed
+                0, // Speed Decay
+                0, // Accuracy
+                0, // Multi-shot
+                3, // Magazine Size
+                9, // Reload Speed
+                SmokeCloud::create
         ));
 
         addPreset(new Weapon(
@@ -250,7 +267,7 @@ public class WeaponFactory {
 
         addPreset(new Weapon(
                 "Engineer Wrench",
-                "EW", // Revolver
+                "EW",
                 25,  // Fire Rate
                 0, // Damage
                 -5,  // Range
@@ -261,6 +278,21 @@ public class WeaponFactory {
                 1,  // Magazine Size (3 shots)
                 4,  // Reload Speed
                 Turret::create
+        ));
+
+        addPreset(new Weapon(
+                "Mine Layer",
+                "MI",
+                25,  // Fire Rate
+                0, // Damage
+                -5,  // Range
+                15, // Speed
+                0,  // Speed Decay
+                0, // Accuracy
+                0,  // Multi-shot
+                1,  // Magazine Size (3 shots)
+                4,  // Reload Speed
+                Mine::create
         ));
 
         // Pre-sort the weapon names for faster access.
@@ -337,7 +369,7 @@ public class WeaponFactory {
         return weaponArray[0];
     }
 
-    private static final List<String> RANDOM_EXCEPTIONS = List.of("Engineer Wrench", "Ice Storm");
+    private static final List<String> RANDOM_EXCEPTIONS = List.of("Engineer Wrench", "Grenade (Slow)", "Grenade (Smoke)");
 
     public static Weapon getRandomWeapon() {
         Weapon random = null;

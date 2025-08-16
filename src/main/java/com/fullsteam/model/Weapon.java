@@ -80,7 +80,7 @@ public class Weapon {
         // Bullet Speed: Base 120 units/sec. Each point adds 1.2 units/sec.
         this.bulletSpeed = 120 + (speedPoints * 50);
 
-        // Bullet Speed Decay: Base 0.4 (60% decay per second). Each point adds 0.06, up to 1.0 (no decay).
+        // Bullet Speed Decay: Base 0.3 (70% decay per second). Each point adds 0.07, up to 1.0 (no decay).
         this.bulletSpeedDecay = 0.3 + (speedDecayPoints * 0.07);
 
         // Accuracy (Spread in radians): Starting at 0 radians (perfect accuracy), negative accuracy adds spread.

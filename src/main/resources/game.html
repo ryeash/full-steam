@@ -1352,6 +1352,10 @@
                     this.drawPoisonCloud(effect);
                 } else if (effect.type == 'SLOW') {
                     this.drawSlowField(effect);
+                } else if (effect.type == 'SMOKE') {
+                    this.drawSmokeField(effect);
+                } else if (effect.type == 'MINE') {
+                    this.drawMine(effect);
                 }
             });
         }
@@ -1526,6 +1530,105 @@
                 this.ctx.lineTo(x2, y2);
                 this.ctx.stroke();
             }
+
+            this.ctx.restore();
+        }
+
+        drawSmokeField(field) {
+            this.ctx.save();
+            const now = this.gameState.serverTime;
+            if (!now) return;
+
+            // Smoke fields last for 8 seconds
+            const lifetime = 5000;
+            const timeRemaining = field.expiration - now;
+
+            if (timeRemaining < 0 || timeRemaining > lifetime) return;
+
+            const progress = 1 - (timeRemaining / lifetime);
+
+            // Quick expansion to full size
+            const expandTime = 0.15;
+            const radiusProgress = Math.min(1.0, progress / expandTime);
+            const currentRadius = field.radius * radiusProgress;
+
+            // Fade in quickly, then slowly fade out
+            const fadeInTime = 0.1;
+            const alpha = (1.0 - progress) * 0.5;
+
+            // Create a smoky gradient
+            const gradient = this.ctx.createRadialGradient(
+                field.x, field.y, 0,
+                field.x, field.y, currentRadius
+            );
+            gradient.addColorStop(0, `rgba(180, 180, 180, ${alpha})`);     // Light grey center
+            gradient.addColorStop(0.4, `rgba(120, 120, 120, ${alpha * 0.8})`); // Medium grey
+            gradient.addColorStop(0.7, `rgba(80, 80, 80, ${alpha * 0.6})`);    // Darker grey
+            gradient.addColorStop(1, 'rgba(60, 60, 60, 0)');              // Fade to transparent
+
+            // Draw main smoke cloud
+            this.ctx.fillStyle = gradient;
+            this.ctx.beginPath();
+            this.ctx.arc(field.x, field.y, currentRadius, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            // Add swirling effect
+            const time = now / 1000;
+            const swirls = 3;
+            this.ctx.strokeStyle = `rgba(160, 160, 160, ${alpha * 0.3})`;
+            this.ctx.lineWidth = 8;
+            this.ctx.setLineDash([10, 15]);
+
+            for (let i = 0; i < swirls; i++) {
+                const swirl = (time * 0.4 + i * (Math.PI * 2 / swirls)) % (Math.PI * 2);
+                const radius = currentRadius * (0.3 + (i * 0.2));
+
+                this.ctx.beginPath();
+                this.ctx.arc(field.x, field.y, radius, swirl, swirl + Math.PI * 1.2);
+                this.ctx.stroke();
+            }
+
+            this.ctx.restore();
+        }
+
+        drawMine(field) {
+            this.ctx.save();
+            const now = this.gameState.serverTime;
+            if (!now) return;
+
+            // Set colors based on team
+            const teamColors = {
+                1: { base: '#4CAF50', dark: '#2E7D32' }, // Green for team 1
+                2: { base: '#F44336', dark: '#C62828' }  // Red for team 2
+            };
+            const colors = teamColors[field.team] || { base: '#9E9E9E', dark: '#616161' };
+
+            // Draw main disc
+            this.ctx.beginPath();
+            this.ctx.arc(field.x, field.y, 12, 0, Math.PI * 2);
+            this.ctx.fillStyle = colors.base;
+            this.ctx.fill();
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeStyle = colors.dark;
+            this.ctx.stroke();
+
+            // Draw exclamation mark
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = 'bold 16px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText('!', field.x, field.y);
+
+            // Add pulsing highlight effect
+            const pulseRate = 1000; // 1 second per pulse
+            const pulsePhase = (now % pulseRate) / pulseRate;
+            const pulseOpacity = 0.3 + Math.sin(pulsePhase * Math.PI * 2) * 0.1;
+
+            this.ctx.beginPath();
+            this.ctx.arc(field.x, field.y, 14, 0, Math.PI * 2);
+            this.ctx.strokeStyle = `rgba(255, 255, 255, ${pulseOpacity})`;
+            this.ctx.lineWidth = 1;
+            this.ctx.stroke();
 
             this.ctx.restore();
         }
@@ -1926,6 +2029,9 @@
             }
             if (player.armorUpEndTime > this.gameState.serverTime) {
                 displayName = `🛡️ ${displayName}`;
+            }
+            if (player.invisibilityEndTime > this.gameState.serverTime) {
+                displayName = `👻 ${displayName}`;
             }
             this.ctx.fillText(displayName, playerCenterX, player.y - 15);
 

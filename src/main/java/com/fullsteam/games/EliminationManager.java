@@ -16,7 +16,6 @@ import static com.fullsteam.Config.ELIMINATION_SCORE_TO_WIN;
  * Players do not respawn until the round is over.
  * A team scores a point by eliminating all players on the opposing team.
  */
-@GameName("Elimination")
 public class EliminationManager extends AbstractTeamBasedManager {
 
     boolean roundDecided = false;
@@ -102,7 +101,7 @@ public class EliminationManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected GameInfo buildGameState() {
+    protected GameInfo buildGameInfo() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
 

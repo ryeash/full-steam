@@ -1,20 +1,16 @@
 package com.fullsteam.games;
 
 import com.fullsteam.GameLobby;
-import com.fullsteam.TeamBalancer;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.TeamDeathmatchInfo;
 
 import java.util.concurrent.TimeUnit;
 
-@GameName("Team Deathmatch")
 public class TeamDeathmatchManager extends AbstractTeamBasedManager {
-    protected final TeamBalancer teamBalancer;
 
     public TeamDeathmatchManager(GameLobby gameLobby) {
         super(gameLobby);
-        this.teamBalancer = new TeamBalancer(this);
     }
 
     @Override
@@ -30,7 +26,7 @@ public class TeamDeathmatchManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected GameInfo buildGameState() {
+    protected GameInfo buildGameInfo() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
         return new TeamDeathmatchInfo(
@@ -48,11 +44,5 @@ public class TeamDeathmatchManager extends AbstractTeamBasedManager {
         } else {
             return false;
         }
-    }
-
-    @Override
-    protected void updateGame(long delta) {
-        teamBalancer.balanceTeams(players);
-        super.updateGame(delta);
     }
 }

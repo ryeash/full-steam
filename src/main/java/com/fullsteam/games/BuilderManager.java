@@ -15,7 +15,6 @@ import java.util.List;
 
 import static com.fullsteam.Config.PLAYER_RADIUS;
 
-@GameName("Builder")
 public class BuilderManager extends AbstractFreeForAllManager {
 
     private static final double CRATE_SIZE = 30.0;
@@ -38,7 +37,7 @@ public class BuilderManager extends AbstractFreeForAllManager {
     }
 
     @Override
-    protected GameInfo buildGameState() {
+    protected GameInfo buildGameInfo() {
         return new BuilderGameInfo(crates);
     }
 

@@ -25,7 +25,6 @@ import static com.fullsteam.Config.GAME_HEIGHT;
 import static com.fullsteam.Config.GAME_WIDTH;
 import static com.fullsteam.model.GameEvent.EventType.FLAG_RETURN;
 
-@GameName("Capture the Flag")
 public class CaptureTheFlagManager extends AbstractTeamBasedManager {
 
     private static final Logger log = LoggerFactory.getLogger(CaptureTheFlagManager.class);
@@ -174,7 +173,7 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected GameInfo buildGameState() {
+    protected GameInfo buildGameInfo() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
         return new CaptureTheFlagInfo(

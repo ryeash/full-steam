@@ -1,5 +1,7 @@
 package com.fullsteam;
 
+import com.fullsteam.model.Vector2D;
+
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -26,7 +28,7 @@ public class SpatialGrid<T> {
         this.cellHeight = cellHeight;
         this.cols = (int) Math.ceil(worldWidth / cellWidth);
         this.rows = (int) Math.ceil(worldHeight / cellHeight);
-        this.sparseMatrix = new ConcurrentHashMap<>(20, 1, 1);
+        this.sparseMatrix = new ConcurrentHashMap<>(20, .9F, 2);
     }
 
     public void clear() {
@@ -44,6 +46,10 @@ public class SpatialGrid<T> {
                 sparseMatrix.computeIfAbsent(toKey(i, j), v -> new LinkedList<>()).add(object);
             }
         }
+    }
+
+    public Set<T> getNearby(Vector2D position, double radius) {
+        return getNearby(position.x() - radius, position.y() - radius, radius * 2, radius * 2);
     }
 
     public Set<T> getNearby(double x, double y, double width, double height) {

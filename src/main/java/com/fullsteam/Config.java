@@ -54,7 +54,7 @@ public class Config {
     // Game
     public static final int GAME_WIDTH = getInt("game.width", 1000);
     public static final int GAME_HEIGHT = getInt("game.height", 800);
-    public static final int TICK_RATE = getInt("game.tick_rate", 30);
+    public static final int TICK_RATE = getInt("game.tick_rate", 24);
     public static final boolean ALLOW_NAME_CHANGE = getProp("game.allow_name_change", true, Boolean::valueOf);
     public static final int OBSTACLE_COUNT = getInt("game.obstacle_count", 6);
     public static final long GAME_EVENT_DURATION_MS = getLong("game.game_event_duration_ms", 6000); // 4 seconds for events to be on screen
@@ -77,6 +77,7 @@ public class Config {
     public static final double TURRET_INACCURACY = getDouble("game.turret_inaccuracy", .2);
 
     // --- Power Ups ---
+    public static final double POWERUP_DROP_RATE = getDouble("game.powerup.drop_rate", 0.25D);
     public static final double POWER_UP_SPEED_BOOST_FACTOR = getDouble("game.powerup.speed_boost_factor", 1.5);
     public static final double POWER_UP_DAMAGE_BOOST_MULTIPLIER = getDouble("game.powerup.damage_boost_multiplier", 1.5);
     public static final long POWER_UP_HEALTH_RECOVERY = getLong("game.powerup.health_recovery", 50);

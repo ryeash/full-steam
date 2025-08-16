@@ -1,5 +1,7 @@
 package com.fullsteam.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 /**
  * Represents the state of the capture point ("the hill") in King of the Hill.
  *
@@ -11,7 +13,7 @@ package com.fullsteam.model;
 public record Hill(
         Vector2D position,
         double radius,
-        double radiusSq,
+        @JsonIgnore double radiusSq,
         int controllingTeam,
         boolean contested
 ) {

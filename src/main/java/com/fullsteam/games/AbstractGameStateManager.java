@@ -13,6 +13,7 @@ import com.fullsteam.model.Explosion;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
+import com.fullsteam.model.Mine;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
@@ -21,6 +22,7 @@ import com.fullsteam.model.PoisonCloud;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.PowerUpType;
 import com.fullsteam.model.SlowField;
+import com.fullsteam.model.SmokeCloud;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Turret;
 import com.fullsteam.model.Vector2D;
@@ -98,10 +100,6 @@ public abstract class AbstractGameStateManager {
     public AbstractGameStateManager(GameLobby gameLobby) {
         this.gameLobby = gameLobby;
         this.targetGrid = new SpatialGrid<>(GAME_WIDTH, GAME_HEIGHT, 100, 100);
-    }
-
-    public final String gameType() {
-        return getClass().getAnnotation(GameName.class).value();
     }
 
     public Long getGameId() {
@@ -377,7 +375,8 @@ public abstract class AbstractGameStateManager {
                 return true;
             }
             if (turret.getHp() <= 0) {
-                fieldEffects.add(new Explosion(turret.getX(),
+                fieldEffects.add(new Explosion(
+                        turret.getX(),
                         turret.getY(),
                         turret.getOwnerId(),
                         turret.getTeam(),
@@ -386,10 +385,12 @@ public abstract class AbstractGameStateManager {
                         300));
                 return true;
             }
-            Optional<Turret.ShootAction> shootAction = turret.update(gameState, targetGrid);
-            shootAction.ifPresent(action -> fireTurretWeapon(turret, Math.atan2(action.directionY(), action.directionX())));
             return false;
         });
+        for (Turret turret : turrets) {
+            turret.update(gameState, targetGrid)
+                    .ifPresent(action -> fireTurretWeapon(turret, Math.atan2(action.directionY(), action.directionX())));
+        }
     }
 
     protected void populateSpatialGrids() {
@@ -398,18 +399,23 @@ public abstract class AbstractGameStateManager {
             targetGrid.insert(player, player.getX(), player.getY(), PLAYER_SIZE, PLAYER_SIZE);
         }
         for (Turret turret : turrets) {
-            targetGrid.insert(turret, turret.getX(), turret.getY(), turret.getRadius() * 2, turret.getRadius() * 2);
+            double size = turret.getRadius() * 2;
+            targetGrid.insert(turret, turret.getX(), turret.getY(), size, size);
         }
     }
 
     private void updateFieldEffects(long delta) {
-        for (FieldEffect fieldEffect : fieldEffects) {
+        for (FieldEffect fieldEffect : List.copyOf(fieldEffects)) {
             if (fieldEffect instanceof Explosion explosion) {
                 updateExplosion(explosion);
             } else if (fieldEffect instanceof PoisonCloud poisonCloud) {
                 updatePoisonClouds(poisonCloud);
             } else if (fieldEffect instanceof SlowField slowField) {
                 updateSlowField(slowField);
+            } else if (fieldEffect instanceof SmokeCloud smokeCloud) {
+                updateSmokeField(smokeCloud);
+            } else if (fieldEffect instanceof Mine mine) {
+                updateMineField(mine);
             } else {
                 throw new UnsupportedOperationException("unsupported field effect type: " + fieldEffect.getClass().getSimpleName());
             }
@@ -428,7 +434,7 @@ public abstract class AbstractGameStateManager {
             double radiusSq = explosion.getRadius() * explosion.getRadius();
             Player shooter = players.get(explosion.getShooterId());
 
-            Set<Targetable> nearbyPlayers = targetGrid.getNearby(explosion.getX() - explosion.getRadius(), explosion.getY() - explosion.getRadius(), explosion.getRadius() * 2, explosion.getRadius() * 2);
+            Set<Targetable> nearbyPlayers = targetGrid.getNearby(explosion.position(), explosion.getRadius());
             for (Targetable t : nearbyPlayers) {
                 switch (t) {
                     case Player p -> {
@@ -479,11 +485,11 @@ public abstract class AbstractGameStateManager {
         long currentTime = System.currentTimeMillis();
         // Damage players inside the cloud, ticking every 500ms
         if (currentTime > cloud.getLastDamageTickTime() + 500) {
-            Vector2D cloudCenter = new Vector2D(cloud.getX(), cloud.getY());
-            double radiusSq = cloud.getRadius() * cloud.getRadius();
+            Vector2D cloudCenter = cloud.position();
+            double radiusSq = cloud.getRadiusSquared();
             Player shooter = players.get(cloud.getShooterId());
 
-            Set<Targetable> nearbyPlayers = targetGrid.getNearby(cloud.getX() - cloud.getRadius(), cloud.getY() - cloud.getRadius(), cloud.getRadius() * 2, cloud.getRadius() * 2);
+            Set<Targetable> nearbyPlayers = targetGrid.getNearby(cloud.position(), cloud.getRadius());
             for (Targetable t : nearbyPlayers) {
                 switch (t) {
                     case Player p -> {
@@ -520,13 +526,36 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void updateSlowField(SlowField slowField) {
-        Set<Targetable> nearbyPlayers = targetGrid.getNearby(slowField.getX() - slowField.getRadius(), slowField.getY() - slowField.getRadius(), slowField.getRadius() * 2, slowField.getRadius() * 2);
+        Set<Targetable> nearbyPlayers = targetGrid.getNearby(slowField.position(), slowField.getRadius());
         for (Targetable t : nearbyPlayers) {
             if (t instanceof Player p && !p.isDead() && p.getTeam() != slowField.getTeam()) {
-                Vector2D cloudCenter = new Vector2D(slowField.getX(), slowField.getY());
-                double radiusSq = slowField.getRadius() * slowField.getRadius();
-                if (p.position().distanceSquared(cloudCenter) < radiusSq) {
+                if (p.position().distanceSquared(slowField.position()) < slowField.getRadiusSquared()) {
                     p.setSpeed(p.getDefaultSpeed() * slowField.getSlowFactor());
+                }
+            }
+        }
+    }
+
+    protected void updateSmokeField(SmokeCloud smokeCloud) {
+        Set<Targetable> nearbyPlayers = targetGrid.getNearby(smokeCloud.position(), smokeCloud.getRadius());
+        for (Targetable t : nearbyPlayers) {
+            if (t instanceof Player p && !p.isDead()) {
+                if (p.position().distanceSquared(smokeCloud.position()) < smokeCloud.getRadiusSquared()) {
+                    p.setVisionObscured(true);
+                }
+            }
+        }
+    }
+
+    private void updateMineField(Mine mine) {
+        Set<Targetable> nearbyPlayers = targetGrid.getNearby(mine.position(), mine.getRadius());
+        for (Targetable t : nearbyPlayers) {
+            if (t instanceof Player p && !p.isDead() && mine.getTeam() != p.getTeam()) {
+                // If the player is within the mine's radius, trigger the explosion
+                if (p.position().distanceSquared(mine.position()) < (mine.getRadiusSquared() + PLAYER_SIZE)) {
+                    // Trigger the explosion effect
+                    fieldEffects.add(Mine.mineExplosion(mine));
+                    mine.markTriggered();
                 }
             }
         }
@@ -555,6 +584,8 @@ public abstract class AbstractGameStateManager {
                 player.finishReload();
                 player.setDead(false); // Ensure they are alive
                 setValidSpawnPosition(player); // Move them to a spawn point
+                player.restoreSpeed();
+                player.setVisionObscured(false);
                 if (!(player instanceof AIPlayer)) {
                     playerChannels.get(player.getId())
                             .writeAndFlush(Jackson.msgFrame(new WelcomeMessage(player.getId(), player.getTeam(), gameId)));
@@ -604,16 +635,6 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void updatePlayers(long delta) {
-        GameState gameState = new GameState(
-                players.values().stream().filter(p -> p.getInvisibilityEndTime() < System.currentTimeMillis()).toList(),
-                bullets,
-                fieldEffects,
-                turrets,
-                obstacles,
-                powerUps,
-                System.currentTimeMillis(),
-                null
-        );
         for (Player player : players.values()) {
             double oldX = player.getX();
             double oldY = player.getY();
@@ -626,6 +647,7 @@ public abstract class AbstractGameStateManager {
 
             // Apply movement and environmental effects.
             player.restoreSpeed(); // Start with default speed.
+            player.setVisionObscured(false);
             resetDamageMultiplier(player);
 
             updateFieldEffects(delta);
@@ -641,6 +663,7 @@ public abstract class AbstractGameStateManager {
 
             // Let the AI make its decisions first, then apply movement
             if (player instanceof AIPlayer ai) {
+                GameState gameState = playerGameState(player, null, true);
                 Optional<AIPlayer.ShootAction> shootAction = ai.update(gameState, targetGrid, delta);
                 if (shootAction.isPresent()) {
                     if (ai.canShoot()) {
@@ -679,8 +702,8 @@ public abstract class AbstractGameStateManager {
             }
 
             // Keep players within game bounds
-            player.setX(Math.max(0, Math.min(GAME_WIDTH - PLAYER_SIZE, player.getX())));
-            player.setY(Math.max(0, Math.min(GAME_HEIGHT - PLAYER_SIZE, player.getY())));
+            player.setX(CollisionUtils.constrain(player.getX(), PLAYER_RADIUS, GAME_WIDTH - PLAYER_RADIUS));
+            player.setY(CollisionUtils.constrain(player.getY(), PLAYER_RADIUS, GAME_HEIGHT - PLAYER_RADIUS));
         }
     }
 
@@ -694,14 +717,6 @@ public abstract class AbstractGameStateManager {
             Vector2D oldPos = new Vector2D(bullet.getX(), bullet.getY());
             bullet.update(delta);
             Vector2D newPos = new Vector2D(bullet.getX(), bullet.getY());
-
-            // Remove bullets that are out of bounds or have traveled max distance
-            if (newPos.x() < 0
-                    || newPos.x() > GAME_WIDTH
-                    || newPos.y() < 0
-                    || newPos.y() > GAME_HEIGHT) {
-                return true;
-            }
 
             // Check bullet-obstacle collisions using the line segment
             for (Obstacle obstacle : obstacles) {
@@ -762,7 +777,12 @@ public abstract class AbstractGameStateManager {
                     case null, default -> throw new UnsupportedOperationException("fix for other targets");
                 }
             }
-            return false;
+
+            // Last check: Remove bullets that will move out of bounds
+            return newPos.x() < 0
+                    || newPos.x() > GAME_WIDTH
+                    || newPos.y() < 0
+                    || newPos.y() > GAME_HEIGHT;
         });
     }
 
@@ -829,7 +849,7 @@ public abstract class AbstractGameStateManager {
                 log.info("{} performance (K/D: {}/{}) triggered a weapon change from {} to {}.", victim.getPlayerName(), kills, deaths, oldWeapon.getName(), victim.getWeapon().getName());
             }
         }
-        if (ThreadLocalRandom.current().nextDouble() < 0.25) { // 25% chance to drop a power-up
+        if (ThreadLocalRandom.current().nextDouble() < Config.POWERUP_DROP_RATE) {
             spawnPowerUp(new Vector2D(victim.getX(), victim.getY()));
         }
     }
@@ -898,28 +918,17 @@ public abstract class AbstractGameStateManager {
      *
      * @return The fully constructed GameState object.
      */
-    protected abstract GameInfo buildGameState();
+    protected abstract GameInfo buildGameInfo();
 
     protected void sendGameState() {
-        GameInfo gameInfo = buildGameState();
-
-        GameState state = new GameState(
-                players.values().stream().filter(p -> p.getInvisibilityEndTime() < System.currentTimeMillis()).toList(),
-                bullets,
-                fieldEffects,
-                turrets,
-                obstacles.stream().filter(Obstacle::isRendered).toList(),
-                // null playerId gets only public events
-                powerUps,
-                System.currentTimeMillis(),
-                gameInfo
-        );
-        BinaryWebSocketFrame frame = Jackson.msgFrame(state);
+        GameInfo gameInfo = buildGameInfo();
 
         // Send state to all players
         playerChannels.forEach((playerId, channel) -> {
             if (channel.isActive() && channel.isOpen()) {
-                channel.writeAndFlush(frame.retainedDuplicate()).addListener(future -> { // retainedDuplicate is crucial
+                Player player = players.get(playerId);
+                BinaryWebSocketFrame frameToSend = Jackson.msgFrame(playerGameState(player, gameInfo, false));
+                channel.writeAndFlush(frameToSend).addListener(future -> { // retainedDuplicate is crucial
                     if (!future.isSuccess()) {
                         log.error("Failed to send game state to player {}. Closing channel.", playerId, future.cause());
                         channel.close();
@@ -929,6 +938,8 @@ public abstract class AbstractGameStateManager {
         });
 
         // Send to all spectators
+        GameState gameState = spectatorGameState();
+        BinaryWebSocketFrame frame = Jackson.msgFrame(gameState);
         if (!spectatorChannels.isEmpty()) {
             for (Channel spectatorChannel : spectatorChannels) {
                 if (spectatorChannel.isActive() && spectatorChannel.isOpen()) {
@@ -941,8 +952,6 @@ public abstract class AbstractGameStateManager {
                 }
             }
         }
-
-        // Release the original frame after all sends are initiated.
         frame.release();
     }
 
@@ -1009,10 +1018,9 @@ public abstract class AbstractGameStateManager {
             player.setX(x);
             player.setY(y);
 
-            // First, check if the spawn point is inside an obstacle.
+            // check if the spawn point is inside an obstacle.
             if (isColliding(player, obstacles)) {
                 invalidPosition = true;
-                continue; // Try a new position
             }
         } while (invalidPosition);
     }
@@ -1140,5 +1148,44 @@ public abstract class AbstractGameStateManager {
             bullets.add(bullet);
         }
         turret.shoot();
+    }
+
+    protected GameState playerGameState(Player player, GameInfo gameInfo, boolean includeAllObstacles) {
+        if (player.isVisionObscured()) {
+            return new GameState(
+                    List.of(player),
+                    List.of(),
+                    fieldEffects,
+                    List.of(),
+                    includeAllObstacles ? obstacles : obstacles.stream().filter(Obstacle::isRendered).toList(),
+                    powerUps,
+                    System.currentTimeMillis(),
+                    gameInfo);
+        } else {
+            return new GameState(
+                    this.players.values()
+                            .stream()
+                            .filter(p -> p.getId() == player.getId() || p.getInvisibilityEndTime() < System.currentTimeMillis())
+                            .toList(),
+                    bullets,
+                    fieldEffects,
+                    turrets,
+                    includeAllObstacles ? obstacles : obstacles.stream().filter(Obstacle::isRendered).toList(),
+                    powerUps,
+                    System.currentTimeMillis(),
+                    gameInfo);
+        }
+    }
+
+    protected GameState spectatorGameState() {
+        return new GameState(
+                players.values(),
+                bullets,
+                fieldEffects,
+                turrets,
+                obstacles.stream().filter(Obstacle::isRendered).toList(),
+                powerUps,
+                System.currentTimeMillis(),
+                buildGameInfo());
     }
 }

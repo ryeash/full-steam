@@ -12,6 +12,9 @@ import static com.fullsteam.Config.ROUND_DURATION_SECONDS;
  */
 public abstract class AbstractTeamBasedManager extends AbstractGameStateManager {
 
+    private static final long TEAM_BALANCE_CHECK_INTERVAL_MS = 5000; // 5 seconds
+    private long lastTeamBalanceTime = 0;
+
     protected double team1Score;
     protected double team2Score;
     protected final TeamBalancer teamBalancer;
@@ -64,7 +67,10 @@ public abstract class AbstractTeamBasedManager extends AbstractGameStateManager 
 
     @Override
     protected void updateGame(long delta) {
-        teamBalancer.balanceTeams(players);
+        if (System.currentTimeMillis() - lastTeamBalanceTime > TEAM_BALANCE_CHECK_INTERVAL_MS) {
+            teamBalancer.balanceTeams(players);
+            lastTeamBalanceTime = System.currentTimeMillis();
+        }
 
         // Check if we need to send the 10-second warning.
         if (!isRoundOver && !sent10SecondWarning && roundEndTime > 0) {

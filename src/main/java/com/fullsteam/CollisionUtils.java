@@ -136,4 +136,13 @@ public class CollisionUtils {
         double combinedRadius = o1.getBoundingRadius() + o2.getBoundingRadius() + spacingBuffer;
         return o1.getCenter().distanceSquared(o2.getCenter()) < combinedRadius * combinedRadius;
     }
+
+    public static double constrain(double value, double min, double max) {
+        if (value < min) {
+            return min;
+        } else if (value > max) {
+            return max;
+        }
+        return value;
+    }
 }

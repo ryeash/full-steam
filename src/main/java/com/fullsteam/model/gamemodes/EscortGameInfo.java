@@ -2,7 +2,7 @@ package com.fullsteam.model.gamemodes;
 
 import com.fullsteam.model.Obstacle;
 
-public class EscortGameInfo extends GameInfo {
+public final class EscortGameInfo extends GameInfo {
     private final double team1Score;
     private final double team2Score;
     private final long roundTimeRemainingSeconds;
