@@ -2,6 +2,8 @@ package com.fullsteam.serialization;
 
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fullsteam.model.*;
+import com.fullsteam.model.ActiveGame;
+import com.fullsteam.model.LobbyInfo;
 
 public class CustomSerializationModule extends SimpleModule {
 
@@ -20,6 +22,8 @@ public class CustomSerializationModule extends SimpleModule {
         addSerializer(GameEvent.class, new GameEventSerializer());
         addSerializer(WelcomeMessage.class, new WelcomeMessageSerializer());
         addSerializer(FieldEffect.class, new FieldEffectSerializer());
+        addSerializer(LobbyInfo.class, new LobbyInfoSerializer());
+        addSerializer(ActiveGame.class, new ActiveGameSerializer());
         
         // Register deserializers
         addDeserializer(PlayerInput.class, new PlayerInputDeserializer());
