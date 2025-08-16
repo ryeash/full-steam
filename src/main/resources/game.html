@@ -797,6 +797,7 @@
                 }
 
                 if (data.type === 'welcome') {
+                    this.obstacles = data.obstacles;
                     this.playerId = data.playerId;
                     this.playerTeam = data.team;
                     this.backgroundNeedsRedraw = true;
@@ -1084,8 +1085,8 @@
             bCtx.stroke();
             bCtx.restore();
 
-            if (this.gameState.obstacles) {
-                this.gameState.obstacles.forEach(obstacle => {
+            if (this.obstacles) {
+                this.obstacles.forEach(obstacle => {
                     if (!obstacle.vertices || obstacle.vertices.length < 3) {
                        return;
                     }

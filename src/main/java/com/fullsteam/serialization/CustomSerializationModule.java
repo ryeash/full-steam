@@ -1,6 +1,13 @@
 package com.fullsteam.serialization;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.BeanDescription;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializationConfig;
+import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.ser.BeanSerializerModifier;
+import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.fullsteam.model.ActiveGame;
 import com.fullsteam.model.Bullet;
 import com.fullsteam.model.Crate;
@@ -33,10 +40,16 @@ import com.fullsteam.model.gamemodes.OddballInfo;
 import com.fullsteam.model.gamemodes.TeamDeathmatchInfo;
 import com.fullsteam.model.gamemodes.ZombieDefenseInfo;
 
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 public class CustomSerializationModule extends SimpleModule {
 
     public CustomSerializationModule() {
         super("CustomSerializationModule");
+
+        addSerializer(Double.class, new ShorterDoubleSerializer());
 
         // Register serializers
         addSerializer(GameState.class, new GameStateSerializer());
@@ -77,5 +90,29 @@ public class CustomSerializationModule extends SimpleModule {
         addDeserializer(PlayerInput.class, new PlayerInputDeserializer());
         addDeserializer(PlayerConfigRequest.class, new PlayerConfigRequestDeserializer());
         addDeserializer(Vector2D.class, new Vector2DDeserializer());
+    }
+
+    private static final class ShorterDoubleSerializer extends StdSerializer<Double> {
+        protected ShorterDoubleSerializer() {
+            super(Double.class);
+        }
+
+        @Override
+        public void serialize(Double value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+            gen.writeNumber(withPrecision(value, 4));
+        }
+    }
+
+    public static Double withPrecision(Double value) {
+        return withPrecision(value, 2);
+    }
+
+    public static Double withPrecision(Double value, int precision) {
+        if (value == null) {
+            return null;
+        }
+        BigDecimal bd = BigDecimal.valueOf(value)
+                .setScale(precision, RoundingMode.HALF_UP);
+        return bd.doubleValue();
     }
 }

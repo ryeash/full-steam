@@ -44,11 +44,12 @@ public class GameStateSerializer extends JsonSerializer<GameState> {
         }
         gen.writeEndArray();
 
-        gen.writeArrayFieldStart("obstacles");
-        for (Obstacle obstacle : gameState.obstacles()) {
-            serializers.defaultSerializeValue(obstacle, gen);
-        }
-        gen.writeEndArray();
+        // no longer sending obstacles in GameState, moved to the welcome message
+//        gen.writeArrayFieldStart("obstacles");
+//        for (Obstacle obstacle : gameState.obstacles()) {
+//            serializers.defaultSerializeValue(obstacle, gen);
+//        }
+//        gen.writeEndArray();
 
         gen.writeArrayFieldStart("powerUps");
         for (PowerUp powerUp : gameState.powerUps()) {

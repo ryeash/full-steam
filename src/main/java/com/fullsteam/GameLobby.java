@@ -14,15 +14,12 @@ import com.fullsteam.games.OddballManager;
 import com.fullsteam.games.TeamDeathmatchManager;
 import com.fullsteam.games.ZombieDefenseManager;
 import com.fullsteam.model.ActiveGame;
-import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
-import com.fullsteam.model.WelcomeMessage;
 import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -153,17 +150,9 @@ public class GameLobby {
         // Add the player to that specific game instance
         Long playerId = GameWebSocketHandler.playerId(ctx);
         Player player = game.addPlayer(playerId, ctx);
-        log.info("Player {} connected and joined game {}", playerId, game.getGameId());
-
         // Associate the channel with its game and player ID for future lookups
         ctx.attr(GAME_STATE_MANAGER_KEY).set(game);
         ctx.attr(PLAYER_ID_KEY).set(playerId);
-
-        // Send welcome message
-        WelcomeMessage welcomeMessage = new WelcomeMessage(player.getId(), player.getTeam(), game.getGameId());
-        ctx.writeAndFlush(Jackson.msgFrame(welcomeMessage));
-
-        game.sendGameEvent(GameEvent.info(String.format("Joining: %s (%d)!", game.getClass().getSimpleName(), game.getGameId()), playerId));
     }
 
     // Finds an available game or creates a new one

@@ -174,6 +174,11 @@ public abstract class AbstractGameStateManager {
         players.put(playerId, player);
         playerChannels.put(playerId, channel);
         log.info("Player {} joined team {} at position ({}, {})", playerId, team, player.getX(), player.getY());
+
+        // Send welcome message
+        WelcomeMessage welcomeMessage = playerWelcomeMessage(player);
+        channel.writeAndFlush(Jackson.msgFrame(welcomeMessage));
+        sendGameEvent(GameEvent.info(String.format("Joining: %s (%d)!", getClass().getSimpleName(), getGameId()), playerId));
         return player;
     }
 
@@ -588,11 +593,11 @@ public abstract class AbstractGameStateManager {
                 player.setVisionObscured(false);
                 if (!(player instanceof AIPlayer)) {
                     playerChannels.get(player.getId())
-                            .writeAndFlush(Jackson.msgFrame(new WelcomeMessage(player.getId(), player.getTeam(), gameId)));
+                            .writeAndFlush(Jackson.msgFrame(playerWelcomeMessage(player)));
                 }
             }
             spectatorChannels.forEach(channel ->
-                    channel.writeAndFlush(Jackson.msgFrame(new WelcomeMessage(-1, 0, gameId))));
+                    channel.writeAndFlush(Jackson.msgFrame(new WelcomeMessage(-1, 0, gameId, obstacles))));
 
             log.info("New round started! Round will end in {} seconds.", ROUND_DURATION_SECONDS);
             sendGameState(); // Send an immediate update to reflect the reset
@@ -1093,7 +1098,7 @@ public abstract class AbstractGameStateManager {
                 // Kill the player to force a respawn on the new team's side
                 killPlayer(player, null);
                 playerChannels.get(player.getId())
-                        .writeAndFlush(Jackson.msgFrame(new WelcomeMessage(player.getId(), player.getTeam(), gameId)));
+                        .writeAndFlush(Jackson.msgFrame(playerWelcomeMessage(player)));
                 log.info("Player {} switched to team {}", playerId, otherTeam);
             } else {
                 sendGameEvent(GameEvent.red("Team %d is full. You cannot switch teams.".formatted(otherTeam), playerId));
@@ -1148,6 +1153,10 @@ public abstract class AbstractGameStateManager {
             bullets.add(bullet);
         }
         turret.shoot();
+    }
+
+    protected WelcomeMessage playerWelcomeMessage(Player player) {
+        return new WelcomeMessage(player.getId(), player.getTeam(), gameId, obstacles);
     }
 
     protected GameState playerGameState(Player player, GameInfo gameInfo, boolean includeAllObstacles) {
