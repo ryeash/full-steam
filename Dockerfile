@@ -12,7 +12,7 @@ RUN ./gradlew clean nativeCompile --no-daemon --no-build-cache
 
 
 # Stage 3: run the image
-FROM ghcr.io/graalvm/jdk-community:21 AS run
+FROM alpine AS run
 EXPOSE 8080
 
 COPY --from=build /app/build/native/nativeCompile/full-steam /app/full-steam

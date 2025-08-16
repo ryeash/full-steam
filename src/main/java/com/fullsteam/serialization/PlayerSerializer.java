@@ -26,12 +26,12 @@ public class PlayerSerializer extends JsonSerializer<Player> {
         gen.writeNumberField("maxHp", player.getMaxHp());
         gen.writeNumberField("mouseX", player.getMouseX());
         gen.writeNumberField("mouseY", player.getMouseY());
-        gen.writeBooleanField("isDead", player.isDead());
+        gen.writeBooleanField("dead", player.isDead());
         gen.writeNumberField("respawnTime", player.getRespawnTime());
         gen.writeNumberField("kills", player.getKills());
         gen.writeNumberField("deaths", player.getDeaths());
         gen.writeNumberField("currentAmmoInMagazine", player.getCurrentAmmoInMagazine());
-        gen.writeBooleanField("isReloading", player.isReloading());
+        gen.writeBooleanField("reloading", player.isReloading());
         gen.writeNumberField("speedBoostEndTime", player.speedBoostEndTime);
         gen.writeNumberField("armorUpEndTime", player.armorUpEndTime);
         gen.writeNumberField("damageBoostEndTime", player.damageBoostEndTime);
