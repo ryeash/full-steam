@@ -1,24 +1,19 @@
 package com.fullsteam.serialization;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fullsteam.model.Bullet;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameState;
-import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.Turret;
 
 import java.io.IOException;
 
-public class GameStateSerializer extends JsonSerializer<GameState> {
-
+public class GameStateSerializer extends AbstractSerializer<GameState> {
     @Override
-    public void serialize(GameState gameState, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-        gen.writeStartObject();
-
+    public void serializeFields(GameState gameState, JsonGenerator gen, SerializerProvider serializers) throws IOException {
         gen.writeArrayFieldStart("players");
         for (Player player : gameState.players()) {
             serializers.defaultSerializeValue(player, gen);
@@ -61,7 +56,5 @@ public class GameStateSerializer extends JsonSerializer<GameState> {
 
         gen.writeFieldName("info");
         serializers.defaultSerializeValue(gameState.info(), gen);
-
-        gen.writeEndObject();
     }
 }

@@ -167,18 +167,20 @@ public abstract class AbstractGameStateManager {
         } else {
             team = (team2Count <= team1Count) ? 2 : 1;
         }
+        return addPlayer(playerId, channel, team);
+    }
 
+    protected Player addPlayer(long playerId, Channel channel, int team) {
         Player player = new Player(playerId, 0, 0, team);
         player.applyArmorUp(POWER_UP_ARMOR_UP_DURATION);
         setValidSpawnPosition(player);
         players.put(playerId, player);
         playerChannels.put(playerId, channel);
-        log.info("Player {} joined team {} at position ({}, {})", playerId, team, player.getX(), player.getY());
 
         // Send welcome message
         WelcomeMessage welcomeMessage = playerWelcomeMessage(player);
         channel.writeAndFlush(Jackson.msgFrame(welcomeMessage));
-        sendGameEvent(GameEvent.info(String.format("Joining: %s (%d)!", getClass().getSimpleName(), getGameId()), playerId));
+        sendGameEvent(GameEvent.info(String.format("Joining: %s (%d)!", /* TODO */getClass().getSimpleName(), getGameId()), playerId));
         return player;
     }
 
@@ -1167,7 +1169,7 @@ public abstract class AbstractGameStateManager {
                     fieldEffects,
                     List.of(),
                     includeAllObstacles ? obstacles : obstacles.stream().filter(Obstacle::isRendered).toList(),
-                    powerUps,
+                    List.of(),
                     System.currentTimeMillis(),
                     gameInfo);
         } else {

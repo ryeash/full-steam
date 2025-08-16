@@ -1,19 +1,16 @@
 package com.fullsteam.serialization;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.WelcomeMessage;
 
 import java.io.IOException;
 
-public class WelcomeMessageSerializer extends JsonSerializer<WelcomeMessage> {
+public class WelcomeMessageSerializer extends AbstractSerializer<WelcomeMessage> {
 
     @Override
-    public void serialize(WelcomeMessage welcomeMessage, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-        gen.writeStartObject();
-        
+    public void serializeFields(WelcomeMessage welcomeMessage, JsonGenerator gen, SerializerProvider serializers) throws IOException {
         gen.writeStringField("type", welcomeMessage.type());
         gen.writeNumberField("playerId", welcomeMessage.playerId());
         gen.writeNumberField("team", welcomeMessage.team());
@@ -34,7 +31,5 @@ public class WelcomeMessageSerializer extends JsonSerializer<WelcomeMessage> {
             gen.writeString(weaponOption);
         }
         gen.writeEndArray();
-        
-        gen.writeEndObject();
     }
 }

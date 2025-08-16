@@ -33,7 +33,7 @@ public class Mine extends AbstractFieldEffect implements HasId, BulletEffect {
                 bullet.getX(),
                 bullet.getY(),
                 Config.PLAYER_RADIUS,
-                System.currentTimeMillis() + 15000,
+                System.currentTimeMillis() + Config.MINE_DURATION_SECONDS,
                 bullet.getShooterId());
     }
 

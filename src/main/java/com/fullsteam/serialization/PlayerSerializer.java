@@ -1,7 +1,6 @@
 package com.fullsteam.serialization;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fullsteam.model.Player;
 
@@ -9,13 +8,10 @@ import java.io.IOException;
 
 import static com.fullsteam.serialization.CustomSerializationModule.withPrecision;
 
-public class PlayerSerializer extends JsonSerializer<Player> {
+public class PlayerSerializer extends AbstractSerializer<Player> {
 
     @Override
-    public void serialize(Player player, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-        gen.writeStartObject();
-
-        gen.writeNumberField("id", player.id());
+    public void serializeFields(Player player, JsonGenerator gen, SerializerProvider serializers) throws IOException {
         gen.writeStringField("playerName", player.getPlayerName());
         gen.writeNumberField("x", withPrecision(player.getX()));
         gen.writeNumberField("y", withPrecision(player.getY()));
@@ -46,7 +42,5 @@ public class PlayerSerializer extends JsonSerializer<Player> {
         if (player.invisibilityEndTime > System.currentTimeMillis()) {
             gen.writeNumberField("invisibilityEndTime", player.invisibilityEndTime);
         }
-
-        gen.writeEndObject();
     }
 }

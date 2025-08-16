@@ -38,12 +38,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     @Override
     public Player addPlayer(long playerId, Channel channel) {
         // All human players are on Team 1 (Survivors)
-        Player player = new Player(playerId, 0, 0, 1);
-        setValidSpawnPosition(player); // This will spawn them inside the house
-        players.put(playerId, player);
-        playerChannels.put(playerId, channel);
-        log.info("Player {} joined the Survivors (Team 1)", playerId);
-        return player;
+        return super.addPlayer(playerId, channel, 1);
     }
 
     @Override

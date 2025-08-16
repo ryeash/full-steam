@@ -75,6 +75,7 @@ public class Config {
     public static final long RESPAWN_IMMUNITY_DURATION = getLong("game.respawn_immunity_duration", 2000);
     public static final int MAX_TURRETS_PER_PLAYER = getInt("game.max_turrets_per_player", 2);
     public static final double TURRET_INACCURACY = getDouble("game.turret_inaccuracy", .2);
+    public static final long MINE_DURATION_SECONDS = getLong("game.mine_duration", 15000);
 
     // --- Power Ups ---
     public static final double POWERUP_DROP_RATE = getDouble("game.powerup.drop_rate", 0.25D);

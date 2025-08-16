@@ -1,18 +1,15 @@
 package com.fullsteam.serialization;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fullsteam.model.gamemodes.JuggernautInfo;
 
 import java.io.IOException;
 
-public class JuggernautInfoSerializer extends JsonSerializer<JuggernautInfo> {
+public class JuggernautInfoSerializer extends AbstractSerializer<JuggernautInfo> {
 
     @Override
-    public void serialize(JuggernautInfo info, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-        gen.writeStartObject();
-        
+    public void serializeFields(JuggernautInfo info, JsonGenerator gen, SerializerProvider serializers) throws IOException {
         gen.writeStringField("type", info.getType());
         gen.writeNumberField("team1Score", info.getTeam1Score());
         gen.writeNumberField("team2Score", info.getTeam2Score());
@@ -25,7 +22,5 @@ public class JuggernautInfoSerializer extends JsonSerializer<JuggernautInfo> {
         }
         
         gen.writeNumberField("roundTimeRemainingSeconds", info.getRoundTimeRemainingSeconds());
-        
-        gen.writeEndObject();
     }
 }

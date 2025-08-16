@@ -1,19 +1,16 @@
 package com.fullsteam.serialization;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fullsteam.model.ActiveGame;
 import com.fullsteam.model.LobbyInfo;
 
 import java.io.IOException;
 
-public class LobbyInfoSerializer extends JsonSerializer<LobbyInfo> {
+public class LobbyInfoSerializer extends AbstractSerializer<LobbyInfo> {
 
     @Override
-    public void serialize(LobbyInfo lobbyInfo, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-        gen.writeStartObject();
-        
+    public void serializeFields(LobbyInfo lobbyInfo, JsonGenerator gen, SerializerProvider serializers) throws IOException {
         gen.writeNumberField("globalPlayerCount", lobbyInfo.globalPlayerCount());
         gen.writeNumberField("maxGlobalPlayers", lobbyInfo.maxGlobalPlayers());
         
@@ -28,7 +25,5 @@ public class LobbyInfoSerializer extends JsonSerializer<LobbyInfo> {
             serializers.defaultSerializeValue(activeGame, gen);
         }
         gen.writeEndArray();
-        
-        gen.writeEndObject();
     }
 }

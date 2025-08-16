@@ -4,19 +4,20 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.util.JsonGeneratorDelegate;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fullsteam.model.Bullet;
+import com.fullsteam.model.HasId;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-
-import static com.fullsteam.serialization.CustomSerializationModule.withPrecision;
 
 public abstract class AbstractSerializer<T> extends JsonSerializer<T> {
 
     @Override
     public final void serialize(T value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
         gen.writeStartObject();
+        if (value instanceof HasId) {
+            gen.writeNumberField("id", ((HasId) value).getId());
+        }
         serializeFields(value, new DoubleCustomizingJsonGenerator(gen), serializers);
         gen.writeEndObject();
     }
@@ -31,8 +32,7 @@ public abstract class AbstractSerializer<T> extends JsonSerializer<T> {
 
         @Override
         public void writeNumberField(String fieldName, double value) throws IOException {
-            delegate.writeNumberField("x", withPrecision(value));
-
+            delegate.writeNumberField(fieldName, withPrecision(value));
         }
 
         public Double withPrecision(Double value) {

@@ -55,14 +55,16 @@ public class Crate extends Obstacle implements HasId, HasLife, Targetable {
     }
 
     @Override
-    public void setHp(double hp) {
-        this.hp = hp;
-    }
-
     public double getMaxHp() {
         return maxHp;
     }
 
+    @Override
+    public void setHp(double hp) {
+        this.hp = hp;
+    }
+
+    @Override
     public boolean takeDamage(double damage) {
         this.hp -= damage;
         return this.hp <= 0;

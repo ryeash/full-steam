@@ -135,10 +135,10 @@ public class WeaponFactory {
                 "T6s",
                 22, // Fire Rate
                 19, // Damage
-                5,  // Range
+                7,  // Range
                 12, // Speed
                 15,  // Speed Decay
-                -2,  // Accuracy
+                -4,  // Accuracy
                 10, // Multi-shot
                 4,  // Magazine Size
                 15,  // Reload Speed
@@ -314,8 +314,8 @@ public class WeaponFactory {
             "Claw",
             "C",
             5,
-            5,
-            -1,
+            6,
+            -2,
             15,
             0,
             0,
@@ -328,8 +328,8 @@ public class WeaponFactory {
             "HeavyClaw",
             "HC",
             10,
-            50,
-            -1,
+            51,
+            -2,
             7,
             0,
             0,
