@@ -3,7 +3,13 @@ package com.fullsteam.serialization;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fullsteam.model.Bullet;
+import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameState;
+import com.fullsteam.model.Obstacle;
+import com.fullsteam.model.Player;
+import com.fullsteam.model.PowerUp;
+import com.fullsteam.model.Turret;
 
 import java.io.IOException;
 
@@ -12,54 +18,49 @@ public class GameStateSerializer extends JsonSerializer<GameState> {
     @Override
     public void serialize(GameState gameState, JsonGenerator gen, SerializerProvider serializers) throws IOException {
         gen.writeStartObject();
-        
-        gen.writeFieldName("players");
-        gen.writeStartArray();
-        for (var player : gameState.players()) {
+
+        gen.writeArrayFieldStart("players");
+        for (Player player : gameState.players()) {
             serializers.defaultSerializeValue(player, gen);
         }
         gen.writeEndArray();
-        
-        gen.writeFieldName("bullets");
-        gen.writeStartArray();
-        for (var bullet : gameState.bullets()) {
+
+        gen.writeArrayFieldStart("bullets");
+        for (Bullet bullet : gameState.bullets()) {
             serializers.defaultSerializeValue(bullet, gen);
         }
         gen.writeEndArray();
-        
-        gen.writeFieldName("fieldEffects");
-        gen.writeStartArray();
-        for (var fieldEffect : gameState.fieldEffects()) {
+
+        gen.writeArrayFieldStart("fieldEffects");
+        for (FieldEffect fieldEffect : gameState.fieldEffects()) {
             serializers.defaultSerializeValue(fieldEffect, gen);
         }
         gen.writeEndArray();
-        
-        gen.writeFieldName("turrets");
-        gen.writeStartArray();
-        for (var turret : gameState.turrets()) {
+
+        gen.writeArrayFieldStart("turrets");
+
+        for (Turret turret : gameState.turrets()) {
             serializers.defaultSerializeValue(turret, gen);
         }
         gen.writeEndArray();
-        
-        gen.writeFieldName("obstacles");
-        gen.writeStartArray();
-        for (var obstacle : gameState.obstacles()) {
+
+        gen.writeArrayFieldStart("obstacles");
+        for (Obstacle obstacle : gameState.obstacles()) {
             serializers.defaultSerializeValue(obstacle, gen);
         }
         gen.writeEndArray();
-        
-        gen.writeFieldName("powerUps");
-        gen.writeStartArray();
-        for (var powerUp : gameState.powerUps()) {
+
+        gen.writeArrayFieldStart("powerUps");
+        for (PowerUp powerUp : gameState.powerUps()) {
             serializers.defaultSerializeValue(powerUp, gen);
         }
         gen.writeEndArray();
-        
+
         gen.writeNumberField("serverTime", gameState.serverTime());
-        
+
         gen.writeFieldName("info");
         serializers.defaultSerializeValue(gameState.info(), gen);
-        
+
         gen.writeEndObject();
     }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fullsteam.model.Obstacle;
+import com.fullsteam.model.Vector2D;
 
 import java.io.IOException;
 
@@ -15,9 +16,8 @@ public class ObstacleSerializer extends JsonSerializer<Obstacle> {
         
         gen.writeNumberField("id", obstacle.id());
         
-        gen.writeFieldName("vertices");
-        gen.writeStartArray();
-        for (var vertex : obstacle.getVertices()) {
+        gen.writeArrayFieldStart("vertices");
+        for (Vector2D vertex : obstacle.getVertices()) {
             serializers.defaultSerializeValue(vertex, gen);
         }
         gen.writeEndArray();

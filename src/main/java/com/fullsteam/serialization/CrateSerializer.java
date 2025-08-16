@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fullsteam.model.Crate;
+import com.fullsteam.model.Vector2D;
 
 import java.io.IOException;
 
@@ -21,9 +22,8 @@ public class CrateSerializer extends JsonSerializer<Crate> {
         gen.writeNumberField("maxHp", crate.getMaxHp());
         gen.writeBooleanField("rendered", crate.isRendered());
         
-        gen.writeFieldName("vertices");
-        gen.writeStartArray();
-        for (var vertex : crate.getVertices()) {
+        gen.writeArrayFieldStart("vertices");
+        for (Vector2D vertex : crate.getVertices()) {
             serializers.defaultSerializeValue(vertex, gen);
         }
         gen.writeEndArray();
