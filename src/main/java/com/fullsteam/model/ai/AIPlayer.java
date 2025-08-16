@@ -321,7 +321,9 @@ public class AIPlayer extends Player {
      * Sets the player's mouse coordinates to aim in a specific direction.
      */
     protected void aimInDirection(Vector2D direction) {
-        if (direction.magnitudeSq() == 0) return;
+        if (direction.magnitudeSq() == 0) {
+            return;
+        }
         Vector2D normalized = direction.normalize();
         setMouseX(position().x() + normalized.x() * 100);
         setMouseY(position().y() + normalized.y() * 100);
@@ -341,6 +343,9 @@ public class AIPlayer extends Player {
      * Finds the best overall target, considering both players and turrets.
      */
     private Optional<Targetable> findBestTarget(GameState gameState, SpatialGrid<Targetable> playerGrid) {
+        if (isVisionObscured()) {
+            return Optional.empty();
+        }
         Targetable bestTarget = findBestShootingTarget(playerGrid, gameState.obstacles());
         return Optional.ofNullable(bestTarget);
     }
@@ -553,7 +558,9 @@ public class AIPlayer extends Player {
      */
     private Vector2D calculateHazardAvoidanceForce(List<FieldEffect> fieldEffects) {
         Vector2D totalAvoidanceForce = Vector2D.ZERO;
-        if (fieldEffects == null) return totalAvoidanceForce;
+        if (fieldEffects == null) {
+            return totalAvoidanceForce;
+        }
 
         for (FieldEffect fieldEffect : fieldEffects) {
             double awarenessRadius = fieldEffect.getRadius() + 20;

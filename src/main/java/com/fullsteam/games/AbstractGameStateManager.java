@@ -559,7 +559,7 @@ public abstract class AbstractGameStateManager {
         for (Targetable t : nearbyPlayers) {
             if (t instanceof Player p && !p.isDead() && mine.getTeam() != p.getTeam()) {
                 // If the player is within the mine's radius, trigger the explosion
-                if (p.position().distanceSquared(mine.position()) < (mine.getRadiusSquared() + PLAYER_SIZE)) {
+                if (p.position().distanceSquared(mine.position()) < Math.pow(mine.getRadius() + PLAYER_RADIUS, 2)) {
                     // Trigger the explosion effect
                     fieldEffects.add(Mine.mineExplosion(mine));
                     mine.markTriggered();

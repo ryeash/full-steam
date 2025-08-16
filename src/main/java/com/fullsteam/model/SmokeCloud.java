@@ -24,7 +24,7 @@ public class SmokeCloud extends AbstractFieldEffect implements BulletEffect {
                 bullet.getX(),
                 bullet.getY(),
                 bullet.getShooterId(),
-                bullet.getTeam(),
+                -1, // smoke applies to everyone, so no team restriction
                 100,    // radius
                 5000); // 5 seconds duration
     }

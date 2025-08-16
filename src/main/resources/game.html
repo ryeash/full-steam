@@ -1606,7 +1606,7 @@
 
             // Draw main disc
             this.ctx.beginPath();
-            this.ctx.arc(field.x, field.y, 12, 0, Math.PI * 2);
+            this.ctx.arc(field.x, field.y, 10, 0, Math.PI * 2);
             this.ctx.fillStyle = colors.base;
             this.ctx.fill();
             this.ctx.lineWidth = 2;
@@ -1626,7 +1626,7 @@
             const pulseOpacity = 0.3 + Math.sin(pulsePhase * Math.PI * 2) * 0.1;
 
             this.ctx.beginPath();
-            this.ctx.arc(field.x, field.y, 14, 0, Math.PI * 2);
+            this.ctx.arc(field.x, field.y, field.radius, 0, Math.PI * 2);
             this.ctx.strokeStyle = `rgba(255, 255, 255, ${pulseOpacity})`;
             this.ctx.lineWidth = 1;
             this.ctx.stroke();

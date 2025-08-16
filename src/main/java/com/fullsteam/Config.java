@@ -62,6 +62,7 @@ public class Config {
     public static final long RESPAWN_DELAY_MS = getLong("game.respawn_delay_ms", 5_000);
     public static final double PLAYER_SIZE = getDouble("game.player_size", 20.0);
     public static final double PLAYER_RADIUS = PLAYER_SIZE / 2;
+    public static final double PLAYER_RADIUS_SQ = PLAYER_RADIUS * PLAYER_RADIUS; // Squared radius for distance calculations
     public static final double DEFAULT_PLAYER_HEALTH = getDouble("game.default_player_health", 100.0);
     public static final double DEFAULT_PLAYER_SPEED = getDouble("game.default_player_speed", .18);
     public static final double ZOMBIE_SPEED = getDouble("game.zombie_speed", DEFAULT_PLAYER_SPEED / 2); // Slower than players
