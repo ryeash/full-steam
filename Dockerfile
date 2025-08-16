@@ -1,24 +1,20 @@
-# Stage 1: Build Stage
-FROM gradle:jdk21-corretto AS build
+# Stage 1: Clone the repo
+FROM gradle:jdk21-corretto AS clone
 ARG GITHUB_REPO_URL=https://github.com/ryeash/full-steam
 ARG BRANCH=master
-
-# Clone the repository
 RUN git clone --depth 1 --branch "${BRANCH}" --single-branch ${GITHUB_REPO_URL} /app
+
+# Stage 2: Build the graalvm image
+FROM ghcr.io/graalvm/native-image-community:21 AS build
+COPY --from=clone /app /app
 WORKDIR /app
+RUN ./gradlew clean nativeCompile --no-daemon --no-build-cache
 
-# Build the project with Gradle
-RUN gradle clean shadowJar --no-daemon --no-build-cache
 
-# Stage 2: Runtime Stage
-FROM amazoncorretto:21-alpine-jdk
+# Stage 3: run the image
+FROM ghcr.io/graalvm/jdk-community:21 AS run
 EXPOSE 8080
 
-# Create a directory for the application
-RUN mkdir /app
+COPY --from=build /app/build/native/nativeCompile/full-steam /app/full-steam
 
-# Copy the built JAR from the build stage
-COPY --from=build /app/build/libs/*.jar /app/application.jar
-
-# Define the entry point to run the application
-ENTRYPOINT ["java", "-XX:+UseZGC", "-XX:+UseCompressedOops", "-XX:+UseCompressedClassPointers", "-XX:+UseStringDeduplication", "-Xmx1g", "-jar", "/app/application.jar"]
+ENTRYPOINT ["/app/full-steam"]
