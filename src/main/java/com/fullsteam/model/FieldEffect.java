@@ -6,7 +6,8 @@ public interface FieldEffect extends HasId {
         EXPLOSION,
         POISON,
         SLOW,
-        SMOKE
+        SMOKE,
+        MINE
     }
 
     Type getType();

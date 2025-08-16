@@ -395,9 +395,8 @@ public class Player implements HasId, HasLife, Targetable {
         return visionObscured;
     }
 
-    public Player setVisionObscured(boolean visionObscured) {
+    public void setVisionObscured(boolean visionObscured) {
         this.visionObscured = visionObscured;
-        return this;
     }
 }
 

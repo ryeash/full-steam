@@ -557,10 +557,11 @@ public class AIPlayer extends Player {
 
         for (FieldEffect fieldEffect : fieldEffects) {
             double awarenessRadius = fieldEffect.getRadius() + 20;
-            if (position().distanceSquared(fieldEffect.position()) < awarenessRadius * awarenessRadius) {
+            if (getTeam() != fieldEffect.getTeam()
+                    && position().distanceSquared(fieldEffect.position()) < awarenessRadius * awarenessRadius) {
                 Vector2D fleeDirection = position().subtract(fieldEffect.position());
                 double weight = switch (fieldEffect.getType()) {
-                    case EXPLOSION -> 0.5;
+                    case MINE -> 0.3;
                     case POISON -> 0.25;
                     default -> 0.1;
                 };

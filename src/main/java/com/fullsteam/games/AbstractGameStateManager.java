@@ -13,6 +13,7 @@ import com.fullsteam.model.Explosion;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
+import com.fullsteam.model.Mine;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
@@ -404,7 +405,7 @@ public abstract class AbstractGameStateManager {
     }
 
     private void updateFieldEffects(long delta) {
-        for (FieldEffect fieldEffect : fieldEffects) {
+        for (FieldEffect fieldEffect : List.copyOf(fieldEffects)) {
             if (fieldEffect instanceof Explosion explosion) {
                 updateExplosion(explosion);
             } else if (fieldEffect instanceof PoisonCloud poisonCloud) {
@@ -413,6 +414,8 @@ public abstract class AbstractGameStateManager {
                 updateSlowField(slowField);
             } else if (fieldEffect instanceof SmokeCloud smokeCloud) {
                 updateSmokeField(smokeCloud);
+            } else if (fieldEffect instanceof Mine mine) {
+                updateMineField(mine);
             } else {
                 throw new UnsupportedOperationException("unsupported field effect type: " + fieldEffect.getClass().getSimpleName());
             }
@@ -539,6 +542,20 @@ public abstract class AbstractGameStateManager {
             if (t instanceof Player p && !p.isDead()) {
                 if (p.position().distanceSquared(smokeCloud.position()) < smokeCloud.getRadiusSquared()) {
                     p.setVisionObscured(true);
+                }
+            }
+        }
+    }
+
+    private void updateMineField(Mine mine) {
+        Set<Targetable> nearbyPlayers = targetGrid.getNearby(mine.position(), mine.getRadius());
+        for (Targetable t : nearbyPlayers) {
+            if (t instanceof Player p && !p.isDead() && mine.getTeam() != p.getTeam()) {
+                // If the player is within the mine's radius, trigger the explosion
+                if (p.position().distanceSquared(mine.position()) < (mine.getRadiusSquared() + PLAYER_SIZE)) {
+                    // Trigger the explosion effect
+                    fieldEffects.add(Mine.mineExplosion(mine));
+                    mine.markTriggered();
                 }
             }
         }
@@ -1161,7 +1178,8 @@ public abstract class AbstractGameStateManager {
     }
 
     protected GameState spectatorGameState() {
-        return new GameState(players.values(),
+        return new GameState(
+                players.values(),
                 bullets,
                 fieldEffects,
                 turrets,

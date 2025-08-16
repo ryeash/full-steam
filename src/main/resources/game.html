@@ -1354,6 +1354,8 @@
                     this.drawSlowField(effect);
                 } else if (effect.type == 'SMOKE') {
                     this.drawSmokeField(effect);
+                } else if (effect.type == 'MINE') {
+                    this.drawMine(effect);
                 }
             });
         }
@@ -1585,6 +1587,48 @@
                 this.ctx.arc(field.x, field.y, radius, swirl, swirl + Math.PI * 1.2);
                 this.ctx.stroke();
             }
+
+            this.ctx.restore();
+        }
+
+        drawMine(field) {
+            this.ctx.save();
+            const now = this.gameState.serverTime;
+            if (!now) return;
+
+            // Set colors based on team
+            const teamColors = {
+                1: { base: '#4CAF50', dark: '#2E7D32' }, // Green for team 1
+                2: { base: '#F44336', dark: '#C62828' }  // Red for team 2
+            };
+            const colors = teamColors[field.team] || { base: '#9E9E9E', dark: '#616161' };
+
+            // Draw main disc
+            this.ctx.beginPath();
+            this.ctx.arc(field.x, field.y, 12, 0, Math.PI * 2);
+            this.ctx.fillStyle = colors.base;
+            this.ctx.fill();
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeStyle = colors.dark;
+            this.ctx.stroke();
+
+            // Draw exclamation mark
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = 'bold 16px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText('!', field.x, field.y);
+
+            // Add pulsing highlight effect
+            const pulseRate = 1000; // 1 second per pulse
+            const pulsePhase = (now % pulseRate) / pulseRate;
+            const pulseOpacity = 0.3 + Math.sin(pulsePhase * Math.PI * 2) * 0.1;
+
+            this.ctx.beginPath();
+            this.ctx.arc(field.x, field.y, 14, 0, Math.PI * 2);
+            this.ctx.strokeStyle = `rgba(255, 255, 255, ${pulseOpacity})`;
+            this.ctx.lineWidth = 1;
+            this.ctx.stroke();
 
             this.ctx.restore();
         }
