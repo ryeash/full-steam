@@ -8,7 +8,6 @@ import com.fullsteam.SpatialGrid;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.Bullet;
 import com.fullsteam.model.BulletEffect;
-import com.fullsteam.model.Crate;
 import com.fullsteam.model.Explosion;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEvent;
@@ -775,10 +774,10 @@ public abstract class AbstractGameStateManager {
                             }
                         }
                     }
-                    case Crate crate -> {
-                        if (!crate.isDestroyed() && CollisionUtils.checkLinePolygonCollision(oldPos, newPos, crate)) {
-                            crate.takeDamage(bullet.getDamage());
-                            applyBulletDestructionEffect(bullet, crate);
+                    case Obstacle o -> {
+                        if (o instanceof HasLife hasLife && CollisionUtils.checkLinePolygonCollision(oldPos, newPos, o)) {
+                            hasLife.takeDamage(bullet.getDamage());
+                            applyBulletDestructionEffect(bullet, o);
                             return true;
                         }
                     }
@@ -853,9 +852,9 @@ public abstract class AbstractGameStateManager {
                         }
                     }
                 }
-                case Crate crate -> {
-                    if (!crate.isDestroyed() && CollisionUtils.checkLinePolygonCollision(laserBlast.getStart(), laserBlast.getEnd(), crate)) {
-                        crate.takeDamage(laserBlast.getDamage());
+                case Obstacle o -> {
+                    if (o instanceof HasLife hasLife && CollisionUtils.checkLinePolygonCollision(laserBlast.getStart(), laserBlast.getEnd(), o)) {
+                        hasLife.takeDamage(laserBlast.getDamage());
                     }
                 }
                 case null, default -> throw new UnsupportedOperationException("fix for other targets");

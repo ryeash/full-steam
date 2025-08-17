@@ -5,7 +5,6 @@ import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.Base;
 import com.fullsteam.model.Crate;
-import com.fullsteam.model.Explosion;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.LaserBlast;
 import com.fullsteam.model.Obstacle;
@@ -19,7 +18,6 @@ import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -44,7 +42,6 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
 
     public BaseDestructionManager(GameLobby gameLobby) {
         super(gameLobby);
-        log.info("Base Destruction game mode initialized.");
         generateBasePosition();
     }
 
@@ -79,9 +76,8 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
         generateBasePosition();
 
         // Send role announcements
-        sendGameEvent(GameEvent.team(1, "Team 1: DESTROY the enemy base before time runs out!"));
-        sendGameEvent(GameEvent.team(2, "Team 2: DEFEND your base until time runs out!"));
-        sendGameEvent(GameEvent.info("Base health: " + (int) defendingBase.getHp()));
+        sendGameEvent(GameEvent.team(1, "Attackers: DESTROY the enemy base before time runs out!"));
+        sendGameEvent(GameEvent.team(2, "Defenders: DEFEND your base until time runs out!"));
     }
 
     @Override
@@ -93,9 +89,6 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
     private void updateBase() {
         if (defendingBase != null && !baseDestroyed && defendingBase.isDestroyed()) {
             baseDestroyed = true;
-            sendGameEvent(GameEvent.team(1, "BASE DESTROYED! Team 1 (Attackers) wins!"));
-            sendGameEvent(GameEvent.team(2, "Your base was destroyed! Team 2 (Defenders) lost!"));
-            log.info("Base destroyed! Team 1 wins the round.");
         }
     }
 
@@ -112,162 +105,8 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected void updateBullets(long delta) {
-        bullets.removeIf(bullet -> {
-            // Store the previous position for line-segment collision checks
-            Vector2D oldPos = new Vector2D(bullet.getX(), bullet.getY());
-            bullet.update(delta);
-            Vector2D newPos = new Vector2D(bullet.getX(), bullet.getY());
-
-            // Check bullet-target collisions using the line segment
-            Set<Targetable> nearby = targetGrid.getNearby(oldPos, newPos);
-
-            for (Targetable target : nearby) {
-                if (target instanceof Player player) {
-                    // Check for collision with an enemy player
-                    if (!player.isDead() && player.getTeam() != bullet.getTeam()) {
-                        Vector2D playerCenter = player.position();
-                        if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, playerCenter, Config.PLAYER_RADIUS + 2)) {
-                            Player shooter = players.get(bullet.getShooterId());
-                            if (player.takeDamage(bullet.getDamage())) {
-                                killPlayer(player, shooter);
-                            }
-                            applyBulletDestructionEffect(bullet, player);
-                            return true;
-                        }
-                    }
-                } else if (target instanceof Turret turret) {
-                    if (turret.getTeam() != bullet.getTeam()) {
-                        Vector2D position = turret.position();
-                        if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, position, turret.getRadius())) {
-                            turret.takeDamage(bullet.getDamage());
-                            applyBulletDestructionEffect(bullet, target);
-                            return true;
-                        }
-                    }
-                } else if (target instanceof Crate crate) {
-                    if (!crate.isDestroyed() && CollisionUtils.checkLinePolygonCollision(oldPos, newPos, crate)) {
-                        crate.takeDamage(bullet.getDamage());
-                        applyBulletDestructionEffect(bullet, crate);
-                        return true;
-                    }
-                } else if (target instanceof Base base) {
-                    // Only Team 1 (attackers) can damage the base
-                    if (bullet.getTeam() == 1 && !base.isDestroyed()) {
-                        if (CollisionUtils.checkLinePolygonCollision(oldPos, newPos, base)) {
-                            double previousHp = base.getHp();
-                            base.takeDamage(bullet.getDamage());
-                            double newHp = base.getHp();
-
-                            // Send damage feedback
-                            if (newHp < previousHp) {
-                                double healthPercentage = base.getHealthPercentage();
-                                sendGameEvent(GameEvent.red("Base taking damage! Health: " + (int) (healthPercentage * 100) + "%"));
-
-                                // Critical health warning
-                                if (healthPercentage <= 0.25 && previousHp / base.getMaxHp() > 0.25) {
-                                    sendGameEvent(GameEvent.red("WARNING: Base health is CRITICAL!"));
-                                }
-                            }
-
-                            applyBulletDestructionEffect(bullet, base);
-                            return true;
-                        }
-                    }
-                } else if (target != null) {
-                    throw new UnsupportedOperationException("Unsupported target type: " + target);
-                }
-            }
-
-            // Check bullet-obstacle collisions using the line segment
-            for (Obstacle obstacle : obstacles) {
-                if (CollisionUtils.checkLinePolygonCollision(oldPos, newPos, obstacle)) {
-                    applyBulletDestructionEffect(bullet, obstacle);
-                    return true;
-                }
-            }
-
-            if (bullet.hasExceededMaxDistance() || bullet.getSpeed() < 10) {
-                applyBulletDestructionEffect(bullet, null);
-                return true;
-            }
-
-            // Remove bullets that move out of bounds
-            return newPos.x() < 0
-                   || newPos.x() > Config.GAME_WIDTH
-                   || newPos.y() < 0
-                   || newPos.y() > Config.GAME_HEIGHT;
-        });
-    }
-
-    @Override
-    protected void applyLaser(LaserBlast laserBlast) {
-        // Check obstacle collisions first
-        for (Obstacle obstacle : obstacles) {
-            Vector2D collision = CollisionUtils.findLineObstacleCollision(laserBlast.getStart(), laserBlast.getEnd(), obstacle);
-            if (collision != null) {
-                double currentDistanceSq = laserBlast.getStart().distanceSquared(laserBlast.getEnd());
-                if (laserBlast.getStart().distanceSquared(collision) < currentDistanceSq) {
-                    laserBlast.setEnd(collision);
-                }
-            }
-        }
-
-        // Check target collisions
-        Set<Targetable> nearby = targetGrid.getNearby(laserBlast.getStart(), laserBlast.getEnd());
-
-        for (Targetable target : nearby) {
-            if (target instanceof Player player) {
-                if (!player.isDead() && player.getTeam() != laserBlast.getTeam()) {
-                    Vector2D playerCenter = player.position();
-                    if (CollisionUtils.checkLineCircleCollision(laserBlast.getStart(), laserBlast.getEnd(), playerCenter, Config.PLAYER_RADIUS)) {
-                        Player shooter = players.get(laserBlast.getShooterId());
-                        if (player.takeDamage(laserBlast.getDamage())) {
-                            killPlayer(player, shooter);
-                        }
-                    }
-                }
-            } else if (target instanceof Turret turret) {
-                if (turret.getTeam() != laserBlast.getTeam()) {
-                    Vector2D position = turret.position();
-                    if (CollisionUtils.checkLineCircleCollision(laserBlast.getStart(), laserBlast.getEnd(), position, turret.getRadius())) {
-                        turret.takeDamage(laserBlast.getDamage());
-                    }
-                }
-            } else if (target instanceof Crate crate) {
-                if (!crate.isDestroyed() && CollisionUtils.checkLinePolygonCollision(laserBlast.getStart(), laserBlast.getEnd(), crate)) {
-                    crate.takeDamage(laserBlast.getDamage());
-                }
-            } else if (target instanceof Base base) {
-                // Only Team 1 (attackers) can damage the base
-                if (laserBlast.getTeam() == 1 && !base.isDestroyed()) {
-                    if (CollisionUtils.checkLinePolygonCollision(laserBlast.getStart(), laserBlast.getEnd(), base)) {
-                        double previousHp = base.getHp();
-                        base.takeDamage(laserBlast.getDamage());
-                        double newHp = base.getHp();
-
-                        // Send damage feedback
-                        if (newHp < previousHp) {
-                            double healthPercentage = base.getHealthPercentage();
-                            sendGameEvent(GameEvent.red("Base taking laser damage! Health: " + (int) (healthPercentage * 100) + "%"));
-
-                            // Critical health warning
-                            if (healthPercentage <= 0.25 && previousHp / base.getMaxHp() > 0.25) {
-                                sendGameEvent(GameEvent.red("WARNING: Base health is CRITICAL!"));
-                            }
-                        }
-                    }
-                }
-            } else if (target != null) {
-                throw new UnsupportedOperationException("Unsupported target type: " + target);
-            }
-        }
-    }
-
-    @Override
     protected boolean checkEndConditions() {
         boolean roundTimerExpired = System.currentTimeMillis() >= roundEndTime;
-
         if (baseDestroyed) {
             // Team 1 (Attackers) win
             if (!sentVictoryMessage) {
@@ -279,8 +118,7 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
             // Team 2 (Defenders) win by successfully defending
             if (!sentVictoryMessage) {
                 team2Score++;
-                sendGameEvent(GameEvent.team(2, "TIME'S UP! Team 2 (Defenders) successfully defended the base!"));
-                sendGameEvent(GameEvent.team(1, "Time ran out! Team 1 (Attackers) failed to destroy the base!"));
+                sendGameEvent(GameEvent.team(2, "TIME'S UP! Defenders successfully defended the base!"));
                 sendVictoryMessage();
             }
             return true;
@@ -437,9 +275,9 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
         sentVictoryMessage = true;
 
         if (baseDestroyed) {
-            sendGameEvent(GameEvent.team(1, "Team 1 (Attackers) wins! Score: %d-%d".formatted((int) team1Score, (int) team2Score)));
+            sendGameEvent(GameEvent.team(1, "Attackers win!"));
         } else {
-            sendGameEvent(GameEvent.team(2, "Team 2 (Defenders) wins! Score: %d-%d".formatted((int) team1Score, (int) team2Score)));
+            sendGameEvent(GameEvent.team(2, "Defenders win!"));
         }
     }
 }

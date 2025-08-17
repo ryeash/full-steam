@@ -1099,7 +1099,7 @@
 
             if (this.obstacles) {
                 this.obstacles.forEach(obstacle => {
-                    if (!obstacle.vertices || obstacle.vertices.length < 3) {
+                    if (!obstacle.vertices || obstacle.vertices.length < 3 || !obstacle.rendered) {
                        return;
                     }
                     bCtx.save();
@@ -1134,6 +1134,7 @@
             this.drawPowerUps();
             this.drawCrates();
             this.drawCratePreview();
+            this.drawBase();
             this.drawFieldEffects();
             this.drawTurrets();
 
@@ -1202,7 +1203,6 @@
             this.drawFlags();
             this.drawOddball();
             this.drawPayload();
-            this.drawBase();
             this.drawGameEvents();
             this.drawDebugInfo(currentTime);
 
@@ -2286,13 +2286,6 @@
                 this.ctx.arc(base.x, base.y, base.radius + 10, 0, Math.PI * 2);
                 this.ctx.stroke();
             }
-
-            // Add team indicator
-            this.ctx.fillStyle = '#F44336'; // Red for Team 2 (Defenders)
-            this.ctx.font = 'bold 16px Arial';
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillText('🏰', base.x, base.y + base.radius + 25);
 
             this.ctx.restore();
         }
