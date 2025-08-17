@@ -13,6 +13,7 @@ import com.fullsteam.model.Explosion;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
+import com.fullsteam.model.HasLife;
 import com.fullsteam.model.LaserBlast;
 import com.fullsteam.model.Mine;
 import com.fullsteam.model.Obstacle;
@@ -453,10 +454,9 @@ public abstract class AbstractGameStateManager {
      * Handles the lifecycle of explosions, applying damage and removing them when expired.
      */
     protected void updateExplosion(Explosion explosion) {
-        // First, apply damage for any new explosions that haven't dealt it yet.
+        // apply damage for any new explosions that haven't dealt it yet.
         if (!explosion.hasDamageBeenApplied()) {
             Vector2D explosionCenter = new Vector2D(explosion.getX(), explosion.getY());
-            double radiusSq = explosion.getRadius() * explosion.getRadius();
             Player shooter = players.get(explosion.getShooterId());
 
             Set<Targetable> nearbyPlayers = targetGrid.getNearby(explosion.position(), explosion.getRadius());
@@ -472,7 +472,7 @@ public abstract class AbstractGameStateManager {
                             continue;
                         }
 
-                        if (p.position().distanceSquared(explosionCenter) < radiusSq) {
+                        if (p.position().distanceSquared(explosionCenter) < explosion.getRadiusSquared()) {
                             if (p.takeDamage(explosion.getDamage())) {
                                 killPlayer(p, shooter);
                             }
@@ -483,17 +483,17 @@ public abstract class AbstractGameStateManager {
                         if (shooter != null && turret.getTeam() == shooter.getTeam() && !Objects.equals(turret.getId(), shooter.getId())) {
                             continue;
                         }
-                        if (turret.position().distanceSquared(explosionCenter) < radiusSq) {
+                        if (turret.position().distanceSquared(explosionCenter) < explosion.getRadiusSquared()) {
                             turret.takeDamage(explosion.getDamage());
                         }
                     }
-                    case Crate crate -> {
-                        if (CollisionUtils.checkCirclePolygonCollision(
+                    case Obstacle o -> {
+                        if (o instanceof HasLife hasLife && CollisionUtils.checkCirclePolygonCollision(
                                 explosionCenter,
                                 explosion.getRadius(),
-                                crate.getVertices())) {
+                                o.getVertices())) {
                             // If the explosion hits a crate, apply damage to it.
-                            crate.takeDamage(explosion.getDamage());
+                            hasLife.takeDamage(explosion.getDamage());
                         }
                     }
                     case null, default -> throw new UnsupportedOperationException("fix for other targetable things");

@@ -4,7 +4,6 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.Base;
-
 import com.fullsteam.model.Crate;
 import com.fullsteam.model.Explosion;
 import com.fullsteam.model.GameEvent;
@@ -25,7 +24,6 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
-import static com.fullsteam.Config.BASE_DESTRUCTION_BASE_AREA_PADDING;
 import static com.fullsteam.Config.BASE_DESTRUCTION_BASE_HEALTH;
 import static com.fullsteam.Config.BASE_DESTRUCTION_BASE_RADIUS;
 import static com.fullsteam.Config.GAME_HEIGHT;
@@ -39,7 +37,7 @@ import static com.fullsteam.Config.GAME_WIDTH;
 public class BaseDestructionManager extends AbstractTeamBasedManager {
 
     private static final Logger log = LoggerFactory.getLogger(BaseDestructionManager.class);
-    
+
     private Base defendingBase;
     private boolean baseDestroyed = false;
     private boolean sent10SecondWarning = false;
@@ -56,7 +54,7 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
         // Try to balance teams but prefer defenders (Team 2) if both teams are equal
         long team1Count = players.values().stream().filter(p -> p.getTeam() == 1).count();
         long team2Count = players.values().stream().filter(p -> p.getTeam() == 2).count();
-        
+
         int team;
         if (team1Count < Config.MAX_PLAYERS_PER_TEAM && team2Count < Config.MAX_PLAYERS_PER_TEAM) {
             // If both teams have space, slightly favor defenders (Team 2)
@@ -69,7 +67,7 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
             // Both teams are full, assign randomly
             team = ThreadLocalRandom.current().nextBoolean() ? 1 : 2;
         }
-        
+
         return addPlayer(playerId, channel, team);
     }
 
@@ -79,7 +77,7 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
         baseDestroyed = false;
         sent10SecondWarning = false;
         generateBasePosition();
-        
+
         // Send role announcements
         sendGameEvent(GameEvent.team(1, "Team 1: DESTROY the enemy base before time runs out!"));
         sendGameEvent(GameEvent.team(2, "Team 2: DEFEND your base until time runs out!"));
@@ -106,10 +104,10 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
         super.populateSpatialGrids();
         if (defendingBase != null && !defendingBase.isDestroyed()) {
             double size = defendingBase.getRadius() * 2;
-            targetGrid.insert(defendingBase, 
-                             defendingBase.getX() - defendingBase.getRadius(), 
-                             defendingBase.getY() - defendingBase.getRadius(), 
-                             size, size);
+            targetGrid.insert(defendingBase,
+                    defendingBase.getX() - defendingBase.getRadius(),
+                    defendingBase.getY() - defendingBase.getRadius(),
+                    size, size);
         }
     }
 
@@ -160,18 +158,18 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
                             double previousHp = base.getHp();
                             base.takeDamage(bullet.getDamage());
                             double newHp = base.getHp();
-                            
+
                             // Send damage feedback
                             if (newHp < previousHp) {
                                 double healthPercentage = base.getHealthPercentage();
-                                sendGameEvent(GameEvent.red("Base taking damage! Health: " + (int)(healthPercentage * 100) + "%"));
-                                
+                                sendGameEvent(GameEvent.red("Base taking damage! Health: " + (int) (healthPercentage * 100) + "%"));
+
                                 // Critical health warning
                                 if (healthPercentage <= 0.25 && previousHp / base.getMaxHp() > 0.25) {
                                     sendGameEvent(GameEvent.red("WARNING: Base health is CRITICAL!"));
                                 }
                             }
-                            
+
                             applyBulletDestructionEffect(bullet, base);
                             return true;
                         }
@@ -196,9 +194,9 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
 
             // Remove bullets that move out of bounds
             return newPos.x() < 0
-                    || newPos.x() > Config.GAME_WIDTH
-                    || newPos.y() < 0
-                    || newPos.y() > Config.GAME_HEIGHT;
+                   || newPos.x() > Config.GAME_WIDTH
+                   || newPos.y() < 0
+                   || newPos.y() > Config.GAME_HEIGHT;
         });
     }
 
@@ -247,12 +245,12 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
                         double previousHp = base.getHp();
                         base.takeDamage(laserBlast.getDamage());
                         double newHp = base.getHp();
-                        
+
                         // Send damage feedback
                         if (newHp < previousHp) {
                             double healthPercentage = base.getHealthPercentage();
-                            sendGameEvent(GameEvent.red("Base taking laser damage! Health: " + (int)(healthPercentage * 100) + "%"));
-                            
+                            sendGameEvent(GameEvent.red("Base taking laser damage! Health: " + (int) (healthPercentage * 100) + "%"));
+
                             // Critical health warning
                             if (healthPercentage <= 0.25 && previousHp / base.getMaxHp() > 0.25) {
                                 sendGameEvent(GameEvent.red("WARNING: Base health is CRITICAL!"));
@@ -267,78 +265,9 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected void updateExplosion(Explosion explosion) {
-        // Apply damage for new explosions that haven't dealt it yet
-        if (!explosion.hasDamageBeenApplied()) {
-            Vector2D explosionCenter = new Vector2D(explosion.getX(), explosion.getY());
-            double radiusSq = explosion.getRadius() * explosion.getRadius();
-            Player shooter = players.get(explosion.getShooterId());
-
-            Set<Targetable> nearbyTargets = targetGrid.getNearby(explosion.position(), explosion.getRadius());
-            for (Targetable t : nearbyTargets) {
-                if (t instanceof Player p) {
-                    if (p.isDead()) {
-                        continue;
-                    }
-                    // Prevent friendly fire, but allow self-damage
-                    if (shooter != null && p.getTeam() == shooter.getTeam() && !Objects.equals(p.getId(), shooter.getId())) {
-                        continue;
-                    }
-                    if (p.position().distanceSquared(explosionCenter) < radiusSq) {
-                        if (p.takeDamage(explosion.getDamage())) {
-                            killPlayer(p, shooter);
-                        }
-                    }
-                } else if (t instanceof Turret turret) {
-                    // Prevent friendly fire, but allow self-damage
-                    if (shooter != null && turret.getTeam() == shooter.getTeam() && !Objects.equals(turret.getId(), shooter.getId())) {
-                        continue;
-                    }
-                    if (turret.position().distanceSquared(explosionCenter) < radiusSq) {
-                        turret.takeDamage(explosion.getDamage());
-                    }
-                } else if (t instanceof Crate crate) {
-                    if (CollisionUtils.checkCirclePolygonCollision(
-                            explosionCenter,
-                            explosion.getRadius(),
-                            crate.getVertices())) {
-                        crate.takeDamage(explosion.getDamage());
-                    }
-                } else if (t instanceof Base base) {
-                    // Only Team 1 (attackers) explosions can damage the base
-                    if (explosion.getTeam() == 1 && !base.isDestroyed()) {
-                        if (CollisionUtils.checkCirclePolygonCollision(
-                                explosionCenter,
-                                explosion.getRadius(),
-                                base.vertices())) {
-                            double previousHp = base.getHp();
-                            base.takeDamage(explosion.getDamage());
-                            double newHp = base.getHp();
-                            
-                            // Send damage feedback
-                            if (newHp < previousHp) {
-                                double healthPercentage = base.getHealthPercentage();
-                                sendGameEvent(GameEvent.red("Base hit by explosion! Health: " + (int)(healthPercentage * 100) + "%"));
-                                
-                                // Critical health warning
-                                if (healthPercentage <= 0.25 && previousHp / base.getMaxHp() > 0.25) {
-                                    sendGameEvent(GameEvent.red("WARNING: Base health is CRITICAL!"));
-                                }
-                            }
-                        }
-                    }
-                } else if (t != null) {
-                    throw new UnsupportedOperationException("Unsupported target type: " + t);
-                }
-            }
-            explosion.markDamageApplied(); // Mark it so damage isn't applied again
-        }
-    }
-
-    @Override
     protected boolean checkEndConditions() {
         boolean roundTimerExpired = System.currentTimeMillis() >= roundEndTime;
-        
+
         if (baseDestroyed) {
             // Team 1 (Attackers) win
             if (!sentVictoryMessage) {
@@ -356,13 +285,13 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
             }
             return true;
         }
-        
+
         // Send 10-second warning
         if (!sent10SecondWarning && (roundEndTime - System.currentTimeMillis()) <= 10000) {
             sent10SecondWarning = true;
             sendGameEvent(GameEvent.red("10 seconds remaining! Defenders, hold the line!"));
         }
-        
+
         return false;
     }
 
@@ -375,43 +304,89 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
 
     @Override
     protected void generateObstacles() {
-        // Generate obstacles but ensure they don't overlap with the base
-        generateObstacles(newObstacle -> {
-            if (defendingBase == null) {
-                return true; // No base to check against yet
-            }
-            // Ensure obstacles don't overlap with the base area
-            return !CollisionUtils.checkCirclePolygonCollision(
-                defendingBase.position(), 
-                defendingBase.getRadius() + 20, // Extra padding
-                newObstacle.vertices()
+        obstacles.clear();
+
+        // Create a defensive wall with three segments and two gaps
+        generateDefensiveWall();
+
+        // Add a few random obstacles on the attacker's side for cover
+        generateAttackerCover();
+    }
+
+    private void generateDefensiveWall() {
+        // Wall positioned between the center line and the base
+        double wallX = GAME_WIDTH * 0.6; // Position wall at 60% across the map
+        double wallThickness = 40;
+        double gapSize = 80;
+
+        // Calculate positions for three wall segments with two gaps
+        double totalWallArea = GAME_HEIGHT - (2 * Config.SPAWN_VERTICAL_PADDING);
+        double segmentHeight = (totalWallArea - (2 * gapSize)) / 3;
+
+        double startY = Config.SPAWN_VERTICAL_PADDING;
+
+        // Create three wall segments
+        for (int i = 0; i < 3; i++) {
+            double segmentY = startY + i * (segmentHeight + gapSize);
+            Obstacle wallSegment = Obstacle.createRectangle(
+                    wallX - wallThickness / 2,
+                    segmentY,
+                    wallThickness,
+                    segmentHeight
             );
-        });
+            obstacles.add(wallSegment);
+        }
+    }
+
+    private void generateAttackerCover() {
+        // Add some cover obstacles on the attacker's side (left half)
+        int coverCount = 3 + ThreadLocalRandom.current().nextInt(3); // 3-5 cover obstacles
+        int maxRetries = 20;
+
+        for (int i = 0; i < coverCount; i++) {
+            int retries = 0;
+            while (retries < maxRetries) {
+                // Generate obstacles only on the attacker's side (left half)
+                double x = Config.SPAWN_HORIZONTAL_PADDING +
+                           ThreadLocalRandom.current().nextDouble((double) GAME_WIDTH / 2 - Config.SPAWN_HORIZONTAL_PADDING * 2);
+                double y = Config.SPAWN_VERTICAL_PADDING +
+                           ThreadLocalRandom.current().nextDouble(GAME_HEIGHT - Config.SPAWN_VERTICAL_PADDING * 2);
+
+                // Create a smaller rectangular cover obstacle
+                double width = 40 + ThreadLocalRandom.current().nextDouble(40); // 60-100 width
+                double height = 60 + ThreadLocalRandom.current().nextDouble(30); // 40-70 height
+
+                Obstacle coverObstacle = Obstacle.createRectangle(x, y, width, height);
+
+                // Check if it overlaps with existing obstacles
+                boolean overlaps = obstacles.stream().anyMatch(existing ->
+                        CollisionUtils.checkObstacleOverlap(coverObstacle, existing, 30));
+
+                if (!overlaps) {
+                    obstacles.add(coverObstacle);
+                    break;
+                }
+                retries++;
+            }
+        }
     }
 
     private void generateBasePosition() {
-        // Place the base on Team 2's (defenders) side of the map
-        // Similar to CTF base positioning but only one base
-        double baseX = ThreadLocalRandom.current().nextDouble(
-            (GAME_WIDTH / 2.0) + BASE_DESTRUCTION_BASE_AREA_PADDING, 
-            GAME_WIDTH - BASE_DESTRUCTION_BASE_AREA_PADDING
-        );
-        double baseY = ThreadLocalRandom.current().nextDouble(
-            BASE_DESTRUCTION_BASE_AREA_PADDING, 
-            GAME_HEIGHT - BASE_DESTRUCTION_BASE_AREA_PADDING
-        );
-        
+        // Center the base on Team 2's (defenders) side of the map
+        double baseX = GAME_WIDTH - (GAME_WIDTH / 4.0); // 3/4 across the map
+        double baseY = GAME_HEIGHT / 2.0; // Centered vertically
+
         Vector2D basePosition = new Vector2D(baseX, baseY);
         this.defendingBase = new Base(
-            Config.ID_COUNTER.incrementAndGet(),
-            basePosition,
-            BASE_DESTRUCTION_BASE_RADIUS,
-            BASE_DESTRUCTION_BASE_HEALTH,
-            2 // Team 2 (Defenders)
+                Config.ID_COUNTER.incrementAndGet(),
+                basePosition,
+                BASE_DESTRUCTION_BASE_RADIUS,
+                BASE_DESTRUCTION_BASE_HEALTH,
+                2 // Team 2 (Defenders)
         );
-        
-        log.info("Generated base at position ({}, {}) with {} health", 
-                 baseX, baseY, BASE_DESTRUCTION_BASE_HEALTH);
+
+        log.info("Generated base at position ({}, {}) with {} health",
+                baseX, baseY, BASE_DESTRUCTION_BASE_HEALTH);
     }
 
     @Override
@@ -460,7 +435,7 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
             return;
         }
         sentVictoryMessage = true;
-        
+
         if (baseDestroyed) {
             sendGameEvent(GameEvent.team(1, "Team 1 (Attackers) wins! Score: %d-%d".formatted((int) team1Score, (int) team2Score)));
         } else {
