@@ -43,6 +43,7 @@ public class BuilderManager extends AbstractFreeForAllManager {
 
     @Override
     protected void populateSpatialGrids() {
+        super.populateSpatialGrids();
         for (Crate crate : crates) {
             targetGrid.insert(crate, crate.getX(), crate.getY(), crate.getSize(), crate.getSize());
         }
@@ -122,9 +123,9 @@ public class BuilderManager extends AbstractFreeForAllManager {
     private boolean isCollidingWithAnyCrate(Crate newCrate) {
         for (Crate existingCrate : crates) {
             if (newCrate.getX() < existingCrate.getX() + existingCrate.getSize() &&
-                    newCrate.getX() + CRATE_SIZE > existingCrate.getX() &&
-                    newCrate.getY() < existingCrate.getY() + existingCrate.getSize() &&
-                    newCrate.getY() + CRATE_SIZE > existingCrate.getY()) {
+                newCrate.getX() + CRATE_SIZE > existingCrate.getX() &&
+                newCrate.getY() < existingCrate.getY() + existingCrate.getSize() &&
+                newCrate.getY() + CRATE_SIZE > existingCrate.getY()) {
                 return true;
             }
         }
