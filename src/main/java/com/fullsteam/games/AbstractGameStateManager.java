@@ -540,10 +540,9 @@ public abstract class AbstractGameStateManager {
                             turret.takeDamage(cloud.getDamagePerTick());
                         }
                     }
-                    case Crate ignored -> {
-                        // Crates are immune to poison clouds
+                    case null, default -> {
+                        // poison doesn't apply to anything else
                     }
-                    case null, default -> throw new UnsupportedOperationException("fix for other targetables");
                 }
             }
             cloud.setLastDamageTickTime(currentTime);
@@ -802,9 +801,9 @@ public abstract class AbstractGameStateManager {
 
             // Last check: Remove bullets that will move out of bounds
             return newPos.x() < 0
-                    || newPos.x() > GAME_WIDTH
-                    || newPos.y() < 0
-                    || newPos.y() > GAME_HEIGHT;
+                   || newPos.x() > GAME_WIDTH
+                   || newPos.y() < 0
+                   || newPos.y() > GAME_HEIGHT;
         });
     }
 
@@ -1147,8 +1146,8 @@ public abstract class AbstractGameStateManager {
         }
 
         if (request.getWeaponName() != null
-                && !request.getWeaponName().isEmpty()
-                && !request.getWeaponName().equals(player.getWeapon().getName())) {
+            && !request.getWeaponName().isEmpty()
+            && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
             removePlayerTurrets(player);

@@ -4,6 +4,7 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.SpatialGrid;
 import com.fullsteam.WeaponFactory;
+import com.fullsteam.model.Base;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.Obstacle;
@@ -390,6 +391,18 @@ public class AIPlayer extends Player {
                         // Simple distance-based priority for now.
                         bestScore = turretScore;
                         bestTarget = potentialTarget;
+                    }
+                }
+            }else if(potentialTarget instanceof Base base){
+                if(base.getTeam() != getTeam()){
+                    Vector2D turretCenter = base.position();
+                    double turretScore = Math.sqrt(position().distanceSquared(turretCenter));
+                    if (turretScore < bestScore) {
+                        if (findBlockingObstacle(this.position(), turretCenter, obstacles) == null) {
+                            // Simple distance-based priority for now.
+                            bestScore = turretScore;
+                            bestTarget = potentialTarget;
+                        }
                     }
                 }
             } else {

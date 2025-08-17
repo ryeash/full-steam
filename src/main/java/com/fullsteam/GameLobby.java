@@ -1,6 +1,7 @@
 package com.fullsteam;
 
 import com.fullsteam.games.AbstractGameStateManager;
+import com.fullsteam.games.BaseDestructionManager;
 import com.fullsteam.games.BuilderManager;
 import com.fullsteam.games.CaptureTheFlagManager;
 import com.fullsteam.games.EliminationManager;
@@ -56,6 +57,7 @@ public class GameLobby {
         gameMap.put("Lone Wolf", () -> new LoneWolfManager(this));
         gameMap.put("Builder", () -> new BuilderManager(this));
         gameMap.put("Zombie Defense", () -> new ZombieDefenseManager(this));
+        gameMap.put("Base Destruction", () -> new BaseDestructionManager(this));
     }
 
     public List<ActiveGame> getActiveGames() {

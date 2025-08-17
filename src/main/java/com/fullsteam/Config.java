@@ -133,4 +133,9 @@ public class Config {
     // --- Builder Game Mode ---
     public static final int BUILDER_MAX_OBSTACLES = getInt("game.builder.max_obstacles", 100);
     public static final int BUILDER_CRATE_HEALTH = getInt("game.builder.crate_health", 300);
+
+    // --- Base Destruction Game Mode ---
+    public static final double BASE_DESTRUCTION_BASE_HEALTH = getDouble("game.base_destruction.base_health", 5000.0);
+    public static final double BASE_DESTRUCTION_BASE_RADIUS = getDouble("game.base_destruction.base_radius", 60.0);
+    public static final double BASE_DESTRUCTION_BASE_AREA_PADDING = getDouble("game.base_destruction.base_area_padding", 100.0);
 }

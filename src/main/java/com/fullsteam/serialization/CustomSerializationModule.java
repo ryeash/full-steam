@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.fullsteam.model.ActiveGame;
+import com.fullsteam.model.Base;
 import com.fullsteam.model.Bullet;
 import com.fullsteam.model.Crate;
 import com.fullsteam.model.FieldEffect;
@@ -36,6 +37,7 @@ import com.fullsteam.model.gamemodes.LoneWolfInfo;
 import com.fullsteam.model.gamemodes.OddballInfo;
 import com.fullsteam.model.gamemodes.TeamDeathmatchInfo;
 import com.fullsteam.model.gamemodes.ZombieDefenseInfo;
+import com.fullsteam.model.gamemodes.BaseDestructionInfo;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -69,6 +71,7 @@ public class CustomSerializationModule extends SimpleModule {
         addSerializer(Hill.class, new HillSerializer());
         addSerializer(Oddball.class, new OddballSerializer());
         addSerializer(Crate.class, new CrateSerializer());
+        addSerializer(Base.class, new BaseSerializer());
 
         // GameInfo subclasses
         addSerializer(TeamDeathmatchInfo.class, new TeamDeathmatchInfoSerializer());
@@ -83,6 +86,7 @@ public class CustomSerializationModule extends SimpleModule {
         addSerializer(BuilderGameInfo.class, new BuilderGameInfoSerializer());
         addSerializer(EscortGameInfo.class, new EscortGameInfoSerializer());
         addSerializer(ZombieDefenseInfo.class, new ZombieDefenseInfoSerializer());
+        addSerializer(BaseDestructionInfo.class, new BaseDestructionInfoSerializer());
 
         // Register deserializers
         addDeserializer(PlayerInput.class, new PlayerInputDeserializer());

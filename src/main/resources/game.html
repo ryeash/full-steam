@@ -391,6 +391,18 @@
                     const lives = info.loneWolfLives || 0;
                     this.elements.team1Score.innerHTML = lives + "🐺";
                 },
+                'Base Destruction': (info) => {
+                    this.game.shouldDrawRespawnOverlay = true;
+                    this.elements.yourTeam.style.display = 'inline';
+                    this.elements.switchTeamBtn.style.display = 'block';
+                    this.elements.team1Score.style.display = 'inline';
+                    this.elements.team2Score.style.display = 'inline';
+                    
+                    // Show base health percentage and team labels
+                    const baseHealthPercent = info.base ? Math.round((info.base.hp / info.base.maxHp) * 100) : 0;
+                    this.elements.team1Score.innerHTML = `Attackers`;
+                    this.elements.team2Score.innerHTML = `Defenders<br><span style="font-size: 0.8em; color: ${baseHealthPercent > 50 ? '#4CAF50' : baseHealthPercent > 25 ? '#FFC107' : '#F44336'};">Base: ${baseHealthPercent}%</span>`;
+                },
                 'default': (info) => {
                     this.game.shouldDrawRespawnOverlay = true;
                     this.elements.yourTeam.style.display = 'inline';
@@ -1190,6 +1202,7 @@
             this.drawFlags();
             this.drawOddball();
             this.drawPayload();
+            this.drawBase();
             this.drawGameEvents();
             this.drawDebugInfo(currentTime);
 
@@ -2157,6 +2170,130 @@
             this.ctx.closePath();
             this.ctx.fill();
             this.ctx.stroke();
+            this.ctx.restore();
+        }
+
+        drawBase() {
+            const gameInfo = this.gameState.info;
+            if (!gameInfo || gameInfo.type !== 'Base Destruction' || !gameInfo.base) {
+                return;
+            }
+
+            const base = gameInfo.base;
+            if (base.destroyed) {
+                return; // Don't draw destroyed base
+            }
+
+            this.ctx.save();
+
+            // Draw base structure using vertices (octagonal shape)
+            if (base.vertices && base.vertices.length >= 3) {
+                // Main base body
+                this.ctx.fillStyle = '#607D8B'; // Blue Grey for defensive structure
+                this.ctx.strokeStyle = '#37474F'; // Darker blue grey for outline
+                this.ctx.lineWidth = 4;
+                this.ctx.lineJoin = 'round';
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(base.vertices[0].x, base.vertices[0].y);
+                for (let i = 1; i < base.vertices.length; i++) {
+                    this.ctx.lineTo(base.vertices[i].x, base.vertices[i].y);
+                }
+                this.ctx.closePath();
+                this.ctx.fill();
+                this.ctx.stroke();
+
+                // Add structural details - inner octagon
+                this.ctx.strokeStyle = '#455A64';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                const innerRadius = base.radius * 0.7;
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i * Math.PI * 2) / 8;
+                    const x = base.x + innerRadius * Math.cos(angle);
+                    const y = base.y + innerRadius * Math.sin(angle);
+                    if (i === 0) {
+                        this.ctx.moveTo(x, y);
+                    } else {
+                        this.ctx.lineTo(x, y);
+                    }
+                }
+                this.ctx.closePath();
+                this.ctx.stroke();
+
+                // Add center core
+                this.ctx.fillStyle = '#546E7A';
+                this.ctx.beginPath();
+                this.ctx.arc(base.x, base.y, base.radius * 0.3, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.strokeStyle = '#37474F';
+                this.ctx.lineWidth = 2;
+                this.ctx.stroke();
+
+                // Add defensive spikes/details around the perimeter
+                this.ctx.strokeStyle = '#78909C';
+                this.ctx.lineWidth = 3;
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i * Math.PI * 2) / 8;
+                    const startX = base.x + (base.radius * 0.8) * Math.cos(angle);
+                    const startY = base.y + (base.radius * 0.8) * Math.sin(angle);
+                    const endX = base.x + (base.radius * 1.1) * Math.cos(angle);
+                    const endY = base.y + (base.radius * 1.1) * Math.sin(angle);
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(startX, startY);
+                    this.ctx.lineTo(endX, endY);
+                    this.ctx.stroke();
+                }
+            }
+
+            // Draw health bar
+            const healthPercentage = Math.max(0, base.hp / base.maxHp);
+            const barWidth = base.radius * 2;
+            const barHeight = 8;
+            const barX = base.x - base.radius;
+            const barY = base.y - base.radius - 20;
+
+            // Health bar background
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            this.ctx.fillRect(barX, barY, barWidth, barHeight);
+
+            // Health bar foreground
+            if (healthPercentage > 0) {
+                this.ctx.fillStyle = healthPercentage > 0.5 ? '#4CAF50' : 
+                                   healthPercentage > 0.25 ? '#FFC107' : '#F44336';
+                this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
+            }
+
+            // Health bar border
+            this.ctx.strokeStyle = '#FFFFFF';
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+            // Display health text
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = 'bold 12px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'bottom';
+            this.ctx.fillText(`${Math.round(base.hp)}/${Math.round(base.maxHp)}`, base.x, barY - 2);
+
+            // Add pulsing effect if health is critical
+            if (healthPercentage <= 0.25) {
+                const pulse = Math.abs(Math.sin(this.gameState.serverTime / 200));
+                this.ctx.strokeStyle = `rgba(244, 67, 54, ${0.3 + pulse * 0.4})`;
+                this.ctx.lineWidth = 4 + pulse * 4;
+                this.ctx.beginPath();
+                this.ctx.arc(base.x, base.y, base.radius + 10, 0, Math.PI * 2);
+                this.ctx.stroke();
+            }
+
+            // Add team indicator
+            this.ctx.fillStyle = '#F44336'; // Red for Team 2 (Defenders)
+            this.ctx.font = 'bold 16px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText('🏰', base.x, base.y + base.radius + 25);
+
             this.ctx.restore();
         }
 
