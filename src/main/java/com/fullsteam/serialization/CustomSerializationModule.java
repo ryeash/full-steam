@@ -1,12 +1,8 @@
 package com.fullsteam.serialization;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.BeanDescription;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializationConfig;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.ser.BeanSerializerModifier;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.fullsteam.model.ActiveGame;
 import com.fullsteam.model.Bullet;
@@ -16,6 +12,7 @@ import com.fullsteam.model.Flag;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.Hill;
+import com.fullsteam.model.LaserBlast;
 import com.fullsteam.model.LobbyInfo;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Oddball;
@@ -55,6 +52,7 @@ public class CustomSerializationModule extends SimpleModule {
         addSerializer(GameState.class, new GameStateSerializer());
         addSerializer(Player.class, new PlayerSerializer());
         addSerializer(Bullet.class, new BulletSerializer());
+        addSerializer(LaserBlast.class, new LaserBlastSerializer());
         addSerializer(Vector2D.class, new Vector2DSerializer());
         addSerializer(Weapon.class, new WeaponSerializer());
         addSerializer(PowerUp.class, new PowerUpSerializer());

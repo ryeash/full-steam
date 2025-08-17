@@ -266,6 +266,22 @@ public class WeaponFactory {
         ));
 
         addPreset(new Weapon(
+                "Laser Pistol",
+                "LAZ",
+                Weapon.Ordinance.LASER,
+                15,  // Fire Rate
+                21, // Damage
+                5,  // Range
+                0, // Speed
+                0,  // Speed Decay
+                0, // Accuracy
+                0,  // Multi-shot
+                4,  // Magazine Size
+                5,  // Reload Speed
+                null
+        ));
+
+        addPreset(new Weapon(
                 "Engineer Wrench",
                 "EW",
                 25,  // Fire Rate

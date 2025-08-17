@@ -7,6 +7,7 @@ import java.util.List;
 
 public record GameState(Collection<Player> players,
                         List<Bullet> bullets,
+                        List<LaserBlast> laserBlasts,
                         List<FieldEffect> fieldEffects,
                         List<Turret> turrets,
                         List<Obstacle> obstacles,

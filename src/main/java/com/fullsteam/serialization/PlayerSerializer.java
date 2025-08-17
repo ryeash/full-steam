@@ -6,15 +6,13 @@ import com.fullsteam.model.Player;
 
 import java.io.IOException;
 
-import static com.fullsteam.serialization.CustomSerializationModule.withPrecision;
-
 public class PlayerSerializer extends AbstractSerializer<Player> {
 
     @Override
     public void serializeFields(Player player, JsonGenerator gen, SerializerProvider serializers) throws IOException {
         gen.writeStringField("playerName", player.getPlayerName());
-        gen.writeNumberField("x", withPrecision(player.getX()));
-        gen.writeNumberField("y", withPrecision(player.getY()));
+        gen.writeNumberField("x", player.getX());
+        gen.writeNumberField("y", player.getY());
         gen.writeNumberField("team", player.getTeam());
 
         gen.writeFieldName("weapon");
@@ -22,10 +20,12 @@ public class PlayerSerializer extends AbstractSerializer<Player> {
 
         gen.writeNumberField("hp", player.getHp());
         gen.writeNumberField("maxHp", player.getMaxHp());
-        gen.writeNumberField("mouseX", withPrecision(player.getMouseX()));
-        gen.writeNumberField("mouseY", withPrecision(player.getMouseY()));
+        gen.writeNumberField("mouseX", player.getMouseX());
+        gen.writeNumberField("mouseY", player.getMouseY());
         gen.writeBooleanField("dead", player.isDead());
-        gen.writeNumberField("respawnTime", player.getRespawnTime());
+        if (player.getRespawnTime() > System.currentTimeMillis()) {
+            gen.writeNumberField("respawnTime", player.getRespawnTime());
+        }
         gen.writeNumberField("kills", player.getKills());
         gen.writeNumberField("deaths", player.getDeaths());
         gen.writeNumberField("currentAmmoInMagazine", player.getCurrentAmmoInMagazine());

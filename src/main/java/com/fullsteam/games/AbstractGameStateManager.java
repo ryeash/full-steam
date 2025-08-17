@@ -13,6 +13,7 @@ import com.fullsteam.model.Explosion;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
+import com.fullsteam.model.LaserBlast;
 import com.fullsteam.model.Mine;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
@@ -88,6 +89,7 @@ public abstract class AbstractGameStateManager {
     protected final Map<Long, PlayerInput> playerInput = new ConcurrentHashMap<>(10, 1, 1);
     protected final List<Channel> spectatorChannels = Collections.synchronizedList(new LinkedList<>());
     protected final List<Bullet> bullets = Collections.synchronizedList(new LinkedList<>());
+    protected final List<LaserBlast> laserBlasts = Collections.synchronizedList(new LinkedList<>());
     protected final List<FieldEffect> fieldEffects = Collections.synchronizedList(new LinkedList<>());
     protected final List<Turret> turrets = Collections.synchronizedList(new LinkedList<>());
     protected final List<Obstacle> obstacles = Collections.synchronizedList(new LinkedList<>());
@@ -322,22 +324,36 @@ public abstract class AbstractGameStateManager {
                 finalY += (ThreadLocalRandom.current().nextDouble() - 0.5) * 2 * staggerRadius;
             }
 
-            Bullet bullet = new Bullet(
-                    finalX,
-                    finalY,
-                    Math.cos(finalAngle),
-                    Math.sin(finalAngle),
-                    player.getId(),
-                    player.getTeam(),
-                    weapon.getBulletDamage() * player.getDamageMultiplier(),
-                    weapon.getBulletSpeed(),
-                    weapon.getBulletRange(),
-                    weapon.getBulletSpeedDecay(),
-                    weapon.getOnBulletDestruction());
-            bullets.add(bullet);
+            if (weapon.getOrdinance() == Weapon.Ordinance.LASER) {
+                // For laser weapons, create a laser blast instead of a bullet
+                // laser blasts are hit-scan/instantaneous, so no speed or range decay
+                Vector2D start = new Vector2D(finalX, finalY);
+                Vector2D end = start.add(new Vector2D(Math.cos(finalAngle), Math.sin(finalAngle)).multiply(weapon.getBulletRange()));
+                LaserBlast laserBlast = new LaserBlast(
+                        start,
+                        end,
+                        player.getId(),
+                        player.getTeam(),
+                        weapon.getBulletDamage() * player.getDamageMultiplier(),
+                        System.currentTimeMillis() + 100);
+                applyLaser(laserBlast);
+                laserBlasts.add(laserBlast);
+            } else {
+                Bullet bullet = new Bullet(
+                        finalX,
+                        finalY,
+                        Math.cos(finalAngle),
+                        Math.sin(finalAngle),
+                        player.getId(),
+                        player.getTeam(),
+                        weapon.getBulletDamage() * player.getDamageMultiplier(),
+                        weapon.getBulletSpeed(),
+                        weapon.getBulletRange(),
+                        weapon.getBulletSpeedDecay(),
+                        weapon.getOnBulletDestruction());
+                bullets.add(bullet);
+            }
         }
-
-        // Trigger cooldown and set aim direction after the shot is fired
         player.shoot();
     }
 
@@ -356,6 +372,7 @@ public abstract class AbstractGameStateManager {
             updatePowerUps();
             updatePlayers(delta);
             updateBullets(delta);
+            updateLaserBlasts(delta);
             updateTurrets(delta);
             sendGameState();
         } catch (Throwable t) {
@@ -367,6 +384,7 @@ public abstract class AbstractGameStateManager {
         GameState gameState = new GameState(
                 players.values().stream().filter(p -> p.getInvisibilityEndTime() < System.currentTimeMillis()).toList(),
                 bullets,
+                laserBlasts,
                 fieldEffects,
                 turrets,
                 obstacles,
@@ -403,11 +421,11 @@ public abstract class AbstractGameStateManager {
     protected void populateSpatialGrids() {
         targetGrid.clear();
         for (Player player : players.values()) {
-            targetGrid.insert(player, player.getX(), player.getY(), PLAYER_SIZE, PLAYER_SIZE);
+            targetGrid.insert(player, player.getX() - PLAYER_RADIUS, player.getY() - PLAYER_RADIUS, PLAYER_SIZE, PLAYER_SIZE);
         }
         for (Turret turret : turrets) {
             double size = turret.getRadius() * 2;
-            targetGrid.insert(turret, turret.getX(), turret.getY(), size, size);
+            targetGrid.insert(turret, turret.getX() - turret.getRadius(), turret.getY() - turret.getRadius(), size, size);
         }
     }
 
@@ -725,25 +743,8 @@ public abstract class AbstractGameStateManager {
             bullet.update(delta);
             Vector2D newPos = new Vector2D(bullet.getX(), bullet.getY());
 
-            // Check bullet-obstacle collisions using the line segment
-            for (Obstacle obstacle : obstacles) {
-                if (CollisionUtils.checkLinePolygonCollision(oldPos, newPos, obstacle)) {
-                    applyBulletDestructionEffect(bullet, obstacle);
-                    return true;
-                }
-            }
-
-            if (bullet.hasExceededMaxDistance() || bullet.getSpeed() < 10) {
-                applyBulletDestructionEffect(bullet, null); // null source indicates distance surpassed
-                return true;
-            }
-
             // Check bullet-player collisions using the line segment
-            double sx = Math.min(oldPos.x(), newPos.x());
-            double sy = Math.min(oldPos.y(), newPos.y());
-            double w = Math.abs(oldPos.x() - newPos.x());
-            double h = Math.abs(oldPos.y() - newPos.y());
-            Set<Targetable> nearby = targetGrid.getNearby(sx, sy, w, h);
+            Set<Targetable> nearby = targetGrid.getNearby(oldPos, newPos);
 
             for (Targetable target : nearby) {
                 switch (target) {
@@ -751,7 +752,8 @@ public abstract class AbstractGameStateManager {
                         // Check for collision with an enemy player
                         if (!player.isDead() && player.getTeam() != bullet.getTeam()) {
                             Vector2D playerCenter = player.position();
-                            if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, playerCenter, PLAYER_RADIUS)) {
+                            // For the purposes of player collisions, we use a slightly larger radius to account fo the bullet not being a point.
+                            if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, playerCenter, PLAYER_RADIUS + 2)) {
                                 Player shooter = players.get(bullet.getShooterId());
 
                                 // Apply damage and check if it was a kill
@@ -785,12 +787,81 @@ public abstract class AbstractGameStateManager {
                 }
             }
 
+            // Check bullet-obstacle collisions using the line segment
+            for (Obstacle obstacle : obstacles) {
+                if (CollisionUtils.checkLinePolygonCollision(oldPos, newPos, obstacle)) {
+                    applyBulletDestructionEffect(bullet, obstacle);
+                    return true;
+                }
+            }
+
+            if (bullet.hasExceededMaxDistance() || bullet.getSpeed() < 10) {
+                applyBulletDestructionEffect(bullet, null); // null source indicates distance surpassed
+                return true;
+            }
+
             // Last check: Remove bullets that will move out of bounds
             return newPos.x() < 0
                     || newPos.x() > GAME_WIDTH
                     || newPos.y() < 0
                     || newPos.y() > GAME_HEIGHT;
         });
+    }
+
+    private void updateLaserBlasts(long delta) {
+        laserBlasts.removeIf(LaserBlast::isExpired);
+    }
+
+    protected void applyLaser(LaserBlast laserBlast) {
+        // Check obstacle collisions using the line segment
+        for (Obstacle obstacle : obstacles) {
+            Vector2D collision = CollisionUtils.findLineObstacleCollision(laserBlast.getStart(), laserBlast.getEnd(), obstacle);
+            if (collision != null) {
+                double currentDistanceSq = laserBlast.getStart().distanceSquared(laserBlast.getEnd());
+                if (laserBlast.getStart().distanceSquared(collision) < currentDistanceSq) {
+                    // If the collision point is closer than the end point, shorten the laser blast
+                    laserBlast.setEnd(collision);
+                }
+            }
+        }
+
+        // Check player collisions using the line segment
+        // Use a bounding box to limit the search area for nearby targets
+        Set<Targetable> nearby = targetGrid.getNearby(laserBlast.getStart(), laserBlast.getEnd());
+
+        for (Targetable target : nearby) {
+            switch (target) {
+                case Player player -> {
+                    // Check for collision with an enemy player
+                    if (!player.isDead() && player.getTeam() != laserBlast.getTeam()) {
+                        Vector2D playerCenter = player.position();
+                        if (CollisionUtils.checkLineCircleCollision(laserBlast.getStart(), laserBlast.getEnd(), playerCenter, PLAYER_RADIUS)) {
+                            Player shooter = players.get(laserBlast.getShooterId());
+
+                            // Apply damage and check if it was a kill
+                            if (player.takeDamage(laserBlast.getDamage())) {
+                                killPlayer(player, shooter);
+                            }
+                        }
+                    }
+                }
+                case Turret turret -> {
+                    if (turret.getTeam() != laserBlast.getTeam()) {
+                        Vector2D position = turret.position();
+                        if (CollisionUtils.checkLineCircleCollision(laserBlast.getStart(), laserBlast.getEnd(), position, turret.getRadius())) {
+                            // Apply damage and check if it was a kill
+                            turret.takeDamage(laserBlast.getDamage());
+                        }
+                    }
+                }
+                case Crate crate -> {
+                    if (!crate.isDestroyed() && CollisionUtils.checkLinePolygonCollision(laserBlast.getStart(), laserBlast.getEnd(), crate)) {
+                        crate.takeDamage(laserBlast.getDamage());
+                    }
+                }
+                case null, default -> throw new UnsupportedOperationException("fix for other targets");
+            }
+        }
     }
 
     protected void applyBulletDestructionEffect(Bullet bullet, Object destructionSource) {
@@ -1166,6 +1237,7 @@ public abstract class AbstractGameStateManager {
             return new GameState(
                     List.of(player),
                     List.of(),
+                    List.of(),
                     fieldEffects,
                     List.of(),
                     includeAllObstacles ? obstacles : obstacles.stream().filter(Obstacle::isRendered).toList(),
@@ -1179,6 +1251,7 @@ public abstract class AbstractGameStateManager {
                             .filter(p -> p.getId() == player.getId() || p.getInvisibilityEndTime() < System.currentTimeMillis())
                             .toList(),
                     bullets,
+                    laserBlasts,
                     fieldEffects,
                     turrets,
                     includeAllObstacles ? obstacles : obstacles.stream().filter(Obstacle::isRendered).toList(),
@@ -1192,6 +1265,7 @@ public abstract class AbstractGameStateManager {
         return new GameState(
                 players.values(),
                 bullets,
+                laserBlasts,
                 fieldEffects,
                 turrets,
                 obstacles.stream().filter(Obstacle::isRendered).toList(),

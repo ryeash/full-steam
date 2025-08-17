@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fullsteam.model.Bullet;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameState;
+import com.fullsteam.model.LaserBlast;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.Turret;
@@ -23,6 +24,12 @@ public class GameStateSerializer extends AbstractSerializer<GameState> {
         gen.writeArrayFieldStart("bullets");
         for (Bullet bullet : gameState.bullets()) {
             serializers.defaultSerializeValue(bullet, gen);
+        }
+        gen.writeEndArray();
+
+        gen.writeArrayFieldStart("laserBlasts");
+        for (LaserBlast laserBlast : gameState.laserBlasts()) {
+            serializers.defaultSerializeValue(laserBlast, gen);
         }
         gen.writeEndArray();
 

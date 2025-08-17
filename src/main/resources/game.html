@@ -561,7 +561,7 @@
         }
 
         resetGameState() {
-            this.gameState = { players: [], bullets: [], fieldEffects: [], obstacles: [], powerUps: [], turrets: [], info: null, serverTime: 0 };
+            this.gameState = { players: [], bullets: [], laserBlasts: [], fieldEffects: [], obstacles: [], powerUps: [], turrets: [], info: null, serverTime: 0 };
             this.gameEvents = [];
             this.previousGameState = null;
             this.lastUpdateTime = 0;
@@ -1144,6 +1144,8 @@
                 });
             }
 
+            this.drawLaserBlasts();
+
             const deadzone = 0.25;
             const rightStickX = this.gamepad ? this.gamepad.axes[2] || 0 : 0;
             const rightStickY = this.gamepad ? this.gamepad.axes[3] || 0 : 0;
@@ -1694,6 +1696,44 @@
                     this.ctx.lineWidth = 1;
                     this.ctx.strokeRect(barX, barY, barWidth, barHeight);
                 }
+            });
+            this.ctx.restore();
+        }
+
+        drawLaserBlasts() {
+            if (!this.gameState.laserBlasts) return;
+
+            this.ctx.save();
+            this.gameState.laserBlasts.forEach(blast => {
+                // Set team colors (bright energetic colors)
+                const teamColors = {
+                    1: ['rgba(0, 255, 100, 0.8)', 'rgba(0, 255, 100, 0.2)'],  // Bright green
+                    2: ['rgba(255, 50, 50, 0.8)', 'rgba(255, 50, 50, 0.2)']   // Bright red
+                };
+                const [coreColor, glowColor] = teamColors[blast.team] || ['rgba(255, 255, 255, 0.8)', 'rgba(255, 255, 255, 0.2)'];
+
+                // Draw the outer glow
+                this.ctx.beginPath();
+                this.ctx.lineWidth = 8;
+                this.ctx.strokeStyle = glowColor;
+                this.ctx.moveTo(blast.start.x, blast.start.y);
+                this.ctx.lineTo(blast.end.x, blast.end.y);
+                this.ctx.stroke();
+
+                // Draw the core beam
+                this.ctx.beginPath();
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeStyle = coreColor;
+                this.ctx.moveTo(blast.start.x, blast.start.y);
+                this.ctx.lineTo(blast.end.x, blast.end.y);
+                this.ctx.stroke();
+
+                // Add bright impact points at start and end
+                const impactRadius = 3;
+                this.ctx.beginPath();
+                this.ctx.arc(blast.end.x, blast.end.y, impactRadius, 0, Math.PI * 2);
+                this.ctx.fillStyle = coreColor;
+                this.ctx.fill();
             });
             this.ctx.restore();
         }

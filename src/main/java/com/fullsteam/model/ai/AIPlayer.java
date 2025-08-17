@@ -363,7 +363,7 @@ public class AIPlayer extends Player {
 
         for (Targetable potentialTarget : nearTargets) {
             if (potentialTarget instanceof Player player) {
-                if (player.getId() == this.getId() || player.isDead() || player.getTeam() == this.getTeam()) {
+                if (player.getId() == this.getId() || player.isDead() || player.getTeam() == this.getTeam() || player.getInvisibilityEndTime() > System.currentTimeMillis()) {
                     continue;
                 }
 
