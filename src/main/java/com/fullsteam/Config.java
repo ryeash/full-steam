@@ -62,6 +62,7 @@ public class Config {
     public static final long RESPAWN_DELAY_MS = getLong("game.respawn_delay_ms", 5_000);
     public static final double PLAYER_SIZE = getDouble("game.player_size", 20.0);
     public static final double PLAYER_RADIUS = PLAYER_SIZE / 2;
+    public static final double PLAYER_RADIUS_SQ = PLAYER_RADIUS * PLAYER_RADIUS; // Squared radius for distance calculations
     public static final double DEFAULT_PLAYER_HEALTH = getDouble("game.default_player_health", 100.0);
     public static final double DEFAULT_PLAYER_SPEED = getDouble("game.default_player_speed", .18);
     public static final double ZOMBIE_SPEED = getDouble("game.zombie_speed", DEFAULT_PLAYER_SPEED / 2); // Slower than players
@@ -75,6 +76,7 @@ public class Config {
     public static final long RESPAWN_IMMUNITY_DURATION = getLong("game.respawn_immunity_duration", 2000);
     public static final int MAX_TURRETS_PER_PLAYER = getInt("game.max_turrets_per_player", 2);
     public static final double TURRET_INACCURACY = getDouble("game.turret_inaccuracy", .2);
+    public static final long MINE_DURATION_SECONDS = getLong("game.mine_duration", 15000);
 
     // --- Power Ups ---
     public static final double POWERUP_DROP_RATE = getDouble("game.powerup.drop_rate", 0.25D);
@@ -131,4 +133,9 @@ public class Config {
     // --- Builder Game Mode ---
     public static final int BUILDER_MAX_OBSTACLES = getInt("game.builder.max_obstacles", 100);
     public static final int BUILDER_CRATE_HEALTH = getInt("game.builder.crate_health", 300);
+
+    // --- Base Destruction Game Mode ---
+    public static final double BASE_DESTRUCTION_BASE_HEALTH = getDouble("game.base_destruction.base_health", 5000.0);
+    public static final double BASE_DESTRUCTION_BASE_RADIUS = getDouble("game.base_destruction.base_radius", 60.0);
+    public static final double BASE_DESTRUCTION_BASE_AREA_PADDING = getDouble("game.base_destruction.base_area_padding", 100.0);
 }

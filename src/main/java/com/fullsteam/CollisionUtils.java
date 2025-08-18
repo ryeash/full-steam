@@ -71,6 +71,29 @@ public class CollisionUtils {
         return Math.sqrt((p.x() - projX) * (p.x() - projX) + (p.y() - projY) * (p.y() - projY));
     }
 
+    private static double distanceToSegment2(Vector2D point, Vector2D segmentStart, Vector2D segmentEnd) {
+        // Calculate the length of the segment squared
+        double lengthSquared = segmentStart.distanceSquared(segmentEnd);
+
+        // If segment is actually a point, just return distance to that point
+        if (lengthSquared == 0) {
+            return point.distance(segmentStart);
+        }
+
+        // Consider the line extending the segment, parameterized as segmentStart + t (segmentEnd - segmentStart)
+        // Project point onto the line by finding parameter t
+        double t = Math.max(0, Math.min(1,
+                ((point.x() - segmentStart.x()) * (segmentEnd.x() - segmentStart.x()) +
+                        (point.y() - segmentStart.y()) * (segmentEnd.y() - segmentStart.y())) / lengthSquared));
+
+        // Find the projection point
+        double projX = segmentStart.x() + t * (segmentEnd.x() - segmentStart.x());
+        double projY = segmentStart.y() + t * (segmentEnd.y() - segmentStart.y());
+
+        // Return distance to projection point
+        return point.distance(new Vector2D(projX, projY));
+    }
+
     /**
      * Checks if a line segment intersects with any edge of a polygon.
      *
@@ -96,6 +119,69 @@ public class CollisionUtils {
     }
 
     /**
+     * Finds the intersection point between a line segment and an obstacle.
+     * Returns null if no intersection is found.
+     *
+     * @param start    Starting point of the line segment
+     * @param end      End point of the line segment
+     * @param obstacle The obstacle to check collision with
+     * @return The closest intersection point or null if no intersection exists
+     */
+    public static Vector2D findLineObstacleCollision(Vector2D start, Vector2D end, Obstacle obstacle) {
+        if (obstacle == null
+                || obstacle.getVertices() == null
+                || obstacle.getVertices().size() < 3
+                || !checkLineCircleCollision(start, end, obstacle.getCenter(), obstacle.getBoundingRadius())) {
+            return null;
+        }
+
+        Vector2D closestIntersection = null;
+        double minDistance = Double.MAX_VALUE;
+
+        // Check intersection with each edge of the obstacle
+        List<Vector2D> vertices = obstacle.getVertices();
+        for (int i = 0; i < vertices.size(); i++) {
+            Vector2D v1 = vertices.get(i);
+            Vector2D v2 = vertices.get((i + 1) % vertices.size());
+
+            Vector2D intersection = findLineSegmentIntersection(start, end, v1, v2);
+            if (intersection != null) {
+                double distance = start.distance(intersection);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestIntersection = intersection;
+                }
+            }
+        }
+
+        return closestIntersection;
+    }
+
+    /**
+     * Helper method to find intersection point between two line segments.
+     * Returns null if no intersection exists.
+     */
+    private static Vector2D findLineSegmentIntersection(Vector2D p1, Vector2D p2, Vector2D p3, Vector2D p4) {
+        // Calculate denominator for intersection check
+        double denominator = (p2.x() - p1.x()) * (p4.y() - p3.y()) - (p2.y() - p1.y()) * (p4.x() - p3.x());
+        if (denominator == 0) {
+            return null; // Lines are parallel
+        }
+
+        double ua = ((p4.x() - p3.x()) * (p1.y() - p3.y()) - (p4.y() - p3.y()) * (p1.x() - p3.x())) / denominator;
+        double ub = ((p2.x() - p1.x()) * (p1.y() - p3.y()) - (p2.y() - p1.y()) * (p1.x() - p3.x())) / denominator;
+
+        // Check if intersection occurs within both line segments
+        if (ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1) {
+            double x = p1.x() + ua * (p2.x() - p1.x());
+            double y = p1.y() + ua * (p2.y() - p1.y());
+            return new Vector2D(x, y);
+        }
+
+        return null;
+    }
+
+    /**
      * Checks for collision between a line segment and a circle.
      * This is useful for detecting collisions of fast-moving projectiles (represented as a line segment
      * of their travel in one frame) with circular hitboxes.
@@ -107,7 +193,7 @@ public class CollisionUtils {
      * @return true if the line segment intersects the circle, false otherwise.
      */
     public static boolean checkLineCircleCollision(Vector2D lineStart, Vector2D lineEnd, Vector2D circleCenter, double radius) {
-        return distanceToSegment(circleCenter, lineStart, lineEnd) < radius;
+        return distanceToSegment2(circleCenter, lineStart, lineEnd) < radius;
     }
 
     /**

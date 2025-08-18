@@ -86,21 +86,16 @@ public class LoneWolfManager extends AbstractGameStateManager {
 
     @Override
     public Player addPlayer(long playerId, Channel channel) {
-        Player player;
         // The first player to join is the Lone Wolf
+        Player player;
         if (loneWolfId == null) {
             this.loneWolfId = playerId;
-            player = new Player(playerId, 0, 0, 1); // Team 1
+            player = super.addPlayer(playerId, channel, 1);
             applyLoneWolfStatus();
         } else {
             // Subsequent players are Hunters
-            player = new Player(playerId, 0, 0, 2); // Team 2
+            player = super.addPlayer(playerId, channel, 2);
         }
-
-        setValidSpawnPosition(player);
-        players.put(playerId, player);
-        playerChannels.put(playerId, channel);
-        log.info("Player {} joined game {} as {}", playerId, gameId, loneWolfId.equals(playerId) ? "Lone Wolf" : "Hunter");
         return player;
     }
 

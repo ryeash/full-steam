@@ -10,6 +10,7 @@ import static com.fullsteam.Config.ID_COUNTER;
 public class Bullet implements HasId {
     private final long id = ID_COUNTER.incrementAndGet();
     private Vector2D position;
+    @JsonIgnore
     private final Vector2D direction;
     private final int team;
 

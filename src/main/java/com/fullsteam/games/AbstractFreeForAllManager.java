@@ -121,12 +121,7 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
         }
 
         // In FFA, every player is on their own team.
-        int uniqueTeamId = teamIdCounter.getAndIncrement();
-        Player player = new Player(playerId, 0, 0, uniqueTeamId);
-        setValidSpawnPosition(player);
-        players.put(playerId, player);
-        playerChannels.put(playerId, channel);
-        return player;
+        return super.addPlayer(playerId, channel, teamIdCounter.getAndIncrement());
     }
 
     @Override

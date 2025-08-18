@@ -13,9 +13,15 @@ public class Weapon {
 
     public static final int MAX_TOTAL_POINTS = 100;
 
+    public enum Ordinance {
+        BULLET, LASER
+    }
+
     // Weapon Stats
     private final String name;
     private final String shortName;
+    @JsonIgnore
+    private final Ordinance ordinance;
     @JsonIgnore
     private final long fireRateCooldown; // Cooldown in ms, lower is faster
     @JsonIgnore
@@ -52,10 +58,15 @@ public class Weapon {
      * @param reloadSpeedPoints  Points for reload speed. More points = less reload time.
      */
     public Weapon(String name, String shortName, int fireRatePoints, int damagePoints, int rangePoints, int speedPoints, int speedDecayPoints, int accuracyPoints, int multiShotPoints, int magazineSizePoints, int reloadSpeedPoints, BiFunction<Bullet, Object, BulletEffect> onBulletDestruction) {
+        this(name, shortName, Ordinance.BULLET, fireRatePoints, damagePoints, rangePoints, speedPoints, speedDecayPoints, accuracyPoints, multiShotPoints, magazineSizePoints, reloadSpeedPoints, onBulletDestruction);
+    }
+
+    public Weapon(String name, String shortName, Ordinance ordinance, int fireRatePoints, int damagePoints, int rangePoints, int speedPoints, int speedDecayPoints, int accuracyPoints, int multiShotPoints, int magazineSizePoints, int reloadSpeedPoints, BiFunction<Bullet, Object, BulletEffect> onBulletDestruction) {
         this.name = name;
         this.shortName = shortName;
+        this.ordinance = ordinance;
 
-        int totalPoints = fireRatePoints + damagePoints + rangePoints + speedPoints + speedDecayPoints + accuracyPoints + multiShotPoints + magazineSizePoints + reloadSpeedPoints + (onBulletDestruction == null ? 0 : 60);
+        int totalPoints = (ordinance == Ordinance.LASER ? 50 : 0) + fireRatePoints + damagePoints + rangePoints + speedPoints + speedDecayPoints + accuracyPoints + multiShotPoints + magazineSizePoints + reloadSpeedPoints + (onBulletDestruction == null ? 0 : 60);
         if (totalPoints > MAX_TOTAL_POINTS) {
             System.out.println("over allocated: " + name + " " + totalPoints);
             throw new IllegalArgumentException(
@@ -104,6 +115,10 @@ public class Weapon {
 
     public String getShortName() {
         return shortName;
+    }
+
+    public Ordinance getOrdinance() {
+        return ordinance;
     }
 
     public long getFireRateCooldown() {

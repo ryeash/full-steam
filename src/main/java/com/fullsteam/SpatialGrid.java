@@ -48,6 +48,21 @@ public class SpatialGrid<T> {
         }
     }
 
+    /**
+     * Retrieves all objects that are near the given line segment defined by start and end points.
+     *
+     * @param start segment start point
+     * @param end   segment end point
+     * @return a set of objects that are near the segment
+     */
+    public Set<T> getNearby(Vector2D start, Vector2D end) {
+        double sx = Math.min(start.x(), end.x());
+        double sy = Math.min(start.y(), end.y());
+        double w = Math.abs(start.x() - end.x());
+        double h = Math.abs(start.y() - end.y());
+        return getNearby(sx, sy, w, h);
+    }
+
     public Set<T> getNearby(Vector2D position, double radius) {
         return getNearby(position.x() - radius, position.y() - radius, radius * 2, radius * 2);
     }
