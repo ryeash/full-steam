@@ -9,6 +9,7 @@ import com.fullsteam.model.LaserBlast;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.Turret;
+import com.fullsteam.model.Vehicle;
 
 import java.io.IOException;
 
@@ -40,9 +41,14 @@ public class GameStateSerializer extends AbstractSerializer<GameState> {
         gen.writeEndArray();
 
         gen.writeArrayFieldStart("turrets");
-
         for (Turret turret : gameState.turrets()) {
             serializers.defaultSerializeValue(turret, gen);
+        }
+        gen.writeEndArray();
+
+        gen.writeArrayFieldStart("vehicles");
+        for (Vehicle vehicle : gameState.vehicles()) {
+            serializers.defaultSerializeValue(vehicle, gen);
         }
         gen.writeEndArray();
 

@@ -37,7 +37,12 @@ public class PlayerInputDeserializer extends JsonDeserializer<PlayerInput> {
         if (node.has("placingObstacle")) {
             input.setPlacingObstacle(node.get("placingObstacle").asBoolean());
         }
-        
+        if (node.has("enterExitVehicle")) {
+            input.setEnterExitVehicle(node.get("enterExitVehicle").asBoolean());
+        }
+        if (node.has("vehicleSecondaryFire")) {
+            input.setVehicleSecondaryFire(node.get("vehicleSecondaryFire").asBoolean());
+        }
         return input;
     }
 }

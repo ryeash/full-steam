@@ -138,4 +138,31 @@ public class Config {
     public static final double BASE_DESTRUCTION_BASE_HEALTH = getDouble("game.base_destruction.base_health", 5000.0);
     public static final double BASE_DESTRUCTION_BASE_RADIUS = getDouble("game.base_destruction.base_radius", 60.0);
     public static final double BASE_DESTRUCTION_BASE_AREA_PADDING = getDouble("game.base_destruction.base_area_padding", 100.0);
+
+    // --- Vehicle System ---
+    public static final double VEHICLE_INTERACTION_RADIUS = getDouble("game.vehicle.interaction_radius", 40.0);
+    public static final long VEHICLE_RESPAWN_DELAY_MS = getLong("game.vehicle.respawn_delay_ms", 30_000);
+    
+    // Tank Configuration
+    public static final double TANK_HEALTH = getDouble("game.vehicle.tank.health", 800.0);
+    public static final double TANK_MAX_SPEED = getDouble("game.vehicle.tank.max_speed", 0.08);
+    public static final double TANK_TURN_SPEED = getDouble("game.vehicle.tank.turn_speed", 0.002);
+    public static final double TANK_RADIUS = getDouble("game.vehicle.tank.radius", 35.0);
+    
+    // Mech Configuration  
+    public static final double MECH_HEALTH = getDouble("game.vehicle.mech.health", 400.0);
+    public static final double MECH_MAX_SPEED = getDouble("game.vehicle.mech.max_speed", 0.12);
+    public static final double MECH_TURN_SPEED = getDouble("game.vehicle.mech.turn_speed", 0.005);
+    public static final double MECH_RADIUS = getDouble("game.vehicle.mech.radius", 25.0);
+    
+    // Jeep Configuration
+    public static final double JEEP_HEALTH = getDouble("game.vehicle.jeep.health", 200.0);
+    public static final double JEEP_MAX_SPEED = getDouble("game.vehicle.jeep.max_speed", 0.25);
+    public static final double JEEP_TURN_SPEED = getDouble("game.vehicle.jeep.turn_speed", 0.004);
+    public static final double JEEP_RADIUS = getDouble("game.vehicle.jeep.radius", 20.0);
+    
+    // Fixed Cannon Configuration
+    public static final double FIXED_CANNON_HEALTH = getDouble("game.vehicle.fixed_cannon.health", 500.0);
+    public static final double FIXED_CANNON_TURN_SPEED = getDouble("game.vehicle.fixed_cannon.turn_speed", 0.003);
+    public static final double FIXED_CANNON_RADIUS = getDouble("game.vehicle.fixed_cannon.radius", 30.0);
 }

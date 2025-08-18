@@ -30,6 +30,7 @@ public class PlayerSerializer extends AbstractSerializer<Player> {
         gen.writeNumberField("deaths", player.getDeaths());
         gen.writeNumberField("currentAmmoInMagazine", player.getCurrentAmmoInMagazine());
         gen.writeBooleanField("reloading", player.isReloading());
+        gen.writeObjectField("vehicleId", player.getVehicleId());
         if (player.speedBoostEndTime > System.currentTimeMillis()) {
             gen.writeNumberField("speedBoostEndTime", player.speedBoostEndTime);
         }

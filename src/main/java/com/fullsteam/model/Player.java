@@ -44,6 +44,7 @@ public class Player implements HasId, HasLife, Targetable {
     public double damageMultiplier;
     @JsonIgnore
     public boolean visionObscured;
+    public Long vehicleId;
 
     public Player(long id, double x, double y, int team) {
         this(id, RandomNames.randomName(), x, y, team, WeaponFactory.getDefaultWeapon());
@@ -397,6 +398,14 @@ public class Player implements HasId, HasLife, Targetable {
 
     public void setVisionObscured(boolean visionObscured) {
         this.visionObscured = visionObscured;
+    }
+
+    public Long getVehicleId() {
+        return vehicleId;
+    }
+
+    public void setVehicleId(Long vehicleId) {
+        this.vehicleId = vehicleId;
     }
 }
 

@@ -10,6 +10,10 @@ public class PlayerInput {
     private double mouseY;
     private boolean reload;
     public boolean placingObstacle;
+    
+    // Vehicle controls
+    private boolean enterExitVehicle;
+    private boolean vehicleSecondaryFire; // For passengers controlling mounted weapons
 
     public PlayerInput() {
     }
@@ -70,6 +74,22 @@ public class PlayerInput {
         this.placingObstacle = placingObstacle;
     }
 
+    public boolean isEnterExitVehicle() {
+        return enterExitVehicle;
+    }
+
+    public void setEnterExitVehicle(boolean enterExitVehicle) {
+        this.enterExitVehicle = enterExitVehicle;
+    }
+
+    public boolean isVehicleSecondaryFire() {
+        return vehicleSecondaryFire;
+    }
+
+    public void setVehicleSecondaryFire(boolean vehicleSecondaryFire) {
+        this.vehicleSecondaryFire = vehicleSecondaryFire;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) {
@@ -82,11 +102,13 @@ public class PlayerInput {
                && Double.compare(mouseX, that.mouseX) == 0
                && Double.compare(mouseY, that.mouseY) == 0
                && reload == that.reload
-               && placingObstacle == that.placingObstacle;
+               && placingObstacle == that.placingObstacle
+               && enterExitVehicle == that.enterExitVehicle
+               && vehicleSecondaryFire == that.vehicleSecondaryFire;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(moveX, moveY, shooting, mouseX, mouseY, reload, placingObstacle);
+        return Objects.hash(moveX, moveY, shooting, mouseX, mouseY, reload, placingObstacle, enterExitVehicle, vehicleSecondaryFire);
     }
 }

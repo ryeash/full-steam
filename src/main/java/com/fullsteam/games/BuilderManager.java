@@ -56,8 +56,8 @@ public class BuilderManager extends AbstractFreeForAllManager {
     }
 
     @Override
-    public void handlePlayerInput(Long playerId, PlayerInput input) {
-        super.handlePlayerInput(playerId, input);
+    public void handlePlayerInput(Long playerId, PlayerInput input, long delta) {
+        super.handlePlayerInput(playerId, input, delta);
         if (input.isPlacingObstacle()) {
             Player player = players.get(playerId);
             if (player != null) {
