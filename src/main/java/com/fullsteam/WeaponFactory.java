@@ -385,7 +385,11 @@ public class WeaponFactory {
         return weaponArray[0];
     }
 
-    private static final List<String> RANDOM_EXCEPTIONS = List.of("Engineer Wrench", "Grenade (Slow)", "Grenade (Smoke)");
+    private static final List<String> RANDOM_EXCEPTIONS = List.of(
+            "Engineer Wrench",
+            "Grenade (Slow)",
+            "Grenade (Smoke)",
+            "Mine Layer");
 
     public static Weapon getRandomWeapon() {
         Weapon random = null;
