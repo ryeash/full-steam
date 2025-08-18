@@ -72,7 +72,6 @@ public class BuilderManager extends AbstractFreeForAllManager {
         // Temporarily add crates as obstacles for collision detection purposes.
         // This allows us to reuse the collision logic from the superclass.
         obstacles.addAll(crates);
-
         try {
             // Now the super method will handle collision with both permanent obstacles and crates.
             super.updatePlayers(delta);
@@ -155,5 +154,6 @@ public class BuilderManager extends AbstractFreeForAllManager {
 
     private void removePlayerCrates(Long playerId) {
         crates.removeIf(crate -> playerId.equals(crate.getOwnerId()));
+        obstacles.removeIf(o -> o instanceof Crate c && playerId.equals(c.getOwnerId()));
     }
 }
