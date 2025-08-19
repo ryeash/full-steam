@@ -4,17 +4,29 @@ import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
+import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
+
+import java.util.List;
 
 public class FixedCannon extends Vehicle {
 
-    public FixedCannon(long id, double x, double y) {
-        super(id, x, y, VehicleType.FIXED_CANNON,
+    private static List<Vector2D> cannonVertices() {
+        return List.of(
+                new Vector2D(-Config.FIXED_CANNON_RADIUS, -Config.FIXED_CANNON_RADIUS),
+                new Vector2D(Config.FIXED_CANNON_RADIUS, -Config.FIXED_CANNON_RADIUS),
+                new Vector2D(Config.FIXED_CANNON_RADIUS, Config.FIXED_CANNON_RADIUS),
+                new Vector2D(-Config.FIXED_CANNON_RADIUS, Config.FIXED_CANNON_RADIUS)
+        );
+    }
+
+    public FixedCannon(double x, double y) {
+        super(cannonVertices(), VehicleType.FIXED_CANNON,
                 Config.FIXED_CANNON_HEALTH,   // Medium health
                 0.0,                          // No movement (immobile)
                 Config.FIXED_CANNON_TURN_SPEED, // Can rotate to aim
-                Config.FIXED_CANNON_RADIUS,   // Medium size
                 0);                           // No passengers, operator only
+        setPosition(new Vector2D(x, y));
 
         // High-damage rocket launcher
         mountedWeapons.add(new MountedWeapon(

@@ -4,17 +4,30 @@ import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
+import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
+
+import java.util.List;
 
 public class Jeep extends Vehicle {
 
-    public Jeep(long id, double x, double y) {
-        super(id, x, y, VehicleType.JEEP,
+    public static List<Vector2D> jeepVertices() {
+        return List.of(
+                new Vector2D(-Config.JEEP_WIDTH / 2, -Config.JEEP_LENGTH / 2),
+                new Vector2D(Config.JEEP_WIDTH / 2, -Config.JEEP_LENGTH / 2),
+                new Vector2D(Config.JEEP_WIDTH / 2, Config.JEEP_LENGTH / 2),
+                new Vector2D(-Config.JEEP_WIDTH / 2, Config.JEEP_LENGTH / 2)
+        );
+    }
+
+    public Jeep(double x, double y) {
+        super(jeepVertices(),
+                VehicleType.JEEP,
                 Config.JEEP_HEALTH,      // Low health
                 Config.JEEP_MAX_SPEED,   // Fast movement
                 Config.JEEP_TURN_SPEED,  // Medium turning
-                Config.JEEP_RADIUS,      // Small size
                 1);                      // 1 passenger + driver = 2 total
+        setPosition(new Vector2D(x, y));
 
         // Roof-mounted minigun for passenger
         mountedWeapons.add(new MountedWeapon(

@@ -35,6 +35,10 @@ import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.DeathmatchAIStrategy;
 import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
+import com.fullsteam.model.vehicles.FixedCannon;
+import com.fullsteam.model.vehicles.Jeep;
+import com.fullsteam.model.vehicles.Mech;
+import com.fullsteam.model.vehicles.Tank;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import org.slf4j.Logger;
@@ -273,7 +277,7 @@ public abstract class AbstractGameStateManager {
             if (input.isReload()) {
                 player.startReload();
             }
-            if (input.isShooting()) {
+            if (input.isFire()) {
                 if (player.canShoot()) {
                     // Calculate bullet direction based on mouse position
                     double dx = input.getMouseX() - player.getX();
@@ -318,7 +322,7 @@ public abstract class AbstractGameStateManager {
         }
 
         // Handle vehicle enter/exit
-        if (input.isEnterExitVehicle()) {
+        if (input.isAction2()) {
             handleVehicleEnterExit(player);
         }
     }
@@ -455,7 +459,7 @@ public abstract class AbstractGameStateManager {
                         vehicle.getY(),
                         0, // No owner for vehicle explosions
                         0, // No team for vehicle explosions
-                        vehicle.getRadius(), // explosion size based on vehicle size
+                        vehicle.getBoundingRadius(), // explosion size based on vehicle size
                         0, // No damage from explosion effect itself
                         500)); // Duration
                 return true;
@@ -478,8 +482,7 @@ public abstract class AbstractGameStateManager {
         }
         for (Vehicle vehicle : vehicles) {
             if (!vehicle.isDestroyed()) {
-                double size = vehicle.getRadius() * 2;
-                targetGrid.insert(vehicle, vehicle.getX() - vehicle.getRadius(), vehicle.getY() - vehicle.getRadius(), size, size);
+                targetGrid.insertPolygon(vehicle, vehicle.vertices());
             }
         }
     }
@@ -541,6 +544,14 @@ public abstract class AbstractGameStateManager {
                             turret.takeDamage(explosion.getDamage());
                         }
                     }
+                    case Vehicle vehicle -> {
+                        if (vehicle.getDriverId() == null || shooter != null && vehicle.getTeam() == shooter.getTeam() && !Objects.equals(vehicle.getId(), shooter.getId())) {
+                            continue;
+                        }
+                        if (vehicle.position().distanceSquared(explosionCenter) < explosion.getRadiusSquared()) {
+                            vehicle.takeDamage(explosion.getDamage());
+                        }
+                    }
                     case Obstacle o -> {
                         if (o instanceof HasLife hasLife && CollisionUtils.checkCirclePolygonCollision(
                                 explosionCenter,
@@ -548,14 +559,6 @@ public abstract class AbstractGameStateManager {
                                 o.getVertices())) {
                             // If the explosion hits a crate, apply damage to it.
                             hasLife.takeDamage(explosion.getDamage());
-                        }
-                    }
-                    case Vehicle vehicle -> {
-                        if (vehicle.getDriverId() == null || shooter != null && vehicle.getTeam() == shooter.getTeam() && !Objects.equals(vehicle.getId(), shooter.getId())) {
-                            continue;
-                        }
-                        if (vehicle.position().distanceSquared(explosionCenter) < explosion.getRadiusSquared()) {
-                            vehicle.takeDamage(explosion.getDamage());
                         }
                     }
                     case null, default -> throw new UnsupportedOperationException("fix for other targetable things");
@@ -838,22 +841,21 @@ public abstract class AbstractGameStateManager {
                             }
                         }
                     }
-                    case Obstacle o -> {
-                        if (o instanceof HasLife hasLife && CollisionUtils.checkLinePolygonCollision(oldPos, newPos, o)) {
-                            hasLife.takeDamage(bullet.getDamage());
-                            applyBulletDestructionEffect(bullet, o);
-                            return true;
-                        }
-                    }
                     case Vehicle vehicle -> {
                         if (vehicle.getTeam() != bullet.getTeam()) {
-                            Vector2D vehicleCenter = vehicle.position();
-                            if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, vehicleCenter, vehicle.getRadius())) {
+                            if (CollisionUtils.checkLinePolygonCollision(oldPos, newPos, vehicle)) {
                                 // Apply damage and check if it was a kill
                                 vehicle.takeDamage(bullet.getDamage());
                                 applyBulletDestructionEffect(bullet, target);
                                 return true; // Remove bullet on hit
                             }
+                        }
+                    }
+                    case Obstacle o -> {
+                        if (o instanceof HasLife hasLife && CollisionUtils.checkLinePolygonCollision(oldPos, newPos, o)) {
+                            hasLife.takeDamage(bullet.getDamage());
+                            applyBulletDestructionEffect(bullet, o);
+                            return true;
                         }
                     }
                     case null, default -> throw new UnsupportedOperationException("fix for other targets");
@@ -875,9 +877,9 @@ public abstract class AbstractGameStateManager {
 
             // Last check: Remove bullets that will move out of bounds
             return newPos.x() < 0
-                   || newPos.x() > GAME_WIDTH
-                   || newPos.y() < 0
-                   || newPos.y() > GAME_HEIGHT;
+                    || newPos.x() > GAME_WIDTH
+                    || newPos.y() < 0
+                    || newPos.y() > GAME_HEIGHT;
         });
     }
 
@@ -927,18 +929,17 @@ public abstract class AbstractGameStateManager {
                         }
                     }
                 }
-                case Obstacle o -> {
-                    if (o instanceof HasLife hasLife && CollisionUtils.checkLinePolygonCollision(laserBlast.getStart(), laserBlast.getEnd(), o)) {
-                        hasLife.takeDamage(laserBlast.getDamage());
-                    }
-                }
                 case Vehicle vehicle -> {
                     if (vehicle.getTeam() != laserBlast.getTeam()) {
-                        Vector2D vehicleCenter = vehicle.position();
-                        if (CollisionUtils.checkLineCircleCollision(laserBlast.getStart(), laserBlast.getEnd(), vehicleCenter, vehicle.getRadius())) {
+                        if (CollisionUtils.checkLinePolygonCollision(laserBlast.getStart(), laserBlast.getEnd(), vehicle)) {
                             // Apply damage and check if it was a kill
                             vehicle.takeDamage(laserBlast.getDamage());
                         }
+                    }
+                }
+                case Obstacle o -> {
+                    if (o instanceof HasLife hasLife && CollisionUtils.checkLinePolygonCollision(laserBlast.getStart(), laserBlast.getEnd(), o)) {
+                        hasLife.takeDamage(laserBlast.getDamage());
                     }
                 }
                 case null, default -> throw new UnsupportedOperationException("fix for other targets");
@@ -1229,8 +1230,8 @@ public abstract class AbstractGameStateManager {
         }
 
         if (request.getWeaponName() != null
-            && !request.getWeaponName().isEmpty()
-            && !request.getWeaponName().equals(player.getWeapon().getName())) {
+                && !request.getWeaponName().isEmpty()
+                && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
             removePlayerTurrets(player);
@@ -1317,7 +1318,7 @@ public abstract class AbstractGameStateManager {
         }
 
         // Handle weapon firing
-        if (input.isShooting()) {
+        if (input.isFire()) {
             if (controlledWeapon.canShoot()) {
                 fireVehicleWeapon(vehicle, controlledWeapon, playerId, input);
             }
@@ -1424,7 +1425,7 @@ public abstract class AbstractGameStateManager {
 
     protected boolean isColliding(Vehicle vehicle, List<Obstacle> obstacles) {
         for (Obstacle obstacle : obstacles) {
-            if (CollisionUtils.checkCirclePolygonCollision(vehicle.position(), vehicle.getRadius(), obstacle.vertices())) {
+            if (CollisionUtils.checkObstacleOverlap(vehicle, obstacle, 10)) {
                 return true;
             }
         }
@@ -1438,7 +1439,7 @@ public abstract class AbstractGameStateManager {
             // Exit vehicle
             if (currentVehicle.exitVehicle(player)) {
                 // Place player next to the vehicle
-                double exitX = currentVehicle.getX() + currentVehicle.getRadius() + Config.PLAYER_RADIUS + 5;
+                double exitX = currentVehicle.getX() + currentVehicle.getBoundingRadius() + Config.PLAYER_RADIUS + 5;
                 double exitY = currentVehicle.getY();
 
                 // Make sure exit position is valid
@@ -1489,73 +1490,43 @@ public abstract class AbstractGameStateManager {
         vehicles.clear();
 
         // Spawn vehicles at strategic locations
-        spawnVehicle(Vehicle.VehicleType.TANK, Config.GAME_WIDTH * 0.25, Config.GAME_HEIGHT * 0.25);
-        spawnVehicle(Vehicle.VehicleType.MECH, Config.GAME_WIDTH * 0.75, Config.GAME_HEIGHT * 0.25);
-        spawnVehicle(Vehicle.VehicleType.JEEP, Config.GAME_WIDTH * 0.25, Config.GAME_HEIGHT * 0.75);
-        spawnVehicle(Vehicle.VehicleType.FIXED_CANNON, Config.GAME_WIDTH * 0.75, Config.GAME_HEIGHT * 0.75);
-        spawnVehicle(Vehicle.VehicleType.JEEP, Config.GAME_WIDTH * 0.5, Config.GAME_HEIGHT * 0.1);
-        spawnVehicle(Vehicle.VehicleType.TANK, Config.GAME_WIDTH * 0.5, Config.GAME_HEIGHT * 0.9);
+//        spawnVehicle(Vehicle.VehicleType.TANK, Config.GAME_WIDTH * 0.25, Config.GAME_HEIGHT * 0.25);
+//        spawnVehicle(Vehicle.VehicleType.MECH, Config.GAME_WIDTH * 0.75, Config.GAME_HEIGHT * 0.25);
+//        spawnVehicle(Vehicle.VehicleType.JEEP, Config.GAME_WIDTH * 0.25, Config.GAME_HEIGHT * 0.75);
+        spawnVehicle(Vehicle.VehicleType.FIXED_CANNON);
+//        spawnVehicle(Vehicle.VehicleType.JEEP, Config.GAME_WIDTH * 0.5, Config.GAME_HEIGHT * 0.1);
+//        spawnVehicle(Vehicle.VehicleType.TANK, Config.GAME_WIDTH * 0.5, Config.GAME_HEIGHT * 0.9);
     }
 
-    protected void spawnVehicle(Vehicle.VehicleType type, double x, double y) {
-        // Ensure vehicle doesn't spawn inside obstacles
-        Vector2D position = new Vector2D(x, y);
-        boolean validPosition = true;
+    protected void spawnVehicle(Vehicle.VehicleType type) {
+        // Try to find a nearby valid position
+        Vehicle vehicle = createVehicle(type, 0, 0);
+        for (int attempts = 0; attempts < 10; attempts++) {
+            double x = ThreadLocalRandom.current().nextDouble(50, Config.GAME_WIDTH - 50);
+            double y = ThreadLocalRandom.current().nextDouble(50, Config.GAME_HEIGHT - 50);
+            vehicle.setPosition(new Vector2D(x, y));
 
-        for (Obstacle obstacle : obstacles) {
-            double vehicleRadius = getVehicleRadius(type);
-            if (CollisionUtils.checkCirclePolygonCollision(position, vehicleRadius, obstacle.vertices())) {
-                validPosition = false;
-                break;
-            }
-        }
-
-        if (!validPosition) {
-            // Try to find a nearby valid position
-            for (int attempts = 0; attempts < 10; attempts++) {
-                double offsetX = ThreadLocalRandom.current().nextDouble(-50, 50);
-                double offsetY = ThreadLocalRandom.current().nextDouble(-50, 50);
-                Vector2D newPos = new Vector2D(
-                        Math.max(getVehicleRadius(type), Math.min(Config.GAME_WIDTH - getVehicleRadius(type), x + offsetX)),
-                        Math.max(getVehicleRadius(type), Math.min(Config.GAME_HEIGHT - getVehicleRadius(type), y + offsetY))
-                );
-
-                boolean isValid = true;
-                for (Obstacle obstacle : obstacles) {
-                    if (CollisionUtils.checkCirclePolygonCollision(newPos, getVehicleRadius(type), obstacle.vertices())) {
-                        isValid = false;
-                        break;
-                    }
-                }
-
-                if (isValid) {
-                    position = newPos;
+            boolean isValid = true;
+            for (Obstacle obstacle : obstacles) {
+                if (CollisionUtils.checkObstacleOverlap(vehicle, obstacle, 40)) {
+                    isValid = false;
                     break;
                 }
             }
-        }
 
-        Vehicle vehicle = createVehicle(type, ID_COUNTER.incrementAndGet(), position.x(), position.y());
-        if (vehicle != null) {
-            vehicles.add(vehicle);
+            if (isValid) {
+                vehicles.add(vehicle);
+                break;
+            }
         }
     }
 
-    protected double getVehicleRadius(Vehicle.VehicleType type) {
+    protected Vehicle createVehicle(Vehicle.VehicleType type, double x, double y) {
         return switch (type) {
-            case TANK -> Config.TANK_RADIUS;
-            case MECH -> Config.MECH_RADIUS;
-            case JEEP -> Config.JEEP_RADIUS;
-            case FIXED_CANNON -> Config.FIXED_CANNON_RADIUS;
-        };
-    }
-
-    protected Vehicle createVehicle(Vehicle.VehicleType type, long id, double x, double y) {
-        return switch (type) {
-            case TANK -> new com.fullsteam.model.vehicles.Tank(id, x, y);
-            case MECH -> new com.fullsteam.model.vehicles.Mech(id, x, y);
-            case JEEP -> new com.fullsteam.model.vehicles.Jeep(id, x, y);
-            case FIXED_CANNON -> new com.fullsteam.model.vehicles.FixedCannon(id, x, y);
+            case TANK -> new Tank(x, y);
+            case MECH -> new Mech(x, y);
+            case JEEP -> new Jeep(x, y);
+            case FIXED_CANNON -> new FixedCannon(x, y);
         };
     }
 

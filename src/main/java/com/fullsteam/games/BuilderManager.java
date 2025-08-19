@@ -58,7 +58,7 @@ public class BuilderManager extends AbstractFreeForAllManager {
     @Override
     public void handlePlayerInput(Long playerId, PlayerInput input, long delta) {
         super.handlePlayerInput(playerId, input, delta);
-        if (input.isPlacingObstacle()) {
+        if (input.isAction1()) {
             Player player = players.get(playerId);
             if (player != null) {
                 placeCrate(playerId);

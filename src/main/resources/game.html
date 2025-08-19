@@ -261,21 +261,6 @@
             </div>
         </div>
         <canvas id="gameCanvas" width="1000" height="800" tabindex="-1" style="outline: none;"></canvas>
-        <div id="vehicle-status" style="display: none; margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.8); border-radius: 5px; text-align: center; width: 1000px; box-sizing: border-box;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <span id="vehicle-name" style="font-weight: bold; color: #FFC107;">Vehicle</span>
-                    <span id="vehicle-role" style="color: #aaa;">(Driver)</span>
-                </div>
-                <div id="vehicle-weapons" style="display: flex; gap: 15px;">
-                    <!-- Vehicle weapon info will be populated here -->
-                </div>
-                <div>
-                    <span style="color: #aaa;">Health:</span>
-                    <span id="vehicle-health" style="color: #4CAF50;">100/100</span>
-                </div>
-            </div>
-        </div>
     </div>
 
     <div id="scoreboard-container">
@@ -843,7 +828,6 @@
                     this.updateInterpolation(data);
                     this.localPlayer = data.players.find(p => p.id === this.playerId);
                     this.isLocalPlayerDead = this.localPlayer && this.localPlayer.dead;
-                    this.updateVehicleStatus();
                     this.uiManager.update(this.gameState);
                 }
             };
@@ -966,13 +950,13 @@
             const input = {
                 moveX: 0,
                 moveY: 0,
-                shooting: false,
+                fire: false,
+                altFire: false,
                 mouseX: 0,
                 mouseY: 0,
                 reload: false,
-                placingObstacle: false,
-                enterExitVehicle: false,
-                vehicleSecondaryFire: false
+                action1: false,
+                action2: false,
             };
             const deadzone = 0.25;
 
@@ -991,11 +975,11 @@
                     input.moveY /= moveMagnitude;
                 }
 
-                input.shooting = this.gamepad.buttons[7] && this.gamepad.buttons[7].value > 0.5;
+                input.fire = this.gamepad.buttons[7] && this.gamepad.buttons[7].value > 0.5;
+                input.altFire = this.gamepad.buttons[6] && this.gamepad.buttons[6].value > 0.5; // L2/LT button
                 input.reload = this.gamepad.buttons[2] && this.gamepad.buttons[2].pressed;
-                input.placingObstacle = this.gamepad.buttons[5] && this.gamepad.buttons[5].pressed; // R1/RB button
-                input.enterExitVehicle = this.gamepad.buttons[0] && this.gamepad.buttons[0].pressed; // A/X button
-                input.vehicleSecondaryFire = this.gamepad.buttons[6] && this.gamepad.buttons[6].value > 0.5; // L2/LT button
+                input.action1 = this.gamepad.buttons[5] && this.gamepad.buttons[5].pressed; // R1/RB button
+                input.action2 = this.gamepad.buttons[0] && this.gamepad.buttons[0].pressed; // A/X button
 
                 const swapButtonPressed = this.gamepad.buttons[3] && this.gamepad.buttons[3].pressed; // Y or Triangle
                 if (swapButtonPressed && !this.gamepadWeaponSwapPressed) {
@@ -1034,13 +1018,13 @@
                     input.moveY = moveY / magnitude;
                 }
 
-                input.shooting = this.mouse.down;
+                input.fire = this.mouse.down;
+                input.altFire = !!this.keys['KeyQ'];
                 input.mouseX = this.mouse.x;
                 input.mouseY = this.mouse.y;
                 input.reload = !!this.keys['KeyR'];
-                input.placingObstacle = !!this.keys['KeyE'];
-                input.enterExitVehicle = !!this.keys['KeyF'];
-                input.vehicleSecondaryFire = !!this.keys['KeyQ'];
+                input.action1 = !!this.keys['KeyE'];
+                input.action2 = !!this.keys['KeyF'];
             }
             this.ws.send(JSON.stringify(input));
         }
@@ -2005,8 +1989,6 @@
                     case 'FIXED_CANNON':
                         this.drawFixedCannon(vehicle, vehicleRadius);
                         break;
-                    default:
-                        this.drawGenericVehicle(vehicle, vehicleRadius);
                 }
 
                 this.ctx.restore(); // Restore from translate/rotate
@@ -2171,30 +2153,12 @@
                 this.ctx.stroke();
             }
 
-            // Rocket launcher
+            // Barrel
             this.ctx.fillStyle = '#2A2A2A';
             this.ctx.strokeStyle = '#1A1A1A';
             this.ctx.lineWidth = 2;
-            this.ctx.fillRect(0, -radius * 0.15, radius * 1.8, radius * 0.3);
-            this.ctx.strokeRect(0, -radius * 0.15, radius * 1.8, radius * 0.3);
-
-            // Rocket tubes
-            this.ctx.fillStyle = '#1A1A1A';
-            for (let i = 0; i < 3; i++) {
-                const y = -radius * 0.1 + (i * radius * 0.1);
-                this.ctx.beginPath();
-                this.ctx.arc(radius * 1.6, y, radius * 0.08, 0, 2 * Math.PI);
-                this.ctx.fill();
-            }
-        }
-
-        drawGenericVehicle(vehicle, radius) {
-            // Generic vehicle - simple rectangle
-            this.ctx.fillStyle = '#666';
-            this.ctx.strokeStyle = '#333';
-            this.ctx.lineWidth = 2;
-            this.ctx.fillRect(-radius, -radius * 0.6, radius * 2, radius * 1.2);
-            this.ctx.strokeRect(-radius, -radius * 0.6, radius * 2, radius * 1.2);
+            this.ctx.fillRect(0, -radius * 0.15, radius * 1.3, radius * 0.3);
+            this.ctx.strokeRect(0, -radius * 0.15, radius * 1.3, radius * 0.3);
         }
 
         drawPlayer(player) {
@@ -2618,64 +2582,6 @@
         
         update(deltaTime) {
             this.pollGamepad();
-        }
-
-        updateVehicleStatus() {
-            const vehicleStatusEl = document.getElementById('vehicle-status');
-            const vehicleNameEl = document.getElementById('vehicle-name');
-            const vehicleRoleEl = document.getElementById('vehicle-role');
-            const vehicleHealthEl = document.getElementById('vehicle-health');
-            const vehicleWeaponsEl = document.getElementById('vehicle-weapons');
-
-            if (!this.localPlayer || !this.gameState.vehicles) {
-                vehicleStatusEl.style.display = 'none';
-                return;
-            }
-
-            // Find if the local player is in any vehicle
-            const playerVehicle = this.gameState.vehicles.find(vehicle => 
-                vehicle.driverId === this.playerId || vehicle.passengerIds.includes(this.playerId)
-            );
-
-            if (!playerVehicle) {
-                vehicleStatusEl.style.display = 'none';
-                return;
-            }
-
-            // Player is in a vehicle, show status
-            vehicleStatusEl.style.display = 'block';
-            vehicleNameEl.textContent = playerVehicle.vehicleName || playerVehicle.vehicleType;
-            
-            // Determine player role
-            const isDriver = playerVehicle.driverId === this.playerId;
-            vehicleRoleEl.textContent = isDriver ? '(Driver)' : '(Passenger)';
-            
-            // Update health display
-            const healthPercent = Math.round((playerVehicle.hp / playerVehicle.maxHp) * 100);
-            vehicleHealthEl.textContent = `${Math.round(playerVehicle.hp)}/${Math.round(playerVehicle.maxHp)}`;
-            vehicleHealthEl.style.color = healthPercent > 50 ? '#4CAF50' : (healthPercent > 20 ? '#FFC107' : '#F44336');
-
-            // Update weapon status for mounted weapons
-            vehicleWeaponsEl.innerHTML = '';
-            if (playerVehicle.mountedWeapons) {
-                playerVehicle.mountedWeapons.forEach((mountedWeapon, index) => {
-                    if (mountedWeapon.controllerId === this.playerId) {
-                        const weaponDiv = document.createElement('div');
-                        weaponDiv.style.color = '#fff';
-                        weaponDiv.style.fontSize = '14px';
-                        
-                        const ammoPercent = Math.round((mountedWeapon.currentAmmo / mountedWeapon.weapon.roundsPerMagazine) * 100);
-                        const ammoColor = ammoPercent > 30 ? '#4CAF50' : (ammoPercent > 10 ? '#FFC107' : '#F44336');
-                        
-                        weaponDiv.innerHTML = `
-                            <div>${mountedWeapon.weapon.shortName || mountedWeapon.weapon.name}</div>
-                            <div style="color: ${ammoColor}; font-size: 12px;">${mountedWeapon.currentAmmo}/${mountedWeapon.weapon.roundsPerMagazine}</div>
-                            ${mountedWeapon.reloading ? '<div style="color: #FFC107; font-size: 10px;">RELOADING</div>' : ''}
-                        `;
-                        vehicleWeaponsEl.appendChild(weaponDiv);
-                    }
-                });
-            }
         }
     }
 

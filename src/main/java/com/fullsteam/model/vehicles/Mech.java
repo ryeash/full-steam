@@ -7,15 +7,27 @@ import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
 
+import java.util.List;
+
 public class Mech extends Vehicle {
 
-    public Mech(long id, double x, double y) {
-        super(id, x, y, VehicleType.MECH,
+    static List<Vector2D> mechVertices() {
+        return List.of(
+                new Vector2D(-Config.MECH_RADIUS, -Config.MECH_RADIUS),
+                new Vector2D(Config.MECH_RADIUS, -Config.MECH_RADIUS),
+                new Vector2D(Config.MECH_RADIUS, Config.MECH_RADIUS),
+                new Vector2D(-Config.MECH_RADIUS, Config.MECH_RADIUS)
+        );
+    }
+
+    public Mech(double x, double y) {
+        super(mechVertices(), VehicleType.MECH,
                 Config.MECH_HEALTH,      // Medium health
                 Config.MECH_MAX_SPEED,   // Medium speed
                 Config.MECH_TURN_SPEED,  // Fast turning
-                Config.MECH_RADIUS,      // Medium size
                 0);                      // No passengers, driver only
+
+        setPosition(new Vector2D(x, y));
 
         // Dual laser guns for the pilot
         mountedWeapons.add(new MountedWeapon(

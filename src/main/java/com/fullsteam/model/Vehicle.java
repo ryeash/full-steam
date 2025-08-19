@@ -1,36 +1,28 @@
 package com.fullsteam.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fullsteam.Config;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-public abstract class Vehicle implements HasId, HasLife, Targetable {
-    protected final long id;
+public abstract class Vehicle extends Obstacle implements HasId, HasLife, Targetable {
+    protected final long id = Config.ID_COUNTER.incrementAndGet();
     protected double x;
     protected double y;
     protected double angle; // Vehicle rotation in radians
-    @JsonIgnore
     protected double velocityX;
-    @JsonIgnore
     protected double velocityY;
-    @JsonIgnore
     protected double speed;
-    @JsonIgnore
     protected double maxSpeed;
-    @JsonIgnore
     protected double turnSpeed;
     protected double hp;
     protected double maxHp;
     protected boolean destroyed;
-    @JsonIgnore
     protected long lastPlayerSwap = System.currentTimeMillis();
 
     // Driver and passenger system
     protected Long driverId; // Player ID of the driver
-    @JsonIgnore
     protected int team;
     protected List<Long> passengerIds; // Player IDs of passengers
     protected int maxPassengers;
@@ -40,7 +32,6 @@ public abstract class Vehicle implements HasId, HasLife, Targetable {
 
     // Vehicle-specific properties
     protected VehicleType vehicleType;
-    protected double radius;
 
     public enum VehicleType {
         TANK, MECH, JEEP, FIXED_CANNON
@@ -67,8 +58,8 @@ public abstract class Vehicle implements HasId, HasLife, Targetable {
 
         public boolean canShoot() {
             return !reloading
-                   && currentAmmo > 0
-                   && System.currentTimeMillis() >= nextShotTime;
+                    && currentAmmo > 0
+                    && System.currentTimeMillis() >= nextShotTime;
         }
 
         public void shoot() {
@@ -126,18 +117,15 @@ public abstract class Vehicle implements HasId, HasLife, Targetable {
         }
     }
 
-    public Vehicle(long id, double x, double y, VehicleType vehicleType, double maxHp,
-                   double maxSpeed, double turnSpeed, double radius, int maxPassengers) {
-        this.id = id;
-        this.x = x;
-        this.y = y;
+    public Vehicle(List<Vector2D> vertices, VehicleType vehicleType, double maxHp,
+                   double maxSpeed, double turnSpeed, int maxPassengers) {
+        super(vertices, false);
         this.angle = 0;
         this.vehicleType = vehicleType;
         this.hp = maxHp;
         this.maxHp = maxHp;
         this.maxSpeed = maxSpeed;
         this.turnSpeed = turnSpeed;
-        this.radius = radius;
         this.maxPassengers = maxPassengers;
         this.speed = 0;
         this.velocityX = 0;
@@ -148,21 +136,24 @@ public abstract class Vehicle implements HasId, HasLife, Targetable {
         this.mountedWeapons = new ArrayList<>();
     }
 
-    public void update(long delta) {
-        // Update position based on velocity
-        x += delta * velocityX;
-        y += delta * velocityY;
+    public void update(double deltaTime) {
+        // Update position based on speed and angle
+        Vector2D center = getCenter();
+        double newX = center.x() + Math.cos(angle) * speed * deltaTime;
+        double newY = center.y() + Math.sin(angle) * speed * deltaTime;
 
-        // Keep vehicle within game bounds
-        x = Math.max(radius, Math.min(Config.GAME_WIDTH - radius, x));
-        y = Math.max(radius, Math.min(Config.GAME_HEIGHT - radius, y));
+        // Calculate translation vector
+        double dx = newX - center.x();
+        double dy = newY - center.y();
 
-        // Update mounted weapons (check for reload completion)
-        for (MountedWeapon weapon : mountedWeapons) {
-            if (weapon.isReloading() && System.currentTimeMillis() >= weapon.getReloadCompleteTime()) {
-                weapon.finishReload();
-            }
+        // Translate all vertices
+        for (int i = 0; i < getVertices().size(); i++) {
+            Vector2D v = getVertices().get(i);
+            getVertices().set(i, new Vector2D(v.x() + dx, v.y() + dy));
         }
+
+        // Update rotation
+//        rotate(angle * deltaTime);
     }
 
     public boolean hasDriver() {
@@ -353,10 +344,6 @@ public abstract class Vehicle implements HasId, HasLife, Targetable {
 
     public VehicleType getVehicleType() {
         return vehicleType;
-    }
-
-    public double getRadius() {
-        return radius;
     }
 
     public Long getDriverId() {

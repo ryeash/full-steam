@@ -4,17 +4,31 @@ import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
+import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
+
+import java.util.List;
 
 public class Tank extends Vehicle {
 
-    public Tank(long id, double x, double y) {
-        super(id, x, y, VehicleType.TANK,
+    static List<Vector2D> tankVertices() {
+        return List.of(
+                new Vector2D(-Config.TANK_WIDTH / 2, -Config.TANK_LENGTH / 2),
+                new Vector2D(Config.TANK_WIDTH / 2, -Config.TANK_LENGTH / 2),
+                new Vector2D(Config.TANK_WIDTH / 2, Config.TANK_LENGTH / 2),
+                new Vector2D(-Config.TANK_WIDTH / 2, Config.TANK_LENGTH / 2)
+        );
+    }
+
+    public Tank(double x, double y) {
+        super(tankVertices(),
+                VehicleType.TANK,
                 Config.TANK_HEALTH,      // High health
                 Config.TANK_MAX_SPEED,   // Slow movement
                 Config.TANK_TURN_SPEED,  // Slow turning
-                Config.TANK_RADIUS,      // Large size
                 2);                      // 2 passengers + driver = 3 total
+
+        setPosition(new Vector2D(x, y));
 
         // Add main cannon for driver (controlled by driver input)
         // Add two fast-firing weapons for passengers
