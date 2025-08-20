@@ -12,12 +12,19 @@ import java.util.List;
 public class FixedCannon extends Vehicle {
 
     private static List<Vector2D> cannonVertices() {
-        return List.of(
-                new Vector2D(-Config.FIXED_CANNON_RADIUS, -Config.FIXED_CANNON_RADIUS),
-                new Vector2D(Config.FIXED_CANNON_RADIUS, -Config.FIXED_CANNON_RADIUS),
-                new Vector2D(Config.FIXED_CANNON_RADIUS, Config.FIXED_CANNON_RADIUS),
-                new Vector2D(-Config.FIXED_CANNON_RADIUS, Config.FIXED_CANNON_RADIUS)
-        );
+        // Create a centered octagon around origin (0,0)
+        double r = Config.FIXED_CANNON_RADIUS;
+        List<Vector2D> vertices = new java.util.ArrayList<>();
+
+        // Generate 8 vertices for an octagon
+        for (int i = 0; i < 8; i++) {
+            double angle = (i * 2 * Math.PI) / 8;
+            double x = r * Math.cos(angle);
+            double y = r * Math.sin(angle);
+            vertices.add(new Vector2D(x, y));
+        }
+
+        return vertices;
     }
 
     public FixedCannon(double x, double y) {
@@ -43,8 +50,8 @@ public class FixedCannon extends Vehicle {
 
         // Fixed cannon doesn't move, but can rotate to aim
         // Rotation is handled by aiming towards mouse
-        double dx = input.getMouseX() - x;
-        double dy = input.getMouseY() - y;
+        double dx = input.getMouseX() - position().x();
+        double dy = input.getMouseY() - position().y();
         if (dx != 0 || dy != 0) {
             angle = Math.atan2(dy, dx);
         }

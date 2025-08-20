@@ -12,11 +12,24 @@ import java.util.List;
 public class Tank extends Vehicle {
 
     static List<Vector2D> tankVertices() {
+        // Create a tank-shaped polygon that faces forward (positive X direction)
+        // The tank should be longer than it is wide, with the front being the narrow end
+        double halfWidth = Config.TANK_WIDTH / 2;
+        double halfLength = Config.TANK_LENGTH / 2;
+        
         return List.of(
-                new Vector2D(-Config.TANK_WIDTH / 2, -Config.TANK_LENGTH / 2),
-                new Vector2D(Config.TANK_WIDTH / 2, -Config.TANK_LENGTH / 2),
-                new Vector2D(Config.TANK_WIDTH / 2, Config.TANK_LENGTH / 2),
-                new Vector2D(-Config.TANK_WIDTH / 2, Config.TANK_LENGTH / 2)
+                // Front of tank (narrow end, pointing right/positive X when angle = 0)
+                new Vector2D(halfLength, -halfWidth * 0.6),      // Front-right
+                new Vector2D(halfLength, halfWidth * 0.6),       // Front-left
+                // Sides of tank
+                new Vector2D(halfLength * 0.3, halfWidth),       // Mid-front left
+                new Vector2D(-halfLength * 0.3, halfWidth),      // Mid-rear left
+                // Rear of tank (wide end)
+                new Vector2D(-halfLength, halfWidth),            // Rear-left
+                new Vector2D(-halfLength, -halfWidth),           // Rear-right
+                // Back to front on right side
+                new Vector2D(-halfLength * 0.3, -halfWidth),     // Mid-rear right
+                new Vector2D(halfLength * 0.3, -halfWidth)       // Mid-front right
         );
     }
 
@@ -55,12 +68,15 @@ public class Tank extends Vehicle {
         }
 
         // Tank movement: forward/backward with turning
-        double moveInput = input.getMoveY(); // Forward/backward
+        double moveInput = -input.getMoveY(); // Forward/backward (inverted for tank controls)
         double turnInput = input.getMoveX(); // Left/right turning
 
-        // Apply turning
+        // Apply turning and rotate the vehicle geometry
         if (Math.abs(turnInput) > 0.01) {
-            angle += turnInput * turnSpeed * delta;
+            double angleChange = turnInput * turnSpeed * delta;
+            angle += angleChange;
+            // Rotate the vehicle's vertices to match the new angle
+            rotate(angleChange);
         }
 
         // Apply movement in the direction the tank is facing

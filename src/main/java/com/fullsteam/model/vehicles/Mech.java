@@ -73,10 +73,21 @@ public class Mech extends Vehicle {
         }
 
         // Mech faces towards mouse cursor
-        double dx = input.getMouseX() - x;
-        double dy = input.getMouseY() - y;
+        double dx = input.getMouseX() - position().x();
+        double dy = input.getMouseY() - position().y();
         if (dx != 0 || dy != 0) {
-            angle = Math.atan2(dy, dx);
+            double newAngle = Math.atan2(dy, dx);
+            double angleChange = newAngle - angle;
+            
+            // Normalize angle change to be between -π and π
+            while (angleChange > Math.PI) angleChange -= 2 * Math.PI;
+            while (angleChange < -Math.PI) angleChange += 2 * Math.PI;
+            
+            if (Math.abs(angleChange) > 0.01) {
+                angle = newAngle;
+                // Rotate the vehicle's vertices to match the new angle
+                rotate(angleChange);
+            }
         }
     }
 

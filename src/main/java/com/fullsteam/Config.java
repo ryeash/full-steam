@@ -141,14 +141,15 @@ public class Config {
 
     // --- Vehicle System ---
     public static final double VEHICLE_INTERACTION_RADIUS = getDouble("game.vehicle.interaction_radius", 40.0);
+    public static final long VEHICLE_ACTION_DEBOUNCE_MS = getLong("game.vehicle.action_debounce_ms", 500);
     public static final long VEHICLE_RESPAWN_DELAY_MS = getLong("game.vehicle.respawn_delay_ms", 30_000);
 
     // Tank Configuration
     public static final double TANK_HEALTH = getDouble("game.vehicle.tank.health", 800.0);
     public static final double TANK_MAX_SPEED = getDouble("game.vehicle.tank.max_speed", 0.08);
     public static final double TANK_TURN_SPEED = getDouble("game.vehicle.tank.turn_speed", 0.002);
-    public static final double TANK_LENGTH = getDouble("game.vehicle.tank.radius", 37.0);
-    public static final double TANK_WIDTH = getDouble("game.vehicle.tank.radius", 22.0);
+    public static final double TANK_LENGTH = getDouble("game.vehicle.tank.length", 57.0);
+    public static final double TANK_WIDTH = getDouble("game.vehicle.tank.width", 42.0);
 
     // Mech Configuration  
     public static final double MECH_HEALTH = getDouble("game.vehicle.mech.health", 400.0);

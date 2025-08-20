@@ -6,10 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-public abstract class Vehicle extends Obstacle implements HasId, HasLife, Targetable {
+public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     protected final long id = Config.ID_COUNTER.incrementAndGet();
-    protected double x;
-    protected double y;
     protected double angle; // Vehicle rotation in radians
     protected double velocityX;
     protected double velocityY;
@@ -19,7 +17,6 @@ public abstract class Vehicle extends Obstacle implements HasId, HasLife, Target
     protected double hp;
     protected double maxHp;
     protected boolean destroyed;
-    protected long lastPlayerSwap = System.currentTimeMillis();
 
     // Driver and passenger system
     protected Long driverId; // Player ID of the driver
@@ -39,7 +36,7 @@ public abstract class Vehicle extends Obstacle implements HasId, HasLife, Target
 
     public static class MountedWeapon {
         private final Weapon weapon;
-        private final double mountAngleOffset; // Relative to vehicle angle
+        private final double mountAngleOffset;
         private Long controllerId;
         private int currentAmmo;
         private boolean reloading;
@@ -58,8 +55,8 @@ public abstract class Vehicle extends Obstacle implements HasId, HasLife, Target
 
         public boolean canShoot() {
             return !reloading
-                    && currentAmmo > 0
-                    && System.currentTimeMillis() >= nextShotTime;
+                   && currentAmmo > 0
+                   && System.currentTimeMillis() >= nextShotTime;
         }
 
         public void shoot() {
@@ -83,7 +80,6 @@ public abstract class Vehicle extends Obstacle implements HasId, HasLife, Target
             this.currentAmmo = weapon.getRoundsPerMagazine();
         }
 
-        // Getters
         public Weapon getWeapon() {
             return weapon;
         }
@@ -137,23 +133,18 @@ public abstract class Vehicle extends Obstacle implements HasId, HasLife, Target
     }
 
     public void update(double deltaTime) {
-        // Update position based on speed and angle
+        // Update position based on velocity (calculated from speed and angle)
         Vector2D center = getCenter();
-        double newX = center.x() + Math.cos(angle) * speed * deltaTime;
-        double newY = center.y() + Math.sin(angle) * speed * deltaTime;
+        double newX = center.x() + velocityX * deltaTime;
+        double newY = center.y() + velocityY * deltaTime;
 
-        // Calculate translation vector
-        double dx = newX - center.x();
-        double dy = newY - center.y();
+        // Update position to new center
+        setPosition(new Vector2D(newX, newY));
+    }
 
-        // Translate all vertices
-        for (int i = 0; i < getVertices().size(); i++) {
-            Vector2D v = getVertices().get(i);
-            getVertices().set(i, new Vector2D(v.x() + dx, v.y() + dy));
-        }
-
-        // Update rotation
-//        rotate(angle * deltaTime);
+    @Override
+    public Vector2D position() {
+        return getCenter();
     }
 
     public boolean hasDriver() {
@@ -165,10 +156,6 @@ public abstract class Vehicle extends Obstacle implements HasId, HasLife, Target
     }
 
     public boolean enterVehicle(Player player) {
-        if (lastPlayerSwap + 500 > System.currentTimeMillis()) {
-            return false;
-        }
-        lastPlayerSwap = System.currentTimeMillis();
         if (!hasDriver()) {
             driverId = player.id();
             player.setVehicleId(id);
@@ -190,10 +177,6 @@ public abstract class Vehicle extends Obstacle implements HasId, HasLife, Target
     }
 
     public boolean exitVehicle(Player player) {
-        if (lastPlayerSwap + 500 < System.currentTimeMillis()) {
-            return false;
-        }
-        lastPlayerSwap = System.currentTimeMillis();
         if (player.getVehicleId() == id) {
             player.setVehicleId(null);
         } else {
@@ -278,28 +261,6 @@ public abstract class Vehicle extends Obstacle implements HasId, HasLife, Target
             }
         }
         return this.hp <= 0;
-    }
-
-    @Override
-    public Vector2D position() {
-        return new Vector2D(x, y);
-    }
-
-    // Getters and setters
-    public double getX() {
-        return x;
-    }
-
-    public void setX(double x) {
-        this.x = x;
-    }
-
-    public double getY() {
-        return y;
-    }
-
-    public void setY(double y) {
-        this.y = y;
     }
 
     public double getAngle() {

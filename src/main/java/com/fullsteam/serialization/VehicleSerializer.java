@@ -13,11 +13,12 @@ public class VehicleSerializer extends AbstractSerializer<Vehicle> {
     public void serializeFields(Vehicle vehicle, JsonGenerator gen, SerializerProvider serializers) throws IOException {
         gen.writeStringField("vehicleName", vehicle.getVehicleName());
         gen.writeStringField("vehicleType", vehicle.getVehicleType().name());
-        gen.writeNumberField("x", vehicle.getX());
-        gen.writeNumberField("y", vehicle.getY());
+        gen.writeNumberField("x", vehicle.position().x());
+        gen.writeNumberField("y", vehicle.position().y());
         gen.writeNumberField("angle", vehicle.getAngle());
         gen.writeNumberField("hp", vehicle.getHp());
         gen.writeNumberField("maxHp", vehicle.getMaxHp());
+        gen.writeNumberField("radius", vehicle.getBoundingRadius());
         gen.writeArrayFieldStart("vertices");
         for (Vector2D vertex : vehicle.vertices()) {
             serializers.defaultSerializeValue(vertex, gen);

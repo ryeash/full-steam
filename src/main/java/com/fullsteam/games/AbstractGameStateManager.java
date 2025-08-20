@@ -83,6 +83,7 @@ import static com.fullsteam.Config.SPAWN_MIDFIELD_BUFFER;
 import static com.fullsteam.Config.SPAWN_VERTICAL_PADDING;
 import static com.fullsteam.Config.TICK_RATE;
 import static com.fullsteam.Config.TURRET_INACCURACY;
+import static com.fullsteam.Config.VEHICLE_ACTION_DEBOUNCE_MS;
 
 public abstract class AbstractGameStateManager {
     protected final Logger log = LoggerFactory.getLogger(getClass());
@@ -92,6 +93,7 @@ public abstract class AbstractGameStateManager {
     protected final Map<Long, Player> players = new ConcurrentHashMap<>(10, 1, 1);
     protected final Map<Long, Channel> playerChannels = new ConcurrentHashMap<>(10, 1, 1);
     protected final Map<Long, PlayerInput> playerInput = new ConcurrentHashMap<>(10, 1, 1);
+    protected final Map<Long, Long> lastVehicleActionTime = new ConcurrentHashMap<>(10, 1, 1);
     protected final List<Channel> spectatorChannels = Collections.synchronizedList(new LinkedList<>());
     protected final List<Bullet> bullets = Collections.synchronizedList(new LinkedList<>());
     protected final List<LaserBlast> laserBlasts = Collections.synchronizedList(new LinkedList<>());
@@ -221,6 +223,7 @@ public abstract class AbstractGameStateManager {
         Player removed = players.remove(playerId);
         playerChannels.remove(playerId);
         playerInput.remove(playerId);
+        lastVehicleActionTime.remove(playerId);
         log.info("Player {} left the game", Optional.ofNullable(removed)
                 .map(Player::getPlayerName)
                 .orElse(String.valueOf(playerId)));
@@ -295,8 +298,8 @@ public abstract class AbstractGameStateManager {
         } else {
             // Player is in a vehicle, don't apply normal movement
             player.setVelocity(Vector2D.ZERO);
-            player.setX(vehicle.getX());
-            player.setY(vehicle.getY());
+            player.setX(vehicle.position().x());
+            player.setY(vehicle.position().y());
             vehicle.handleDriverInput(input, delta);
             if (!vehicle.isDestroyed()) {
                 // Update vehicle physics
@@ -321,9 +324,15 @@ public abstract class AbstractGameStateManager {
             handleVehicleWeaponFiring(vehicle, playerId, input);
         }
 
-        // Handle vehicle enter/exit
+        // Handle vehicle enter/exit with debounce
         if (input.isAction2()) {
-            handleVehicleEnterExit(player);
+            long currentTime = System.currentTimeMillis();
+            Long lastActionTime = lastVehicleActionTime.get(playerId);
+
+            if (lastActionTime == null || currentTime - lastActionTime >= VEHICLE_ACTION_DEBOUNCE_MS) {
+                lastVehicleActionTime.put(playerId, currentTime);
+                handleVehicleEnterExit(player);
+            }
         }
     }
 
@@ -450,13 +459,23 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void updateVehicles(long delta) {
+        // Check for mounted weapon reload completion
+        for (Vehicle vehicle : vehicles) {
+            for (Vehicle.MountedWeapon mountedWeapon : vehicle.getMountedWeapons()) {
+                if (mountedWeapon.isReloading() && System.currentTimeMillis() >= mountedWeapon.getReloadCompleteTime()) {
+                    mountedWeapon.finishReload();
+                    log.debug("Vehicle {} mounted weapon finished reloading.", vehicle.getId());
+                }
+            }
+        }
+
         // Remove destroyed vehicles
         vehicles.removeIf(vehicle -> {
             if (vehicle.isDestroyed()) {
                 // Create explosion when vehicle is destroyed
                 fieldEffects.add(new Explosion(
-                        vehicle.getX(),
-                        vehicle.getY(),
+                        vehicle.position().x(),
+                        vehicle.position().y(),
                         0, // No owner for vehicle explosions
                         0, // No team for vehicle explosions
                         vehicle.getBoundingRadius(), // explosion size based on vehicle size
@@ -877,9 +896,9 @@ public abstract class AbstractGameStateManager {
 
             // Last check: Remove bullets that will move out of bounds
             return newPos.x() < 0
-                    || newPos.x() > GAME_WIDTH
-                    || newPos.y() < 0
-                    || newPos.y() > GAME_HEIGHT;
+                   || newPos.x() > GAME_WIDTH
+                   || newPos.y() < 0
+                   || newPos.y() > GAME_HEIGHT;
         });
     }
 
@@ -1230,8 +1249,8 @@ public abstract class AbstractGameStateManager {
         }
 
         if (request.getWeaponName() != null
-                && !request.getWeaponName().isEmpty()
-                && !request.getWeaponName().equals(player.getWeapon().getName())) {
+            && !request.getWeaponName().isEmpty()
+            && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
             removePlayerTurrets(player);
@@ -1317,8 +1336,12 @@ public abstract class AbstractGameStateManager {
             return;
         }
 
+
         // Handle weapon firing
         if (input.isFire()) {
+            if (controlledWeapon.getCurrentAmmo() <= 0) {
+                controlledWeapon.startReload();
+            }
             if (controlledWeapon.canShoot()) {
                 fireVehicleWeapon(vehicle, controlledWeapon, playerId, input);
             }
@@ -1342,8 +1365,6 @@ public abstract class AbstractGameStateManager {
         }
 
         // Calculate weapon position and angle
-        double weaponX = vehicle.getX();
-        double weaponY = vehicle.getY();
         double weaponAngle;
 
         // Different aiming for different vehicle types
@@ -1351,8 +1372,8 @@ public abstract class AbstractGameStateManager {
             case MECH:
             case FIXED_CANNON:
                 // Mechs and fixed cannons aim towards mouse cursor
-                double dx = input.getMouseX() - vehicle.getX();
-                double dy = input.getMouseY() - vehicle.getY();
+                double dx = input.getMouseX() - vehicle.position().x();
+                double dy = input.getMouseY() - vehicle.position().y();
                 weaponAngle = Math.atan2(dy, dx) + mountedWeapon.getMountAngleOffset();
                 break;
             case JEEP:
@@ -1362,8 +1383,8 @@ public abstract class AbstractGameStateManager {
                     return;
                 } else {
                     // Passenger controls minigun, aims towards mouse
-                    double dx2 = input.getMouseX() - vehicle.getX();
-                    double dy2 = input.getMouseY() - vehicle.getY();
+                    double dx2 = input.getMouseX() - vehicle.position().x();
+                    double dy2 = input.getMouseY() - vehicle.position().y();
                     weaponAngle = Math.atan2(dy2, dx2);
                 }
                 break;
@@ -1372,8 +1393,8 @@ public abstract class AbstractGameStateManager {
                 // Tank weapons aim relative to vehicle angle
                 if (playerId.equals(vehicle.getDriverId())) {
                     // Driver controls main cannon, aims towards mouse
-                    double dx3 = input.getMouseX() - vehicle.getX();
-                    double dy3 = input.getMouseY() - vehicle.getY();
+                    double dx3 = input.getMouseX() - vehicle.position().x();
+                    double dy3 = input.getMouseY() - vehicle.position().y();
                     weaponAngle = Math.atan2(dy3, dx3);
                 } else {
                     // Passengers control fixed-angle machine guns
@@ -1391,7 +1412,7 @@ public abstract class AbstractGameStateManager {
 
             if (weapon.getOrdinance() == Weapon.Ordinance.LASER) {
                 // Create laser blast
-                Vector2D start = new Vector2D(weaponX, weaponY);
+                Vector2D start = vehicle.position();
                 Vector2D end = start.add(new Vector2D(Math.cos(finalAngle), Math.sin(finalAngle)).multiply(weapon.getBulletRange()));
                 LaserBlast laserBlast = new LaserBlast(
                         start,
@@ -1405,8 +1426,8 @@ public abstract class AbstractGameStateManager {
             } else {
                 // Create bullet
                 Bullet bullet = new Bullet(
-                        weaponX,
-                        weaponY,
+                        vehicle.position().x(),
+                        vehicle.position().y(),
                         Math.cos(finalAngle),
                         Math.sin(finalAngle),
                         playerId,
@@ -1439,8 +1460,8 @@ public abstract class AbstractGameStateManager {
             // Exit vehicle
             if (currentVehicle.exitVehicle(player)) {
                 // Place player next to the vehicle
-                double exitX = currentVehicle.getX() + currentVehicle.getBoundingRadius() + Config.PLAYER_RADIUS + 5;
-                double exitY = currentVehicle.getY();
+                double exitX = currentVehicle.position().x() + currentVehicle.getBoundingRadius() + Config.PLAYER_RADIUS + 5;
+                double exitY = currentVehicle.position().y();
 
                 // Make sure exit position is valid
                 player.setX(Math.max(Config.PLAYER_RADIUS, Math.min(Config.GAME_WIDTH - Config.PLAYER_RADIUS, exitX)));
@@ -1490,7 +1511,7 @@ public abstract class AbstractGameStateManager {
         vehicles.clear();
 
         // Spawn vehicles at strategic locations
-//        spawnVehicle(Vehicle.VehicleType.TANK, Config.GAME_WIDTH * 0.25, Config.GAME_HEIGHT * 0.25);
+        spawnVehicle(Vehicle.VehicleType.TANK);
 //        spawnVehicle(Vehicle.VehicleType.MECH, Config.GAME_WIDTH * 0.75, Config.GAME_HEIGHT * 0.25);
 //        spawnVehicle(Vehicle.VehicleType.JEEP, Config.GAME_WIDTH * 0.25, Config.GAME_HEIGHT * 0.75);
         spawnVehicle(Vehicle.VehicleType.FIXED_CANNON);
@@ -1499,9 +1520,13 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void spawnVehicle(Vehicle.VehicleType type) {
-        // Try to find a nearby valid position
+        // Try to find a valid position
         Vehicle vehicle = createVehicle(type, 0, 0);
-        for (int attempts = 0; attempts < 10; attempts++) {
+        double bestX = Config.GAME_WIDTH / 2.0;
+        double bestY = Config.GAME_HEIGHT / 2.0;
+        boolean foundValidPosition = false;
+
+        for (int attempts = 0; attempts < 20; attempts++) {
             double x = ThreadLocalRandom.current().nextDouble(50, Config.GAME_WIDTH - 50);
             double y = ThreadLocalRandom.current().nextDouble(50, Config.GAME_HEIGHT - 50);
             vehicle.setPosition(new Vector2D(x, y));
@@ -1516,8 +1541,21 @@ public abstract class AbstractGameStateManager {
 
             if (isValid) {
                 vehicles.add(vehicle);
+                foundValidPosition = true;
+                log.info("Successfully spawned {} at ({}, {})", type, x, y);
                 break;
+            } else {
+                bestX = x;
+                bestY = y;
             }
+        }
+
+        // Fallback: spawn anyway at the center if no valid position found
+        if (!foundValidPosition) {
+            vehicle.setPosition(new Vector2D(bestX, bestY));
+            vehicles.add(vehicle);
+            log.warn("Could not find valid position for {} after 20 attempts, spawning at ({}, {}) anyway",
+                    type, bestX, bestY);
         }
     }
 

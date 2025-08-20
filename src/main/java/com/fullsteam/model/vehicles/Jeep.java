@@ -47,7 +47,10 @@ public class Jeep extends Vehicle {
         // Only turn when moving (like a real vehicle)
         if (Math.abs(moveInput) > 0.01) {
             if (Math.abs(turnInput) > 0.01) {
-                angle += turnInput * turnSpeed * delta * Math.abs(moveInput);
+                double angleChange = turnInput * turnSpeed * delta * Math.abs(moveInput);
+                angle += angleChange;
+                // Rotate the vehicle's vertices to match the new angle
+                rotate(angleChange);
             }
 
             speed = moveInput * maxSpeed;
