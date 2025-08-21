@@ -1504,7 +1504,7 @@ public abstract class AbstractGameStateManager {
         // Spawn vehicles at strategic locations
         spawnVehicle(Vehicle.VehicleType.TANK);
 //        spawnVehicle(Vehicle.VehicleType.MECH, Config.GAME_WIDTH * 0.75, Config.GAME_HEIGHT * 0.25);
-//        spawnVehicle(Vehicle.VehicleType.JEEP, Config.GAME_WIDTH * 0.25, Config.GAME_HEIGHT * 0.75);
+        spawnVehicle(Vehicle.VehicleType.JEEP);
         spawnVehicle(Vehicle.VehicleType.FIXED_CANNON);
 //        spawnVehicle(Vehicle.VehicleType.JEEP, Config.GAME_WIDTH * 0.5, Config.GAME_HEIGHT * 0.1);
 //        spawnVehicle(Vehicle.VehicleType.TANK, Config.GAME_WIDTH * 0.5, Config.GAME_HEIGHT * 0.9);

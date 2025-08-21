@@ -145,7 +145,7 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
         // Check for mounted weapon reload completion
         for (Seat seat : seats) {
             MountedWeapon mountedWeapon = seat.mountedWeapon;
-            if (mountedWeapon.isReloading() && System.currentTimeMillis() >= mountedWeapon.getReloadCompleteTime()) {
+            if (mountedWeapon != null && mountedWeapon.isReloading() && System.currentTimeMillis() >= mountedWeapon.getReloadCompleteTime()) {
                 mountedWeapon.finishReload();
             }
         }

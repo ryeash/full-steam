@@ -1983,15 +1983,15 @@
                 this.drawVehicleCannon(vehicle, style);
 
                 // Calculate bounding radius for UI elements
-                const vehicleBounds = vehicle.radius;
+                const vehicleRadius = vehicle.radius;
 
                 // Draw health bar
                 if (vehicle.hp < vehicle.maxHp) {
                     const healthPercentage = Math.max(0, vehicle.hp / vehicle.maxHp);
-                    const barWidth = vehicleBounds.width * 1.2;
+                    const barWidth = vehicleRadius * 2.4; // Use radius * 2.4 instead of width * 1.2
                     const barHeight = 6;
                     const barX = vehicleX - barWidth / 2;
-                    const barY = vehicleY - vehicleBounds.height / 2 - 20;
+                    const barY = vehicleY - vehicleRadius - 20;
 
                     this.ctx.fillStyle = '#333';
                     this.ctx.fillRect(barX, barY, barWidth, barHeight);
@@ -2009,7 +2009,7 @@
                 this.ctx.textBaseline = 'bottom';
                 const passengerCount = (vehicle.driverId ? 1 : 0) + vehicle.passengerIds.length;
                 const maxPassengers = vehicle.maxPassengers + 1; // +1 for driver
-                this.ctx.fillText(`${vehicle.vehicleName} (${passengerCount}/${maxPassengers})`, vehicleX, vehicleY - vehicleBounds.height / 2 - 25);
+                this.ctx.fillText(`${vehicle.vehicleName} (${passengerCount}/${maxPassengers})`, vehicleX, vehicleY - vehicleRadius - 25);
 
                 // Draw interaction hint if player is nearby
                 if (this.localPlayer && !this.localPlayer.dead) {
@@ -2023,7 +2023,7 @@
                         this.ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
                         this.ctx.font = '14px Arial';
                         this.ctx.textAlign = 'center';
-                        this.ctx.fillText('Press F to enter', vehicleX, vehicleY + vehicleBounds.height / 2 + 20);
+                        this.ctx.fillText('Press F to enter', vehicleX, vehicleY + vehicleRadius + 20);
                     }
                 }
             });
