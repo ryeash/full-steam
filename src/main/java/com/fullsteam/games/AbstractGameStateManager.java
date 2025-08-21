@@ -896,9 +896,9 @@ public abstract class AbstractGameStateManager {
 
             // Last check: Remove bullets that will move out of bounds
             return newPos.x() < 0
-                    || newPos.x() > GAME_WIDTH
-                    || newPos.y() < 0
-                    || newPos.y() > GAME_HEIGHT;
+                   || newPos.x() > GAME_WIDTH
+                   || newPos.y() < 0
+                   || newPos.y() > GAME_HEIGHT;
         });
     }
 
@@ -1249,8 +1249,8 @@ public abstract class AbstractGameStateManager {
         }
 
         if (request.getWeaponName() != null
-                && !request.getWeaponName().isEmpty()
-                && !request.getWeaponName().equals(player.getWeapon().getName())) {
+            && !request.getWeaponName().isEmpty()
+            && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
             removePlayerTurrets(player);
@@ -1363,44 +1363,14 @@ public abstract class AbstractGameStateManager {
             return;
         }
 
-        // Calculate weapon position and angle
-        double weaponAngle;
+        // Calculate desired weapon angle based on mouse input
+        double desiredAngle;
+        double dx = input.getMouseX() - mountedWeapon.position().x();
+        double dy = input.getMouseY() - mountedWeapon.position().y();
+        desiredAngle = Math.atan2(dy, dx);
 
-        // Different aiming for different vehicle types
-        switch (vehicle.getVehicleType()) {
-            case MECH:
-            case FIXED_CANNON:
-                // Mechs and fixed cannons aim towards mouse cursor
-                double dx = input.getMouseX() - vehicle.position().x();
-                double dy = input.getMouseY() - vehicle.position().y();
-                weaponAngle = Math.atan2(dy, dx) + mountedWeapon.getMountAngleOffset();
-                break;
-            case JEEP:
-                // Jeep minigun can rotate freely towards mouse
-                if (playerId.equals(vehicle.getDriverId())) {
-                    // Driver doesn't control weapons in jeep
-                    return;
-                } else {
-                    // Passenger controls minigun, aims towards mouse
-                    double dx2 = input.getMouseX() - vehicle.position().x();
-                    double dy2 = input.getMouseY() - vehicle.position().y();
-                    weaponAngle = Math.atan2(dy2, dx2);
-                }
-                break;
-            case TANK:
-            default:
-                // Tank weapons aim relative to vehicle angle
-                if (playerId.equals(vehicle.getDriverId())) {
-                    // Driver controls main cannon, aims towards mouse
-                    double dx3 = input.getMouseX() - vehicle.position().x();
-                    double dy3 = input.getMouseY() - vehicle.position().y();
-                    weaponAngle = Math.atan2(dy3, dx3);
-                } else {
-                    // Passengers control fixed-angle machine guns
-                    weaponAngle = vehicle.getAngle() + mountedWeapon.getMountAngleOffset();
-                }
-                break;
-        }
+        // Apply traverse constraints to get the final weapon angle
+        double weaponAngle = mountedWeapon.getConstrainedAngle(desiredAngle, vehicle.getAngle());
 
         // Fire weapon
         int bulletsToFire = Math.min(weapon.getBulletsPerShot(), mountedWeapon.getCurrentAmmo());
@@ -1418,7 +1388,7 @@ public abstract class AbstractGameStateManager {
                         end,
                         playerId,
                         controller.getTeam(),
-                        weapon.getBulletDamage() * controller.getDamageMultiplier(),
+                        weapon.getBulletDamage() * mountedWeapon.getDamageModification(),
                         System.currentTimeMillis() + 100);
                 applyLaser(laserBlast);
                 laserBlasts.add(laserBlast);
@@ -1431,7 +1401,7 @@ public abstract class AbstractGameStateManager {
                         Math.sin(finalAngle),
                         playerId,
                         controller.getTeam(),
-                        weapon.getBulletDamage() * controller.getDamageMultiplier(),
+                        weapon.getBulletDamage() * mountedWeapon.getDamageModification(),
                         weapon.getBulletSpeed(),
                         weapon.getBulletRange(),
                         weapon.getBulletSpeedDecay(),

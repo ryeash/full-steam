@@ -2056,98 +2056,194 @@
         }
 
         drawVehicleCannon(vehicle, style) {
-            // Only draw cannons for Tank, FixedCannon, and Jeep
-            if (vehicle.vehicleType !== 'TANK' && vehicle.vehicleType !== 'FIXED_CANNON' && vehicle.vehicleType !== 'JEEP') {
+            if (!vehicle.mountedWeapons || vehicle.mountedWeapons.length === 0) {
                 return;
             }
 
-            // TODO: handle all the mounted weapons properly
-            let mountedWeapon = vehicle.mountedWeapons[0];
-            let cannonAngle;
+            // Draw each mounted weapon
+            vehicle.mountedWeapons.forEach((mountedWeapon, index) => {
+                this.drawSingleMountedWeapon(vehicle, mountedWeapon, style, index);
+            });
+        }
 
+        drawSingleMountedWeapon(vehicle, mountedWeapon, style, weaponIndex) {
+            // Calculate current weapon angle
+            let currentAngle = this.calculateWeaponAngle(vehicle, mountedWeapon);
+            
+            // Get weapon visual properties based on vehicle type and weapon index
+            const weaponProps = this.getWeaponVisualProperties(vehicle, weaponIndex);
+            
+            // Draw traverse limit indicator (if limited traverse)
+            if (mountedWeapon.maximumRadian < Math.PI * 2) {
+                this.drawTraverseLimits(vehicle, mountedWeapon, weaponProps);
+            }
+            
+            // Draw turret base
+            this.drawTurretBase(vehicle, mountedWeapon, style, weaponProps);
+            
+            // Draw weapon barrel
+            this.drawWeaponBarrel(mountedWeapon, currentAngle, weaponProps);
+        }
+
+        calculateWeaponAngle(vehicle, mountedWeapon) {
             // Get the controlling player's mouse position
             let controllingPlayer = this.findPlayer(mountedWeapon.controllerId);
             
             if (controllingPlayer && controllingPlayer.mouseX && controllingPlayer.mouseY) {
-                // Player is controlling - aim toward mouse
+                // Player is controlling - calculate desired angle
                 const mouseX = controllingPlayer.mouseX;
                 const mouseY = controllingPlayer.mouseY;
                 const dx = mouseX - mountedWeapon.x;
                 const dy = mouseY - mountedWeapon.y;
-                cannonAngle = Math.atan2(dy, dx);
+                let desiredAngle = Math.atan2(dy, dx);
+                
+                // Apply traverse constraints
+                return this.constrainWeaponAngle(desiredAngle, vehicle.angle, mountedWeapon);
             } else {
-                // No player controlling - align with vehicle rotation
-                cannonAngle = vehicle.angle || 0;
+                // No player controlling - use default angle relative to vehicle
+                return vehicle.angle + mountedWeapon.defaultAngle;
+            }
+        }
+
+        constrainWeaponAngle(desiredAngle, vehicleAngle, mountedWeapon) {
+            if (mountedWeapon.maximumRadian >= Math.PI * 2) {
+                // Full 360° traverse - no constraints
+                return desiredAngle;
             }
 
-            // Calculate cannon dimensions based on vehicle type
-            let cannonLength, cannonWidth, turretPosition;
-            if (vehicle.vehicleType === 'TANK') {
-                cannonLength = vehicle.radius * 1.2;
-                cannonWidth = 6;
-            } else if (vehicle.vehicleType === 'JEEP') {
-                cannonLength = vehicle.radius * 0.8; // Shorter machine gun
-                cannonWidth = 4;
-            } else { // FIXED_CANNON
-                cannonLength = vehicle.radius * 1.5;
-                cannonWidth = 8;
+            // Calculate the weapon's default direction in world coordinates
+            const weaponDefaultAngle = vehicleAngle + mountedWeapon.defaultAngle;
+            
+            // Calculate the difference between desired and default angles
+            let angleDiff = desiredAngle - weaponDefaultAngle;
+            
+            // Normalize angle difference to be between -π and π
+            while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+            while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+            
+            // Constrain to maximum traverse range
+            const halfTraverse = mountedWeapon.maximumRadian / 2.0;
+            if (angleDiff > halfTraverse) {
+                angleDiff = halfTraverse;
+            } else if (angleDiff < -halfTraverse) {
+                angleDiff = -halfTraverse;
             }
+            
+            return weaponDefaultAngle + angleDiff;
+        }
 
-            // Calculate cannon end position
-            const cannonEndX = mountedWeapon.x + Math.cos(cannonAngle) * cannonLength;
-            const cannonEndY = mountedWeapon.y + Math.sin(cannonAngle) * cannonLength;
+        getWeaponVisualProperties(vehicle, weaponIndex) {
+            const baseProps = {
+                length: vehicle.radius * 1.0,
+                width: 5,
+                turretRadius: vehicle.radius * 0.2,
+                barrelColor: '#2A2A2A',
+                barrelStroke: '#1A1A1A'
+            };
 
-            // Draw cannon barrel
+            switch (vehicle.vehicleType) {
+                case 'TANK':
+                    if (weaponIndex === 0) {
+                        // Main gun
+                        return { ...baseProps, length: vehicle.radius * 1.2, width: 6, turretRadius: vehicle.radius * 0.4 };
+                    } else {
+                        // Side machine guns
+                        return { ...baseProps, length: vehicle.radius * 0.8, width: 4, turretRadius: vehicle.radius * 0.15 };
+                    }
+                case 'JEEP':
+                    // Machine gun
+                    return { ...baseProps, length: vehicle.radius * 0.8, width: 4, turretRadius: vehicle.radius * 0.15 };
+                case 'FIXED_CANNON':
+                    // Artillery
+                    return { ...baseProps, length: vehicle.radius * 1.5, width: 8, turretRadius: vehicle.radius * 0.3 };
+                case 'MECH':
+                    // Laser weapons
+                    return { ...baseProps, length: vehicle.radius * 0.6, width: 3, turretRadius: vehicle.radius * 0.1, 
+                            barrelColor: '#4A90E2', barrelStroke: '#2E5C8A' };
+                default:
+                    return baseProps;
+            }
+        }
+
+        drawTraverseLimits(vehicle, mountedWeapon, weaponProps) {
+            if (mountedWeapon.maximumRadian >= Math.PI * 2) return;
+
             this.ctx.save();
-            this.ctx.translate(mountedWeapon.x, mountedWeapon.y);
-            this.ctx.rotate(cannonAngle);
-
-            // Cannon barrel
-            this.ctx.fillStyle = '#2A2A2A';
-            this.ctx.strokeStyle = '#1A1A1A';
+            
+            // Calculate default angle in world coordinates
+            const defaultWorldAngle = vehicle.angle + mountedWeapon.defaultAngle;
+            const halfTraverse = mountedWeapon.maximumRadian / 2.0;
+            
+            // Draw traverse arc - much more subtle
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
             this.ctx.lineWidth = 1;
-            this.ctx.fillRect(0, -cannonWidth / 2, cannonLength, cannonWidth);
-            this.ctx.strokeRect(0, -cannonWidth / 2, cannonLength, cannonWidth);
-
-            // Cannon tip - different for different vehicle types
-            if (vehicle.vehicleType === 'JEEP') {
-                // Machine gun muzzle flash suppressor
-                const tipLength = cannonLength * 0.1;
-                const tipWidth = cannonWidth * 1.5;
-                this.ctx.fillRect(cannonLength - tipLength, -tipWidth / 2, tipLength, tipWidth);
-                this.ctx.strokeRect(cannonLength - tipLength, -tipWidth / 2, tipLength, tipWidth);
-            } else {
-                // Tank/Artillery cannon tip (slightly wider)
-                const tipWidth = cannonWidth * 1.3;
-                this.ctx.fillRect(cannonLength * 0.9, -tipWidth / 2, cannonLength * 0.15, tipWidth);
-                this.ctx.strokeRect(cannonLength * 0.9, -tipWidth / 2, cannonLength * 0.15, tipWidth);
-            }
-
+            this.ctx.setLineDash([8, 8]);
+            
+            const arcRadius = weaponProps.length * 1.1;
+            this.ctx.beginPath();
+            this.ctx.arc(
+                mountedWeapon.x, 
+                mountedWeapon.y, 
+                arcRadius,
+                defaultWorldAngle - halfTraverse,
+                defaultWorldAngle + halfTraverse
+            );
+            this.ctx.stroke();
+            
+            // Draw limit lines - very subtle
+            this.ctx.setLineDash([]);
+            this.ctx.strokeStyle = 'rgba(255, 100, 100, 0.15)';
+            this.ctx.lineWidth = 1;
+            
+            // Left limit
+            this.ctx.beginPath();
+            this.ctx.moveTo(mountedWeapon.x, mountedWeapon.y);
+            this.ctx.lineTo(
+                mountedWeapon.x + Math.cos(defaultWorldAngle - halfTraverse) * arcRadius,
+                mountedWeapon.y + Math.sin(defaultWorldAngle - halfTraverse) * arcRadius
+            );
+            this.ctx.stroke();
+            
+            // Right limit
+            this.ctx.beginPath();
+            this.ctx.moveTo(mountedWeapon.x, mountedWeapon.y);
+            this.ctx.lineTo(
+                mountedWeapon.x + Math.cos(defaultWorldAngle + halfTraverse) * arcRadius,
+                mountedWeapon.y + Math.sin(defaultWorldAngle + halfTraverse) * arcRadius
+            );
+            this.ctx.stroke();
+            
             this.ctx.restore();
+        }
 
-            // Draw turret base 
-            if (vehicle.vehicleType === 'TANK') {
-                // Large circular turret for tank
+        drawTurretBase(vehicle, mountedWeapon, style, weaponProps) {
+            this.ctx.save();
+            
+            // Choose turret base style based on vehicle type
+            if (vehicle.vehicleType === 'TANK' && weaponProps.turretRadius > vehicle.radius * 0.3) {
+                // Main tank turret
                 this.ctx.fillStyle = style.accentColor;
                 this.ctx.strokeStyle = style.strokeColor;
                 this.ctx.lineWidth = 2;
-                this.ctx.beginPath();
-                const turretRadius = vehicle.radius * 0.4;
-                this.ctx.arc(mountedWeapon.x, mountedWeapon.y, turretRadius, 0, 2 * Math.PI);
-                this.ctx.fill();
-                this.ctx.stroke();
             } else if (vehicle.vehicleType === 'JEEP') {
-                // Small machine gun turret mount at rear of jeep
-                this.ctx.fillStyle = '#616161'; // Darker gray for MG mount
+                // Machine gun mount with tripod
+                this.ctx.fillStyle = '#616161';
                 this.ctx.strokeStyle = '#424242';
                 this.ctx.lineWidth = 1.5;
-                this.ctx.beginPath();
-                const mgTurretRadius = vehicle.radius * 0.15; // Much smaller than tank turret
-                this.ctx.arc(mountedWeapon.x, mountedWeapon.y, mgTurretRadius, 0, 2 * Math.PI);
-                this.ctx.fill();
-                this.ctx.stroke();
-                
-                // Add tripod/mount legs
+            } else {
+                // Other weapon mounts
+                this.ctx.fillStyle = '#555555';
+                this.ctx.strokeStyle = '#333333';
+                this.ctx.lineWidth = 1.5;
+            }
+            
+            this.ctx.beginPath();
+            this.ctx.arc(mountedWeapon.x, mountedWeapon.y, weaponProps.turretRadius, 0, 2 * Math.PI);
+            this.ctx.fill();
+            this.ctx.stroke();
+            
+            // Add tripod legs for machine gun mounts
+            if (vehicle.vehicleType === 'JEEP' || weaponProps.turretRadius <= vehicle.radius * 0.2) {
                 this.ctx.strokeStyle = '#525252';
                 this.ctx.lineWidth = 2;
                 for (let i = 0; i < 3; i++) {
@@ -2155,12 +2251,35 @@
                     this.ctx.beginPath();
                     this.ctx.moveTo(mountedWeapon.x, mountedWeapon.y);
                     this.ctx.lineTo(
-                        mountedWeapon.x + Math.cos(legAngle) * mgTurretRadius * 1.5,
-                        mountedWeapon.y + Math.sin(legAngle) * mgTurretRadius * 1.5
+                        mountedWeapon.x + Math.cos(legAngle) * weaponProps.turretRadius * 1.5,
+                        mountedWeapon.y + Math.sin(legAngle) * weaponProps.turretRadius * 1.5
                     );
                     this.ctx.stroke();
                 }
             }
+            
+            this.ctx.restore();
+        }
+
+        drawWeaponBarrel(mountedWeapon, currentAngle, weaponProps) {
+            this.ctx.save();
+            this.ctx.translate(mountedWeapon.x, mountedWeapon.y);
+            this.ctx.rotate(currentAngle);
+
+            // Draw main barrel
+            this.ctx.fillStyle = weaponProps.barrelColor;
+            this.ctx.strokeStyle = weaponProps.barrelStroke;
+            this.ctx.lineWidth = 1;
+            this.ctx.fillRect(0, -weaponProps.width / 2, weaponProps.length, weaponProps.width);
+            this.ctx.strokeRect(0, -weaponProps.width / 2, weaponProps.length, weaponProps.width);
+
+            // Draw muzzle/tip based on weapon type
+            const tipLength = weaponProps.length * 0.1;
+            const tipWidth = weaponProps.width * 1.3;
+            this.ctx.fillRect(weaponProps.length - tipLength, -tipWidth / 2, tipLength, tipWidth);
+            this.ctx.strokeRect(weaponProps.length - tipLength, -tipWidth / 2, tipLength, tipWidth);
+
+            this.ctx.restore();
         }
 
         getVehicleControllingPlayer(vehicle) {

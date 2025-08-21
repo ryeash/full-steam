@@ -282,6 +282,22 @@ public class WeaponFactory {
         ));
 
         addPreset(new Weapon(
+                "Laser Minigun",
+                "LM",
+                Weapon.Ordinance.LASER,
+                35,  // Fire Rate
+                5, // Damage
+                9,  // Range
+                0, // Speed
+                0,  // Speed Decay
+                -10, // Accuracy
+                0,  // Multi-shot
+                10,  // Magazine Size
+                1,  // Reload Speed
+                null
+        ));
+
+        addPreset(new Weapon(
                 "Engineer Wrench",
                 "EW",
                 25,  // Fire Rate

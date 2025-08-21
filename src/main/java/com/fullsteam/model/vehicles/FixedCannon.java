@@ -34,22 +34,27 @@ public class FixedCannon extends Vehicle {
                 List.of(new Seat(true, new MountedWeapon(
                         new Vector2D(0, 0), // align with vehicle center
                         WeaponFactory.getWeapon("Rocket"),
-                        0.0
+                        0.0, // Default angle (forward)
+                        Math.PI / 6,// ±15° traverse range (very limited like real artillery),
+                        3.0
                 ))));
         setPosition(new Vector2D(0, 0));
     }
 
     @Override
     public void handleDriverInput(PlayerInput input, long delta) {
-        // Fixed cannon doesn't move, but can rotate to aim
-        // Rotation is handled by aiming towards mouse
-        double dx = input.getMouseX() - position().x();
-        double dy = input.getMouseY() - position().y();
-        if (dx != 0 || dy != 0) {
-            angle = Math.atan2(dy, dx);
+        // Fixed cannon can rotate its base with left/right input
+        double turnInput = input.getMoveX(); // Left/right turning
+
+        // Apply turning and rotate the vehicle geometry (limited by turn speed)
+        if (Math.abs(turnInput) > 0.01) {
+            double angleChange = turnInput * turnSpeed * delta;
+            angle += angleChange;
+            // Rotate the vehicle's vertices to match the new angle
+            rotate(angleChange);
         }
 
-        // Always stationary
+        // Always stationary (no movement)
         velocityX = 0;
         velocityY = 0;
         speed = 0;

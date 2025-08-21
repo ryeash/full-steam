@@ -42,17 +42,21 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     public static class MountedWeapon {
         private Vector2D position; // absolute position of the weapon mount
         private final Weapon weapon;
-        private final double mountAngleOffset;
+        private final double defaultAngle; // default direction relative to vehicle (0 = forward)
+        private final double maximumRadian; // max traverse range in radians (e.g., Math.PI/2 = 90°)
         private Long controllerId;
         private int currentAmmo;
         private boolean reloading;
         private long reloadCompleteTime;
         private long nextShotTime;
+        private final double damageModification;
 
-        public MountedWeapon(Vector2D position, Weapon weapon, double mountAngleOffset) {
+        public MountedWeapon(Vector2D position, Weapon weapon, double defaultAngle, double maximumRadian, double damageModification) {
             this.position = position;
             this.weapon = weapon;
-            this.mountAngleOffset = mountAngleOffset;
+            this.defaultAngle = defaultAngle;
+            this.maximumRadian = maximumRadian;
+            this.damageModification = damageModification;
             this.controllerId = null;
             this.currentAmmo = weapon.getRoundsPerMagazine();
             this.reloading = false;
@@ -95,8 +99,12 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
             return weapon;
         }
 
-        public double getMountAngleOffset() {
-            return mountAngleOffset;
+        public double getDefaultAngle() {
+            return defaultAngle;
+        }
+
+        public double getMaximumRadian() {
+            return maximumRadian;
         }
 
         public Long getControllerId() {
@@ -121,6 +129,43 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
 
         public void setControllerId(Long controllerId) {
             this.controllerId = controllerId;
+        }
+
+        public double getDamageModification() {
+            return damageModification;
+        }
+
+        /**
+         * Calculates the constrained weapon angle based on traverse limits.
+         * @param desiredAngle The angle the player wants to aim at
+         * @param vehicleAngle The current angle of the vehicle
+         * @return The constrained angle within traverse limits
+         */
+        public double getConstrainedAngle(double desiredAngle, double vehicleAngle) {
+            if (maximumRadian >= Math.PI * 2) {
+                // Full 360° traverse - no constraints
+                return desiredAngle;
+            }
+
+            // Calculate the weapon's default direction in world coordinates
+            double weaponDefaultAngle = vehicleAngle + defaultAngle;
+            
+            // Calculate the difference between desired and default angles
+            double angleDiff = desiredAngle - weaponDefaultAngle;
+            
+            // Normalize angle difference to be between -π and π
+            while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+            while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+            
+            // Constrain to maximum traverse range
+            double halfTraverse = maximumRadian / 2.0;
+            if (angleDiff > halfTraverse) {
+                angleDiff = halfTraverse;
+            } else if (angleDiff < -halfTraverse) {
+                angleDiff = -halfTraverse;
+            }
+            
+            return weaponDefaultAngle + angleDiff;
         }
     }
 

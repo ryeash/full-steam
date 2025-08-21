@@ -32,13 +32,19 @@ public class Mech extends Vehicle {
                 Config.MECH_MAX_SPEED,   // Medium speed
                 Config.MECH_TURN_SPEED,  // Fast turning
                 List.of(new Seat(true, new MountedWeapon(
-                                new Vector2D(0, Config.MECH_HEIGHT / 2), // Driver seat at front center
-                                WeaponFactory.getWeapon("Laser Pistol"),
-                                0.0)),
+                                new Vector2D(0, Config.MECH_HEIGHT / 2), // Driver controlled right arm
+                                WeaponFactory.getWeapon("Laser Minigun"),
+                                Math.PI / 8, // Default angle (forward)
+                                Math.PI - Math.PI / 8, // ±90° traverse range (front hemisphere)
+                                3.0
+                        )),
                         new Seat(false, new MountedWeapon(
-                                new Vector2D(0, -Config.MECH_HEIGHT / 2), // Gunner seat at rear center
-                                WeaponFactory.getWeapon("Laser Pistol"),
-                                0.0)) // Butt lasers!
+                                new Vector2D(0, -Config.MECH_HEIGHT / 2), // Passenger controller left arm
+                                WeaponFactory.getWeapon("Laser Minigun"),
+                                -Math.PI / 8, // Default angle (rear)
+                                Math.PI - Math.PI / 8, // ±90° traverse range (rear hemisphere)
+                                3.0
+                        ))
                 ));
 
         setPosition(new Vector2D(0, 0));
@@ -46,49 +52,27 @@ public class Mech extends Vehicle {
 
     @Override
     public void handleDriverInput(PlayerInput input, long delta) {
-        // Mech movement: strafing in any direction like a player
-        double moveX = input.getMoveX();
-        double moveY = input.getMoveY();
+        // Mech movement: tank-like controls (forward/backward with turning)
+        double moveInput = -input.getMoveY(); // Forward/backward (inversion needed for mech)
+        double turnInput = input.getMoveX(); // Left/right turning
 
-        Vector2D moveVector = new Vector2D(moveX, moveY);
-        double magnitude = moveVector.magnitude();
-
-        // Sanitize input: clamp magnitude to 1.0
-        if (magnitude > 1.0) {
-            moveVector = moveVector.normalize();
-            magnitude = 1.0;
+        // Apply turning and rotate the vehicle geometry
+        if (Math.abs(turnInput) > 0.01) {
+            double angleChange = turnInput * turnSpeed * delta;
+            angle += angleChange;
+            // Rotate the vehicle's vertices to match the new angle
+            rotate(angleChange);
         }
 
-        if (magnitude > 0.01) {
-            double currentSpeed = maxSpeed * magnitude;
-            Vector2D directionVector = moveVector.normalize();
-            Vector2D velocity = directionVector.multiply(currentSpeed);
-
-            velocityX = velocity.x();
-            velocityY = velocity.y();
-            speed = currentSpeed;
+        // Apply movement in the direction the mech is facing
+        if (Math.abs(moveInput) > 0.01) {
+            speed = moveInput * maxSpeed;
+            velocityX = Math.cos(angle) * speed;
+            velocityY = Math.sin(angle) * speed;
         } else {
+            speed = 0;
             velocityX = 0;
             velocityY = 0;
-            speed = 0;
-        }
-
-        // Mech faces towards mouse cursor
-        double dx = input.getMouseX() - position().x();
-        double dy = input.getMouseY() - position().y();
-        if (dx != 0 || dy != 0) {
-            double newAngle = Math.atan2(dy, dx);
-            double angleChange = newAngle - angle;
-
-            // Normalize angle change to be between -π and π
-            while (angleChange > Math.PI) angleChange -= 2 * Math.PI;
-            while (angleChange < -Math.PI) angleChange += 2 * Math.PI;
-
-            if (Math.abs(angleChange) > 0.01) {
-                angle = newAngle;
-                // Rotate the vehicle's vertices to match the new angle
-                rotate(angleChange);
-            }
         }
     }
 

@@ -153,8 +153,8 @@ public class Config {
 
     // Mech Configuration  
     public static final double MECH_HEALTH = getDouble("game.vehicle.mech.health", 400.0);
-    public static final double MECH_MAX_SPEED = getDouble("game.vehicle.mech.max_speed", 0.12);
-    public static final double MECH_TURN_SPEED = getDouble("game.vehicle.mech.turn_speed", 0.005);
+    public static final double MECH_MAX_SPEED = getDouble("game.vehicle.mech.max_speed", 0.06);
+    public static final double MECH_TURN_SPEED = getDouble("game.vehicle.mech.turn_speed", 0.003);
     public static final double MECH_HEIGHT = getDouble("game.vehicle.mech.height", 55.0);
     public static final double MECH_WIDTH = getDouble("game.vehicle.mech.width", 35.0);
 
@@ -167,6 +167,6 @@ public class Config {
 
     // Fixed Cannon Configuration
     public static final double FIXED_CANNON_HEALTH = getDouble("game.vehicle.fixed_cannon.health", 500.0);
-    public static final double FIXED_CANNON_TURN_SPEED = getDouble("game.vehicle.fixed_cannon.turn_speed", 0.003);
+    public static final double FIXED_CANNON_TURN_SPEED = getDouble("game.vehicle.fixed_cannon.turn_speed", 0.001);
     public static final double FIXED_CANNON_RADIUS = getDouble("game.vehicle.fixed_cannon.radius", 20.0);
 }

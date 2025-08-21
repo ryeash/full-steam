@@ -46,6 +46,8 @@ public class VehicleSerializer extends AbstractSerializer<Vehicle> {
             gen.writeBooleanField("reloading", mountedWeapon.isReloading());
             gen.writeNumberField("x", mountedWeapon.position().x());
             gen.writeNumberField("y", mountedWeapon.position().y());
+            gen.writeNumberField("defaultAngle", mountedWeapon.getDefaultAngle());
+            gen.writeNumberField("maximumRadian", mountedWeapon.getMaximumRadian());
             if (mountedWeapon.getControllerId() != null) {
                 gen.writeNumberField("controllerId", mountedWeapon.getControllerId());
             }

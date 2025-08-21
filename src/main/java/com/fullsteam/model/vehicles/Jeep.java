@@ -32,11 +32,13 @@ public class Jeep extends Vehicle {
                 Config.JEEP_HEALTH,      // Low health
                 Config.JEEP_MAX_SPEED,   // Fast movement
                 Config.JEEP_TURN_SPEED,  // Medium turning
-                List.of(new Seat(true, null),
+                List.of(new Seat(true, null), // Driver has no weapon
                         new Seat(false, new MountedWeapon(
                                 new Vector2D(-Config.JEEP_LENGTH / 4, 0), // Mount at rear center
-                                WeaponFactory.getWeapon("Minigun"), // TODO
-                                0.0 // Can rotate 360 degrees (handled differently)
+                                WeaponFactory.getWeapon("Minigun"),
+                                Math.PI, // Default angle (rear-facing)
+                                Math.PI * 4/3, // ±120° traverse range (wide coverage)
+                                1.0
                         ))));
         setPosition(new Vector2D(0, 0));
     }

@@ -39,19 +39,25 @@ public class Tank extends Vehicle {
                 Config.TANK_MAX_SPEED,   // Slow movement
                 Config.TANK_TURN_SPEED,  // Slow turning
                 List.of(new Seat(true, new MountedWeapon(
-                                new Vector2D(0, 0), // Driver seat at center
-                                WeaponFactory.getWeapon("Rocket"), // TODO
-                                0.0
+                                new Vector2D(0, 0), // Driver seat at center - main turret
+                                WeaponFactory.getWeapon("Rocket"),
+                                0.0, // Default angle (forward)
+                                Math.PI / 2, // ±45° traverse range
+                                2.2
                         )),
                         new Seat(false, new MountedWeapon(
-                                new Vector2D(-Config.TANK_WIDTH / 2, 0), // Gunner seat on left side
-                                WeaponFactory.getWeapon("Assault"), // TODO
-                                Math.PI / 4
+                                new Vector2D(-Config.TANK_WIDTH / 3, Config.TANK_LENGTH / 4), // Left side gunner
+                                WeaponFactory.getWeapon("Assault"),
+                                Math.PI / 2, // Default angle (left side)
+                                Math.PI / 3, // ±30° traverse range
+                                1.5
                         )),
                         new Seat(false, new MountedWeapon(
-                                new Vector2D(Config.TANK_WIDTH / 2, 0), // Gunner seat on right side
-                                WeaponFactory.getWeapon("Assault"), // TODO
-                                -Math.PI / 4
+                                new Vector2D(-Config.TANK_WIDTH / 3, -Config.TANK_LENGTH / 4), // Right side gunner
+                                WeaponFactory.getWeapon("Assault"),
+                                -Math.PI / 2, // Default angle (right side)
+                                Math.PI / 3, // ±30° traverse range
+                                1.5
                         ))
                 ));
 
