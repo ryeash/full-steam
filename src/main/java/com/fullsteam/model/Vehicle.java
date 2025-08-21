@@ -321,4 +321,8 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     public int getMaxPassengers() {
         return seats.size();
     }
+
+    public List<MountedWeapon> getMountedWeapons() {
+        return seats.stream().map(s -> s.mountedWeapon).filter(Objects::nonNull).toList();
+    }
 }

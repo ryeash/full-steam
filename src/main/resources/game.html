@@ -2007,8 +2007,8 @@
                 this.ctx.font = '12px Arial';
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'bottom';
-                const passengerCount = (vehicle.driverId ? 1 : 0) + vehicle.passengerIds.length;
-                const maxPassengers = vehicle.maxPassengers + 1; // +1 for driver
+                const passengerCount = vehicle.passengerIds.length;
+                const maxPassengers = vehicle.maxPassengers;
                 this.ctx.fillText(`${vehicle.vehicleName} (${passengerCount}/${maxPassengers})`, vehicleX, vehicleY - vehicleRadius - 25);
 
                 // Draw interaction hint if player is nearby
@@ -2052,8 +2052,8 @@
         }
 
         drawVehicleCannon(vehicle, style) {
-            // Only draw cannons for Tank and FixedCannon
-            if (vehicle.vehicleType !== 'TANK' && vehicle.vehicleType !== 'FIXED_CANNON') {
+            // Only draw cannons for Tank, FixedCannon, and Jeep
+            if (vehicle.vehicleType !== 'TANK' && vehicle.vehicleType !== 'FIXED_CANNON' && vehicle.vehicleType !== 'JEEP') {
                 return;
             }
 
@@ -2062,7 +2062,15 @@
             let cannonAngle;
 
             // Get the controlling player's mouse position
-            const controllingPlayer = this.getVehicleControllingPlayer(vehicle);
+            let controllingPlayer;
+            if (vehicle.vehicleType === 'JEEP') {
+                // For jeep, the passenger controls the turret, not the driver
+                controllingPlayer = vehicle.mountedWeapons[0].controllerId;
+            } else {
+                // For tank and fixed cannon, the driver controls the main weapon
+                controllingPlayer = this.getVehicleControllingPlayer(vehicle);
+            }
+            
             if (controllingPlayer && controllingPlayer.mouseX && controllingPlayer.mouseY) {
                 // Player is controlling - aim toward mouse
                 const mouseX = controllingPlayer.mouseX;
@@ -2076,22 +2084,33 @@
             }
 
             // Calculate cannon dimensions based on vehicle type
-            let cannonLength, cannonWidth;
+            let cannonLength, cannonWidth, turretPosition;
             if (vehicle.vehicleType === 'TANK') {
-                cannonLength = vehicle.radius * 1.2; // Slightly longer than vehicle radius
+                cannonLength = vehicle.radius * 1.2;
                 cannonWidth = 6;
+                turretPosition = { x: 0, y: 0 }; // Center mounted
+            } else if (vehicle.vehicleType === 'JEEP') {
+                cannonLength = vehicle.radius * 0.8; // Shorter machine gun
+                cannonWidth = 4;
+                // Position turret at rear of jeep (negative X since front faces positive X)
+                turretPosition = { x: -vehicle.radius * 0.6, y: 0 };
             } else { // FIXED_CANNON
-                cannonLength = vehicle.radius * 1.5; // Longer barrel for artillery
+                cannonLength = vehicle.radius * 1.5;
                 cannonWidth = 8;
+                turretPosition = { x: 0, y: 0 }; // Center mounted
             }
 
             // Calculate cannon end position
             const cannonEndX = vehicleX + Math.cos(cannonAngle) * cannonLength;
             const cannonEndY = vehicleY + Math.sin(cannonAngle) * cannonLength;
 
+            // Calculate turret center position (in world coordinates)
+            const turretWorldX = vehicleX + turretPosition.x;
+            const turretWorldY = vehicleY + turretPosition.y;
+
             // Draw cannon barrel
             this.ctx.save();
-            this.ctx.translate(vehicleX, vehicleY);
+            this.ctx.translate(turretWorldX, turretWorldY);
             this.ctx.rotate(cannonAngle);
 
             // Cannon barrel
@@ -2101,15 +2120,25 @@
             this.ctx.fillRect(0, -cannonWidth / 2, cannonLength, cannonWidth);
             this.ctx.strokeRect(0, -cannonWidth / 2, cannonLength, cannonWidth);
 
-            // Cannon tip (slightly wider)
-            const tipWidth = cannonWidth * 1.3;
-            this.ctx.fillRect(cannonLength * 0.9, -tipWidth / 2, cannonLength * 0.15, tipWidth);
-            this.ctx.strokeRect(cannonLength * 0.9, -tipWidth / 2, cannonLength * 0.15, tipWidth);
+            // Cannon tip - different for different vehicle types
+            if (vehicle.vehicleType === 'JEEP') {
+                // Machine gun muzzle flash suppressor
+                const tipLength = cannonLength * 0.1;
+                const tipWidth = cannonWidth * 1.5;
+                this.ctx.fillRect(cannonLength - tipLength, -tipWidth / 2, tipLength, tipWidth);
+                this.ctx.strokeRect(cannonLength - tipLength, -tipWidth / 2, tipLength, tipWidth);
+            } else {
+                // Tank/Artillery cannon tip (slightly wider)
+                const tipWidth = cannonWidth * 1.3;
+                this.ctx.fillRect(cannonLength * 0.9, -tipWidth / 2, cannonLength * 0.15, tipWidth);
+                this.ctx.strokeRect(cannonLength * 0.9, -tipWidth / 2, cannonLength * 0.15, tipWidth);
+            }
 
             this.ctx.restore();
 
-            // Draw turret base for tank
+            // Draw turret base 
             if (vehicle.vehicleType === 'TANK') {
+                // Large circular turret for tank
                 this.ctx.fillStyle = style.accentColor;
                 this.ctx.strokeStyle = style.strokeColor;
                 this.ctx.lineWidth = 2;
@@ -2118,6 +2147,30 @@
                 this.ctx.arc(vehicleX, vehicleY, turretRadius, 0, 2 * Math.PI);
                 this.ctx.fill();
                 this.ctx.stroke();
+            } else if (vehicle.vehicleType === 'JEEP') {
+                // Small machine gun turret mount at rear of jeep
+                this.ctx.fillStyle = '#616161'; // Darker gray for MG mount
+                this.ctx.strokeStyle = '#424242';
+                this.ctx.lineWidth = 1.5;
+                this.ctx.beginPath();
+                const mgTurretRadius = vehicle.radius * 0.15; // Much smaller than tank turret
+                this.ctx.arc(turretWorldX, turretWorldY, mgTurretRadius, 0, 2 * Math.PI);
+                this.ctx.fill();
+                this.ctx.stroke();
+                
+                // Add tripod/mount legs
+                this.ctx.strokeStyle = '#525252';
+                this.ctx.lineWidth = 2;
+                for (let i = 0; i < 3; i++) {
+                    const legAngle = (i * 2 * Math.PI / 3) + Math.PI / 2;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(turretWorldX, turretWorldY);
+                    this.ctx.lineTo(
+                        turretWorldX + Math.cos(legAngle) * mgTurretRadius * 1.5,
+                        turretWorldY + Math.sin(legAngle) * mgTurretRadius * 1.5
+                    );
+                    this.ctx.stroke();
+                }
             }
         }
 
