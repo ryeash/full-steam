@@ -1960,11 +1960,15 @@
         }
 
         drawVehicles() {
-            if (!this.gameState.vehicles) return;
+            if (!this.gameState.vehicles) {
+                return;
+            }
 
             this.ctx.save();
             this.gameState.vehicles.forEach(vehicle => {
-                if (vehicle.destroyed) return;
+                if (vehicle.destroyed) {
+                    return;
+                }
 
                 const vehicleX = vehicle.x;
                 const vehicleY = vehicle.y;

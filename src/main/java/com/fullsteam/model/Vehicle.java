@@ -156,19 +156,6 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
         return getCenter();
     }
 
-    public boolean hasDriver() {
-        return !seats.isEmpty() && seats.getFirst() != null;
-    }
-
-    public boolean hasRoom() {
-        for (Seat seat : seats) {
-            if (seat.player == null) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public boolean enterVehicle(Player player) {
         int team = getTeam();
         if (team < 0 || player.getTeam() == team) {
@@ -227,12 +214,6 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     public abstract void handleDriverInput(PlayerInput input, long delta);
 
     public abstract String getVehicleName();
-
-    // Implementations of HasId, HasLife, Targetable interfaces
-    @Override
-    public long getId() {
-        return id;
-    }
 
     @Override
     public long id() {
