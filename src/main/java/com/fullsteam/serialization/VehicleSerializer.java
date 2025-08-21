@@ -42,18 +42,13 @@ public class VehicleSerializer extends AbstractSerializer<Vehicle> {
         gen.writeArrayFieldStart("mountedWeapons");
         for (Vehicle.MountedWeapon mountedWeapon : vehicle.getMountedWeapons()) {
             gen.writeStartObject();
-
-//            gen.writeFieldName("weapon");
-//            serializers.defaultSerializeValue(mountedWeapon.getWeapon(), gen);
-
-            gen.writeNumberField("mountAngleOffset", mountedWeapon.getMountAngleOffset());
             gen.writeNumberField("currentAmmo", mountedWeapon.getCurrentAmmo());
             gen.writeBooleanField("reloading", mountedWeapon.isReloading());
-
+            gen.writeNumberField("x", mountedWeapon.position().x());
+            gen.writeNumberField("y", mountedWeapon.position().y());
             if (mountedWeapon.getControllerId() != null) {
                 gen.writeNumberField("controllerId", mountedWeapon.getControllerId());
             }
-
             gen.writeEndObject();
         }
         gen.writeEndArray();

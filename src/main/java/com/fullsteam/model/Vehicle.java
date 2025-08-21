@@ -1,5 +1,6 @@
 package com.fullsteam.model;
 
+import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 
 import java.util.List;
@@ -39,6 +40,7 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     }
 
     public static class MountedWeapon {
+        private Vector2D position; // absolute position of the weapon mount
         private final Weapon weapon;
         private final double mountAngleOffset;
         private Long controllerId;
@@ -47,7 +49,8 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
         private long reloadCompleteTime;
         private long nextShotTime;
 
-        public MountedWeapon(Weapon weapon, double mountAngleOffset) {
+        public MountedWeapon(Vector2D position, Weapon weapon, double mountAngleOffset) {
+            this.position = position;
             this.weapon = weapon;
             this.mountAngleOffset = mountAngleOffset;
             this.controllerId = null;
@@ -57,10 +60,14 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
             this.nextShotTime = 0;
         }
 
+        public Vector2D position() {
+            return position;
+        }
+
         public boolean canShoot() {
             return !reloading
-                   && currentAmmo > 0
-                   && System.currentTimeMillis() >= nextShotTime;
+                    && currentAmmo > 0
+                    && System.currentTimeMillis() >= nextShotTime;
         }
 
         public void shoot() {
@@ -136,8 +143,9 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     public void update(double deltaTime) {
         // Update position based on velocity (calculated from speed and angle)
         Vector2D center = getCenter();
-        double newX = center.x() + velocityX * deltaTime;
-        double newY = center.y() + velocityY * deltaTime;
+        double worldBuffer = getBoundingRadius() / 2;
+        double newX = CollisionUtils.constrain(center.x() + velocityX * deltaTime, worldBuffer, Config.GAME_WIDTH - worldBuffer);
+        double newY = CollisionUtils.constrain(center.y() + velocityY * deltaTime, worldBuffer, Config.GAME_HEIGHT - worldBuffer);
 
         // Update position to new center
         setPosition(new Vector2D(newX, newY));
@@ -324,5 +332,73 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
 
     public List<MountedWeapon> getMountedWeapons() {
         return seats.stream().map(s -> s.mountedWeapon).filter(Objects::nonNull).toList();
+    }
+
+    @Override
+    public void rotate(double angleRadians) {
+        super.rotate(angleRadians);
+        // Rotate mounted weapons around the vehicle's center
+        Vector2D center = getCenter();
+        for (Seat seat : seats) {
+            MountedWeapon mountedWeapon = seat.mountedWeapon;
+            if (mountedWeapon != null) {
+                Vector2D weaponPos = mountedWeapon.position;
+                // Translate weapon position to origin
+                double dx = weaponPos.x() - center.x();
+                double dy = weaponPos.y() - center.y();
+                // Rotate around center
+                double cos = Math.cos(angleRadians);
+                double sin = Math.sin(angleRadians);
+                double newX = dx * cos - dy * sin + center.x();
+                double newY = dx * sin + dy * cos + center.y();
+                // Update weapon position
+                mountedWeapon.position = new Vector2D(newX, newY);
+            }
+        }
+    }
+
+    @Override
+    public void setPosition(Vector2D position) {
+        // update the position of the weapons
+        Vector2D center = getCenter();
+        for (Seat seat : seats) {
+            MountedWeapon mountedWeapon = seat.mountedWeapon;
+            if (mountedWeapon != null) {
+                double offsetX = position.x() - center.x();
+                double offsetY = position.y() - center.y();
+                // Translate weapon position to be relative to the new center
+                double dx = mountedWeapon.position.x() + offsetX;
+                double dy = mountedWeapon.position.y() + offsetY;
+                // Update weapon position to new center
+                mountedWeapon.position = new Vector2D(dx, dy);
+            }
+        }
+        super.setPosition(position);
+    }
+
+    public void cycleSeats(Player player) {
+        for (int i = 0; i < seats.size(); i++) {
+            Seat currentSeat = seats.get(i);
+            if (currentSeat.player != null && currentSeat.player.id() == player.id()) {
+                // Find the next available seat
+                for (int j = 1; j < seats.size(); j++) {
+                    int nextIndex = (i + j) % seats.size();
+                    Seat nextSeat = seats.get(nextIndex);
+                    if (nextSeat.player == null) {
+                        // Move player to the next seat
+                        nextSeat.player = player;
+                        currentSeat.player = null;
+                        if (currentSeat.mountedWeapon != null) {
+                            currentSeat.mountedWeapon.setControllerId(null);
+                        }
+                        if (nextSeat.mountedWeapon != null) {
+                            nextSeat.mountedWeapon.setControllerId(player.id());
+                        }
+                        return;
+                    }
+                }
+                break; // No available seats found
+            }
+        }
     }
 }

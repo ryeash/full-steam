@@ -161,8 +161,8 @@ public class Config {
     public static final double JEEP_HEALTH = getDouble("game.vehicle.jeep.health", 200.0);
     public static final double JEEP_MAX_SPEED = getDouble("game.vehicle.jeep.max_speed", 0.25);
     public static final double JEEP_TURN_SPEED = getDouble("game.vehicle.jeep.turn_speed", 0.004);
-    public static final double JEEP_LENGTH = getDouble("game.vehicle.jeep.radius", 35.0);
-    public static final double JEEP_WIDTH = getDouble("game.vehicle.jeep.radius", 20.0);
+    public static final double JEEP_LENGTH = getDouble("game.vehicle.jeep.radius", 40.0);
+    public static final double JEEP_WIDTH = getDouble("game.vehicle.jeep.radius", 25.0);
 
     // Fixed Cannon Configuration
     public static final double FIXED_CANNON_HEALTH = getDouble("game.vehicle.fixed_cannon.health", 500.0);

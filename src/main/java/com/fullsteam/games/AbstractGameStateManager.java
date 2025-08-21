@@ -299,11 +299,21 @@ public abstract class AbstractGameStateManager {
             player.setVelocity(Vector2D.ZERO);
             player.setX(vehicle.position().x());
             player.setY(vehicle.position().y());
-            if (vehicle.getDriverId() == player.id()) {
+            if (input.isAction1()) {
+                long currentTime = System.currentTimeMillis();
+                Long lastActionTime = lastVehicleActionTime.get(playerId);
+                if (lastActionTime == null || currentTime - lastActionTime >= VEHICLE_ACTION_DEBOUNCE_MS) {
+                    lastVehicleActionTime.put(playerId, currentTime);
+                    vehicle.cycleSeats(player);
+                }
+            }
+            if (Objects.equals(vehicle.getDriverId(), player.id())) {
                 vehicle.handleDriverInput(input, delta);
                 if (!vehicle.isDestroyed()) {
                     // Update vehicle physics
+                    Vector2D startingPosition = vehicle.position();
                     vehicle.update(delta);
+
                     // Handle driver input
                     if (Objects.equals(vehicle.getDriverId(), playerId)) {
                         vehicle.handleDriverInput(input, delta);
@@ -314,11 +324,14 @@ public abstract class AbstractGameStateManager {
                     for (Long passengerId : vehicle.getPassengerIds()) {
                         handleVehicleWeaponFiring(vehicle, passengerId, input);
                     }
+
                     // Check collision with obstacles
                     // Simple collision response - stop the vehicle
                     if (isColliding(vehicle, obstacles)) {
                         vehicle.setVelocityX(0);
                         vehicle.setVelocityY(0);
+                        vehicle.setPosition(startingPosition); // reset to starting position
+                        // TODO: handle rotation back to original?
                     }
                 }
             }
@@ -883,9 +896,9 @@ public abstract class AbstractGameStateManager {
 
             // Last check: Remove bullets that will move out of bounds
             return newPos.x() < 0
-                   || newPos.x() > GAME_WIDTH
-                   || newPos.y() < 0
-                   || newPos.y() > GAME_HEIGHT;
+                    || newPos.x() > GAME_WIDTH
+                    || newPos.y() < 0
+                    || newPos.y() > GAME_HEIGHT;
         });
     }
 
@@ -1236,8 +1249,8 @@ public abstract class AbstractGameStateManager {
         }
 
         if (request.getWeaponName() != null
-            && !request.getWeaponName().isEmpty()
-            && !request.getWeaponName().equals(player.getWeapon().getName())) {
+                && !request.getWeaponName().isEmpty()
+                && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
             removePlayerTurrets(player);
@@ -1398,7 +1411,7 @@ public abstract class AbstractGameStateManager {
 
             if (weapon.getOrdinance() == Weapon.Ordinance.LASER) {
                 // Create laser blast
-                Vector2D start = vehicle.position();
+                Vector2D start = mountedWeapon.position();
                 Vector2D end = start.add(new Vector2D(Math.cos(finalAngle), Math.sin(finalAngle)).multiply(weapon.getBulletRange()));
                 LaserBlast laserBlast = new LaserBlast(
                         start,
@@ -1412,8 +1425,8 @@ public abstract class AbstractGameStateManager {
             } else {
                 // Create bullet
                 Bullet bullet = new Bullet(
-                        vehicle.position().x(),
-                        vehicle.position().y(),
+                        mountedWeapon.position().x(),
+                        mountedWeapon.position().y(),
                         Math.cos(finalAngle),
                         Math.sin(finalAngle),
                         playerId,
@@ -1432,7 +1445,7 @@ public abstract class AbstractGameStateManager {
 
     protected boolean isColliding(Vehicle vehicle, List<Obstacle> obstacles) {
         for (Obstacle obstacle : obstacles) {
-            if (CollisionUtils.checkObstacleOverlap(vehicle, obstacle, 10)) {
+            if (CollisionUtils.areObstaclesColliding(vehicle, obstacle)) {
                 return true;
             }
         }
@@ -1508,6 +1521,9 @@ public abstract class AbstractGameStateManager {
     protected void spawnVehicle(Vehicle.VehicleType type) {
         // Try to find a valid position
         Vehicle vehicle = createVehicle(type);
+        double randomAngle = ThreadLocalRandom.current().nextDouble() * 2 * Math.PI;
+        vehicle.setAngle(randomAngle);
+        vehicle.rotate(randomAngle);
         double bestX = Config.GAME_WIDTH / 2.0;
         double bestY = Config.GAME_HEIGHT / 2.0;
         boolean foundValidPosition = false;
@@ -1515,9 +1531,6 @@ public abstract class AbstractGameStateManager {
         for (int attempts = 0; attempts < 20; attempts++) {
             double x = ThreadLocalRandom.current().nextDouble(50, Config.GAME_WIDTH - 50);
             double y = ThreadLocalRandom.current().nextDouble(50, Config.GAME_HEIGHT - 50);
-            double randomAngle = ThreadLocalRandom.current().nextDouble() * 2 * Math.PI;
-            vehicle.setAngle(randomAngle);
-            vehicle.rotate(randomAngle);
             vehicle.setPosition(new Vector2D(x, y));
 
             boolean isValid = true;
@@ -1541,13 +1554,7 @@ public abstract class AbstractGameStateManager {
 
         // Fallback: spawn anyway at the center if no valid position found
         if (!foundValidPosition) {
-            // Apply random rotation for visual variety
-            double randomAngle = ThreadLocalRandom.current().nextDouble() * 2 * Math.PI;
-            vehicle.setAngle(randomAngle);
-            vehicle.rotate(randomAngle);
             vehicle.setPosition(new Vector2D(bestX, bestY));
-
-
             vehicles.add(vehicle);
             log.warn("Could not find valid position for {} after 20 attempts, spawning at ({}, {}) with rotation {} anyway",
                     type, bestX, bestY, Math.toDegrees(randomAngle));

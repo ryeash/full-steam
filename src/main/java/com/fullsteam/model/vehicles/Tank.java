@@ -39,20 +39,23 @@ public class Tank extends Vehicle {
                 Config.TANK_MAX_SPEED,   // Slow movement
                 Config.TANK_TURN_SPEED,  // Slow turning
                 List.of(new Seat(true, new MountedWeapon(
+                                new Vector2D(0, 0), // Driver seat at center
                                 WeaponFactory.getWeapon("Rocket"), // TODO
                                 0.0
                         )),
                         new Seat(false, new MountedWeapon(
+                                new Vector2D(-Config.TANK_WIDTH / 2, 0), // Gunner seat on left side
                                 WeaponFactory.getWeapon("Assault"), // TODO
                                 Math.PI / 4
                         )),
                         new Seat(false, new MountedWeapon(
+                                new Vector2D(Config.TANK_WIDTH / 2, 0), // Gunner seat on right side
                                 WeaponFactory.getWeapon("Assault"), // TODO
                                 -Math.PI / 4
                         ))
                 ));
 
-        setPosition(new Vector2D(0,0));
+        setPosition(new Vector2D(0, 0));
     }
 
     @Override

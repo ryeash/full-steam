@@ -32,6 +32,7 @@ public class FixedCannon extends Vehicle {
                 0.0,                          // No movement (immobile)
                 Config.FIXED_CANNON_TURN_SPEED, // Can rotate to aim
                 List.of(new Seat(true, new MountedWeapon(
+                        new Vector2D(0, 0), // align with vehicle center
                         WeaponFactory.getWeapon("Rocket"),
                         0.0
                 ))));

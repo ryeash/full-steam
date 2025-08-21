@@ -25,14 +25,16 @@ public class Mech extends Vehicle {
                 Config.MECH_MAX_SPEED,   // Medium speed
                 Config.MECH_TURN_SPEED,  // Fast turning
                 List.of(new Seat(true, new MountedWeapon(
+                                new Vector2D(0, Config.JEEP_LENGTH / 2), // Driver seat at front center
                                 WeaponFactory.getWeapon("Laser Pistol"),
                                 0.0)),
                         new Seat(false, new MountedWeapon(
+                                new Vector2D(0, -Config.JEEP_LENGTH / 2), // Gunner seat at rear center
                                 WeaponFactory.getWeapon("Laser Pistol"),
                                 Math.PI)) // Butt lasers!
                 ));
 
-        setPosition(new Vector2D(0,0));
+        setPosition(new Vector2D(0, 0));
     }
 
     @Override

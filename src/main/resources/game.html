@@ -1229,6 +1229,10 @@
             }
         }
 
+        findPlayer(playerId) {
+            return this.gameState.players.find(player => player.id === playerId);
+        }
+
         drawPowerUps() {
             if (!this.gameState.powerUps) return;
 
@@ -2012,7 +2016,7 @@
                 this.ctx.fillText(`${vehicle.vehicleName} (${passengerCount}/${maxPassengers})`, vehicleX, vehicleY - vehicleRadius - 25);
 
                 // Draw interaction hint if player is nearby
-                if (this.localPlayer && !this.localPlayer.dead) {
+                if (this.localPlayer && !this.localPlayer.dead && !this.localPlayer.vehicleId) {
                     const distance = Math.sqrt(
                         Math.pow(vehicleX - this.localPlayer.x, 2) + 
                         Math.pow(vehicleY - this.localPlayer.y, 2)
@@ -2057,26 +2061,19 @@
                 return;
             }
 
-            const vehicleX = vehicle.x;
-            const vehicleY = vehicle.y;
+            // TODO: handle all the mounted weapons properly
+            let mountedWeapon = vehicle.mountedWeapons[0];
             let cannonAngle;
 
             // Get the controlling player's mouse position
-            let controllingPlayer;
-            if (vehicle.vehicleType === 'JEEP') {
-                // For jeep, the passenger controls the turret, not the driver
-                controllingPlayer = vehicle.mountedWeapons[0].controllerId;
-            } else {
-                // For tank and fixed cannon, the driver controls the main weapon
-                controllingPlayer = this.getVehicleControllingPlayer(vehicle);
-            }
+            let controllingPlayer = this.findPlayer(mountedWeapon.controllerId);
             
             if (controllingPlayer && controllingPlayer.mouseX && controllingPlayer.mouseY) {
                 // Player is controlling - aim toward mouse
                 const mouseX = controllingPlayer.mouseX;
                 const mouseY = controllingPlayer.mouseY;
-                const dx = mouseX - vehicleX;
-                const dy = mouseY - vehicleY;
+                const dx = mouseX - mountedWeapon.x;
+                const dy = mouseY - mountedWeapon.y;
                 cannonAngle = Math.atan2(dy, dx);
             } else {
                 // No player controlling - align with vehicle rotation
@@ -2088,29 +2085,21 @@
             if (vehicle.vehicleType === 'TANK') {
                 cannonLength = vehicle.radius * 1.2;
                 cannonWidth = 6;
-                turretPosition = { x: 0, y: 0 }; // Center mounted
             } else if (vehicle.vehicleType === 'JEEP') {
                 cannonLength = vehicle.radius * 0.8; // Shorter machine gun
                 cannonWidth = 4;
-                // Position turret at rear of jeep (negative X since front faces positive X)
-                turretPosition = { x: -vehicle.radius * 0.6, y: 0 };
             } else { // FIXED_CANNON
                 cannonLength = vehicle.radius * 1.5;
                 cannonWidth = 8;
-                turretPosition = { x: 0, y: 0 }; // Center mounted
             }
 
             // Calculate cannon end position
-            const cannonEndX = vehicleX + Math.cos(cannonAngle) * cannonLength;
-            const cannonEndY = vehicleY + Math.sin(cannonAngle) * cannonLength;
-
-            // Calculate turret center position (in world coordinates)
-            const turretWorldX = vehicleX + turretPosition.x;
-            const turretWorldY = vehicleY + turretPosition.y;
+            const cannonEndX = mountedWeapon.x + Math.cos(cannonAngle) * cannonLength;
+            const cannonEndY = mountedWeapon.y + Math.sin(cannonAngle) * cannonLength;
 
             // Draw cannon barrel
             this.ctx.save();
-            this.ctx.translate(turretWorldX, turretWorldY);
+            this.ctx.translate(mountedWeapon.x, mountedWeapon.y);
             this.ctx.rotate(cannonAngle);
 
             // Cannon barrel
@@ -2144,7 +2133,7 @@
                 this.ctx.lineWidth = 2;
                 this.ctx.beginPath();
                 const turretRadius = vehicle.radius * 0.4;
-                this.ctx.arc(vehicleX, vehicleY, turretRadius, 0, 2 * Math.PI);
+                this.ctx.arc(mountedWeapon.x, mountedWeapon.y, turretRadius, 0, 2 * Math.PI);
                 this.ctx.fill();
                 this.ctx.stroke();
             } else if (vehicle.vehicleType === 'JEEP') {
@@ -2154,7 +2143,7 @@
                 this.ctx.lineWidth = 1.5;
                 this.ctx.beginPath();
                 const mgTurretRadius = vehicle.radius * 0.15; // Much smaller than tank turret
-                this.ctx.arc(turretWorldX, turretWorldY, mgTurretRadius, 0, 2 * Math.PI);
+                this.ctx.arc(mountedWeapon.x, mountedWeapon.y, mgTurretRadius, 0, 2 * Math.PI);
                 this.ctx.fill();
                 this.ctx.stroke();
                 
@@ -2164,10 +2153,10 @@
                 for (let i = 0; i < 3; i++) {
                     const legAngle = (i * 2 * Math.PI / 3) + Math.PI / 2;
                     this.ctx.beginPath();
-                    this.ctx.moveTo(turretWorldX, turretWorldY);
+                    this.ctx.moveTo(mountedWeapon.x, mountedWeapon.y);
                     this.ctx.lineTo(
-                        turretWorldX + Math.cos(legAngle) * mgTurretRadius * 1.5,
-                        turretWorldY + Math.sin(legAngle) * mgTurretRadius * 1.5
+                        mountedWeapon.x + Math.cos(legAngle) * mgTurretRadius * 1.5,
+                        mountedWeapon.y + Math.sin(legAngle) * mgTurretRadius * 1.5
                     );
                     this.ctx.stroke();
                 }
