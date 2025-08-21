@@ -188,7 +188,6 @@ public abstract class AbstractGameStateManager {
         // Send welcome message
         WelcomeMessage welcomeMessage = playerWelcomeMessage(player);
         channel.writeAndFlush(Jackson.msgFrame(welcomeMessage));
-        sendGameEvent(GameEvent.info(String.format("Joining: %s (%d)!", /* TODO */getClass().getSimpleName(), getGameId()), playerId));
         return player;
     }
 
@@ -500,18 +499,14 @@ public abstract class AbstractGameStateManager {
 
     private void updateFieldEffects(long delta) {
         for (FieldEffect fieldEffect : List.copyOf(fieldEffects)) {
-            if (fieldEffect instanceof Explosion explosion) {
-                updateExplosion(explosion);
-            } else if (fieldEffect instanceof PoisonCloud poisonCloud) {
-                updatePoisonClouds(poisonCloud);
-            } else if (fieldEffect instanceof SlowField slowField) {
-                updateSlowField(slowField);
-            } else if (fieldEffect instanceof SmokeCloud smokeCloud) {
-                updateSmokeField(smokeCloud);
-            } else if (fieldEffect instanceof Mine mine) {
-                updateMineField(mine);
-            } else {
-                throw new UnsupportedOperationException("unsupported field effect type: " + fieldEffect.getClass().getSimpleName());
+            switch (fieldEffect) {
+                case Explosion explosion -> updateExplosion(explosion);
+                case PoisonCloud poisonCloud -> updatePoisonClouds(poisonCloud);
+                case SlowField slowField -> updateSlowField(slowField);
+                case SmokeCloud smokeCloud -> updateSmokeField(smokeCloud);
+                case Mine mine -> updateMineField(mine);
+                case null, default ->
+                        throw new UnsupportedOperationException("unsupported field effect type: " + fieldEffect.getClass().getSimpleName());
             }
         }
         // Next, remove any effects that have exceeded their duration.
@@ -1512,7 +1507,7 @@ public abstract class AbstractGameStateManager {
 
     protected void spawnVehicle(Vehicle.VehicleType type) {
         // Try to find a valid position
-        Vehicle vehicle = createVehicle(type, 0, 0);
+        Vehicle vehicle = createVehicle(type);
         double bestX = Config.GAME_WIDTH / 2.0;
         double bestY = Config.GAME_HEIGHT / 2.0;
         boolean foundValidPosition = false;
@@ -1559,12 +1554,12 @@ public abstract class AbstractGameStateManager {
         }
     }
 
-    protected Vehicle createVehicle(Vehicle.VehicleType type, double x, double y) {
+    protected Vehicle createVehicle(Vehicle.VehicleType type) {
         return switch (type) {
-            case TANK -> new Tank(x, y);
-            case MECH -> new Mech(x, y);
-            case JEEP -> new Jeep(x, y);
-            case FIXED_CANNON -> new FixedCannon(x, y);
+            case TANK -> new Tank();
+            case MECH -> new Mech();
+            case JEEP -> new Jeep();
+            case FIXED_CANNON -> new FixedCannon();
         };
     }
 

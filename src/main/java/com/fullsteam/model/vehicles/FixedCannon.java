@@ -26,7 +26,7 @@ public class FixedCannon extends Vehicle {
         return vertices;
     }
 
-    public FixedCannon(double x, double y) {
+    public FixedCannon() {
         super(cannonVertices(), VehicleType.FIXED_CANNON,
                 Config.FIXED_CANNON_HEALTH,   // Medium health
                 0.0,                          // No movement (immobile)
@@ -35,7 +35,7 @@ public class FixedCannon extends Vehicle {
                         WeaponFactory.getWeapon("Rocket"),
                         0.0
                 ))));
-        setPosition(new Vector2D(x, y));
+        setPosition(new Vector2D(0, 0));
     }
 
     @Override

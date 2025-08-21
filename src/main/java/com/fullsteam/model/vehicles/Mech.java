@@ -19,7 +19,7 @@ public class Mech extends Vehicle {
         );
     }
 
-    public Mech(double x, double y) {
+    public Mech() {
         super(mechVertices(), VehicleType.MECH,
                 Config.MECH_HEALTH,      // Medium health
                 Config.MECH_MAX_SPEED,   // Medium speed
@@ -32,7 +32,7 @@ public class Mech extends Vehicle {
                                 Math.PI)) // Butt lasers!
                 ));
 
-        setPosition(new Vector2D(x, y));
+        setPosition(new Vector2D(0,0));
     }
 
     @Override

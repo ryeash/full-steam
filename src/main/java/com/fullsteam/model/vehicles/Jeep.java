@@ -26,7 +26,7 @@ public class Jeep extends Vehicle {
         );
     }
 
-    public Jeep(double x, double y) {
+    public Jeep() {
         super(jeepVertices(),
                 VehicleType.JEEP,
                 Config.JEEP_HEALTH,      // Low health
@@ -37,7 +37,7 @@ public class Jeep extends Vehicle {
                                 WeaponFactory.getWeapon("Minigun"), // TODO
                                 0.0 // Can rotate 360 degrees (handled differently)
                         ))));
-        setPosition(new Vector2D(x, y));
+        setPosition(new Vector2D(0,0));
     }
 
     @Override

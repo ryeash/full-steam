@@ -32,7 +32,7 @@ public class Tank extends Vehicle {
         );
     }
 
-    public Tank(double x, double y) {
+    public Tank() {
         super(tankVertices(),
                 VehicleType.TANK,
                 Config.TANK_HEALTH,      // High health
@@ -52,7 +52,7 @@ public class Tank extends Vehicle {
                         ))
                 ));
 
-        setPosition(new Vector2D(x, y));
+        setPosition(new Vector2D(0,0));
     }
 
     @Override
