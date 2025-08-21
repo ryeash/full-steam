@@ -1529,6 +1529,9 @@ public abstract class AbstractGameStateManager {
         for (int attempts = 0; attempts < 20; attempts++) {
             double x = ThreadLocalRandom.current().nextDouble(50, Config.GAME_WIDTH - 50);
             double y = ThreadLocalRandom.current().nextDouble(50, Config.GAME_HEIGHT - 50);
+            double randomAngle = ThreadLocalRandom.current().nextDouble() * 2 * Math.PI;
+            vehicle.setAngle(randomAngle);
+            vehicle.rotate(randomAngle);
             vehicle.setPosition(new Vector2D(x, y));
 
             boolean isValid = true;
@@ -1542,7 +1545,7 @@ public abstract class AbstractGameStateManager {
             if (isValid) {
                 vehicles.add(vehicle);
                 foundValidPosition = true;
-                log.info("Successfully spawned {} at ({}, {})", type, x, y);
+                log.info("Successfully spawned {} at ({}, {}) with rotation {}", type, x, y, Math.toDegrees(randomAngle));
                 break;
             } else {
                 bestX = x;
@@ -1552,10 +1555,16 @@ public abstract class AbstractGameStateManager {
 
         // Fallback: spawn anyway at the center if no valid position found
         if (!foundValidPosition) {
+            // Apply random rotation for visual variety
+            double randomAngle = ThreadLocalRandom.current().nextDouble() * 2 * Math.PI;
+            vehicle.setAngle(randomAngle);
+            vehicle.rotate(randomAngle);
             vehicle.setPosition(new Vector2D(bestX, bestY));
+
+
             vehicles.add(vehicle);
-            log.warn("Could not find valid position for {} after 20 attempts, spawning at ({}, {}) anyway",
-                    type, bestX, bestY);
+            log.warn("Could not find valid position for {} after 20 attempts, spawning at ({}, {}) with rotation {} anyway",
+                    type, bestX, bestY, Math.toDegrees(randomAngle));
         }
     }
 
