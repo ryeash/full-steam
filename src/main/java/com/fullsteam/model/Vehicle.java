@@ -29,8 +29,8 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
 
     public static class Seat {
         public Player player;
-        public boolean driver;
-        public MountedWeapon mountedWeapon;
+        public final boolean driver;
+        public final MountedWeapon mountedWeapon;
 
         public Seat(boolean driver, MountedWeapon mountedWeapon) {
             this.player = null;
@@ -66,8 +66,8 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
 
         public boolean canShoot() {
             return !reloading
-                    && currentAmmo > 0
-                    && System.currentTimeMillis() >= nextShotTime;
+                   && currentAmmo > 0
+                   && System.currentTimeMillis() >= nextShotTime;
         }
 
         public void shoot() {

@@ -11,12 +11,18 @@ import java.util.List;
 public class Mech extends Vehicle {
 
     static List<Vector2D> mechVertices() {
+        double halfWidth = Config.MECH_WIDTH / 2;
+        double halfHeight = Config.MECH_HEIGHT / 2;
+
         return List.of(
-                // Body of the mech (centered around origin)
-                new Vector2D(-Config.MECH_WIDTH / 2, -Config.MECH_HEIGHT / 2), // Bottom left
-                new Vector2D(Config.MECH_WIDTH / 2, -Config.MECH_HEIGHT / 2),  // Bottom right
-                new Vector2D(Config.MECH_WIDTH / 2, Config.MECH_HEIGHT / 2),   // Top right
-                new Vector2D(-Config.MECH_WIDTH / 2, Config.MECH_HEIGHT / 2)    // Top left
+                // 6-point hexagon mech (facing positive X when angle = 0)
+                // Start from front point and go clockwise
+                new Vector2D(halfWidth, 0),                          // 1. Front point
+                new Vector2D(halfWidth * 0.3, halfHeight),           // 2. Front-right
+                new Vector2D(-halfWidth * 0.3, halfHeight),          // 3. Rear-right
+                new Vector2D(-halfWidth, 0),                         // 4. Rear point
+                new Vector2D(-halfWidth * 0.3, -halfHeight),         // 5. Rear-left
+                new Vector2D(halfWidth * 0.3, -halfHeight)           // 6. Front-left
         );
     }
 
@@ -26,13 +32,13 @@ public class Mech extends Vehicle {
                 Config.MECH_MAX_SPEED,   // Medium speed
                 Config.MECH_TURN_SPEED,  // Fast turning
                 List.of(new Seat(true, new MountedWeapon(
-                                new Vector2D(0, Config.JEEP_LENGTH / 2), // Driver seat at front center
+                                new Vector2D(0, Config.MECH_HEIGHT / 2), // Driver seat at front center
                                 WeaponFactory.getWeapon("Laser Pistol"),
                                 0.0)),
                         new Seat(false, new MountedWeapon(
-                                new Vector2D(0, -Config.JEEP_LENGTH / 2), // Gunner seat at rear center
+                                new Vector2D(0, -Config.MECH_HEIGHT / 2), // Gunner seat at rear center
                                 WeaponFactory.getWeapon("Laser Pistol"),
-                                Math.PI)) // Butt lasers!
+                                0.0)) // Butt lasers!
                 ));
 
         setPosition(new Vector2D(0, 0));
