@@ -12,10 +12,11 @@ public class Mech extends Vehicle {
 
     static List<Vector2D> mechVertices() {
         return List.of(
-                new Vector2D(-Config.MECH_RADIUS, -Config.MECH_RADIUS),
-                new Vector2D(Config.MECH_RADIUS, -Config.MECH_RADIUS),
-                new Vector2D(Config.MECH_RADIUS, Config.MECH_RADIUS),
-                new Vector2D(-Config.MECH_RADIUS, Config.MECH_RADIUS)
+                // Body of the mech (centered around origin)
+                new Vector2D(-Config.MECH_WIDTH / 2, -Config.MECH_HEIGHT / 2), // Bottom left
+                new Vector2D(Config.MECH_WIDTH / 2, -Config.MECH_HEIGHT / 2),  // Bottom right
+                new Vector2D(Config.MECH_WIDTH / 2, Config.MECH_HEIGHT / 2),   // Top right
+                new Vector2D(-Config.MECH_WIDTH / 2, Config.MECH_HEIGHT / 2)    // Top left
         );
     }
 
