@@ -2,7 +2,6 @@ package com.fullsteam.model.vehicles;
 
 import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
-import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
@@ -16,7 +15,7 @@ public class Tank extends Vehicle {
         // The tank should be longer than it is wide, with the front being the narrow end
         double halfWidth = Config.TANK_WIDTH / 2;
         double halfLength = Config.TANK_LENGTH / 2;
-        
+
         return List.of(
                 // Front of tank (narrow end, pointing right/positive X when angle = 0)
                 new Vector2D(halfLength, -halfWidth * 0.6),      // Front-right
@@ -39,34 +38,25 @@ public class Tank extends Vehicle {
                 Config.TANK_HEALTH,      // High health
                 Config.TANK_MAX_SPEED,   // Slow movement
                 Config.TANK_TURN_SPEED,  // Slow turning
-                2);                      // 2 passengers + driver = 3 total
+                List.of(new Seat(true, new MountedWeapon(
+                                WeaponFactory.getWeapon("Rocket"), // TODO
+                                0.0
+                        )),
+                        new Seat(false, new MountedWeapon(
+                                WeaponFactory.getWeapon("Assault"), // TODO
+                                Math.PI / 4
+                        )),
+                        new Seat(false, new MountedWeapon(
+                                WeaponFactory.getWeapon("Assault"), // TODO
+                                -Math.PI / 4
+                        ))
+                ));
 
         setPosition(new Vector2D(x, y));
-
-        // Add main cannon for driver (controlled by driver input)
-        // Add two fast-firing weapons for passengers
-        mountedWeapons.add(new MountedWeapon(
-                WeaponFactory.getWeapon("Rocket"), // TODO
-                0.0
-        ));
-
-        mountedWeapons.add(new MountedWeapon(
-                WeaponFactory.getWeapon("Assault"), // TODO
-                Math.PI / 4
-        ));
-
-        mountedWeapons.add(new MountedWeapon(
-                WeaponFactory.getWeapon("Assault"), // TODO
-                -Math.PI / 4
-        ));
     }
 
     @Override
     public void handleDriverInput(PlayerInput input, long delta) {
-        if (driverId == null) {
-            return;
-        }
-
         // Tank movement: forward/backward with turning
         double moveInput = -input.getMoveY(); // Forward/backward (inverted for tank controls)
         double turnInput = input.getMoveX(); // Left/right turning
@@ -89,29 +79,6 @@ public class Tank extends Vehicle {
             velocityX = 0;
             velocityY = 0;
         }
-    }
-
-    @Override
-    public boolean enterVehicle(Player player) {
-        boolean entered = super.enterVehicle(player);
-        if (entered) {
-            // Assign weapons based on position
-            if (driverId != null && driverId.equals(player.id())) {
-                // Driver gets main cannon
-                if (!mountedWeapons.isEmpty()) {
-                    mountedWeapons.getFirst().setControllerId(player.id());
-                }
-            } else {
-                // Passengers get machine guns
-                for (int i = 1; i < mountedWeapons.size(); i++) {
-                    if (mountedWeapons.get(i).getControllerId() == null) {
-                        mountedWeapons.get(i).setControllerId(player.id());
-                        break;
-                    }
-                }
-            }
-        }
-        return entered;
     }
 
     @Override

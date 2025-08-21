@@ -26,20 +26,16 @@ public class Jeep extends Vehicle {
                 Config.JEEP_HEALTH,      // Low health
                 Config.JEEP_MAX_SPEED,   // Fast movement
                 Config.JEEP_TURN_SPEED,  // Medium turning
-                1);                      // 1 passenger + driver = 2 total
+                List.of(new Seat(true, null),
+                        new Seat(false, new MountedWeapon(
+                                WeaponFactory.getWeapon("Minigun"), // TODO
+                                0.0 // Can rotate 360 degrees (handled differently)
+                        ))));
         setPosition(new Vector2D(x, y));
-
-        // Roof-mounted minigun for passenger
-        mountedWeapons.add(new MountedWeapon(
-                WeaponFactory.getWeapon("Minigun"), // TODO
-                0.0 // Can rotate 360 degrees (handled differently)
-        ));
     }
 
     @Override
     public void handleDriverInput(PlayerInput input, long delta) {
-        if (driverId == null) return;
-
         // Jeep movement: similar to tank but faster and more responsive
         double moveInput = input.getMoveY(); // Forward/backward
         double turnInput = input.getMoveX(); // Left/right turning
@@ -61,20 +57,6 @@ public class Jeep extends Vehicle {
             velocityX = 0;
             velocityY = 0;
         }
-
-        // Driver doesn't control weapons in jeep, only movement
-    }
-
-    @Override
-    public boolean enterVehicle(Player player) {
-        boolean entered = super.enterVehicle(player);
-        if (entered) {
-            // Only passengers control the minigun, not the driver
-            if (!driverId.equals(player.id()) && !mountedWeapons.isEmpty()) {
-                mountedWeapons.getFirst().setControllerId(player.id());
-            }
-        }
-        return entered;
     }
 
     @Override

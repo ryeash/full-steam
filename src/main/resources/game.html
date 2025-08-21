@@ -1154,9 +1154,6 @@
                 ? Math.min(Math.max((currentTime - this.lastUpdateTime) / this.interpolationTime, 0.0), 1.0)
                 : 0;
 
-            interpolated.players.forEach(player => this.drawPlayer(player));
-            this.drawVehicles();
-
             if (interpolated.bullets) {
                 interpolated.bullets.forEach(bullet => {
                     this.ctx.fillStyle = bullet.team === 1 ? '#81C784' : '#E57373';
@@ -1167,6 +1164,9 @@
             }
 
             this.drawLaserBlasts();
+
+            interpolated.players.forEach(player => this.drawPlayer(player));
+            this.drawVehicles();
 
             const deadzone = 0.25;
             const rightStickX = this.gamepad ? this.gamepad.axes[2] || 0 : 0;

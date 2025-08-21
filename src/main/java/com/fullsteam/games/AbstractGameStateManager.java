@@ -300,25 +300,27 @@ public abstract class AbstractGameStateManager {
             player.setVelocity(Vector2D.ZERO);
             player.setX(vehicle.position().x());
             player.setY(vehicle.position().y());
-            vehicle.handleDriverInput(input, delta);
-            if (!vehicle.isDestroyed()) {
-                // Update vehicle physics
-                vehicle.update(delta);
-                // Handle driver input
-                if (Objects.equals(vehicle.getDriverId(), playerId)) {
-                    vehicle.handleDriverInput(input, delta);
-                    // Handle vehicle weapon firing for driver-controlled weapons
-                    handleVehicleWeaponFiring(vehicle, vehicle.getDriverId(), input);
-                }
-                // Handle passenger weapon firing
-                for (Long passengerId : vehicle.getPassengerIds()) {
-                    handleVehicleWeaponFiring(vehicle, passengerId, input);
-                }
-                // Check collision with obstacles
-                // Simple collision response - stop the vehicle
-                if (isColliding(vehicle, obstacles)) {
-                    vehicle.setVelocityX(0);
-                    vehicle.setVelocityY(0);
+            if (vehicle.getDriverId() == player.id()) {
+                vehicle.handleDriverInput(input, delta);
+                if (!vehicle.isDestroyed()) {
+                    // Update vehicle physics
+                    vehicle.update(delta);
+                    // Handle driver input
+                    if (Objects.equals(vehicle.getDriverId(), playerId)) {
+                        vehicle.handleDriverInput(input, delta);
+                        // Handle vehicle weapon firing for driver-controlled weapons
+                        handleVehicleWeaponFiring(vehicle, vehicle.getDriverId(), input);
+                    }
+                    // Handle passenger weapon firing
+                    for (Long passengerId : vehicle.getPassengerIds()) {
+                        handleVehicleWeaponFiring(vehicle, passengerId, input);
+                    }
+                    // Check collision with obstacles
+                    // Simple collision response - stop the vehicle
+                    if (isColliding(vehicle, obstacles)) {
+                        vehicle.setVelocityX(0);
+                        vehicle.setVelocityY(0);
+                    }
                 }
             }
             handleVehicleWeaponFiring(vehicle, playerId, input);
@@ -459,16 +461,6 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void updateVehicles(long delta) {
-        // Check for mounted weapon reload completion
-        for (Vehicle vehicle : vehicles) {
-            for (Vehicle.MountedWeapon mountedWeapon : vehicle.getMountedWeapons()) {
-                if (mountedWeapon.isReloading() && System.currentTimeMillis() >= mountedWeapon.getReloadCompleteTime()) {
-                    mountedWeapon.finishReload();
-                    log.debug("Vehicle {} mounted weapon finished reloading.", vehicle.getId());
-                }
-            }
-        }
-
         // Remove destroyed vehicles
         vehicles.removeIf(vehicle -> {
             if (vehicle.isDestroyed()) {
@@ -1335,7 +1327,6 @@ public abstract class AbstractGameStateManager {
         if (controlledWeapon == null) {
             return;
         }
-
 
         // Handle weapon firing
         if (input.isFire()) {

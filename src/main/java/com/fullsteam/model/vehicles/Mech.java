@@ -2,7 +2,6 @@ package com.fullsteam.model.vehicles;
 
 import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
-import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
@@ -25,26 +24,19 @@ public class Mech extends Vehicle {
                 Config.MECH_HEALTH,      // Medium health
                 Config.MECH_MAX_SPEED,   // Medium speed
                 Config.MECH_TURN_SPEED,  // Fast turning
-                0);                      // No passengers, driver only
+                List.of(new Seat(true, new MountedWeapon(
+                                WeaponFactory.getWeapon("Laser Pistol"),
+                                0.0)),
+                        new Seat(false, new MountedWeapon(
+                                WeaponFactory.getWeapon("Laser Pistol"),
+                                Math.PI)) // Butt lasers!
+                ));
 
         setPosition(new Vector2D(x, y));
-
-        // Dual laser guns for the pilot
-        mountedWeapons.add(new MountedWeapon(
-                WeaponFactory.getWeapon("Laser Pistol"),
-                Math.PI / 12
-        ));
-
-        mountedWeapons.add(new MountedWeapon(
-                WeaponFactory.getWeapon("Laser Pistol"),
-                -Math.PI / 12
-        ));
     }
 
     @Override
     public void handleDriverInput(PlayerInput input, long delta) {
-        if (driverId == null) return;
-
         // Mech movement: strafing in any direction like a player
         double moveX = input.getMoveX();
         double moveY = input.getMoveY();
@@ -78,29 +70,17 @@ public class Mech extends Vehicle {
         if (dx != 0 || dy != 0) {
             double newAngle = Math.atan2(dy, dx);
             double angleChange = newAngle - angle;
-            
+
             // Normalize angle change to be between -π and π
             while (angleChange > Math.PI) angleChange -= 2 * Math.PI;
             while (angleChange < -Math.PI) angleChange += 2 * Math.PI;
-            
+
             if (Math.abs(angleChange) > 0.01) {
                 angle = newAngle;
                 // Rotate the vehicle's vertices to match the new angle
                 rotate(angleChange);
             }
         }
-    }
-
-    @Override
-    public boolean enterVehicle(Player player) {
-        boolean entered = super.enterVehicle(player);
-        if (entered && driverId != null && driverId.equals(player.id())) {
-            // Driver controls both weapons
-            for (MountedWeapon weapon : mountedWeapons) {
-                weapon.setControllerId(player.id());
-            }
-        }
-        return entered;
     }
 
     @Override

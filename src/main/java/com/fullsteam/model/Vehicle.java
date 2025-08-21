@@ -2,9 +2,9 @@ package com.fullsteam.model;
 
 import com.fullsteam.Config;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     protected final long id = Config.ID_COUNTER.incrementAndGet();
@@ -17,21 +17,25 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     protected double hp;
     protected double maxHp;
     protected boolean destroyed;
-
-    // Driver and passenger system
-    protected Long driverId; // Player ID of the driver
-    protected int team;
-    protected List<Long> passengerIds; // Player IDs of passengers
-    protected int maxPassengers;
-
-    // Mounted weapons for passengers
-    protected List<MountedWeapon> mountedWeapons;
+    protected List<Seat> seats;
 
     // Vehicle-specific properties
     protected VehicleType vehicleType;
 
     public enum VehicleType {
         TANK, MECH, JEEP, FIXED_CANNON
+    }
+
+    public static class Seat {
+        public Player player;
+        public boolean driver;
+        public MountedWeapon mountedWeapon;
+
+        public Seat(boolean driver, MountedWeapon mountedWeapon) {
+            this.player = null;
+            this.driver = driver;
+            this.mountedWeapon = mountedWeapon;
+        }
     }
 
     public static class MountedWeapon {
@@ -114,7 +118,7 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     }
 
     public Vehicle(List<Vector2D> vertices, VehicleType vehicleType, double maxHp,
-                   double maxSpeed, double turnSpeed, int maxPassengers) {
+                   double maxSpeed, double turnSpeed, List<Seat> seats) {
         super(vertices, false);
         this.angle = 0;
         this.vehicleType = vehicleType;
@@ -122,14 +126,11 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
         this.maxHp = maxHp;
         this.maxSpeed = maxSpeed;
         this.turnSpeed = turnSpeed;
-        this.maxPassengers = maxPassengers;
         this.speed = 0;
         this.velocityX = 0;
         this.velocityY = 0;
         this.destroyed = false;
-        this.driverId = null;
-        this.passengerIds = new ArrayList<>();
-        this.mountedWeapons = new ArrayList<>();
+        this.seats = seats;
     }
 
     public void update(double deltaTime) {
@@ -140,6 +141,14 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
 
         // Update position to new center
         setPosition(new Vector2D(newX, newY));
+
+        // Check for mounted weapon reload completion
+        for (Seat seat : seats) {
+            MountedWeapon mountedWeapon = seat.mountedWeapon;
+            if (mountedWeapon.isReloading() && System.currentTimeMillis() >= mountedWeapon.getReloadCompleteTime()) {
+                mountedWeapon.finishReload();
+            }
+        }
     }
 
     @Override
@@ -148,69 +157,67 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     }
 
     public boolean hasDriver() {
-        return driverId != null;
+        return !seats.isEmpty() && seats.getFirst() != null;
     }
 
     public boolean hasRoom() {
-        return passengerIds.size() < maxPassengers;
+        for (Seat seat : seats) {
+            if (seat.player == null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean enterVehicle(Player player) {
-        if (!hasDriver()) {
-            driverId = player.id();
-            player.setVehicleId(id);
-            team = player.getTeam();
-            return true;
-        } else if (hasRoom() && team == player.getTeam()) {
-            passengerIds.add(player.id());
-            player.setVehicleId(id);
-            // Assign to first available mounted weapon
-            for (MountedWeapon weapon : mountedWeapons) {
-                if (weapon.getControllerId() == null) {
-                    weapon.setControllerId(player.id());
-                    break;
+        int team = getTeam();
+        if (team < 0 || player.getTeam() == team) {
+            for (Seat seat : seats) {
+                if (seat.player == null) {
+                    seat.player = player;
+                    player.setVehicleId(id);
+                    if (seat.mountedWeapon != null) {
+                        seat.mountedWeapon.setControllerId(player.id());
+                    }
+                    return true;
                 }
             }
-            return true;
         }
         return false;
     }
 
     public boolean exitVehicle(Player player) {
-        if (player.getVehicleId() == id) {
-            player.setVehicleId(null);
-        } else {
-            return false;
-        }
-        if (driverId != null && driverId.equals(player.id())) {
-            driverId = null;
-            team = -1;
-            // Stop the vehicle when driver exits
-            velocityX = 0;
-            velocityY = 0;
-            speed = 0;
-            return true;
-        } else if (passengerIds.remove(player.id())) {
-            // Remove from weapon control
-            for (MountedWeapon weapon : mountedWeapons) {
-                if (Objects.equals(player.id(), weapon.getControllerId())) {
-                    weapon.setControllerId(null);
-                    break;
+        for (Seat seat : seats) {
+            if (seat.player != null && seat.player.id() == player.id()) {
+                player.setVehicleId(null);
+                seat.player = null;
+                if (seat.driver) {
+                    velocityX = 0;
+                    velocityY = 0;
+                    speed = 0;
                 }
+                if (seat.mountedWeapon != null) {
+                    seat.mountedWeapon.setControllerId(null);
+                }
+                return true;
             }
-            return true;
         }
         return false;
     }
 
     public boolean isPlayerInVehicle(Long playerId) {
-        return (driverId != null && driverId.equals(playerId)) || passengerIds.contains(playerId);
+        for (Seat seat : seats) {
+            if (seat.player != null && seat.player.id() == playerId) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public MountedWeapon getWeaponControlledBy(Long playerId) {
-        for (MountedWeapon weapon : mountedWeapons) {
-            if (Objects.equals(playerId, weapon.getControllerId())) {
-                return weapon;
+        for (Seat seat : seats) {
+            if (seat.player != null && seat.player.id() == playerId) {
+                return seat.mountedWeapon;
             }
         }
         return null;
@@ -253,11 +260,14 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
         if (this.hp <= 0) {
             this.destroyed = true;
             // Eject all passengers when destroyed
-            driverId = null;
-            team = -1;
-            passengerIds.clear();
-            for (MountedWeapon weapon : mountedWeapons) {
-                weapon.setControllerId(null);
+            for (Seat seat : seats) {
+                if (seat.player != null) {
+                    seat.player.setVehicleId(null);
+                    seat.player = null;
+                    if (seat.mountedWeapon != null) {
+                        seat.mountedWeapon.setControllerId(null);
+                    }
+                }
             }
         }
         return this.hp <= 0;
@@ -308,22 +318,26 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     }
 
     public Long getDriverId() {
-        return driverId;
+        return Optional.ofNullable(seats.getFirst())
+                .map(s -> s.player)
+                .map(Player::id)
+                .orElse(null);
     }
 
     public int getTeam() {
-        return team;
+        for (Seat seat : seats) {
+            if (seat.player != null) {
+                return seat.player.getTeam();
+            }
+        }
+        return -1;
     }
 
     public List<Long> getPassengerIds() {
-        return passengerIds;
-    }
-
-    public List<MountedWeapon> getMountedWeapons() {
-        return mountedWeapons;
+        return seats.stream().map(s -> s.player).filter(Objects::nonNull).map(Player::id).toList();
     }
 
     public int getMaxPassengers() {
-        return maxPassengers;
+        return seats.size();
     }
 }
