@@ -4,13 +4,9 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.Base;
-import com.fullsteam.model.Crate;
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.LaserBlast;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
-import com.fullsteam.model.Targetable;
-import com.fullsteam.model.Turret;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.gamemodes.BaseDestructionInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
@@ -18,7 +14,6 @@ import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -49,8 +44,8 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
     public Player addPlayer(long playerId, Channel channel) {
         // In Base Destruction mode, Team 1 are attackers, Team 2 are defenders
         // Try to balance teams but prefer defenders (Team 2) if both teams are equal
-        long team1Count = players.values().stream().filter(p -> p.getTeam() == 1).count();
-        long team2Count = players.values().stream().filter(p -> p.getTeam() == 2).count();
+        long team1Count = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 1).count();
+        long team2Count = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 2).count();
 
         int team;
         if (team1Count < Config.MAX_PLAYERS_PER_TEAM && team2Count < Config.MAX_PLAYERS_PER_TEAM) {
@@ -97,7 +92,7 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
         super.populateSpatialGrids();
         if (defendingBase != null && !defendingBase.isDestroyed()) {
             double size = defendingBase.getRadius() * 2;
-            targetGrid.insert(defendingBase,
+            entities.getTargetGrid().insert(defendingBase,
                     defendingBase.getX() - defendingBase.getRadius(),
                     defendingBase.getY() - defendingBase.getRadius(),
                     size, size);
@@ -142,7 +137,7 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
 
     @Override
     protected void generateObstacles() {
-        obstacles.clear();
+        entities.getObstacles().clear();
 
         // Create a defensive wall with three segments and two gaps
         generateDefensiveWall();
@@ -172,7 +167,7 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
                     wallThickness,
                     segmentHeight
             );
-            obstacles.add(wallSegment);
+            entities.getObstacles().add(wallSegment);
         }
     }
 
@@ -197,11 +192,11 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
                 Obstacle coverObstacle = Obstacle.createRectangle(x, y, width, height);
 
                 // Check if it overlaps with existing obstacles
-                boolean overlaps = obstacles.stream().anyMatch(existing ->
+                boolean overlaps = entities.getObstacles().stream().anyMatch(existing ->
                         CollisionUtils.checkObstacleOverlap(coverObstacle, existing, 30));
 
                 if (!overlaps) {
-                    obstacles.add(coverObstacle);
+                    entities.getObstacles().add(coverObstacle);
                     break;
                 }
                 retries++;
@@ -252,7 +247,7 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
             player.setY(y);
 
             // Check if spawn point is inside an obstacle
-            if (isColliding(player, obstacles)) {
+            if (physicsEngine.isColliding(player, entities.getObstacles())) {
                 invalidPosition = true;
                 continue;
             }

@@ -22,6 +22,7 @@ import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.Turret;
+import com.fullsteam.model.Vehicle;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Weapon;
 import com.fullsteam.model.WelcomeMessage;
@@ -60,6 +61,7 @@ public class CustomSerializationModule extends SimpleModule {
         addSerializer(PowerUp.class, new PowerUpSerializer());
         addSerializer(Obstacle.class, new ObstacleSerializer());
         addSerializer(Turret.class, new TurretSerializer());
+        addSerializer(Vehicle.class, new VehicleSerializer());
         addSerializer(GameEvent.class, new GameEventSerializer());
         addSerializer(WelcomeMessage.class, new WelcomeMessageSerializer());
         addSerializer(FieldEffect.class, new FieldEffectSerializer());

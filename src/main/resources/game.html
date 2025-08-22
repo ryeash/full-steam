@@ -305,8 +305,10 @@
         <details id="controls-details">
             <summary>Controls</summary>
             <div id="controls">
-                <p>⌨️ WASD/Arrows: Move | R: Reload | B: Build | Mouse: Aim & Shoot</p>
+                <p>⌨️ WASD/Arrows: Move | R: Reload | E: Build | Mouse: Aim & Shoot</p>
+                <p>🚗 F: Enter/Exit Vehicle | Q: Secondary Fire (passengers)</p>
                 <p>🎮 L Stick: Move | R Stick: Aim | Y/△: Swap Weapon | X/□: Reload | RT/R2: Shoot</p>
+                <p>🎮 A/X: Enter/Exit Vehicle | LT/L2: Secondary Fire</p>
             </div>
         </details>
         <div style="text-align: center; margin-top: 20px; padding: 0 5px;">
@@ -573,7 +575,7 @@
         }
 
         resetGameState() {
-            this.gameState = { players: [], bullets: [], laserBlasts: [], fieldEffects: [], obstacles: [], powerUps: [], turrets: [], info: null, serverTime: 0 };
+            this.gameState = { players: [], bullets: [], laserBlasts: [], fieldEffects: [], obstacles: [], powerUps: [], turrets: [], vehicles: [], info: null, serverTime: 0 };
             this.gameEvents = [];
             this.previousGameState = null;
             this.lastUpdateTime = 0;
@@ -948,11 +950,13 @@
             const input = {
                 moveX: 0,
                 moveY: 0,
-                shooting: false,
+                fire: false,
+                altFire: false,
                 mouseX: 0,
                 mouseY: 0,
                 reload: false,
-                placingObstacle: false
+                action1: false,
+                action2: false,
             };
             const deadzone = 0.25;
 
@@ -971,9 +975,11 @@
                     input.moveY /= moveMagnitude;
                 }
 
-                input.shooting = this.gamepad.buttons[7] && this.gamepad.buttons[7].value > 0.5;
+                input.fire = this.gamepad.buttons[7] && this.gamepad.buttons[7].value > 0.5;
+                input.altFire = this.gamepad.buttons[6] && this.gamepad.buttons[6].value > 0.5; // L2/LT button
                 input.reload = this.gamepad.buttons[2] && this.gamepad.buttons[2].pressed;
-                input.placingObstacle = this.gamepad.buttons[5] && this.gamepad.buttons[5].pressed; // R1/RB button
+                input.action1 = this.gamepad.buttons[5] && this.gamepad.buttons[5].pressed; // R1/RB button
+                input.action2 = this.gamepad.buttons[0] && this.gamepad.buttons[0].pressed; // A/X button
 
                 const swapButtonPressed = this.gamepad.buttons[3] && this.gamepad.buttons[3].pressed; // Y or Triangle
                 if (swapButtonPressed && !this.gamepadWeaponSwapPressed) {
@@ -1012,11 +1018,13 @@
                     input.moveY = moveY / magnitude;
                 }
 
-                input.shooting = this.mouse.down;
+                input.fire = this.mouse.down;
+                input.altFire = !!this.keys['KeyQ'];
                 input.mouseX = this.mouse.x;
                 input.mouseY = this.mouse.y;
                 input.reload = !!this.keys['KeyR'];
-                input.placingObstacle = !!this.keys['KeyE'];
+                input.action1 = !!this.keys['KeyE'];
+                input.action2 = !!this.keys['KeyF'];
             }
             this.ws.send(JSON.stringify(input));
         }
@@ -1140,13 +1148,11 @@
 
             // Get interpolated positions for smooth rendering
             const interpolated = this.getInterpolatedPositions(currentTime);
-            
+
             // Store interpolation factor for debug display
             this.lastInterpolationFactor = this.lastUpdateTime
                 ? Math.min(Math.max((currentTime - this.lastUpdateTime) / this.interpolationTime, 0.0), 1.0)
                 : 0;
-
-            interpolated.players.forEach(player => this.drawPlayer(player));
 
             if (interpolated.bullets) {
                 interpolated.bullets.forEach(bullet => {
@@ -1158,6 +1164,9 @@
             }
 
             this.drawLaserBlasts();
+
+            interpolated.players.forEach(player => this.drawPlayer(player));
+            this.drawVehicles();
 
             const deadzone = 0.25;
             const rightStickX = this.gamepad ? this.gamepad.axes[2] || 0 : 0;
@@ -1218,6 +1227,10 @@
                     this.ctx.fillText(`Respawning in ${remainingTime.toFixed(1)}s`, this.canvas.width / 2, this.canvas.height / 2);
                 }
             }
+        }
+
+        findPlayer(playerId) {
+            return this.gameState.players.find(player => player.id === playerId);
         }
 
         drawPowerUps() {
@@ -1950,6 +1963,436 @@
             this.ctx.restore();
         }
 
+        drawVehicles() {
+            if (!this.gameState.vehicles) {
+                return;
+            }
+
+            this.ctx.save();
+            this.gameState.vehicles.forEach(vehicle => {
+                if (vehicle.destroyed) {
+                    return;
+                }
+
+                const vehicleX = vehicle.x;
+                const vehicleY = vehicle.y;
+
+                // Get vehicle style
+                const style = this.getVehicleStyle(vehicle.vehicleType);
+
+                // Draw vehicle using its polygon shape (vertices are already rotated on server)
+                this.drawVehiclePolygon(vehicle, style);
+                
+                // Draw cannon barrels for vehicles that have them
+                this.drawVehicleCannon(vehicle, style);
+
+                // Calculate bounding radius for UI elements
+                const vehicleRadius = vehicle.radius;
+
+                // Draw health bar
+                if (vehicle.hp < vehicle.maxHp) {
+                    const healthPercentage = Math.max(0, vehicle.hp / vehicle.maxHp);
+                    const barWidth = vehicleRadius * 2.4; // Use radius * 2.4 instead of width * 1.2
+                    const barHeight = 6;
+                    const barX = vehicleX - barWidth / 2;
+                    const barY = vehicleY - vehicleRadius - 20;
+
+                    this.ctx.fillStyle = '#333';
+                    this.ctx.fillRect(barX, barY, barWidth, barHeight);
+                    this.ctx.fillStyle = healthPercentage > 0.5 ? '#4CAF50' : (healthPercentage > 0.2 ? '#FFC107' : '#F44336');
+                    this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
+                    this.ctx.strokeStyle = '#111';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+                }
+
+                // Draw vehicle name and passenger count
+                this.ctx.fillStyle = '#fff';
+                this.ctx.font = '12px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'bottom';
+                const passengerCount = vehicle.passengerIds.length;
+                const maxPassengers = vehicle.maxPassengers;
+                this.ctx.fillText(`${vehicle.vehicleName} (${passengerCount}/${maxPassengers})`, vehicleX, vehicleY - vehicleRadius - 25);
+
+                // Draw interaction hint if player is nearby
+                if (this.localPlayer && !this.localPlayer.dead && !this.localPlayer.vehicleId) {
+                    const distance = Math.sqrt(
+                        Math.pow(vehicleX - this.localPlayer.x, 2) + 
+                        Math.pow(vehicleY - this.localPlayer.y, 2)
+                    );
+                    const interactionRadius = 40; // Should match server-side VEHICLE_INTERACTION_RADIUS
+                    
+                    if (distance <= interactionRadius) {
+                        this.ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
+                        this.ctx.font = '14px Arial';
+                        this.ctx.textAlign = 'center';
+                        this.ctx.fillText('Press F to enter', vehicleX, vehicleY + vehicleRadius + 20);
+                    }
+                }
+            });
+            this.ctx.restore();
+        }
+
+        drawVehiclePolygon(vehicle, style) {
+            if (!vehicle.vertices || vehicle.vertices.length < 3) {
+                return;
+            }
+
+            // Draw main vehicle body using vertices (already rotated on server)
+            this.ctx.fillStyle = style.bodyColor;
+            this.ctx.strokeStyle = style.strokeColor;
+            this.ctx.lineWidth = 2;
+
+            this.ctx.beginPath();
+            // Use world coordinates directly - vertices are already properly positioned and rotated
+            this.ctx.moveTo(vehicle.vertices[0].x, vehicle.vertices[0].y);
+            for (let i = 1; i < vehicle.vertices.length; i++) {
+                this.ctx.lineTo(vehicle.vertices[i].x, vehicle.vertices[i].y);
+            }
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            // Draw team color band if vehicle is controlled
+            this.drawTeamColorBand(vehicle, style);
+        }
+
+        drawVehicleCannon(vehicle, style) {
+            if (!vehicle.mountedWeapons || vehicle.mountedWeapons.length === 0) {
+                return;
+            }
+
+            // Draw each mounted weapon
+            vehicle.mountedWeapons.forEach((mountedWeapon, index) => {
+                this.drawSingleMountedWeapon(vehicle, mountedWeapon, style, index);
+            });
+        }
+
+        drawSingleMountedWeapon(vehicle, mountedWeapon, style, weaponIndex) {
+            // Calculate current weapon angle
+            let currentAngle = this.calculateWeaponAngle(vehicle, mountedWeapon);
+            
+            // Get weapon visual properties based on vehicle type and weapon index
+            const weaponProps = this.getWeaponVisualProperties(vehicle, weaponIndex);
+            
+            // Draw traverse limit indicator (if limited traverse)
+            if (mountedWeapon.maximumRadian < Math.PI * 2) {
+                this.drawTraverseLimits(vehicle, mountedWeapon, weaponProps);
+            }
+            
+            // Draw turret base
+            this.drawTurretBase(vehicle, mountedWeapon, style, weaponProps);
+            
+            // Draw weapon barrel
+            this.drawWeaponBarrel(mountedWeapon, currentAngle, weaponProps);
+        }
+
+        calculateWeaponAngle(vehicle, mountedWeapon) {
+            // Get the controlling player's mouse position
+            let controllingPlayer = this.findPlayer(mountedWeapon.controllerId);
+            
+            if (controllingPlayer && controllingPlayer.mouseX && controllingPlayer.mouseY) {
+                // Player is controlling - calculate desired angle
+                const mouseX = controllingPlayer.mouseX;
+                const mouseY = controllingPlayer.mouseY;
+                const dx = mouseX - mountedWeapon.x;
+                const dy = mouseY - mountedWeapon.y;
+                let desiredAngle = Math.atan2(dy, dx);
+                
+                // Apply traverse constraints
+                return this.constrainWeaponAngle(desiredAngle, vehicle.angle, mountedWeapon);
+            } else {
+                // No player controlling - use default angle relative to vehicle
+                return vehicle.angle + mountedWeapon.defaultAngle;
+            }
+        }
+
+        constrainWeaponAngle(desiredAngle, vehicleAngle, mountedWeapon) {
+            if (mountedWeapon.maximumRadian >= Math.PI * 2) {
+                // Full 360° traverse - no constraints
+                return desiredAngle;
+            }
+
+            // Calculate the weapon's default direction in world coordinates
+            const weaponDefaultAngle = vehicleAngle + mountedWeapon.defaultAngle;
+            
+            // Calculate the difference between desired and default angles
+            let angleDiff = desiredAngle - weaponDefaultAngle;
+            
+            // Normalize angle difference to be between -π and π
+            while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+            while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+            
+            // Constrain to maximum traverse range
+            const halfTraverse = mountedWeapon.maximumRadian / 2.0;
+            if (angleDiff > halfTraverse) {
+                angleDiff = halfTraverse;
+            } else if (angleDiff < -halfTraverse) {
+                angleDiff = -halfTraverse;
+            }
+            
+            return weaponDefaultAngle + angleDiff;
+        }
+
+        getWeaponVisualProperties(vehicle, weaponIndex) {
+            const baseProps = {
+                length: vehicle.radius * 1.0,
+                width: 5,
+                turretRadius: vehicle.radius * 0.2,
+                barrelColor: '#2A2A2A',
+                barrelStroke: '#1A1A1A'
+            };
+
+            switch (vehicle.vehicleType) {
+                case 'TANK':
+                    if (weaponIndex === 0) {
+                        // Main gun
+                        return { ...baseProps, length: vehicle.radius * 1.2, width: 6, turretRadius: vehicle.radius * 0.4 };
+                    } else {
+                        // Side machine guns
+                        return { ...baseProps, length: vehicle.radius * 0.4, width: 3, turretRadius: vehicle.radius * 0.15 };
+                    }
+                case 'JEEP':
+                    // Machine gun
+                    return { ...baseProps, length: vehicle.radius * 0.8, width: 4, turretRadius: vehicle.radius * 0.15 };
+                case 'FIXED_CANNON':
+                    // Artillery
+                    return { ...baseProps, length: vehicle.radius * 1.5, width: 8, turretRadius: vehicle.radius * 0.3 };
+                case 'MECH':
+                    // Laser weapons
+                    return { ...baseProps, length: vehicle.radius * 0.6, width: 5, turretRadius: vehicle.radius * 0.1,
+                            barrelColor: '#4A90E2', barrelStroke: '#2E5C8A' };
+                default:
+                    return baseProps;
+            }
+        }
+
+        drawTraverseLimits(vehicle, mountedWeapon, weaponProps) {
+            if (mountedWeapon.maximumRadian >= Math.PI * 2) return;
+
+            this.ctx.save();
+            
+            // Calculate default angle in world coordinates
+            const defaultWorldAngle = vehicle.angle + mountedWeapon.defaultAngle;
+            const halfTraverse = mountedWeapon.maximumRadian / 2.0;
+            
+            // Draw traverse arc - much more subtle
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            this.ctx.lineWidth = 1;
+            this.ctx.setLineDash([8, 8]);
+            
+            const arcRadius = weaponProps.length * 1.1;
+            this.ctx.beginPath();
+            this.ctx.arc(
+                mountedWeapon.x, 
+                mountedWeapon.y, 
+                arcRadius,
+                defaultWorldAngle - halfTraverse,
+                defaultWorldAngle + halfTraverse
+            );
+            this.ctx.stroke();
+            
+            // Draw limit lines - very subtle
+            this.ctx.setLineDash([]);
+            this.ctx.strokeStyle = 'rgba(255, 100, 100, 0.15)';
+            this.ctx.lineWidth = 1;
+            
+            // Left limit
+            this.ctx.beginPath();
+            this.ctx.moveTo(mountedWeapon.x, mountedWeapon.y);
+            this.ctx.lineTo(
+                mountedWeapon.x + Math.cos(defaultWorldAngle - halfTraverse) * arcRadius,
+                mountedWeapon.y + Math.sin(defaultWorldAngle - halfTraverse) * arcRadius
+            );
+            this.ctx.stroke();
+            
+            // Right limit
+            this.ctx.beginPath();
+            this.ctx.moveTo(mountedWeapon.x, mountedWeapon.y);
+            this.ctx.lineTo(
+                mountedWeapon.x + Math.cos(defaultWorldAngle + halfTraverse) * arcRadius,
+                mountedWeapon.y + Math.sin(defaultWorldAngle + halfTraverse) * arcRadius
+            );
+            this.ctx.stroke();
+            
+            this.ctx.restore();
+        }
+
+        drawTurretBase(vehicle, mountedWeapon, style, weaponProps) {
+            this.ctx.save();
+            
+            // Choose turret base style based on vehicle type
+            if (vehicle.vehicleType === 'TANK' && weaponProps.turretRadius > vehicle.radius * 0.3) {
+                // Main tank turret
+                this.ctx.fillStyle = style.accentColor;
+                this.ctx.strokeStyle = style.strokeColor;
+                this.ctx.lineWidth = 2;
+            } else if (vehicle.vehicleType === 'JEEP') {
+                // Machine gun mount with tripod
+                this.ctx.fillStyle = '#616161';
+                this.ctx.strokeStyle = '#424242';
+                this.ctx.lineWidth = 1.5;
+            } else {
+                // Other weapon mounts
+                this.ctx.fillStyle = '#555555';
+                this.ctx.strokeStyle = '#333333';
+                this.ctx.lineWidth = 1.5;
+            }
+            
+            this.ctx.beginPath();
+            this.ctx.arc(mountedWeapon.x, mountedWeapon.y, weaponProps.turretRadius, 0, 2 * Math.PI);
+            this.ctx.fill();
+            this.ctx.stroke();
+            
+            // Add tripod legs for machine gun mounts
+            if (vehicle.vehicleType === 'JEEP' || weaponProps.turretRadius <= vehicle.radius * 0.2) {
+                this.ctx.strokeStyle = '#525252';
+                this.ctx.lineWidth = 2;
+                for (let i = 0; i < 3; i++) {
+                    const legAngle = (i * 2 * Math.PI / 3) + Math.PI / 2;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(mountedWeapon.x, mountedWeapon.y);
+                    this.ctx.lineTo(
+                        mountedWeapon.x + Math.cos(legAngle) * weaponProps.turretRadius * 1.5,
+                        mountedWeapon.y + Math.sin(legAngle) * weaponProps.turretRadius * 1.5
+                    );
+                    this.ctx.stroke();
+                }
+            }
+            
+            this.ctx.restore();
+        }
+
+        drawWeaponBarrel(mountedWeapon, currentAngle, weaponProps) {
+            this.ctx.save();
+            this.ctx.translate(mountedWeapon.x, mountedWeapon.y);
+            this.ctx.rotate(currentAngle);
+
+            // Draw main barrel
+            this.ctx.fillStyle = weaponProps.barrelColor;
+            this.ctx.strokeStyle = weaponProps.barrelStroke;
+            this.ctx.lineWidth = 1;
+            this.ctx.fillRect(0, -weaponProps.width / 2, weaponProps.length, weaponProps.width);
+            this.ctx.strokeRect(0, -weaponProps.width / 2, weaponProps.length, weaponProps.width);
+
+            // Draw muzzle/tip based on weapon type
+            const tipLength = weaponProps.length * 0.1;
+            const tipWidth = weaponProps.width * 1.3;
+            this.ctx.fillRect(weaponProps.length - tipLength, -tipWidth / 2, tipLength, tipWidth);
+            this.ctx.strokeRect(weaponProps.length - tipLength, -tipWidth / 2, tipLength, tipWidth);
+
+            this.ctx.restore();
+        }
+
+        drawTeamColorBand(vehicle, style) {
+            // Determine the controlling team by finding any passenger
+            let controllingTeam = vehicle.team;
+
+            // Only draw team band if vehicle is controlled
+            if (!controllingTeam || controllingTeam === -1) {
+                return;
+            }
+
+            // Get team colors
+            const teamColors = {
+                1: { primary: '#4CAF50', secondary: '#2E7D32' }, // Green for team 1
+                2: { primary: '#F44336', secondary: '#C62828' }  // Red for team 2
+            };
+            
+            const colors = teamColors[controllingTeam];
+            if (!colors) return;
+
+            this.ctx.save();
+
+            // Calculate vehicle center and radius for band positioning
+            const vehicleX = vehicle.x;
+            const vehicleY = vehicle.y;
+            const vehicleRadius = vehicle.radius;
+
+            // Draw team color band as a ring around the vehicle
+            const bandInnerRadius = vehicleRadius;
+            const bandOuterRadius = vehicleRadius + 3;
+
+            // Create radial gradient for the band
+            const gradient = this.ctx.createRadialGradient(
+                vehicleX, vehicleY, bandInnerRadius,
+                vehicleX, vehicleY, bandOuterRadius
+            );
+            gradient.addColorStop(0, colors.primary);
+            gradient.addColorStop(1, colors.secondary);
+
+            // Draw the band ring
+            this.ctx.strokeStyle = gradient;
+            this.ctx.lineWidth = 6;
+            this.ctx.globalAlpha = 0.8;
+            this.ctx.beginPath();
+            this.ctx.arc(vehicleX, vehicleY, bandInnerRadius + 3, 0, 2 * Math.PI);
+            this.ctx.stroke();
+
+            // Add a subtle inner highlight
+            this.ctx.strokeStyle = colors.primary;
+            this.ctx.lineWidth = 2;
+            this.ctx.globalAlpha = 0.6;
+            this.ctx.beginPath();
+            this.ctx.arc(vehicleX, vehicleY, bandInnerRadius + 1, 0, 2 * Math.PI);
+            this.ctx.stroke();
+
+            this.ctx.restore();
+        }
+
+        getVehicleControllingPlayer(vehicle) {
+            // Find the driver (primary controller) of the vehicle
+            if (!vehicle.driverId) {
+                return null;
+            }
+
+            // Look for the driver in the players list
+            if (this.gameState.players) {
+                for (const player of this.gameState.players) {
+                    if (player.id === vehicle.driverId) {
+                        return player;
+                    }
+                }
+            }
+            return null;
+        }
+
+        getVehicleStyle(vehicleType) {
+            switch (vehicleType) {
+                case 'TANK':
+                    return {
+                        bodyColor: '#4A4A4A',
+                        strokeColor: '#2A2A2A',
+                        accentColor: '#5A5A5A'
+                    };
+                case 'MECH':
+                    return {
+                        bodyColor: '#2E7D32',
+                        strokeColor: '#1B5E20',
+                        accentColor: '#4CAF50'
+                    };
+                case 'JEEP':
+                    return {
+                        bodyColor: '#8D6E63',
+                        strokeColor: '#5D4037',
+                        accentColor: '#A1887F'
+                    };
+                case 'FIXED_CANNON':
+                    return {
+                        bodyColor: '#616161',
+                        strokeColor: '#424242',
+                        accentColor: '#757575'
+                    };
+                default:
+                    return {
+                        bodyColor: '#666666',
+                        strokeColor: '#333333',
+                        accentColor: '#999999'
+                    };
+            }
+        }
+
         drawPlayer(player) {
             if (player.dead) {
                 this.ctx.save();
@@ -1967,6 +2410,10 @@
                 this.ctx.lineTo(player.x - markerSize, player.y + markerSize);
                 this.ctx.stroke();
                 this.ctx.restore();
+                return;
+            }
+
+            if (player.vehicleId) {
                 return;
             }
 
@@ -2295,7 +2742,7 @@
             if (this.keys['F3'] || localStorage.getItem('showFPS') === 'true') {
                 this.ctx.save();
                 this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                this.ctx.fillRect(10, this.canvas.height - 95, 200, 85);
+                this.ctx.fillRect(10, this.canvas.height - 110, 200, 100);
                 
                 this.ctx.fillStyle = '#00FF00';
                 this.ctx.font = '14px monospace';
@@ -2304,11 +2751,12 @@
                 
                 const timeSinceLastUpdate = this.lastUpdateTime ? (currentTime - this.lastUpdateTime) : 0;
                 
-                this.ctx.fillText(`FPS: ${this.fps}`, 15, this.canvas.height - 90);
-                this.ctx.fillText(`Ping: ${this.latency}ms`, 15, this.canvas.height - 75);
-                this.ctx.fillText(`Last Update: ${timeSinceLastUpdate.toFixed(0)}ms ago`, 15, this.canvas.height - 60);
-                this.ctx.fillText(`Interp Factor: ${(this.lastInterpolationFactor || 0).toFixed(2)}`, 15, this.canvas.height - 45);
-                this.ctx.fillText(`Players: ${this.gameState?.players?.length || 0}`, 15, this.canvas.height - 30);
+                this.ctx.fillText(`FPS: ${this.fps}`, 15, this.canvas.height - 105);
+                this.ctx.fillText(`Ping: ${this.latency}ms`, 15, this.canvas.height - 90);
+                this.ctx.fillText(`Last Update: ${timeSinceLastUpdate.toFixed(0)}ms ago`, 15, this.canvas.height - 75);
+                this.ctx.fillText(`Interp Factor: ${(this.lastInterpolationFactor || 0).toFixed(2)}`, 15, this.canvas.height - 60);
+                this.ctx.fillText(`Players: ${this.gameState?.players?.length || 0}`, 15, this.canvas.height - 45);
+                this.ctx.fillText(`Vehicles: ${this.gameState?.vehicles?.length || 0}`, 15, this.canvas.height - 30);
                 this.ctx.fillText(`Bullets: ${this.gameState?.bullets?.length || 0}`, 15, this.canvas.height - 15);
                 
                 this.ctx.restore();

@@ -15,6 +15,7 @@ import com.fullsteam.model.RandomNames;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Turret;
 import com.fullsteam.model.Vector2D;
+import com.fullsteam.model.Vehicle;
 
 import java.util.List;
 import java.util.Optional;
@@ -363,39 +364,30 @@ public class AIPlayer extends Player {
         Set<Targetable> nearTargets = playerGrid.getNearby(getX() - attackRange, getY() - attackRange, attackRange * 2, attackRange * 2);
 
         for (Targetable potentialTarget : nearTargets) {
-            if (potentialTarget instanceof Player player) {
-                if (player.getId() == this.getId() || player.isDead() || player.getTeam() == this.getTeam() || player.getInvisibilityEndTime() > System.currentTimeMillis()) {
-                    continue;
-                }
+            switch (potentialTarget) {
+                case Player player -> {
+                    if (player.getId() == this.getId() || player.isDead() || player.getTeam() == this.getTeam() || player.getInvisibilityEndTime() > System.currentTimeMillis()) {
+                        continue;
+                    }
 
-                double distanceSq = this.position().distanceSquared(player.position());
-                if (distanceSq < attackRangeSq) {
-                    if (findBlockingObstacle(this.position(), player.position(), obstacles) == null) {
-                        // Calculate priority score (lower = better)
-                        double score = calculateTargetPriorityScore(player, distanceSq);
-                        if (score < bestScore) {
-                            bestScore = score;
-                            bestTarget = player;
+                    double distanceSq = this.position().distanceSquared(player.position());
+                    if (distanceSq < attackRangeSq) {
+                        if (findBlockingObstacle(this.position(), player.position(), obstacles) == null) {
+                            // Calculate priority score (lower = better)
+                            double score = calculateTargetPriorityScore(player, distanceSq);
+                            if (score < bestScore) {
+                                bestScore = score;
+                                bestTarget = player;
+                            }
                         }
                     }
                 }
-            } else if (potentialTarget instanceof Turret turret) {
-                if (turret.getTeam() == this.getTeam()) {
-                    continue; // Don't shoot friendly turrets
-                }
-
-                Vector2D turretCenter = turret.position();
-                double turretScore = Math.sqrt(position().distanceSquared(turretCenter));
-                if (turretScore < bestScore) {
-                    if (findBlockingObstacle(this.position(), turretCenter, obstacles) == null) {
-                        // Simple distance-based priority for now.
-                        bestScore = turretScore;
-                        bestTarget = potentialTarget;
+                case Turret turret -> {
+                    if (turret.getTeam() == this.getTeam()) {
+                        continue; // Don't shoot friendly turrets
                     }
-                }
-            }else if(potentialTarget instanceof Base base){
-                if(base.getTeam() != getTeam()){
-                    Vector2D turretCenter = base.position();
+
+                    Vector2D turretCenter = turret.position();
                     double turretScore = Math.sqrt(position().distanceSquared(turretCenter));
                     if (turretScore < bestScore) {
                         if (findBlockingObstacle(this.position(), turretCenter, obstacles) == null) {
@@ -405,8 +397,33 @@ public class AIPlayer extends Player {
                         }
                     }
                 }
-            } else {
-                throw new UnsupportedOperationException("fix for other targetables");
+                case Base base -> {
+                    if (base.getTeam() != getTeam()) {
+                        Vector2D turretCenter = base.position();
+                        double turretScore = Math.sqrt(position().distanceSquared(turretCenter));
+                        if (turretScore < bestScore) {
+                            if (findBlockingObstacle(this.position(), turretCenter, obstacles) == null) {
+                                // Simple distance-based priority for now.
+                                bestScore = turretScore;
+                                bestTarget = potentialTarget;
+                            }
+                        }
+                    }
+                }
+                case Vehicle vehicle -> {
+                    if (vehicle.getDriverId() != null && vehicle.getTeam() != getTeam()) {
+                        Vector2D vehicleCenter = vehicle.position();
+                        double vehicleScore = Math.sqrt(position().distanceSquared(vehicleCenter));
+                        if (vehicleScore < bestScore) {
+                            if (findBlockingObstacle(this.position(), vehicleCenter, obstacles) == null) {
+                                // Simple distance-based priority for now.
+                                bestScore = vehicleScore; // TODO: weight based on vehicle type
+                                bestTarget = potentialTarget;
+                            }
+                        }
+                    }
+                }
+                case null, default -> throw new UnsupportedOperationException("fix for other targetables");
             }
         }
         return bestTarget;
@@ -578,7 +595,7 @@ public class AIPlayer extends Player {
         for (FieldEffect fieldEffect : fieldEffects) {
             double awarenessRadius = fieldEffect.getRadius() + 20;
             if (getTeam() != fieldEffect.getTeam()
-                    && position().distanceSquared(fieldEffect.position()) < awarenessRadius * awarenessRadius) {
+                && position().distanceSquared(fieldEffect.position()) < awarenessRadius * awarenessRadius) {
                 Vector2D fleeDirection = position().subtract(fieldEffect.position());
                 double weight = switch (fieldEffect.getType()) {
                     case MINE -> 0.3;

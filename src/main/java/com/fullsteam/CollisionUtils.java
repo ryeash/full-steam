@@ -3,6 +3,7 @@ package com.fullsteam;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Vector2D;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class CollisionUtils {
@@ -222,6 +223,83 @@ public class CollisionUtils {
         double combinedRadius = o1.getBoundingRadius() + o2.getBoundingRadius() + spacingBuffer;
         return o1.getCenter().distanceSquared(o2.getCenter()) < combinedRadius * combinedRadius;
     }
+
+    /**
+     * Checks if two obstacles are colliding using the Separating Axis Theorem (SAT).
+     *
+     * @param a First obstacle
+     * @param b Second obstacle
+     * @return true if the obstacles are colliding, false otherwise
+     */
+    public static boolean areObstaclesColliding(Obstacle a, Obstacle b) {
+        // Quick check using bounding circles first for performance
+        double radiusSum = a.getBoundingRadius() + b.getBoundingRadius();
+        if (a.getCenter().distance(b.getCenter()) > radiusSum) {
+            return false;
+        }
+
+        List<Vector2D> verticesA = a.getVertices();
+        List<Vector2D> verticesB = b.getVertices();
+
+        // Get all edges from both polygons
+        List<Vector2D> edges = new ArrayList<>();
+        // Add edges from polygon A
+        for (int i = 0; i < verticesA.size(); i++) {
+            Vector2D v1 = verticesA.get(i);
+            Vector2D v2 = verticesA.get((i + 1) % verticesA.size());
+            edges.add(new Vector2D(v2.x() - v1.x(), v2.y() - v1.y()));
+        }
+        // Add edges from polygon B
+        for (int i = 0; i < verticesB.size(); i++) {
+            Vector2D v1 = verticesB.get(i);
+            Vector2D v2 = verticesB.get((i + 1) % verticesB.size());
+            edges.add(new Vector2D(v2.x() - v1.x(), v2.y() - v1.y()));
+        }
+
+        // Test each edge as a potential separating axis
+        for (Vector2D edge : edges) {
+            // Get the axis perpendicular to the edge
+            Vector2D axis = new Vector2D(-edge.y(), edge.x());
+
+            // Project both polygons onto the axis
+            double[] projectionA = projectPolygon(verticesA, axis);
+            double[] projectionB = projectPolygon(verticesB, axis);
+
+            // Check if projections overlap
+            if (!doProjectionsOverlap(projectionA, projectionB)) {
+                // Found a separating axis, polygons are not colliding
+                return false;
+            }
+        }
+
+        // No separating axis found, polygons must be colliding
+        return true;
+    }
+
+    /**
+     * Projects a polygon onto an axis and returns the min/max values.
+     */
+    private static double[] projectPolygon(List<Vector2D> vertices, Vector2D axis) {
+        double min = Double.POSITIVE_INFINITY;
+        double max = Double.NEGATIVE_INFINITY;
+
+        for (Vector2D vertex : vertices) {
+            // Calculate dot product of vertex and axis
+            double projection = vertex.x() * axis.x() + vertex.y() * axis.y();
+            min = Math.min(min, projection);
+            max = Math.max(max, projection);
+        }
+
+        return new double[]{min, max};
+    }
+
+    /**
+     * Checks if two projections overlap.
+     */
+    private static boolean doProjectionsOverlap(double[] projectionA, double[] projectionB) {
+        return !(projectionA[1] < projectionB[0] || projectionB[1] < projectionA[0]);
+    }
+
 
     public static double constrain(double value, double min, double max) {
         if (value < min) {

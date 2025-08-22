@@ -8,6 +8,7 @@ import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.LoneWolfInfo;
+import com.fullsteam.systems.PlayerManager;
 import io.netty.channel.Channel;
 
 import java.util.Objects;
@@ -25,6 +26,18 @@ public class LoneWolfManager extends AbstractGameStateManager {
 
     public LoneWolfManager(GameLobby gameLobby) {
         super(gameLobby);
+
+        this.playerManager = new PlayerManager(playerManager) {
+            // The Lone Wolf's damage multiplier is persistent and managed separately.
+            // We only reset the multiplier for the Hunters.
+            @Override
+            protected void resetDamageMultiplier(Player player) {
+                if (!Objects.equals(player.getId(), loneWolfId)) {
+                    player.setDamageMultiplier(1.0);
+                }
+            }
+        };
+
     }
 
     @Override
@@ -32,14 +45,6 @@ public class LoneWolfManager extends AbstractGameStateManager {
         loneWolfDeaths = 0;
         balanceTeams();
         super.startNewRound();
-    }
-
-    /**
-     * Disables mid-round respawning. Players will only be brought back to life
-     * at the beginning of a new round via startNewRound().
-     */
-    @Override
-    protected void checkAndRespawnPlayers() {
     }
 
     @Override
@@ -53,16 +58,16 @@ public class LoneWolfManager extends AbstractGameStateManager {
     }
 
     private void balanceTeams() {
-        int huntersNeeded = (getMaxPlayers() - 1) - (int) players.values().stream().filter(p -> p.getTeam() == 2).count();
+        int huntersNeeded = (getMaxPlayers() - 1) - (int) entities.getPlayers().values().stream().filter(p -> p.getTeam() == 2).count();
         for (int i = 0; i < huntersNeeded; i++) {
             addAIPlayer(2); // Add AI to team 2
         }
-        int wolvesNeeded = 1 - (int) players.values().stream().filter(p -> p.getTeam() == 1).count();
+        int wolvesNeeded = 1 - (int) entities.getPlayers().values().stream().filter(p -> p.getTeam() == 1).count();
         if (wolvesNeeded > 0) {
             // try to promote a hunter to be the wolf
             // preferentially move a human
             Player toMove = null;
-            for (Player value : players.values()) {
+            for (Player value : entities.getPlayers().values()) {
                 if (value.getTeam() == 2) {
                     toMove = value;
                     if (!(toMove instanceof AIPlayer)) {
@@ -93,7 +98,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
             player = super.addPlayer(playerId, channel, 1);
             applyLoneWolfStatus();
         } else {
-            // Subsequent players are Hunters
+            // Subsequent entities.getPlayers() are Hunters
             player = super.addPlayer(playerId, channel, 2);
         }
         return player;
@@ -101,7 +106,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
 
     @Override
     public void handlePlayerConfigChange(Long playerId, PlayerConfigRequest request) {
-        Player player = players.get(playerId);
+        Player player = entities.getPlayers().get(playerId);
         if (player != null && request.isRequestTeamChange()) {
             if (player.getTeam() == 1) {
                 sendGameEvent(GameEvent.team(player.getTeam(), "You may not switch teams! The Wolf must hunt..."));
@@ -119,22 +124,25 @@ public class LoneWolfManager extends AbstractGameStateManager {
 
         if (Objects.equals(victim.getId(), loneWolfId)) {
             loneWolfDeaths++;
-            Player loneWolf = players.get(loneWolfId);
+            Player loneWolf = entities.getPlayers().get(loneWolfId);
             if (loneWolf != null && loneWolfDeaths < Config.LONE_WOLF_LIVES) {
                 double newDamageMultiplier = 1.0 + (loneWolfDeaths * Config.LONE_WOLF_DAMAGE_BOOST_PER_DEATH);
                 loneWolf.setDamageMultiplier(newDamageMultiplier);
                 loneWolf.setDamageBoostEndTime(Long.MAX_VALUE);
                 sendGameEvent(GameEvent.red("The Lone Wolf grows stronger! Damage is now " + (int) (newDamageMultiplier * 100) + "%."));
-                for (Player player : players.values()) {
+                vehicleManager.resetVehicles();
+                for (Player player : entities.getPlayers().values()) {
                     player.setDead(false);
                     player.resetHp();
                     player.finishReload();
+                    player.setVehicleId(null);
                     player.applyArmorUp(RESPAWN_IMMUNITY_DURATION);
                     setValidSpawnPosition(player);
                 }
             }
         } else if (shooter != null && Objects.equals(shooter.getId(), loneWolfId)) {
             // A hunter was killed by the lone wolf
+            victim.setRespawnTime(-1);
             sendGameEvent(GameEvent.green("The Lone Wolf has eliminated " + victim.getPlayerName()));
         }
     }
@@ -143,7 +151,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
     protected boolean checkEndConditions() {
         boolean roundOver = false;
         // Check if the lone wolf has left the game
-        if (loneWolfId != null && !players.containsKey(loneWolfId)) {
+        if (loneWolfId != null && !entities.getPlayers().containsKey(loneWolfId)) {
             sendGameEvent(GameEvent.blue("The Lone Wolf has fled! The Hunters win!"));
             log.info("Game {} ended: Lone Wolf left the game.", gameId);
             roundOver = true;
@@ -155,11 +163,11 @@ public class LoneWolfManager extends AbstractGameStateManager {
             roundOver = true;
         }
 
-        boolean allHuntersDown = players.values()
+        boolean allHuntersDown = entities.getPlayers().values()
                 .stream()
                 .filter(p -> p.getTeam() == 2)
                 .allMatch(Player::isDead);
-        if (allHuntersDown && players.size() > 1) {
+        if (allHuntersDown && entities.getPlayers().size() > 1) {
             sendGameEvent(GameEvent.red("The Lone Wolf has eliminated all Hunters! The Lone Wolf wins!"));
             log.info("Game {} ended: Lone Wolf wins.", gameId);
             roundOver = true;
@@ -168,7 +176,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
         if (roundOver) {
             // randomize the wolf again
             if (loneWolfId != null) {
-                Player player = players.get(loneWolfId);
+                Player player = entities.getPlayers().get(loneWolfId);
                 if (player != null) {
                     player.setDamageBoostEndTime(0);
                     player.setMaxHp(Config.DEFAULT_PLAYER_HEALTH);
@@ -178,15 +186,6 @@ public class LoneWolfManager extends AbstractGameStateManager {
         }
 
         return roundOver;
-    }
-
-    @Override
-    protected void resetDamageMultiplier(Player player) {
-        // The Lone Wolf's damage multiplier is persistent and managed separately.
-        // We only reset the multiplier for the Hunters.
-        if (!Objects.equals(player.getId(), loneWolfId)) {
-            player.setDamageMultiplier(1.0);
-        }
     }
 
     @Override
@@ -200,7 +199,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
     }
 
     public void applyLoneWolfStatus() {
-        Player player = players.get(loneWolfId);
+        Player player = entities.getPlayers().get(loneWolfId);
         if (player != null) {
             player.setTeam(1);
             player.setMaxHp(Config.DEFAULT_PLAYER_HEALTH * Config.LONE_WOLF_HEALTH_MULTIPLIER);

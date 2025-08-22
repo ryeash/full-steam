@@ -5,11 +5,15 @@ import java.util.Objects;
 public class PlayerInput {
     private double moveX;
     private double moveY;
-    private boolean shooting;
+    private boolean fire;
+    private boolean altFire; // e.g. vehicle secondary weapon
     private double mouseX;
     private double mouseY;
     private boolean reload;
-    public boolean placingObstacle;
+    public boolean action1; // e.g. placing a crate
+
+    // Vehicle controls
+    private boolean action2; // e.g. enter and exit vehicle
 
     public PlayerInput() {
     }
@@ -30,12 +34,12 @@ public class PlayerInput {
         this.moveY = moveY;
     }
 
-    public boolean isShooting() {
-        return shooting;
+    public boolean isFire() {
+        return fire;
     }
 
-    public void setShooting(boolean shooting) {
-        this.shooting = shooting;
+    public void setFire(boolean fire) {
+        this.fire = fire;
     }
 
     public double getMouseX() {
@@ -62,12 +66,28 @@ public class PlayerInput {
         this.reload = reload;
     }
 
-    public boolean isPlacingObstacle() {
-        return placingObstacle;
+    public boolean isAction1() {
+        return action1;
     }
 
-    public void setPlacingObstacle(boolean placingObstacle) {
-        this.placingObstacle = placingObstacle;
+    public void setAction1(boolean action1) {
+        this.action1 = action1;
+    }
+
+    public boolean isAction2() {
+        return action2;
+    }
+
+    public void setAction2(boolean action2) {
+        this.action2 = action2;
+    }
+
+    public boolean isAltFire() {
+        return altFire;
+    }
+
+    public void setAltFire(boolean altFire) {
+        this.altFire = altFire;
     }
 
     @Override
@@ -77,16 +97,18 @@ public class PlayerInput {
         }
         PlayerInput that = (PlayerInput) o;
         return Double.compare(moveX, that.moveX) == 0
-               && Double.compare(moveY, that.moveY) == 0
-               && shooting == that.shooting
-               && Double.compare(mouseX, that.mouseX) == 0
-               && Double.compare(mouseY, that.mouseY) == 0
-               && reload == that.reload
-               && placingObstacle == that.placingObstacle;
+                && Double.compare(moveY, that.moveY) == 0
+                && fire == that.fire
+                && Double.compare(mouseX, that.mouseX) == 0
+                && Double.compare(mouseY, that.mouseY) == 0
+                && reload == that.reload
+                && action1 == that.action1
+                && action2 == that.action2
+                && altFire == that.altFire;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(moveX, moveY, shooting, mouseX, mouseY, reload, placingObstacle);
+        return Objects.hash(moveX, moveY, fire, mouseX, mouseY, reload, action1, action2, altFire);
     }
 }

@@ -35,6 +35,22 @@ public class SpatialGrid<T> {
         sparseMatrix.clear();
     }
 
+    public void insertPolygon(T object, List<Vector2D> vertices) {
+        double minX = Double.MAX_VALUE;
+        double minY = Double.MAX_VALUE;
+        double maxX = Double.MIN_VALUE;
+        double maxY = Double.MIN_VALUE;
+
+        for (Vector2D vertex : vertices) {
+            minX = Math.min(minX, vertex.x());
+            minY = Math.min(minY, vertex.y());
+            maxX = Math.max(maxX, vertex.x());
+            maxY = Math.max(maxY, vertex.y());
+        }
+
+        insert(object, minX, minY, maxX - minX, maxY - minY);
+    }
+
     public void insert(T object, double x, double y, double width, double height) {
         int startCol = (int) (x / cellWidth);
         int endCol = (int) ((x + width) / cellWidth);

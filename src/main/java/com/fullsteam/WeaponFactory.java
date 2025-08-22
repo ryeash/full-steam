@@ -282,6 +282,22 @@ public class WeaponFactory {
         ));
 
         addPreset(new Weapon(
+                "Laser Minigun",
+                "LM",
+                Weapon.Ordinance.LASER,
+                35,  // Fire Rate
+                5, // Damage
+                9,  // Range
+                0, // Speed
+                0,  // Speed Decay
+                -10, // Accuracy
+                0,  // Multi-shot
+                10,  // Magazine Size
+                1,  // Reload Speed
+                null
+        ));
+
+        addPreset(new Weapon(
                 "Engineer Wrench",
                 "EW",
                 25,  // Fire Rate
@@ -355,6 +371,21 @@ public class WeaponFactory {
             null
     );
 
+    public static final Weapon FIXED_CANNON_WEAPON = new Weapon(
+            "EightyEight",
+            "88",
+            0, // Fire Rate
+            0, // Damage
+            16,  // Range
+            15, // Speed
+            9,  // Speed Decay
+            0,  // Accuracy
+            0, // Multi-shot
+            0,  // Magazine Size
+            0,  // Reload Speed
+            Explosion::shell
+    );
+
     public static void addPreset(Weapon weapon) {
         if (weaponPresets.containsKey(weapon.getName())) {
             throw new IllegalArgumentException("weapon already registered: " + weapon.getName());
@@ -385,7 +416,11 @@ public class WeaponFactory {
         return weaponArray[0];
     }
 
-    private static final List<String> RANDOM_EXCEPTIONS = List.of("Engineer Wrench", "Grenade (Slow)", "Grenade (Smoke)");
+    private static final List<String> RANDOM_EXCEPTIONS = List.of(
+            "Engineer Wrench",
+            "Grenade (Slow)",
+            "Grenade (Smoke)",
+            "Mine Layer");
 
     public static Weapon getRandomWeapon() {
         Weapon random = null;

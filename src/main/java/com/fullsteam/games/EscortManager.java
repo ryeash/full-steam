@@ -37,7 +37,7 @@ public class EscortManager extends AbstractTeamBasedManager {
                 (Config.GAME_HEIGHT - Config.ESCORT_OBSTACLE_HEIGHT) / 2,
                 Config.ESCORT_OBSTACLE_WIDTH,
                 Config.ESCORT_OBSTACLE_HEIGHT).vertices(), false);
-        obstacles.add(payload);
+        entities.getObstacles().add(payload);
     }
 
     @Override
@@ -46,7 +46,7 @@ public class EscortManager extends AbstractTeamBasedManager {
         Vector2D payloadCenter = getPayloadCenter();
         double proximitySq = Config.ESCORT_PLAYER_PROXIMITY * Config.ESCORT_PLAYER_PROXIMITY;
 
-        Set<Integer> teamsNearPayload = players.values()
+        Set<Integer> teamsNearPayload = entities.getPlayers().values()
                 .stream()
                 .filter(p -> !p.isDead())
                 .filter(p -> p.position().distanceSquared(payloadCenter) < proximitySq)
@@ -73,9 +73,9 @@ public class EscortManager extends AbstractTeamBasedManager {
             double minX = nextPayload.vertices().stream().mapToDouble(Vector2D::x).min().orElse(0);
             double maxX = nextPayload.vertices().stream().mapToDouble(Vector2D::x).max().orElse(0);
             if (minX >= 0 && maxX <= Config.GAME_WIDTH) {
-                obstacles.remove(payload);
+                entities.getObstacles().remove(payload);
                 this.payload = nextPayload;
-                obstacles.add(payload);
+                entities.getObstacles().add(payload);
             }
         }
         super.updateGame(delta);

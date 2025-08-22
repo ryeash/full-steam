@@ -44,6 +44,8 @@ public class Player implements HasId, HasLife, Targetable {
     public double damageMultiplier;
     @JsonIgnore
     public boolean visionObscured;
+    public Long vehicleId;
+    public boolean shootDisabled;
 
     public Player(long id, double x, double y, int team) {
         this(id, RandomNames.randomName(), x, y, team, WeaponFactory.getDefaultWeapon());
@@ -77,6 +79,7 @@ public class Player implements HasId, HasLife, Targetable {
         this.damageBoostEndTime = 0;
         this.damageMultiplier = 1.0;
         this.invisibilityEndTime = 0;
+        this.shootDisabled = false;
     }
 
     public void update(long delta) {
@@ -86,9 +89,10 @@ public class Player implements HasId, HasLife, Targetable {
 
     public boolean canShoot() {
         return !isDead()
-                && !isReloading
-                && currentAmmoInMagazine > 0
-                && System.currentTimeMillis() >= nextShotTime;
+               && !shootDisabled
+               && !isReloading
+               && currentAmmoInMagazine > 0
+               && System.currentTimeMillis() >= nextShotTime;
     }
 
     /**
@@ -241,6 +245,8 @@ public class Player implements HasId, HasLife, Targetable {
         isDead = dead;
         if (dead) {
             this.isReloading = false; // Cancel reload on death
+        } else {
+            this.respawnTime = 0;
         }
     }
 
@@ -397,6 +403,18 @@ public class Player implements HasId, HasLife, Targetable {
 
     public void setVisionObscured(boolean visionObscured) {
         this.visionObscured = visionObscured;
+    }
+
+    public Long getVehicleId() {
+        return vehicleId;
+    }
+
+    public void setVehicleId(Long vehicleId) {
+        this.vehicleId = vehicleId;
+    }
+
+    public void shootDisabled(boolean shootDisabled) {
+        this.shootDisabled = shootDisabled;
     }
 }
 

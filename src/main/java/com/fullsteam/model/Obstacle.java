@@ -16,7 +16,7 @@ public class Obstacle implements HasId {
     private final long id;
     private final List<Vector2D> vertices;
     @JsonIgnore
-    private final Vector2D center;
+    private Vector2D center;
     @JsonIgnore
     private final double boundingRadius;
     @JsonIgnore
@@ -28,7 +28,7 @@ public class Obstacle implements HasId {
 
     public Obstacle(List<Vector2D> vertices, boolean rendered) {
         this.id = idCounter.incrementAndGet();
-        this.vertices = vertices;
+        this.vertices = new ArrayList<>(vertices);
 
         // --- Calculate Bounding Information ---
         // 1. Find the geometric center (centroid) of the polygon.
@@ -77,6 +77,44 @@ public class Obstacle implements HasId {
      */
     public boolean isRendered() {
         return rendered;
+    }
+
+    /**
+     * Rotates all vertices around the center point by the specified angle in radians.
+     *
+     * @param angleRadians The angle to rotate in radians
+     */
+    public void rotate(double angleRadians) {
+        double cos = Math.cos(angleRadians);
+        double sin = Math.sin(angleRadians);
+
+        for (int i = 0; i < vertices.size(); i++) {
+            Vector2D v = vertices.get(i);
+
+            // Translate point to origin
+            double dx = v.x() - center.x();
+            double dy = v.y() - center.y();
+
+            // Rotate point
+            double newX = dx * cos - dy * sin + center.x();
+            double newY = dx * sin + dy * cos + center.y();
+
+            // Update vertex
+            vertices.set(i, new Vector2D(newX, newY));
+        }
+    }
+
+    public void setPosition(Vector2D position) {
+        double offsetX = position.x() - center.x();
+        double offsetY = position.y() - center.y();
+
+        for (int i = 0; i < vertices.size(); i++) {
+            Vector2D v = vertices.get(i);
+            vertices.set(i, new Vector2D(v.x() + offsetX, v.y() + offsetY));
+        }
+
+        // Update the center to the new position
+        this.center = position;
     }
 
     public static Obstacle createRandomPolygonObstacle() {

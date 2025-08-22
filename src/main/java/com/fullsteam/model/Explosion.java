@@ -40,6 +40,17 @@ public class Explosion extends AbstractFieldEffect implements BulletEffect {
                 300); // duration ms
     }
 
+    public static Explosion shell(Bullet bullet, Object destructionSource) {
+        return new Explosion(
+                bullet.getX(),
+                bullet.getY(),
+                bullet.getShooterId(),
+                bullet.getTeam(),
+                115, // size/radius
+                300, // damage
+                300); // duration ms
+    }
+
     public long getShooterId() {
         return shooterId;
     }

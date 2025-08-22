@@ -12,6 +12,7 @@ import com.fullsteam.model.gamemodes.GameInfo;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 
 import static com.fullsteam.Config.PLAYER_RADIUS;
 
@@ -45,7 +46,7 @@ public class BuilderManager extends AbstractFreeForAllManager {
     protected void populateSpatialGrids() {
         super.populateSpatialGrids();
         for (Crate crate : crates) {
-            targetGrid.insert(crate, crate.getX(), crate.getY(), crate.getSize(), crate.getSize());
+            entities.getTargetGrid().insert(crate, crate.getX(), crate.getY(), crate.getSize(), crate.getSize());
         }
     }
 
@@ -56,43 +57,43 @@ public class BuilderManager extends AbstractFreeForAllManager {
     }
 
     @Override
-    public void handlePlayerInput(Long playerId, PlayerInput input) {
-        super.handlePlayerInput(playerId, input);
-        if (input.isPlacingObstacle()) {
-            Player player = players.get(playerId);
-            if (player != null) {
-                placeCrate(playerId);
-            }
-        }
-    }
-
-    @Override
     protected void updatePlayers(long delta) {
         crates.removeIf(Crate::isDestroyed);
         // Temporarily add crates as obstacles for collision detection purposes.
         // This allows us to reuse the collision logic from the superclass.
-        obstacles.addAll(crates);
+        entities.getObstacles().addAll(crates);
         try {
             // Now the super method will handle collision with both permanent obstacles and crates.
             super.updatePlayers(delta);
+
+            for (Player player : entities.getPlayers().values()) {
+                PlayerInput input = entities.getPlayerInput(player.id());
+                if (input != null) {
+                    if (input.isAction1()) {
+                        if (!player.isDead()) {
+                            placeCrate(player);
+                        }
+                    }
+                }
+
+            }
         } finally {
             // Clean up the temporary crate obstacles to ensure they don't persist.
-            obstacles.removeAll(crates);
+            entities.getObstacles().removeAll(crates);
         }
     }
 
-    public void placeCrate(Long playerId) {
-        Player player = players.get(playerId);
+    public void placeCrate(Player player) {
         if (player == null) {
             return;
         }
-        PlayerInput input = playerInput.get(playerId);
+        PlayerInput input = entities.getPlayerInput(player.id());
         if (input == null) {
             return;
         }
 
         long ownedCrates = crates.stream()
-                .filter(c -> playerId.equals(c.getOwnerId()))
+                .filter(c -> Objects.equals(player.id(), c.getOwnerId()))
                 .count();
 
         if (ownedCrates >= Config.BUILDER_MAX_OBSTACLES) {
@@ -112,10 +113,10 @@ public class BuilderManager extends AbstractFreeForAllManager {
         double snappedX = Math.round(idealX / CRATE_SIZE) * CRATE_SIZE;
         double snappedY = Math.round(idealY / CRATE_SIZE) * CRATE_SIZE;
 
-        Crate crate = new Crate(playerId, snappedX, snappedY, CRATE_SIZE, Config.BUILDER_CRATE_HEALTH);
+        Crate crate = new Crate(player.id(), snappedX, snappedY, CRATE_SIZE, Config.BUILDER_CRATE_HEALTH);
         if (!isCollidingWithAnyCrate(crate) && !isCollidingWithAnyPlayer(crate)) {
             crates.add(crate);
-            targetGrid.insert(crate, crate.getX(), crate.getY(), crate.getSize(), crate.getSize());
+            entities.getTargetGrid().insert(crate, crate.getX(), crate.getY(), crate.getSize(), crate.getSize());
         }
     }
 
@@ -132,7 +133,7 @@ public class BuilderManager extends AbstractFreeForAllManager {
     }
 
     private boolean isCollidingWithAnyPlayer(Crate newCrate) {
-        for (Player player : players.values()) {
+        for (Player player : entities.getPlayers().values()) {
             if (CollisionUtils.checkCirclePolygonCollision(player.position(), PLAYER_RADIUS, newCrate.getVertices())) {
                 return true;
             }
@@ -154,6 +155,6 @@ public class BuilderManager extends AbstractFreeForAllManager {
 
     private void removePlayerCrates(Long playerId) {
         crates.removeIf(crate -> playerId.equals(crate.getOwnerId()));
-        obstacles.removeIf(o -> o instanceof Crate c && playerId.equals(c.getOwnerId()));
+        entities.getObstacles().removeIf(o -> o instanceof Crate c && playerId.equals(c.getOwnerId()));
     }
 }

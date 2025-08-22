@@ -44,18 +44,18 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
     }
 
     protected void balanceOpponents() {
-        int playersToAdd = MAX_PLAYERS - players.size();
+        int playersToAdd = MAX_PLAYERS - entities.getPlayers().size();
         if (playersToAdd > 0) {
-            log.info("Checking to fill game. Current players: {}, Max: {}. Adding {} AI.", players.size(), MAX_PLAYERS, playersToAdd);
+            log.info("Checking to fill game. Current players: {}, Max: {}. Adding {} AI.", entities.getPlayers().size(), MAX_PLAYERS, playersToAdd);
             for (int i = 0; i < playersToAdd; i++) {
                 addAIPlayer(teamIdCounter.incrementAndGet());
             }
         } else if (playersToAdd < 0) {
             int playersToRemove = -playersToAdd;
-            log.info("Too many players. Current players: {}, Max: {}. Removing {} AI.", players.size(), MAX_PLAYERS, playersToRemove);
+            log.info("Too many players. Current players: {}, Max: {}. Removing {} AI.", entities.getPlayers().size(), MAX_PLAYERS, playersToRemove);
 
             // Get a list of AI player IDs to remove
-            List<Long> aiPlayerIdsToRemove = players.values().stream()
+            List<Long> aiPlayerIdsToRemove = entities.getPlayers().values().stream()
                     .filter(p -> p instanceof AIPlayer)
                     .map(Player::getId)
                     .limit(playersToRemove)
@@ -74,7 +74,7 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
         Long playerId = Config.ID_COUNTER.incrementAndGet();
         AIPlayer player = new AIPlayer(playerId, 0, 0, team, new DeathmatchAIStrategy(), AIArchetype.randomArchetype());
         setValidSpawnPosition(player);
-        players.put(playerId, player);
+        entities.addPlayer(player, null);
         log.info("AI Player {} joined at position ({}, {})", playerId, player.getX(), player.getY());
         return player;
     }
@@ -97,7 +97,7 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
     }
 
     protected void sendVictoryMessage() {
-        players.values().stream()
+        entities.getPlayers().values().stream()
                 .max(Comparator.comparingInt(Player::getKills))
                 .ifPresent(winner -> sendGameEvent(GameEvent.blue(winner.getPlayerName() + " wins!")));
     }
@@ -105,8 +105,8 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
     @Override
     public Player addPlayer(long playerId, Channel channel) {
         // If the game is at max capacity, try to remove an AI to make room.
-        if (players.size() >= MAX_PLAYERS) {
-            Optional<Player> aiToKick = players.values().stream()
+        if (entities.getPlayers().size() >= MAX_PLAYERS) {
+            Optional<Player> aiToKick = entities.getPlayers().values().stream()
                     .filter(p -> p instanceof AIPlayer)
                     .findFirst();
 
@@ -137,12 +137,12 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
             player.setX(x);
             player.setY(y);
 
-            if (isColliding(player, obstacles)) {
+            if (physicsEngine.isColliding(player, entities.getObstacles())) {
                 invalidPosition = true;
                 continue;
             }
 
-            for (Player other : players.values()) {
+            for (Player other : entities.getPlayers().values()) {
                 if (!Objects.equals(player.getId(), other.getId()) && other.position().distanceSquared(player.position()) < PLAYER_BUFFER_SPAWN_DISTANCE) {
                     invalidPosition = true;
                     break;
