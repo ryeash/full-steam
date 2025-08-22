@@ -33,7 +33,7 @@ public class FixedCannon extends Vehicle {
                 Config.FIXED_CANNON_TURN_SPEED, // Can rotate to aim
                 List.of(new Seat(true, new MountedWeapon(
                         new Vector2D(0, 0), // align with vehicle center
-                        WeaponFactory.getWeapon("Rocket"),
+                        WeaponFactory.FIXED_CANNON_WEAPON,
                         0.0, // Default angle (forward)
                         Math.PI / 6,// ±15° traverse range (very limited like real artillery),
                         3.0

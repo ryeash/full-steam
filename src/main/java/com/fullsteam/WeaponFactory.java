@@ -371,6 +371,21 @@ public class WeaponFactory {
             null
     );
 
+    public static final Weapon FIXED_CANNON_WEAPON = new Weapon(
+            "EightyEight",
+            "88",
+            0, // Fire Rate
+            0, // Damage
+            16,  // Range
+            15, // Speed
+            9,  // Speed Decay
+            0,  // Accuracy
+            0, // Multi-shot
+            0,  // Magazine Size
+            0,  // Reload Speed
+            Explosion::shell
+    );
+
     public static void addPreset(Weapon weapon) {
         if (weaponPresets.containsKey(weapon.getName())) {
             throw new IllegalArgumentException("weapon already registered: " + weapon.getName());
