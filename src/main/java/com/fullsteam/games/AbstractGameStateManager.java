@@ -1336,6 +1336,10 @@ public abstract class AbstractGameStateManager {
             return;
         }
 
+        if (controlledWeapon.isReloading() && System.currentTimeMillis() >= controlledWeapon.getReloadCompleteTime()) {
+            controlledWeapon.finishReload();
+        }
+
         // Handle weapon firing
         if (input.isFire()) {
             if (controlledWeapon.getCurrentAmmo() <= 0) {

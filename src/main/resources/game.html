@@ -2053,6 +2053,9 @@
             this.ctx.closePath();
             this.ctx.fill();
             this.ctx.stroke();
+
+            // Draw team color band if vehicle is controlled
+            this.drawTeamColorBand(vehicle, style);
         }
 
         drawVehicleCannon(vehicle, style) {
@@ -2148,7 +2151,7 @@
                         return { ...baseProps, length: vehicle.radius * 1.2, width: 6, turretRadius: vehicle.radius * 0.4 };
                     } else {
                         // Side machine guns
-                        return { ...baseProps, length: vehicle.radius * 0.8, width: 4, turretRadius: vehicle.radius * 0.15 };
+                        return { ...baseProps, length: vehicle.radius * 0.4, width: 3, turretRadius: vehicle.radius * 0.15 };
                     }
                 case 'JEEP':
                     // Machine gun
@@ -2158,7 +2161,7 @@
                     return { ...baseProps, length: vehicle.radius * 1.5, width: 8, turretRadius: vehicle.radius * 0.3 };
                 case 'MECH':
                     // Laser weapons
-                    return { ...baseProps, length: vehicle.radius * 0.6, width: 3, turretRadius: vehicle.radius * 0.1, 
+                    return { ...baseProps, length: vehicle.radius * 0.6, width: 5, turretRadius: vehicle.radius * 0.1,
                             barrelColor: '#4A90E2', barrelStroke: '#2E5C8A' };
                 default:
                     return baseProps;
@@ -2278,6 +2281,62 @@
             const tipWidth = weaponProps.width * 1.3;
             this.ctx.fillRect(weaponProps.length - tipLength, -tipWidth / 2, tipLength, tipWidth);
             this.ctx.strokeRect(weaponProps.length - tipLength, -tipWidth / 2, tipLength, tipWidth);
+
+            this.ctx.restore();
+        }
+
+        drawTeamColorBand(vehicle, style) {
+            // Determine the controlling team by finding any passenger
+            let controllingTeam = vehicle.team;
+
+            // Only draw team band if vehicle is controlled
+            if (!controllingTeam || controllingTeam === -1) {
+                return;
+            }
+
+            // Get team colors
+            const teamColors = {
+                1: { primary: '#4CAF50', secondary: '#2E7D32' }, // Green for team 1
+                2: { primary: '#F44336', secondary: '#C62828' }  // Red for team 2
+            };
+            
+            const colors = teamColors[controllingTeam];
+            if (!colors) return;
+
+            this.ctx.save();
+
+            // Calculate vehicle center and radius for band positioning
+            const vehicleX = vehicle.x;
+            const vehicleY = vehicle.y;
+            const vehicleRadius = vehicle.radius;
+
+            // Draw team color band as a ring around the vehicle
+            const bandInnerRadius = vehicleRadius;
+            const bandOuterRadius = vehicleRadius + 3;
+
+            // Create radial gradient for the band
+            const gradient = this.ctx.createRadialGradient(
+                vehicleX, vehicleY, bandInnerRadius,
+                vehicleX, vehicleY, bandOuterRadius
+            );
+            gradient.addColorStop(0, colors.primary);
+            gradient.addColorStop(1, colors.secondary);
+
+            // Draw the band ring
+            this.ctx.strokeStyle = gradient;
+            this.ctx.lineWidth = 6;
+            this.ctx.globalAlpha = 0.8;
+            this.ctx.beginPath();
+            this.ctx.arc(vehicleX, vehicleY, bandInnerRadius + 3, 0, 2 * Math.PI);
+            this.ctx.stroke();
+
+            // Add a subtle inner highlight
+            this.ctx.strokeStyle = colors.primary;
+            this.ctx.lineWidth = 2;
+            this.ctx.globalAlpha = 0.6;
+            this.ctx.beginPath();
+            this.ctx.arc(vehicleX, vehicleY, bandInnerRadius + 1, 0, 2 * Math.PI);
+            this.ctx.stroke();
 
             this.ctx.restore();
         }

@@ -19,6 +19,7 @@ public class VehicleSerializer extends AbstractSerializer<Vehicle> {
         gen.writeNumberField("hp", vehicle.getHp());
         gen.writeNumberField("maxHp", vehicle.getMaxHp());
         gen.writeNumberField("radius", vehicle.getBoundingRadius());
+        gen.writeNumberField("team", vehicle.getTeam());
         gen.writeArrayFieldStart("vertices");
         for (Vector2D vertex : vehicle.vertices()) {
             serializers.defaultSerializeValue(vertex, gen);
