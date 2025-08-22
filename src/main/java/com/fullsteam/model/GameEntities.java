@@ -18,6 +18,8 @@ import static com.fullsteam.Config.PLAYER_SIZE;
  */
 public class GameEntities {
 
+    private final long gameId;
+
     // Player-related collections
     private final Map<Long, Player> players = new ConcurrentHashMap<>(10, 1, 1);
     private final Map<Long, Channel> playerChannels = new ConcurrentHashMap<>(10, 1, 1);
@@ -37,8 +39,13 @@ public class GameEntities {
     // Spatial indexing
     private final SpatialGrid<Targetable> targetGrid;
 
-    public GameEntities(int gameWidth, int gameHeight, int gridCellWidth, int gridCellHeight) {
+    public GameEntities(long gameId, int gameWidth, int gameHeight, int gridCellWidth, int gridCellHeight) {
+        this.gameId = gameId;
         this.targetGrid = new SpatialGrid<>(gameWidth, gameHeight, gridCellWidth, gridCellHeight);
+    }
+
+    public long getGameId() {
+        return gameId;
     }
 
     // === Player-related getters ===

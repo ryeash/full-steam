@@ -32,7 +32,6 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static com.fullsteam.Config.AFK_TIMEOUT_MS;
@@ -62,9 +61,9 @@ public class PlayerManager {
     private final WeaponSystem weaponSystem;
     private final VehicleManager vehicleManager;
     private final FieldEffectSystem fieldEffectSystem;
+    private final TurretSystem turretSystem;
     private final Consumer<GameEvent> gameEventSender;
     private final BiConsumer<Player, Player> killPlayerHandler;
-    private final Function<Player, WelcomeMessage> welcomeMessageBuilder;
     private final Supplier<IAIStrategy> aiStrategyBuilder;
     private final Consumer<Player> setValidSpawnPositionHandler;
 
@@ -84,24 +83,24 @@ public class PlayerManager {
         this.fieldEffectSystem = other.fieldEffectSystem;
         this.gameEventSender = other.gameEventSender;
         this.killPlayerHandler = other.killPlayerHandler;
-        this.welcomeMessageBuilder = other.welcomeMessageBuilder;
         this.aiStrategyBuilder = other.aiStrategyBuilder;
         this.setValidSpawnPositionHandler = other.setValidSpawnPositionHandler;
+        this.turretSystem = other.turretSystem;
     }
 
     public PlayerManager(GameEntities entities, PhysicsEngine physicsEngine, WeaponSystem weaponSystem,
-                         VehicleManager vehicleManager, FieldEffectSystem fieldEffectSystem,
+                         VehicleManager vehicleManager, FieldEffectSystem fieldEffectSystem, TurretSystem turretSystem,
                          Consumer<GameEvent> gameEventSender, BiConsumer<Player, Player> killPlayerHandler,
-                         Function<Player, WelcomeMessage> welcomeMessageBuilder, Supplier<IAIStrategy> aiStrategyBuilder,
+                         Supplier<IAIStrategy> aiStrategyBuilder,
                          Consumer<Player> setValidSpawnPositionHandler) {
         this.entities = entities;
         this.physicsEngine = physicsEngine;
         this.weaponSystem = weaponSystem;
         this.vehicleManager = vehicleManager;
         this.fieldEffectSystem = fieldEffectSystem;
+        this.turretSystem = turretSystem;
         this.gameEventSender = gameEventSender;
         this.killPlayerHandler = killPlayerHandler;
-        this.welcomeMessageBuilder = welcomeMessageBuilder;
         this.aiStrategyBuilder = aiStrategyBuilder;
         this.setValidSpawnPositionHandler = setValidSpawnPositionHandler;
     }
@@ -396,7 +395,7 @@ public class PlayerManager {
         entities.addPlayer(player, channel);
 
         // Send welcome message
-        WelcomeMessage welcomeMessage = welcomeMessageBuilder.apply(player);
+        WelcomeMessage welcomeMessage = new WelcomeMessage(player.getId(), player.getTeam(), entities.getGameId(), entities.getObstacles());
         channel.writeAndFlush(Jackson.msgFrame(welcomeMessage));
         return player;
     }
@@ -444,7 +443,7 @@ public class PlayerManager {
             && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
-            removePlayerTurrets(player);
+            turretSystem.removeAllTurretsOwnedBy(player.id());
         }
 
         if (request.isRequestTeamChange()) {
@@ -468,24 +467,17 @@ public class PlayerManager {
                 .count();
 
         if (otherTeamCount < MAX_PLAYERS_PER_TEAM) {
+            WelcomeMessage welcomeMessage = new WelcomeMessage(player.getId(), player.getTeam(), entities.getGameId(), entities.getObstacles());
             player.setTeam(otherTeam);
             // Kill the player to force a respawn on the new team's side
             killPlayerHandler.accept(player, null);
             entities.getPlayerChannel(player.getId())
-                    .writeAndFlush(Jackson.msgFrame(welcomeMessageBuilder.apply(player)));
+                    .writeAndFlush(Jackson.msgFrame(welcomeMessage));
             log.info("Player {} switched to team {}", player.getId(), otherTeam);
         } else {
+
             gameEventSender.accept(GameEvent.red("Team %d is full. You cannot switch teams.".formatted(otherTeam), player.getId()));
         }
-    }
-
-    /**
-     * Removes all turrets owned by a player
-     */
-    private void removePlayerTurrets(Player player) {
-        // This should be handled by TurretSystem, but we need a way to call it
-        // For now, we'll access the turrets directly
-        entities.getTurrets().removeIf(turret -> turret.getOwnerId() == player.getId());
     }
 
     /**

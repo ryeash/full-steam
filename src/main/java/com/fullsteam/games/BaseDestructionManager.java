@@ -247,7 +247,7 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
             player.setY(y);
 
             // Check if spawn point is inside an obstacle
-            if (isColliding(player, entities.getObstacles())) {
+            if (physicsEngine.isColliding(player, entities.getObstacles())) {
                 invalidPosition = true;
                 continue;
             }

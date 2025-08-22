@@ -137,7 +137,7 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
             player.setX(x);
             player.setY(y);
 
-            if (isColliding(player, entities.getObstacles())) {
+            if (physicsEngine.isColliding(player, entities.getObstacles())) {
                 invalidPosition = true;
                 continue;
             }

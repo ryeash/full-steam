@@ -73,7 +73,7 @@ public abstract class AbstractGameStateManager {
 
     public AbstractGameStateManager(GameLobby gameLobby) {
         this.gameLobby = gameLobby;
-        this.entities = new GameEntities(GAME_WIDTH, GAME_HEIGHT, 100, 100);
+        this.entities = new GameEntities(gameId, GAME_WIDTH, GAME_HEIGHT, 100, 100);
         this.weaponSystem = new WeaponSystem(entities, this::applyBulletEffect, this::killPlayer);
         this.physicsEngine = new PhysicsEngine(entities);
         this.fieldEffectSystem = new FieldEffectSystem(entities, this::killPlayer);
@@ -85,9 +85,9 @@ public abstract class AbstractGameStateManager {
                 weaponSystem,
                 vehicleManager,
                 fieldEffectSystem,
+                turretSystem,
                 this::sendGameEvent,
                 this::killPlayer,
-                this::playerWelcomeMessage,
                 this::buildAIStrategy,
                 this::setValidSpawnPosition);
     }
@@ -413,16 +413,10 @@ public abstract class AbstractGameStateManager {
             player.setY(y);
 
             // check if the spawn point is inside an obstacle.
-            if (isColliding(player, entities.getObstacles())) {
+            if (physicsEngine.isColliding(player, entities.getObstacles())) {
                 invalidPosition = true;
             }
         } while (invalidPosition);
-    }
-
-// --- Collision Detection Methods ---
-
-    protected boolean isColliding(Player player, List<Obstacle> checkObstacles) {
-        return physicsEngine.isColliding(player, checkObstacles);
     }
 
     /**
@@ -432,47 +426,7 @@ public abstract class AbstractGameStateManager {
      * @param request  The weapon change request details.
      */
     public void handlePlayerConfigChange(Long playerId, PlayerConfigRequest request) {
-        Player player = entities.getPlayer(playerId);
-        if (player == null) {
-            return;
-        }
-
-        if (request.getPlayerName() != null && !request.getPlayerName().isEmpty() && Config.ALLOW_NAME_CHANGE) {
-            player.setPlayerName(request.getPlayerName());
-        }
-
-        if (request.getWeaponName() != null
-            && !request.getWeaponName().isEmpty()
-            && !request.getWeaponName().equals(player.getWeapon().getName())) {
-            Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
-            player.setWeapon(newWeapon);
-            removePlayerTurrets(player);
-        }
-
-        if (request.isRequestTeamChange()) {
-            int currentTeam = player.getTeam();
-            int otherTeam = (currentTeam == 1) ? 2 : 1;
-
-            // Check if the other team is full
-            // only count human players
-            long otherTeamCount = entities.getPlayers().values()
-                    .stream()
-                    .filter(p -> !(p instanceof AIPlayer))
-                    .filter(p -> p.getTeam() == otherTeam)
-                    .count();
-
-            if (otherTeamCount < MAX_PLAYERS_PER_TEAM) {
-                player.setTeam(otherTeam);
-                // Kill the player to force a respawn on the new team's side
-                killPlayer(player, null);
-                entities.getPlayerChannel(player.getId())
-                        .writeAndFlush(Jackson.msgFrame(playerWelcomeMessage(player)));
-                log.info("Player {} switched to team {}", playerId, otherTeam);
-            } else {
-                sendGameEvent(GameEvent.red("Team %d is full. You cannot switch teams.".formatted(otherTeam), playerId));
-            }
-        }
-        log.info("Player {} reconfigured: name={}, weapon={}", playerId, player.getPlayerName(), player.getWeapon().getName());
+        playerManager.handlePlayerConfigChange(playerId, request);
     }
 
     protected void removePlayerTurrets(Player player) {

@@ -104,30 +104,12 @@ public class TurretSystem {
 
         if (existingTurrets < MAX_TURRETS_PER_PLAYER) {
             entities.getTurrets().add(turret);
-            log.debug("Placed turret {} for player {}", turret.getId(), ownerId);
             return true;
         } else {
             // Send feedback message to the player who tried to place the turret
             gameEventSender.accept(GameEvent.red("Turret limit reached!", ownerId));
-            log.debug("Turret placement denied for player {} - limit reached", ownerId);
             return false;
         }
-    }
-
-    /**
-     * Gets all turrets (read-only access)
-     */
-    public java.util.List<Turret> getTurrets() {
-        return java.util.Collections.unmodifiableList(entities.getTurrets());
-    }
-
-    /**
-     * Gets turrets owned by a specific player
-     */
-    public java.util.List<Turret> getTurretsOwnedBy(long playerId) {
-        return entities.getTurrets().stream()
-                .filter(turret -> turret.getOwnerId() == playerId)
-                .toList();
     }
 
     /**

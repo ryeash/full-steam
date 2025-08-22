@@ -112,7 +112,7 @@ public class FieldEffectSystem {
                             hasLife.takeDamage(explosion.getDamage());
                         }
                     }
-                    case null, default -> throw new UnsupportedOperationException("unsupported explosion target type: " + target.getClass().getSimpleName());
+                    case null, default -> throw new UnsupportedOperationException("unsupported explosion target type: " + target);
                 }
             }
             explosion.markDamageApplied(); // Mark it so damage isn't applied again.

@@ -77,17 +77,6 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         }
     }
 
-//    @Override
-//    protected void applyPowerUp(Player player, PowerUp powerUp) {
-//        // TODO: somehow disable zombie powerups
-//        // Zombies (Team 2) cannot pick up power-ups.
-//        if (player.getTeam() == 2) {
-//            return; // Do nothing if a zombie touches a power-up
-//        }
-//        // If it's a human player, let the default logic handle it.
-//        super.applyPowerUp(player, powerUp);
-//    }
-
     private void spawnNextWave() {
         waveNumber++;
         int zombiesToSpawn = 5 + (waveNumber * 3); // Waves get progressively harder
