@@ -87,9 +87,9 @@ public class Player implements HasId, HasLife, Targetable {
 
     public boolean canShoot() {
         return !isDead()
-                && !isReloading
-                && currentAmmoInMagazine > 0
-                && System.currentTimeMillis() >= nextShotTime;
+               && !isReloading
+               && currentAmmoInMagazine > 0
+               && System.currentTimeMillis() >= nextShotTime;
     }
 
     /**
@@ -242,6 +242,8 @@ public class Player implements HasId, HasLife, Targetable {
         isDead = dead;
         if (dead) {
             this.isReloading = false; // Cancel reload on death
+        } else {
+            this.respawnTime = 0;
         }
     }
 

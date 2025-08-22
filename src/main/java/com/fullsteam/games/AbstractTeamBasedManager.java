@@ -68,7 +68,7 @@ public abstract class AbstractTeamBasedManager extends AbstractGameStateManager 
     @Override
     protected void updateGame(long delta) {
         if (System.currentTimeMillis() - lastTeamBalanceTime > TEAM_BALANCE_CHECK_INTERVAL_MS) {
-            teamBalancer.balanceTeams(players);
+            teamBalancer.balanceTeams(entities.getPlayers());
             lastTeamBalanceTime = System.currentTimeMillis();
         }
 

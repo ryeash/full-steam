@@ -12,7 +12,6 @@ import com.fullsteam.model.gamemodes.GunMasterInfo;
 import io.netty.channel.Channel;
 
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 
 public class GunMasterManager extends AbstractFreeForAllManager {
 
@@ -55,7 +54,7 @@ public class GunMasterManager extends AbstractFreeForAllManager {
             this.currentGlobalWeapon = WeaponFactory.getRandomWeapon();
         }
         sendGameEvent(GameEvent.blue("Weapon switched to: " + this.currentGlobalWeapon.getName()));
-        for (Player player : players.values()) {
+        for (Player player : entities.getPlayers().values()) {
             player.setWeapon(this.currentGlobalWeapon);
         }
     }
@@ -84,7 +83,7 @@ public class GunMasterManager extends AbstractFreeForAllManager {
 
     @Override
     public void handlePlayerConfigChange(Long playerId, PlayerConfigRequest request) {
-        Player player = players.get(playerId);
+        Player player = entities.getPlayer(playerId);
         if (player == null) {
             return;
         }

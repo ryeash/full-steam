@@ -66,7 +66,7 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
      * Checks which players are inside the hill's radius and updates its state.
      */
     private void updateHillControl() {
-        List<Player> playersOnHill = players.values().stream()
+        List<Player> playersOnHill = entities.getPlayers().values().stream()
                 .filter(p -> !p.isDead())
                 .filter(p -> {
                     double distanceSq = p.position().distanceSquared(hill.position());

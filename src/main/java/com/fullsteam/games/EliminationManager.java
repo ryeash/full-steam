@@ -14,7 +14,7 @@ import static com.fullsteam.Config.ELIMINATION_SCORE_TO_WIN;
 /**
  * Last Team Standing game mode.
  * Players do not respawn until the round is over.
- * A team scores a point by eliminating all players on the opposing team.
+ * A team scores a point by eliminating all entities.getPlayers() on the opposing team.
  */
 public class EliminationManager extends AbstractTeamBasedManager {
 
@@ -58,8 +58,8 @@ public class EliminationManager extends AbstractTeamBasedManager {
             return false;
         }
         // Next, check for the inter-round-ending conditions.
-        long team1Alive = players.values().stream().filter(p -> p.getTeam() == 1 && !p.isDead()).count();
-        long team2Alive = players.values().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
+        long team1Alive = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 1 && !p.isDead()).count();
+        long team2Alive = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
 
         int winningTeam = -1;
         if (team1Alive > 0 && team2Alive == 0) {
@@ -72,7 +72,7 @@ public class EliminationManager extends AbstractTeamBasedManager {
             log.info("Round over! Team 2 wins. Score: {}-{}", team1Score, team2Score);
             roundDecided = true;
             winningTeam = 2;
-        } else if (team1Alive == 0 && !players.isEmpty()) {
+        } else if (team1Alive == 0 && !entities.getPlayers().isEmpty()) {
             log.info("Round over! It's a draw. Score remains {}-{}", team1Score, team2Score);
             roundDecided = true;
         }
@@ -92,7 +92,7 @@ public class EliminationManager extends AbstractTeamBasedManager {
 
     private void respawnPlayers() {
         roundDecided = false;
-        for (Player player : players.values()) {
+        for (Player player : entities.getPlayers().values()) {
             player.setDead(false);
             player.resetHp();
             player.finishReload();
@@ -105,8 +105,8 @@ public class EliminationManager extends AbstractTeamBasedManager {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
 
-        long team1Alive = players.values().stream().filter(p -> p.getTeam() == 1 && !p.isDead()).count();
-        long team2Alive = players.values().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
+        long team1Alive = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 1 && !p.isDead()).count();
+        long team2Alive = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
 
         return new EliminationInfo(
                 this.team1Score,

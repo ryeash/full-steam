@@ -66,7 +66,7 @@ public class OddballManager extends AbstractTeamBasedManager {
     private void updateOddball() {
         // --- Add points to the carrying team ---
         if (oddball.state() == Oddball.OddballState.CARRIED) {
-            Player carrier = players.get(oddball.carrierId());
+            Player carrier = entities.getPlayer(oddball.carrierId());
             if (carrier != null && !carrier.isDead()) {
                 double pointsThisTick = ODDBALL_POINTS_PER_SECOND / Config.TICK_RATE;
                 if (carrier.getTeam() == 1) {
@@ -91,7 +91,7 @@ public class OddballManager extends AbstractTeamBasedManager {
 
         // --- Check for player pickups ---
         if (oddball.state() == Oddball.OddballState.ON_SPAWN || oddball.state() == Oddball.OddballState.DROPPED) {
-            for (Player player : players.values()) {
+            for (Player player : entities.getPlayers().values()) {
                 if (player.isDead()) {
                     continue;
                 }

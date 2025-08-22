@@ -48,7 +48,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         this.waveNumber = 0;
 
         // clear the zombies from the previous round
-        players.values()
+        entities.getPlayers().values()
                 .stream()
                 .filter(p -> p.getTeam() == 2)
                 .map(Player::getId)
@@ -138,7 +138,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         zombie.resetHp();
         // Spawn zombies at the edges of the map
         setZombieSpawnPosition(zombie);
-        players.put(playerId, zombie);
+        entities.addPlayer(zombie, null);
     }
 
     private void setZombieSpawnPosition(Player zombie) {
@@ -157,10 +157,10 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
 
     @Override
     protected boolean checkEndConditions() {
-        if (players.isEmpty()) {
+        if (entities.getPlayers().isEmpty()) {
             return false;
         }
-        long humansAlive = players.values().stream()
+        long humansAlive = entities.getPlayers().values().stream()
                 .filter(p -> p.getTeam() == 1 && !p.isDead())
                 .count();
         // Use an if / else-if structure to prevent incorrect win conditions
@@ -178,7 +178,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
 
     @Override
     protected void generateObstacles() {
-        obstacles.clear();
+        entities.getObstacles().clear();
         // Create a "bunker" at the bottom of the map.
         double houseWidth = 350;
         double houseHeight = 250;
@@ -194,16 +194,16 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
 
 
         // Top wall (with a door gap)
-        obstacles.add(Obstacle.createRectangle(left, top, (houseWidth - doorSize) / 2, wallThickness));
-        obstacles.add(Obstacle.createRectangle(centerX + doorSize / 2, top, (houseWidth - doorSize) / 2, wallThickness));
+        entities.getObstacles().add(Obstacle.createRectangle(left, top, (houseWidth - doorSize) / 2, wallThickness));
+        entities.getObstacles().add(Obstacle.createRectangle(centerX + doorSize / 2, top, (houseWidth - doorSize) / 2, wallThickness));
 
         // Bottom wall (solid)
-        obstacles.add(Obstacle.createRectangle(left, bottom - wallThickness, houseWidth, wallThickness));
+        entities.getObstacles().add(Obstacle.createRectangle(left, bottom - wallThickness, houseWidth, wallThickness));
 
         // Left wall
-        obstacles.add(Obstacle.createRectangle(left, top, wallThickness, houseHeight));
+        entities.getObstacles().add(Obstacle.createRectangle(left, top, wallThickness, houseHeight));
         // Right wall
-        obstacles.add(Obstacle.createRectangle(right - wallThickness, top, wallThickness, houseHeight));
+        entities.getObstacles().add(Obstacle.createRectangle(right - wallThickness, top, wallThickness, houseHeight));
 
         log.info("Generated a bunker structure for Zombie Defense.");
     }
@@ -233,7 +233,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
         long timeToNextWave = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(nextWaveTime - System.currentTimeMillis()));
-        long zombiesAlive = players.values().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
+        long zombiesAlive = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
         return new ZombieDefenseInfo(
                 this.waveNumber,
                 zombiesAlive,
