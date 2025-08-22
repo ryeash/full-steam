@@ -3,7 +3,6 @@ package com.fullsteam.systems;
 import com.fullsteam.Config;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameEvent;
-import com.fullsteam.model.Explosion;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.Vector2D;
@@ -23,7 +22,7 @@ import static com.fullsteam.Config.VEHICLE_ACTION_DEBOUNCE_MS;
 
 /**
  * Handles all vehicle-related operations including spawning, updates, player interactions,
- * and lifecycle management. Separated from AbstractGameStateManager to follow 
+ * and lifecycle management. Separated from AbstractGameStateManager to follow
  * Single Responsibility Principle.
  */
 public class VehicleManager {
@@ -36,8 +35,8 @@ public class VehicleManager {
     private final FieldEffectSystem fieldEffectSystem;
     private final Consumer<GameEvent> gameEventSender;
 
-    public VehicleManager(GameEntities entities, PhysicsEngine physicsEngine, 
-                         WeaponSystem weaponSystem, FieldEffectSystem fieldEffectSystem, Consumer<GameEvent> gameEventSender) {
+    public VehicleManager(GameEntities entities, PhysicsEngine physicsEngine,
+                          WeaponSystem weaponSystem, FieldEffectSystem fieldEffectSystem, Consumer<GameEvent> gameEventSender) {
         this.entities = entities;
         this.physicsEngine = physicsEngine;
         this.weaponSystem = weaponSystem;
@@ -243,6 +242,12 @@ public class VehicleManager {
         spawnVehicle(Vehicle.VehicleType.FIXED_CANNON);
     }
 
+    public void resetVehicles() {
+        for (Vehicle vehicle : entities.getVehicles()) {
+            vehicle.clearSeats();
+        }
+    }
+
     /**
      * Spawns a specific vehicle type at a random valid position
      */
@@ -292,19 +297,5 @@ public class VehicleManager {
             case JEEP -> new Jeep();
             case FIXED_CANNON -> new FixedCannon();
         };
-    }
-
-    /**
-     * Checks if a player is currently in any vehicle
-     */
-    public boolean isPlayerInVehicle(Long playerId) {
-        return getPlayerVehicle(playerId) != null;
-    }
-
-    /**
-     * Gets all vehicles (read-only access)
-     */
-    public java.util.List<Vehicle> getVehicles() {
-        return java.util.Collections.unmodifiableList(entities.getVehicles());
     }
 }

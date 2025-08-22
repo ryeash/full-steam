@@ -137,6 +137,7 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
 
         /**
          * Calculates the constrained weapon angle based on traverse limits.
+         *
          * @param desiredAngle The angle the player wants to aim at
          * @param vehicleAngle The current angle of the vehicle
          * @return The constrained angle within traverse limits
@@ -149,14 +150,14 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
 
             // Calculate the weapon's default direction in world coordinates
             double weaponDefaultAngle = vehicleAngle + defaultAngle;
-            
+
             // Calculate the difference between desired and default angles
             double angleDiff = desiredAngle - weaponDefaultAngle;
-            
+
             // Normalize angle difference to be between -π and π
             while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
             while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-            
+
             // Constrain to maximum traverse range
             double halfTraverse = maximumRadian / 2.0;
             if (angleDiff > halfTraverse) {
@@ -164,7 +165,7 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
             } else if (angleDiff < -halfTraverse) {
                 angleDiff = -halfTraverse;
             }
-            
+
             return weaponDefaultAngle + angleDiff;
         }
     }
@@ -252,6 +253,15 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
             }
         }
         return false;
+    }
+
+    public void clearSeats() {
+        for (Seat seat : seats) {
+            seat.player = null;
+            if (seat.mountedWeapon != null) {
+                seat.mountedWeapon.setControllerId(null);
+            }
+        }
     }
 
     public MountedWeapon getWeaponControlledBy(Long playerId) {

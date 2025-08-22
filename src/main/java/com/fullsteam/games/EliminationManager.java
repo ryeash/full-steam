@@ -31,15 +31,6 @@ public class EliminationManager extends AbstractTeamBasedManager {
         log.info("Starting new Elimination round. Score: {}-{}", team1Score, team2Score);
     }
 
-    /**
-     * Disables mid-round respawning. Players will only be brought back to life
-     * at the beginning of a new round via startNewRound().
-     */
-    @Override
-    protected void checkAndRespawnPlayers() {
-        // Intentionally left blank.
-    }
-
     @Override
     protected void killPlayer(Player victim, Player shooter) {
         super.killPlayer(victim, shooter);
@@ -92,10 +83,12 @@ public class EliminationManager extends AbstractTeamBasedManager {
 
     private void respawnPlayers() {
         roundDecided = false;
+        vehicleManager.resetVehicles();
         for (Player player : entities.getPlayers().values()) {
             player.setDead(false);
             player.resetHp();
             player.finishReload();
+            player.setVehicleId(null);
             setValidSpawnPosition(player);
         }
     }

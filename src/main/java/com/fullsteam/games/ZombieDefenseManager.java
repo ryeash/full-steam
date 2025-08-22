@@ -6,7 +6,6 @@ import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
-import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.ZombiePlayer;
 import com.fullsteam.model.gamemodes.GameInfo;
@@ -73,18 +72,21 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         super.killPlayer(victim, shooter);
         if (victim.getTeam() == 2) {
             removePlayer(victim.getId());
+        } else {
+            victim.setRespawnTime(-1);
         }
     }
 
-    @Override
-    protected void applyPowerUp(Player player, PowerUp powerUp) {
-        // Zombies (Team 2) cannot pick up power-ups.
-        if (player.getTeam() == 2) {
-            return; // Do nothing if a zombie touches a power-up
-        }
-        // If it's a human player, let the default logic handle it.
-        super.applyPowerUp(player, powerUp);
-    }
+//    @Override
+//    protected void applyPowerUp(Player player, PowerUp powerUp) {
+//        // TODO: somehow disable zombie powerups
+//        // Zombies (Team 2) cannot pick up power-ups.
+//        if (player.getTeam() == 2) {
+//            return; // Do nothing if a zombie touches a power-up
+//        }
+//        // If it's a human player, let the default logic handle it.
+//        super.applyPowerUp(player, powerUp);
+//    }
 
     private void spawnNextWave() {
         waveNumber++;
@@ -147,12 +149,6 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         double y = 10; // Spawn near the top
         zombie.setX(x);
         zombie.setY(y);
-    }
-
-    @Override
-    protected void checkAndRespawnPlayers() {
-        // In this mode, human players do not respawn.
-        // Zombies are removed on death and new ones are added in waves.
     }
 
     @Override

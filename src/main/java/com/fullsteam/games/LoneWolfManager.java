@@ -8,6 +8,7 @@ import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.LoneWolfInfo;
+import com.fullsteam.systems.PlayerManager;
 import io.netty.channel.Channel;
 
 import java.util.Objects;
@@ -25,6 +26,18 @@ public class LoneWolfManager extends AbstractGameStateManager {
 
     public LoneWolfManager(GameLobby gameLobby) {
         super(gameLobby);
+
+        this.playerManager = new PlayerManager(playerManager) {
+            // The Lone Wolf's damage multiplier is persistent and managed separately.
+            // We only reset the multiplier for the Hunters.
+            @Override
+            protected void resetDamageMultiplier(Player player) {
+                if (!Objects.equals(player.getId(), loneWolfId)) {
+                    player.setDamageMultiplier(1.0);
+                }
+            }
+        };
+
     }
 
     @Override
@@ -32,14 +45,6 @@ public class LoneWolfManager extends AbstractGameStateManager {
         loneWolfDeaths = 0;
         balanceTeams();
         super.startNewRound();
-    }
-
-    /**
-     * Disables mid-round respawning. Players will only be brought back to life
-     * at the beginning of a new round via startNewRound().
-     */
-    @Override
-    protected void checkAndRespawnPlayers() {
     }
 
     @Override
@@ -125,16 +130,19 @@ public class LoneWolfManager extends AbstractGameStateManager {
                 loneWolf.setDamageMultiplier(newDamageMultiplier);
                 loneWolf.setDamageBoostEndTime(Long.MAX_VALUE);
                 sendGameEvent(GameEvent.red("The Lone Wolf grows stronger! Damage is now " + (int) (newDamageMultiplier * 100) + "%."));
+                vehicleManager.resetVehicles();
                 for (Player player : entities.getPlayers().values()) {
                     player.setDead(false);
                     player.resetHp();
                     player.finishReload();
+                    player.setVehicleId(null);
                     player.applyArmorUp(RESPAWN_IMMUNITY_DURATION);
                     setValidSpawnPosition(player);
                 }
             }
         } else if (shooter != null && Objects.equals(shooter.getId(), loneWolfId)) {
             // A hunter was killed by the lone wolf
+            victim.setRespawnTime(-1);
             sendGameEvent(GameEvent.green("The Lone Wolf has eliminated " + victim.getPlayerName()));
         }
     }
@@ -178,15 +186,6 @@ public class LoneWolfManager extends AbstractGameStateManager {
         }
 
         return roundOver;
-    }
-
-    @Override
-    protected void resetDamageMultiplier(Player player) {
-        // The Lone Wolf's damage multiplier is persistent and managed separately.
-        // We only reset the multiplier for the Hunters.
-        if (!Objects.equals(player.getId(), loneWolfId)) {
-            player.setDamageMultiplier(1.0);
-        }
     }
 
     @Override

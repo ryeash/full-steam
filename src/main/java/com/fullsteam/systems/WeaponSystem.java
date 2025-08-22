@@ -2,8 +2,8 @@ package com.fullsteam.systems;
 
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.model.Bullet;
-import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.BulletEffect;
+import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.HasLife;
 import com.fullsteam.model.LaserBlast;
 import com.fullsteam.model.Obstacle;
@@ -34,6 +34,12 @@ public class WeaponSystem {
     private final GameEntities entities;
     private final Consumer<BulletEffect> bulletEffectHandler;
     private final BiConsumer<Player, Player> killPlayerHandler;
+
+    public WeaponSystem(WeaponSystem other) {
+        this.entities = other.entities;
+        this.bulletEffectHandler = other.bulletEffectHandler;
+        this.killPlayerHandler = other.killPlayerHandler;
+    }
 
     public WeaponSystem(GameEntities entities, Consumer<BulletEffect> bulletEffectHandler, BiConsumer<Player, Player> killPlayerHandler) {
         this.entities = entities;
@@ -310,7 +316,7 @@ public class WeaponSystem {
 
         // Check collisions using spatial grid
         Set<Targetable> nearby = entities.getTargetGrid().getNearby(laserBlast.getStart(), laserBlast.getEnd());
-        
+
         for (Targetable target : nearby) {
             switch (target) {
                 case Player player -> {

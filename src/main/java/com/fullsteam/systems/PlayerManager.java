@@ -68,6 +68,27 @@ public class PlayerManager {
     private final Supplier<IAIStrategy> aiStrategyBuilder;
     private final Consumer<Player> setValidSpawnPositionHandler;
 
+    /**
+     * Clone constructor for PlayerManager.
+     * <p>
+     * This creates a shallow copy of the PlayerManager, sharing references to all
+     * underlying systems and entities.
+     *
+     * @param other The PlayerManager to clone.
+     */
+    public PlayerManager(PlayerManager other) {
+        this.entities = other.entities;
+        this.physicsEngine = other.physicsEngine;
+        this.weaponSystem = other.weaponSystem;
+        this.vehicleManager = other.vehicleManager;
+        this.fieldEffectSystem = other.fieldEffectSystem;
+        this.gameEventSender = other.gameEventSender;
+        this.killPlayerHandler = other.killPlayerHandler;
+        this.welcomeMessageBuilder = other.welcomeMessageBuilder;
+        this.aiStrategyBuilder = other.aiStrategyBuilder;
+        this.setValidSpawnPositionHandler = other.setValidSpawnPositionHandler;
+    }
+
     public PlayerManager(GameEntities entities, PhysicsEngine physicsEngine, WeaponSystem weaponSystem,
                          VehicleManager vehicleManager, FieldEffectSystem fieldEffectSystem,
                          Consumer<GameEvent> gameEventSender, BiConsumer<Player, Player> killPlayerHandler,
@@ -399,6 +420,10 @@ public class PlayerManager {
         log.info("Player {} left the game", Optional.ofNullable(removed)
                 .map(Player::getPlayerName)
                 .orElse(String.valueOf(playerId)));
+        Optional.ofNullable(removed)
+                .map(Player::id)
+                .map(vehicleManager::getPlayerVehicle)
+                .ifPresent(v -> v.exitVehicle(removed));
     }
 
     /**
@@ -466,7 +491,7 @@ public class PlayerManager {
     /**
      * Resets a player's damage multiplier to default
      */
-    private void resetDamageMultiplier(Player player) {
+    protected void resetDamageMultiplier(Player player) {
         player.setDamageMultiplier(1.0);
     }
 

@@ -41,15 +41,6 @@ public class OddballManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected void fireWeapon(Player player, double aimAngle) {
-        if (Objects.equals(oddball.carrierId(), player.getId())) {
-            // the oddball carrier can't shoot
-            return;
-        }
-        super.fireWeapon(player, aimAngle);
-    }
-
-    @Override
     protected void startNewRound() {
         super.startNewRound();
         this.oddball = oddball.asReset(ballSpawnPoint);
@@ -78,6 +69,9 @@ public class OddballManager extends AbstractTeamBasedManager {
                 oddball = oddball.withPosition(carrier.position());
             } else {
                 oddball = oddball.asDroppedAt(oddball.position());
+                if (carrier != null) {
+                    carrier.shootDisabled(false);
+                }
                 sendGameEvent(GameEvent.yellow("The Oddball was dropped!"));
             }
         }
@@ -98,6 +92,7 @@ public class OddballManager extends AbstractTeamBasedManager {
 
                 if (player.position().distanceSquared(oddball.position()) < BALL_PICKUP_RADIUS_SQ) {
                     oddball = oddball.asCarriedBy(player.getId(), player.position());
+                    player.shootDisabled(true);
                     sendGameEvent(GameEvent.team(player.getTeam(), "%s picked up the Oddball!".formatted(player.getPlayerName())));
                     break; // Only one player can pick it up
                 }
@@ -111,6 +106,7 @@ public class OddballManager extends AbstractTeamBasedManager {
         // Check if the victim was carrying the ball
         if (oddball.state() == Oddball.OddballState.CARRIED && Objects.equals(victim.getId(), oddball.carrierId())) {
             oddball = oddball.asDroppedAt(victim.position());
+            victim.shootDisabled(false);
             log.info("Oddball carrier was eliminated! Ball dropped at ({}, {}).", victim.getX(), victim.getY());
             sendGameEvent(GameEvent.blue("The Oddball carrier was eliminated!"));
         }
