@@ -19,10 +19,6 @@ public record GameEvent(String message,
                         long expirationTime,
                         @JsonInclude(Include.NON_NULL) Long playerId) {
     public enum EventType {
-        FLAG_PICKUP,
-        FLAG_DROP,
-        FLAG_RETURN,
-        FLAG_CAPTURE,
         RED,
         GREEN,
         YELLOW,

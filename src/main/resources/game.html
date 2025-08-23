@@ -1944,10 +1944,6 @@
             this.gameEvents.slice(-6).forEach((event, index) => {
                 const yPos = startY + (index * 25);
                 switch (event.type) {
-                    case 'FLAG_CAPTURE': this.ctx.fillStyle = '#FFD700'; break;
-                    case 'FLAG_PICKUP':  this.ctx.fillStyle = '#4FC3F7'; break;
-                    case 'FLAG_DROP':    this.ctx.fillStyle = '#BDBDBD'; break;
-                    case 'FLAG_RETURN':  this.ctx.fillStyle = '#81C784'; break;
                     case 'GREEN':        this.ctx.fillStyle = '#81C784'; break;
                     case 'RED':          this.ctx.fillStyle = '#F44336'; break;
                     case 'YELLOW':       this.ctx.fillStyle = '#FFD700'; break;
@@ -2008,7 +2004,7 @@
                 this.ctx.font = '12px Arial';
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'bottom';
-                const passengerCount = vehicle.passengerIds?.length;
+                const passengerCount = vehicle.passengerIds?.length || 0;
                 const maxPassengers = vehicle.maxPassengers;
                 this.ctx.fillText(`${vehicle.vehicleName} (${passengerCount}/${maxPassengers})`, vehicleX, vehicleY - vehicleRadius - 25);
 
@@ -2160,6 +2156,29 @@
                     // Laser weapons
                     return { ...baseProps, length: vehicle.radius * 0.6, width: 5, turretRadius: vehicle.radius * 0.1,
                             barrelColor: '#4A90E2', barrelStroke: '#2E5C8A' };
+                case 'DAVINCI':
+                    // Pentagon vehicle with 5 different weapons at vertices
+                    if (weaponIndex === 0) {
+                        // Driver - Rocket Launcher (front vertex)
+                        return { ...baseProps, length: vehicle.radius * .6, width: 5, turretRadius: vehicle.radius * 0.015,
+                                barrelColor: '#D32F2F', barrelStroke: '#B71C1C' }; // Red for rockets
+                    } else if (weaponIndex === 1) {
+                        // Sniper Rifle (front-right vertex)
+                        return { ...baseProps, length: vehicle.radius * .6, width: 2, turretRadius: vehicle.radius * 0.01,
+                                barrelColor: '#1976D2', barrelStroke: '#0D47A1' }; // Blue for precision
+                    } else if (weaponIndex === 2) {
+                        // Minigun (rear-right vertex)
+                        return { ...baseProps, length: vehicle.radius * 0.4, width: 4, turretRadius: vehicle.radius * 0.01,
+                                barrelColor: '#388E3C', barrelStroke: '#1B5E20' }; // Green for sustained fire
+                    } else if (weaponIndex === 3) {
+                        // Flamethrower (rear-left vertex)
+                        return { ...baseProps, length: vehicle.radius * 0.3, width: 6, turretRadius: vehicle.radius * 0.011,
+                                barrelColor: '#F57C00', barrelStroke: '#E65100' }; // Orange for fire
+                    } else {
+                        // Laser Minigun (front-left vertex)
+                        return { ...baseProps, length: vehicle.radius * 0.4, width: 3, turretRadius: vehicle.radius * 0.012,
+                                barrelColor: '#7B1FA2', barrelStroke: '#4A148C' }; // Purple for energy
+                    }
                 default:
                     return baseProps;
             }
@@ -2380,6 +2399,12 @@
                         bodyColor: '#616161',
                         strokeColor: '#424242',
                         accentColor: '#757575'
+                    };
+                case 'DAVINCI':
+                    return {
+                        bodyColor: '#8E24AA',  // Purple - artistic/renaissance theme
+                        strokeColor: '#4A148C', // Dark purple
+                        accentColor: '#BA68C8'  // Light purple accent
                     };
                 default:
                     return {

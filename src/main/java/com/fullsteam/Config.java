@@ -190,4 +190,10 @@ public class Config {
     public static final double FIXED_CANNON_HEALTH = getDouble("game.vehicle.fixed_cannon.health", 600.0);
     public static final double FIXED_CANNON_TURN_SPEED = getDouble("game.vehicle.fixed_cannon.turn_speed", 0.001);
     public static final double FIXED_CANNON_RADIUS = getDouble("game.vehicle.fixed_cannon.radius", 20.0);
+
+    // DaVinci Configuration
+    public static final double DAVINCI_HEALTH = getDouble("game.vehicle.davinci.health", 1000.0);
+    public static final double DAVINCI_MAX_SPEED = getDouble("game.vehicle.davinci.max_speed", 0.06);
+    public static final double DAVINCI_TURN_SPEED = getDouble("game.vehicle.davinci.turn_speed", 0.0025);
+    public static final double DAVINCI_RADIUS = getDouble("game.vehicle.davinci.radius", 35.0);
 }

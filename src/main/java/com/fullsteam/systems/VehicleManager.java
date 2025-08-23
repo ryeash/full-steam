@@ -8,6 +8,7 @@ import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
+import com.fullsteam.model.vehicles.DaVinci;
 import com.fullsteam.model.vehicles.FixedCannon;
 import com.fullsteam.model.vehicles.Jeep;
 import com.fullsteam.model.vehicles.Mech;
@@ -282,6 +283,7 @@ public class VehicleManager {
             case MECH -> new Mech();
             case JEEP -> new Jeep();
             case FIXED_CANNON -> new FixedCannon();
+            case DAVINCI -> new DaVinci();
         };
     }
 }

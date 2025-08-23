@@ -26,7 +26,7 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     protected VehicleType vehicleType;
 
     public enum VehicleType {
-        TANK, MECH, JEEP, FIXED_CANNON
+        TANK, MECH, JEEP, FIXED_CANNON, DAVINCI
     }
 
     public static class Seat {
