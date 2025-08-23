@@ -2,7 +2,9 @@ package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fullsteam.Config;
+import io.micronaut.core.annotation.Introspected;
 
+@Introspected
 public class Mine extends AbstractFieldEffect implements HasId, BulletEffect {
 
     @JsonIgnore

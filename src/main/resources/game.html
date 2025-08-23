@@ -792,10 +792,7 @@
             };
 
             this.ws.onmessage = (event) => {
-                const textDecoder = new TextDecoder();
-                const jsonString = textDecoder.decode(event.data);
-                let data = JSON.parse(jsonString);
-
+                let data = JSON.parse(event.data);
                 if (data.type === 'pong') {
                     this.latency = Date.now() - this.pingStartTime;
                     const latencyEl = document.getElementById('latency');
@@ -2011,7 +2008,7 @@
                 this.ctx.font = '12px Arial';
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'bottom';
-                const passengerCount = vehicle.passengerIds.length;
+                const passengerCount = vehicle.passengerIds?.length;
                 const maxPassengers = vehicle.maxPassengers;
                 this.ctx.fillText(`${vehicle.vehicleName} (${passengerCount}/${maxPassengers})`, vehicleX, vehicleY - vehicleRadius - 25);
 

@@ -3,6 +3,7 @@ package com.fullsteam.model;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fullsteam.Config;
+import io.micronaut.core.annotation.Introspected;
 
 /**
  * Represents a short-lived notification for the client to display.
@@ -12,6 +13,7 @@ import com.fullsteam.Config;
  * @param type     A category for the event, allowing the client to style it differently.
  * @param playerId The player to send this event to. If null, it's broadcast to all players.
  */
+@Introspected
 public record GameEvent(String message,
                         EventType type,
                         long expirationTime,

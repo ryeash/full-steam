@@ -3,8 +3,10 @@ package com.fullsteam.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
+import io.micronaut.core.annotation.Introspected;
 import org.apache.commons.lang3.StringUtils;
 
+@Introspected
 public class Player implements HasId, HasLife, Targetable {
     protected final long id;
     protected String playerName;

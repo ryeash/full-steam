@@ -1,12 +1,14 @@
 package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.micronaut.core.annotation.Introspected;
 
 import java.util.Optional;
 import java.util.function.BiFunction;
 
 import static com.fullsteam.Config.ID_COUNTER;
 
+@Introspected
 public class Bullet implements HasId {
     private final long id = ID_COUNTER.incrementAndGet();
     private Vector2D position;

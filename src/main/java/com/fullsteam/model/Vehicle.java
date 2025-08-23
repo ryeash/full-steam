@@ -2,11 +2,13 @@ package com.fullsteam.model;
 
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
+import io.micronaut.core.annotation.Introspected;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+@Introspected
 public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     protected final long id = Config.ID_COUNTER.incrementAndGet();
     protected double angle; // Vehicle rotation in radians
@@ -36,137 +38,6 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
             this.player = null;
             this.driver = driver;
             this.mountedWeapon = mountedWeapon;
-        }
-    }
-
-    public static class MountedWeapon {
-        private Vector2D position; // absolute position of the weapon mount
-        private final Weapon weapon;
-        private final double defaultAngle; // default direction relative to vehicle (0 = forward)
-        private final double maximumRadian; // max traverse range in radians (e.g., Math.PI/2 = 90°)
-        private Long controllerId;
-        private int currentAmmo;
-        private boolean reloading;
-        private long reloadCompleteTime;
-        private long nextShotTime;
-        private final double damageModification;
-
-        public MountedWeapon(Vector2D position, Weapon weapon, double defaultAngle, double maximumRadian, double damageModification) {
-            this.position = position;
-            this.weapon = weapon;
-            this.defaultAngle = defaultAngle;
-            this.maximumRadian = maximumRadian;
-            this.damageModification = damageModification;
-            this.controllerId = null;
-            this.currentAmmo = weapon.getRoundsPerMagazine();
-            this.reloading = false;
-            this.reloadCompleteTime = 0;
-            this.nextShotTime = 0;
-        }
-
-        public Vector2D position() {
-            return position;
-        }
-
-        public boolean canShoot() {
-            return !reloading
-                   && currentAmmo > 0
-                   && System.currentTimeMillis() >= nextShotTime;
-        }
-
-        public void shoot() {
-            if (!canShoot()) {
-                return;
-            }
-            this.nextShotTime = System.currentTimeMillis() + weapon.getFireRateCooldown();
-            this.currentAmmo -= weapon.getBulletsPerShot();
-        }
-
-        public void startReload() {
-            if (reloading || currentAmmo == weapon.getRoundsPerMagazine()) {
-                return;
-            }
-            this.reloading = true;
-            this.reloadCompleteTime = System.currentTimeMillis() + weapon.getReloadTime();
-        }
-
-        public void finishReload() {
-            this.reloading = false;
-            this.currentAmmo = weapon.getRoundsPerMagazine();
-        }
-
-        public Weapon getWeapon() {
-            return weapon;
-        }
-
-        public double getDefaultAngle() {
-            return defaultAngle;
-        }
-
-        public double getMaximumRadian() {
-            return maximumRadian;
-        }
-
-        public Long getControllerId() {
-            return controllerId;
-        }
-
-        public int getCurrentAmmo() {
-            return currentAmmo;
-        }
-
-        public boolean isReloading() {
-            return reloading;
-        }
-
-        public long getReloadCompleteTime() {
-            return reloadCompleteTime;
-        }
-
-        public long getNextShotTime() {
-            return nextShotTime;
-        }
-
-        public void setControllerId(Long controllerId) {
-            this.controllerId = controllerId;
-        }
-
-        public double getDamageModification() {
-            return damageModification;
-        }
-
-        /**
-         * Calculates the constrained weapon angle based on traverse limits.
-         *
-         * @param desiredAngle The angle the player wants to aim at
-         * @param vehicleAngle The current angle of the vehicle
-         * @return The constrained angle within traverse limits
-         */
-        public double getConstrainedAngle(double desiredAngle, double vehicleAngle) {
-            if (maximumRadian >= Math.PI * 2) {
-                // Full 360° traverse - no constraints
-                return desiredAngle;
-            }
-
-            // Calculate the weapon's default direction in world coordinates
-            double weaponDefaultAngle = vehicleAngle + defaultAngle;
-
-            // Calculate the difference between desired and default angles
-            double angleDiff = desiredAngle - weaponDefaultAngle;
-
-            // Normalize angle difference to be between -π and π
-            while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-            while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-
-            // Constrain to maximum traverse range
-            double halfTraverse = maximumRadian / 2.0;
-            if (angleDiff > halfTraverse) {
-                angleDiff = halfTraverse;
-            } else if (angleDiff < -halfTraverse) {
-                angleDiff = -halfTraverse;
-            }
-
-            return weaponDefaultAngle + angleDiff;
         }
     }
 
@@ -208,6 +79,18 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     @Override
     public Vector2D position() {
         return getCenter();
+    }
+
+    public double getX() {
+        return position().x();
+    }
+
+    public double getY() {
+        return position().y();
+    }
+
+    public double getRadius() {
+        return getBoundingRadius();
     }
 
     public boolean enterVehicle(Player player) {
@@ -362,7 +245,7 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     }
 
     public Long getDriverId() {
-        return Optional.ofNullable(seats.getFirst())
+        return Optional.ofNullable(seats.isEmpty() ? null : seats.get(0))
                 .map(s -> s.player)
                 .map(Player::id)
                 .orElse(null);
@@ -397,7 +280,7 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
         for (Seat seat : seats) {
             MountedWeapon mountedWeapon = seat.mountedWeapon;
             if (mountedWeapon != null) {
-                Vector2D weaponPos = mountedWeapon.position;
+                Vector2D weaponPos = mountedWeapon.position();
                 // Translate weapon position to origin
                 double dx = weaponPos.x() - center.x();
                 double dy = weaponPos.y() - center.y();
@@ -407,7 +290,7 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
                 double newX = dx * cos - dy * sin + center.x();
                 double newY = dx * sin + dy * cos + center.y();
                 // Update weapon position
-                mountedWeapon.position = new Vector2D(newX, newY);
+                mountedWeapon.setPosition(new Vector2D(newX, newY));
             }
         }
     }
@@ -422,10 +305,10 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
                 double offsetX = position.x() - center.x();
                 double offsetY = position.y() - center.y();
                 // Translate weapon position to be relative to the new center
-                double dx = mountedWeapon.position.x() + offsetX;
-                double dy = mountedWeapon.position.y() + offsetY;
+                double dx = mountedWeapon.position().x() + offsetX;
+                double dy = mountedWeapon.position().y() + offsetY;
                 // Update weapon position to new center
-                mountedWeapon.position = new Vector2D(dx, dy);
+                mountedWeapon.setPosition(new Vector2D(dx, dy));
             }
         }
         super.setPosition(position);

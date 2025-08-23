@@ -1,7 +1,10 @@
 package com.fullsteam.model;
 
+import io.micronaut.core.annotation.Introspected;
+
 import static com.fullsteam.Config.ID_COUNTER;
 
+@Introspected
 public class PowerUp implements HasId {
     public final long id = ID_COUNTER.incrementAndGet();
     public final Vector2D position;

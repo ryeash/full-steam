@@ -3,6 +3,7 @@ package com.fullsteam.systems;
 import com.fullsteam.Config;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameEvent;
+import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.Vector2D;
@@ -50,7 +51,7 @@ public class VehicleManager {
     public void updateVehicles(long delta) {
         // Check mounted weapon reload completion for all vehicles
         for (Vehicle vehicle : entities.getVehicles()) {
-            for (Vehicle.MountedWeapon mountedWeapon : vehicle.getMountedWeapons()) {
+            for (MountedWeapon mountedWeapon : vehicle.getMountedWeapons()) {
                 if (mountedWeapon != null && mountedWeapon.isReloading() &&
                     System.currentTimeMillis() >= mountedWeapon.getReloadCompleteTime()) {
                     mountedWeapon.finishReload();
@@ -142,7 +143,7 @@ public class VehicleManager {
      * Handles weapon firing for vehicle occupants
      */
     public void handleVehicleWeaponFiring(Vehicle vehicle, Long playerId, PlayerInput input) {
-        Vehicle.MountedWeapon controlledWeapon = vehicle.getWeaponControlledBy(playerId);
+        MountedWeapon controlledWeapon = vehicle.getWeaponControlledBy(playerId);
         if (controlledWeapon == null) {
             return;
         }

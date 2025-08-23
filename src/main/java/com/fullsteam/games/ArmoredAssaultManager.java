@@ -28,10 +28,15 @@ public class ArmoredAssaultManager extends AbstractTeamBasedManager {
 
         for (Vehicle.VehicleType type : Vehicle.VehicleType.values()) {
             Vehicle vehicle1 = vehicleManager.spawnVehicle(type);
-            // set a random location on the left
-            vehicle1.setPosition(new Vector2D(
-                    ThreadLocalRandom.current().nextDouble(50, ((double) Config.GAME_WIDTH / 2) - 100),
-                    ThreadLocalRandom.current().nextDouble(50, Config.GAME_HEIGHT - 50)));
+            boolean overlap = true;
+            while (overlap) {
+                // set a random location on the left
+                Vector2D position = new Vector2D(
+                        ThreadLocalRandom.current().nextDouble(50, ((double) Config.GAME_WIDTH / 2) - 100),
+                        ThreadLocalRandom.current().nextDouble(50, Config.GAME_HEIGHT - 50));
+                vehicle1.setPosition(position);
+                overlap = physicsEngine.isColliding(vehicle1, entities.getVehicles());
+            }
             // rotate the first position 180
             Vehicle vehicle2 = vehicleManager.spawnVehicle(type);
             vehicle2.setPosition(new Vector2D(

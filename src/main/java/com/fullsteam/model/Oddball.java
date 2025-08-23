@@ -1,9 +1,12 @@
 package com.fullsteam.model;
 
+import io.micronaut.core.annotation.Introspected;
+
 /**
  * Represents the state of the Oddball object in the game.
  * This is an immutable record, so state changes create a new instance.
  */
+@Introspected
 public record Oddball(OddballState state,
                       Vector2D position,
                       Long carrierId,

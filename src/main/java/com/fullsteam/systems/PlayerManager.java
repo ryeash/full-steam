@@ -1,7 +1,6 @@
 package com.fullsteam.systems;
 
 import com.fullsteam.Config;
-import com.fullsteam.Jackson;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameEvent;
@@ -396,7 +395,7 @@ public class PlayerManager {
 
         // Send welcome message
         WelcomeMessage welcomeMessage = new WelcomeMessage(player.getId(), player.getTeam(), entities.getGameId(), entities.getObstacles());
-        channel.writeAndFlush(Jackson.msgFrame(welcomeMessage));
+        channel.writeAndFlush(welcomeMessage);
         return player;
     }
 
@@ -471,8 +470,7 @@ public class PlayerManager {
             player.setTeam(otherTeam);
             // Kill the player to force a respawn on the new team's side
             killPlayerHandler.accept(player, null);
-            entities.getPlayerChannel(player.getId())
-                    .writeAndFlush(Jackson.msgFrame(welcomeMessage));
+            entities.getPlayerChannel(player.getId()).writeAndFlush(welcomeMessage);
             log.info("Player {} switched to team {}", player.getId(), otherTeam);
         } else {
 

@@ -1,12 +1,14 @@
 package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.micronaut.core.annotation.Introspected;
 
 /**
  * A simple, immutable record to represent a 2D vector or point.
  * Using a record provides constructors, getters, equals(), hashCode(),
  * and toString() automatically.
  */
+@Introspected
 public record Vector2D(double x,
                        double y,
                        @JsonIgnore

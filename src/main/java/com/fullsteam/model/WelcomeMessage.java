@@ -1,9 +1,11 @@
 package com.fullsteam.model;
 
 import com.fullsteam.WeaponFactory;
+import io.micronaut.core.annotation.Introspected;
 
 import java.util.List;
 
+@Introspected
 public record WelcomeMessage(
         String type,
         long playerId,

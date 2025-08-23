@@ -1,6 +1,7 @@
 package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.micronaut.core.annotation.Introspected;
 
 import java.util.List;
 
@@ -8,6 +9,7 @@ import java.util.List;
  * Represents a destructible base that Team 2 defends from Team 1's attacks.
  * The base is essentially a large, destructible obstacle with significant health.
  */
+@Introspected
 public class Base extends Obstacle implements HasId, HasLife, Targetable {
     @JsonIgnore
     private final long id;

@@ -1,0 +1,87 @@
+package com.fullsteam.websocket;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fullsteam.Jackson;
+import com.fullsteam.games.AbstractGameStateManager;
+import com.fullsteam.model.PlayerConfigRequest;
+import com.fullsteam.model.PlayerInput;
+import com.fullsteam.service.PlayerConnectionService;
+import io.micronaut.websocket.WebSocketSession;
+import io.micronaut.websocket.annotation.OnClose;
+import io.micronaut.websocket.annotation.OnMessage;
+import io.micronaut.websocket.annotation.OnOpen;
+import io.micronaut.websocket.annotation.ServerWebSocket;
+import jakarta.inject.Inject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Map;
+
+@ServerWebSocket("/game/{gameId}/{gameType}")
+public class GameWebSocketEndpoint {
+    
+    private static final Logger log = LoggerFactory.getLogger(GameWebSocketEndpoint.class);
+    
+    private final PlayerConnectionService connectionService;
+    
+    @Inject
+    public GameWebSocketEndpoint(PlayerConnectionService connectionService) {
+        this.connectionService = connectionService;
+    }
+    
+    @OnOpen
+    public void onOpen(WebSocketSession session, String gameId, String gameType) {
+        if (!connectionService.connectPlayer(session, gameId, gameType)) {
+            session.close();
+        }
+    }
+    
+    @OnMessage
+    public void onMessage(String message, WebSocketSession session) {
+        String sessionId = session.getId();
+        PlayerConnectionService.PlayerSession playerSession = connectionService.getPlayerSession(sessionId);
+        
+        if (playerSession == null) {
+            return; // No player session found
+        }
+        
+        AbstractGameStateManager game = playerSession.getGame();
+        Long playerId = playerSession.getPlayerId();
+        
+        if (game == null || playerId == null) {
+            log.warn("Received message from session without game context. Closing.");
+            session.close();
+            return;
+        }
+        
+        try {
+            JsonNode rootNode = Jackson.readTree(message);
+            String type = rootNode.path("type").asText("playerInput");
+            
+            switch (type) {
+                case "ping":
+                    session.sendSync(Jackson.writeValueAsString(Map.of("type", "pong")));
+                    break;
+                case "configChange":
+                    PlayerConfigRequest request = Jackson.treeToValue(rootNode, PlayerConfigRequest.class);
+                    game.handlePlayerConfigChange(playerId, request);
+                    break;
+                case "playerInput":
+                    PlayerInput input = Jackson.treeToValue(rootNode, PlayerInput.class);
+                    game.acceptPlayerInput(playerId, input);
+                    break;
+                default:
+                    log.warn("Received unknown message type '{}' from player {}", type, playerId);
+                    break;
+            }
+        } catch (Exception e) {
+            log.error("Error processing message from player {}: {}", playerId, e.getMessage());
+        }
+    }
+    
+    @OnClose
+    public void onClose(WebSocketSession session) {
+        connectionService.disconnectPlayer(session.getId());
+    }
+
+}

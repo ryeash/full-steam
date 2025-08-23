@@ -105,18 +105,15 @@ public abstract class AbstractGameStateManager {
                 "type", "gameEvent",
                 "event", gameEvent
         );
-        BinaryWebSocketFrame frame = Jackson.msgFrame(message);
-
         if (gameEvent.playerId() != null) {
             Channel channel = entities.getPlayerChannel(gameEvent.playerId());
             if (channel != null && channel.isActive()) {
-                channel.writeAndFlush(frame.retainedDuplicate());
+                channel.writeAndFlush(message);
             }
         } else {
-            entities.getPlayerChannels().values().forEach(ch -> ch.writeAndFlush(frame.retainedDuplicate()));
-            entities.getSpectatorChannels().forEach(ch -> ch.writeAndFlush(frame.retainedDuplicate()));
+            entities.getPlayerChannels().values().forEach(ch -> ch.writeAndFlush(message));
+            entities.getSpectatorChannels().forEach(ch -> ch.writeAndFlush(message));
         }
-        frame.release();
     }
 
     public boolean isFull() {
@@ -236,11 +233,11 @@ public abstract class AbstractGameStateManager {
                 player.setVisionObscured(false);
                 if (!(player instanceof AIPlayer)) {
                     entities.getPlayerChannel(player.getId())
-                            .writeAndFlush(Jackson.msgFrame(playerWelcomeMessage(player)));
+                            .writeAndFlush(playerWelcomeMessage(player));
                 }
             }
             entities.getSpectatorChannels().forEach(channel ->
-                    channel.writeAndFlush(Jackson.msgFrame(new WelcomeMessage(-1, 0, gameId, entities.getObstacles()))));
+                    channel.writeAndFlush(new WelcomeMessage(-1, 0, gameId, entities.getObstacles())));
 
             log.info("New round started! Round will end in {} seconds.", ROUND_DURATION_SECONDS);
             sendGameState(); // Send an immediate update to reflect the reset
@@ -320,8 +317,8 @@ public abstract class AbstractGameStateManager {
         entities.getPlayerChannels().forEach((playerId, channel) -> {
             if (channel.isActive() && channel.isOpen()) {
                 Player player = entities.getPlayer(playerId);
-                BinaryWebSocketFrame frameToSend = Jackson.msgFrame(playerGameState(player, gameInfo, false));
-                channel.writeAndFlush(frameToSend).addListener(future -> { // retainedDuplicate is crucial
+                GameState gameState = playerGameState(player, gameInfo, false);
+                channel.writeAndFlush(gameState).addListener(future -> { // retainedDuplicate is crucial
                     if (!future.isSuccess()) {
                         log.error("Failed to send game state to player {}. Closing channel.", playerId, future.cause());
                         channel.close();
@@ -332,11 +329,10 @@ public abstract class AbstractGameStateManager {
 
         // Send to all spectators
         GameState gameState = spectatorGameState();
-        BinaryWebSocketFrame frame = Jackson.msgFrame(gameState);
         if (!entities.getPlayerChannels().isEmpty()) {
             for (Channel spectatorChannel : entities.getSpectatorChannels()) {
                 if (spectatorChannel.isActive() && spectatorChannel.isOpen()) {
-                    spectatorChannel.writeAndFlush(frame.retainedDuplicate()).addListener(future -> {
+                    spectatorChannel.writeAndFlush(gameState).addListener(future -> {
                         if (!future.isSuccess()) {
                             log.error("Failed to send game state to spectator {}. Closing channel.", spectatorChannel.id().asShortText(), future.cause());
                             spectatorChannel.close();
@@ -345,7 +341,6 @@ public abstract class AbstractGameStateManager {
                 }
             }
         }
-        frame.release();
     }
 
     protected void generateObstacles() {

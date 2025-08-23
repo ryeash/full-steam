@@ -5,10 +5,12 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.SpatialGrid;
 import com.fullsteam.WeaponFactory;
+import io.micronaut.core.annotation.Introspected;
 
 import java.util.Optional;
 import java.util.Set;
 
+@Introspected
 public class Turret implements HasId, BulletEffect, HasLife, Targetable {
     private final long id;
     @JsonIgnore
