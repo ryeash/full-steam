@@ -39,7 +39,7 @@ public final class KingOfTheHillInfo extends GameInfo {
         return team2Score;
     }
 
-    public long gettimeLeft() {
+    public long getTimeLeft() {
         return timeLeft;
     }
 }

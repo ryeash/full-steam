@@ -31,7 +31,7 @@ public final class BaseDestructionInfo extends GameInfo {
         return base;
     }
 
-    public long gettimeLeft() {
+    public long getTimeLeft() {
         return timeLeft;
     }
 

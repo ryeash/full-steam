@@ -21,6 +21,6 @@ public class JuggernautInfoSerializer extends AbstractSerializer<JuggernautInfo>
             gen.writeNumberField("team2Juggernaut", info.getTeam2Juggernaut());
         }
         
-        gen.writeNumberField("timeLeft", info.gettimeLeft());
+        gen.writeNumberField("timeLeft", info.getTimeLeft());
     }
 }

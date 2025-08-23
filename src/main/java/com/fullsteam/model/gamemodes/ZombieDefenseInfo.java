@@ -39,7 +39,7 @@ public final class ZombieDefenseInfo extends GameInfo {
         return timeUntilNextWave;
     }
 
-    public long gettimeLeft() {
+    public long getTimeLeft() {
         return timeLeft;
     }
 }

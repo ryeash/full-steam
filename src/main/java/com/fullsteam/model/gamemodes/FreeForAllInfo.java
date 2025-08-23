@@ -13,7 +13,7 @@ public class FreeForAllInfo extends GameInfo {
         return "Free For All";
     }
 
-    public long gettimeLeft() {
+    public long getTimeLeft() {
         return timeLeft;
     }
 

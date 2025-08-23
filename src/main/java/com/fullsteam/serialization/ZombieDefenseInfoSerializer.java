@@ -14,6 +14,6 @@ public class ZombieDefenseInfoSerializer extends AbstractSerializer<ZombieDefens
         gen.writeNumberField("waveNumber", info.getWaveNumber());
         gen.writeNumberField("zombiesAlive", info.getZombiesAlive());
         gen.writeNumberField("timeUntilNextWave", info.getTimeUntilNextWave());
-        gen.writeNumberField("timeLeft", info.gettimeLeft());
+        gen.writeNumberField("timeLeft", info.getTimeLeft());
     }
 }

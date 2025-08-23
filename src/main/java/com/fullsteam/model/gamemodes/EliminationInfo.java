@@ -52,7 +52,7 @@ public final class EliminationInfo extends GameInfo {
         return team2PlayersAlive;
     }
 
-    public long gettimeLeft() {
+    public long getTimeLeft() {
         return timeLeft;
     }
 }

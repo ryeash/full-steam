@@ -13,6 +13,6 @@ public class ArmoredAssaultInfoSerializer extends AbstractSerializer<ArmoredAssa
         gen.writeStringField("type", info.getType());
         gen.writeNumberField("team1Score", info.getTeam1Score());
         gen.writeNumberField("team2Score", info.getTeam2Score());
-        gen.writeNumberField("timeLeft", info.gettimeLeft());
+        gen.writeNumberField("timeLeft", info.getTimeLeft());
     }
 }

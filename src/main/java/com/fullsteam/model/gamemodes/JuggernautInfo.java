@@ -40,7 +40,7 @@ public final class JuggernautInfo extends GameInfo {
         return team2Juggernaut;
     }
 
-    public long gettimeLeft() {
+    public long getTimeLeft() {
         return timeLeft;
     }
 }

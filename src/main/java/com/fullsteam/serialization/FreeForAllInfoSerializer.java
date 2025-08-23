@@ -11,6 +11,6 @@ public class FreeForAllInfoSerializer extends AbstractSerializer<FreeForAllInfo>
     @Override
     protected void serializeFields(FreeForAllInfo info, JsonGenerator gen, SerializerProvider serializers) throws IOException {
         gen.writeStringField("type", info.getType());
-        gen.writeNumberField("timeLeft", info.gettimeLeft());
+        gen.writeNumberField("timeLeft", info.getTimeLeft());
     }
 }
