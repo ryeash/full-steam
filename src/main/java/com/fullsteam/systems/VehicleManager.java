@@ -130,7 +130,7 @@ public class VehicleManager {
 
         // Check collision with obstacles
         // Simple collision response - stop the vehicle
-        if (physicsEngine.isColliding(vehicle, entities.getObstacles())) {
+        if (physicsEngine.isColliding(vehicle, entities.getObstacles()) || physicsEngine.isColliding(vehicle, entities.getVehicles())) {
             vehicle.setVelocityX(0);
             vehicle.setVelocityY(0);
             vehicle.setPosition(startingPosition); // reset to starting position
@@ -265,10 +265,7 @@ public class VehicleManager {
             }
         }
 
-        // Fallback: spawn anyway at the center if no valid position found
         if (!foundValidPosition) {
-            vehicle.setPosition(new Vector2D(bestX, bestY));
-            entities.getVehicles().add(vehicle);
             log.warn("Could not find valid position for {} after 20 attempts, spawning at ({}, {}) with rotation {} anyway",
                     type, bestX, bestY, Math.toDegrees(randomAngle));
         }
