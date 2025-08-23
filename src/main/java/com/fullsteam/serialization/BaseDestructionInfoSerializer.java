@@ -14,7 +14,7 @@ public class BaseDestructionInfoSerializer extends AbstractSerializer<BaseDestru
         gen.writeFieldName("base");
         serializers.defaultSerializeValue(info.getBase(), gen);
         
-        gen.writeNumberField("roundTimeRemainingSeconds", info.getRoundTimeRemainingSeconds());
+        gen.writeNumberField("timeLeft", info.gettimeLeft());
         gen.writeBooleanField("baseDestroyed", info.isBaseDestroyed());
     }
 }

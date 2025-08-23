@@ -36,7 +36,7 @@ public class Jeep extends Vehicle {
                         new Seat(false, new MountedWeapon(
                                 new Vector2D(-Config.JEEP_LENGTH / 4, 0), // Mount at rear center
                                 WeaponFactory.getWeapon("Minigun"),
-                                Math.PI, // Default angle (rear-facing)
+                                0, // Default angle (rear-facing)
                                 Math.PI * 4/3, // ±120° traverse range (wide coverage)
                                 1.0
                         ))));

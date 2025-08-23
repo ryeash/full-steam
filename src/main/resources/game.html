@@ -38,8 +38,8 @@
             justify-content: space-between;
             align-items: center;
             width: 1000px;
-            padding: 5px 0;
-            font-size: 1.1em;
+            padding: 0 0;
+            font-size: 1.0em;
         }
 
         .scoreboard-header {
@@ -466,8 +466,8 @@
             this.elements.playerCount.textContent = gameState.players ? gameState.players.length : 0;
             this.elements.gameModeDisplay.textContent = gameState.info.type.replace('Manager', '');
 
-            if (gameState.info.roundTimeRemainingSeconds !== undefined) {
-                const totalSeconds = gameState.info.roundTimeRemainingSeconds;
+            if (gameState.info.timeLeft !== undefined) {
+                const totalSeconds = gameState.info.timeLeft;
                 const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
                 const seconds = (totalSeconds % 60).toString().padStart(2, '0');
                 this.elements.roundTimer.textContent = `${minutes}:${seconds}`;

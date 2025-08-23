@@ -22,10 +22,12 @@ import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.Turret;
-import com.fullsteam.model.Vehicle;
 import com.fullsteam.model.Vector2D;
+import com.fullsteam.model.Vehicle;
 import com.fullsteam.model.Weapon;
 import com.fullsteam.model.WelcomeMessage;
+import com.fullsteam.model.gamemodes.ArmoredAssaultInfo;
+import com.fullsteam.model.gamemodes.BaseDestructionInfo;
 import com.fullsteam.model.gamemodes.BuilderGameInfo;
 import com.fullsteam.model.gamemodes.CaptureTheFlagInfo;
 import com.fullsteam.model.gamemodes.EliminationInfo;
@@ -38,7 +40,6 @@ import com.fullsteam.model.gamemodes.LoneWolfInfo;
 import com.fullsteam.model.gamemodes.OddballInfo;
 import com.fullsteam.model.gamemodes.TeamDeathmatchInfo;
 import com.fullsteam.model.gamemodes.ZombieDefenseInfo;
-import com.fullsteam.model.gamemodes.BaseDestructionInfo;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -89,6 +90,7 @@ public class CustomSerializationModule extends SimpleModule {
         addSerializer(EscortGameInfo.class, new EscortGameInfoSerializer());
         addSerializer(ZombieDefenseInfo.class, new ZombieDefenseInfoSerializer());
         addSerializer(BaseDestructionInfo.class, new BaseDestructionInfoSerializer());
+        addSerializer(ArmoredAssaultInfo.class, new ArmoredAssaultInfoSerializer());
 
         // Register deserializers
         addDeserializer(PlayerInput.class, new PlayerInputDeserializer());

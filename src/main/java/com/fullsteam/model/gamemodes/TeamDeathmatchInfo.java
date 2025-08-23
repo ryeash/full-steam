@@ -8,14 +8,14 @@ package com.fullsteam.model.gamemodes;
 public final class TeamDeathmatchInfo extends GameInfo {
     private final double team1Score;
     private final double team2Score;
-    private final long roundTimeRemainingSeconds;
+    private final long timeLeft;
 
     public TeamDeathmatchInfo(double team1Score,
                               double team2Score,
-                              long roundTimeRemainingSeconds) {
+                              long timeLeft) {
         this.team1Score = team1Score;
         this.team2Score = team2Score;
-        this.roundTimeRemainingSeconds = roundTimeRemainingSeconds;
+        this.timeLeft = timeLeft;
     }
 
     @Override
@@ -31,7 +31,7 @@ public final class TeamDeathmatchInfo extends GameInfo {
         return team2Score;
     }
 
-    public long getRoundTimeRemainingSeconds() {
-        return roundTimeRemainingSeconds;
+    public long gettimeLeft() {
+        return timeLeft;
     }
 }

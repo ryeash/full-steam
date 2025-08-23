@@ -223,7 +223,6 @@ public abstract class AbstractGameStateManager {
             entities.clearTransientObjects();
 
             generateObstacles();
-            vehicleManager.spawnVehicles();
 
             // Reset all players
             for (Player player : entities.getPlayers().values()) {

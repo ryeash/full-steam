@@ -2,10 +2,10 @@ package com.fullsteam.model.gamemodes;
 
 public class FreeForAllInfo extends GameInfo {
 
-    private final long roundTimeRemainingSeconds;
+    private final long timeLeft;
 
-    public FreeForAllInfo(long roundTimeRemainingSeconds) {
-        this.roundTimeRemainingSeconds = roundTimeRemainingSeconds;
+    public FreeForAllInfo(long timeLeft) {
+        this.timeLeft = timeLeft;
     }
 
     @Override
@@ -13,8 +13,8 @@ public class FreeForAllInfo extends GameInfo {
         return "Free For All";
     }
 
-    public long getRoundTimeRemainingSeconds() {
-        return roundTimeRemainingSeconds;
+    public long gettimeLeft() {
+        return timeLeft;
     }
 
 }

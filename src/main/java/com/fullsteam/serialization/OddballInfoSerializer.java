@@ -17,6 +17,6 @@ public class OddballInfoSerializer extends AbstractSerializer<OddballInfo> {
         
         gen.writeNumberField("team1Score", info.getTeam1Score());
         gen.writeNumberField("team2Score", info.getTeam2Score());
-        gen.writeNumberField("roundTimeRemainingSeconds", info.getRoundTimeRemainingSeconds());
+        gen.writeNumberField("timeLeft", info.gettimeLeft());
     }
 }

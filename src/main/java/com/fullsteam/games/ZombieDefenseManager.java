@@ -216,14 +216,14 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     @Override
     protected GameInfo buildGameInfo() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
-        long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
+        long timeLeft = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
         long timeToNextWave = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(nextWaveTime - System.currentTimeMillis()));
         long zombiesAlive = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
         return new ZombieDefenseInfo(
                 this.waveNumber,
                 zombiesAlive,
                 timeToNextWave,
-                roundTimeRemainingSeconds
+                timeLeft
         );
     }
 }

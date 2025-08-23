@@ -14,6 +14,6 @@ public class EliminationInfoSerializer extends AbstractSerializer<EliminationInf
         gen.writeNumberField("team2Score", info.getTeam2Score());
         gen.writeNumberField("team1PlayersAlive", info.getTeam1PlayersAlive());
         gen.writeNumberField("team2PlayersAlive", info.getTeam2PlayersAlive());
-        gen.writeNumberField("roundTimeRemainingSeconds", info.getRoundTimeRemainingSeconds());
+        gen.writeNumberField("timeLeft", info.gettimeLeft());
     }
 }

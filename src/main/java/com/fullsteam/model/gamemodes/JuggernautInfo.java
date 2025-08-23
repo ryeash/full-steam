@@ -5,18 +5,18 @@ public final class JuggernautInfo extends GameInfo {
     private final int team2Score;
     private final Long team1Juggernaut;
     private final Long team2Juggernaut;
-    private final long roundTimeRemainingSeconds;
+    private final long timeLeft;
 
     public JuggernautInfo(int team1Score,
                           int team2Score,
                           Long team1Juggernaut,
                           Long team2Juggernaut,
-                          long roundTimeRemainingSeconds) {
+                          long timeLeft) {
         this.team1Score = team1Score;
         this.team2Score = team2Score;
         this.team1Juggernaut = team1Juggernaut;
         this.team2Juggernaut = team2Juggernaut;
-        this.roundTimeRemainingSeconds = roundTimeRemainingSeconds;
+        this.timeLeft = timeLeft;
     }
 
     @Override
@@ -40,7 +40,7 @@ public final class JuggernautInfo extends GameInfo {
         return team2Juggernaut;
     }
 
-    public long getRoundTimeRemainingSeconds() {
-        return roundTimeRemainingSeconds;
+    public long gettimeLeft() {
+        return timeLeft;
     }
 }

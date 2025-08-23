@@ -1,6 +1,7 @@
 package com.fullsteam;
 
 import com.fullsteam.games.AbstractGameStateManager;
+import com.fullsteam.games.ArmoredAssaultManager;
 import com.fullsteam.games.BaseDestructionManager;
 import com.fullsteam.games.BuilderManager;
 import com.fullsteam.games.CaptureTheFlagManager;
@@ -58,6 +59,7 @@ public class GameLobby {
         gameMap.put("Builder", () -> new BuilderManager(this));
         gameMap.put("Zombie Defense", () -> new ZombieDefenseManager(this));
         gameMap.put("Base Destruction", () -> new BaseDestructionManager(this));
+        gameMap.put("Armored Assault", () -> new ArmoredAssaultManager(this));
     }
 
     public List<ActiveGame> getActiveGames() {

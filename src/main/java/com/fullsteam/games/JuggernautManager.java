@@ -95,13 +95,13 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     @Override
     protected GameInfo buildGameInfo() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
-        long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
+        long timeLeft = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
         return new JuggernautInfo(
                 (int) this.team1Score,
                 (int) this.team2Score,
                 team1Juggernaut,
                 team2Juggernaut,
-                roundTimeRemainingSeconds
+                timeLeft
         );
     }
 

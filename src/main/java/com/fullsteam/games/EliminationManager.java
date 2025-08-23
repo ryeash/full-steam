@@ -96,7 +96,7 @@ public class EliminationManager extends AbstractTeamBasedManager {
     @Override
     protected GameInfo buildGameInfo() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
-        long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
+        long timeLeft = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
 
         long team1Alive = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 1 && !p.isDead()).count();
         long team2Alive = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
@@ -106,7 +106,7 @@ public class EliminationManager extends AbstractTeamBasedManager {
                 this.team2Score,
                 team1Alive,
                 team2Alive,
-                roundTimeRemainingSeconds
+                timeLeft
         );
     }
 }

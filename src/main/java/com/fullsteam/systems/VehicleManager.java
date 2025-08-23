@@ -124,6 +124,7 @@ public class VehicleManager {
 
         // Update vehicle physics
         Vector2D startingPosition = vehicle.position();
+        double startingAngle = vehicle.getAngle();
         vehicle.handleDriverInput(input, delta);
         vehicle.update(delta);
 
@@ -228,20 +229,6 @@ public class VehicleManager {
         return null;
     }
 
-    /**
-     * Spawns all default vehicles for a new round
-     */
-    public void spawnVehicles() {
-        // Clear existing vehicles
-        entities.getVehicles().clear();
-
-        // Spawn vehicles at strategic locations
-        spawnVehicle(Vehicle.VehicleType.TANK);
-        spawnVehicle(Vehicle.VehicleType.MECH);
-        spawnVehicle(Vehicle.VehicleType.JEEP);
-        spawnVehicle(Vehicle.VehicleType.FIXED_CANNON);
-    }
-
     public void resetVehicles() {
         for (Vehicle vehicle : entities.getVehicles()) {
             vehicle.clearSeats();
@@ -251,7 +238,7 @@ public class VehicleManager {
     /**
      * Spawns a specific vehicle type at a random valid position
      */
-    public void spawnVehicle(Vehicle.VehicleType type) {
+    public Vehicle spawnVehicle(Vehicle.VehicleType type) {
         // Try to find a valid position
         Vehicle vehicle = createVehicle(type);
         double randomAngle = ThreadLocalRandom.current().nextDouble() * 2 * Math.PI;
@@ -285,12 +272,13 @@ public class VehicleManager {
             log.warn("Could not find valid position for {} after 20 attempts, spawning at ({}, {}) with rotation {} anyway",
                     type, bestX, bestY, Math.toDegrees(randomAngle));
         }
+        return vehicle;
     }
 
     /**
      * Creates a new vehicle of the specified type
      */
-    private Vehicle createVehicle(Vehicle.VehicleType type) {
+    public Vehicle createVehicle(Vehicle.VehicleType type) {
         return switch (type) {
             case TANK -> new Tank();
             case MECH -> new Mech();

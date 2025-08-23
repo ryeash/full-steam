@@ -175,13 +175,13 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
     @Override
     protected GameInfo buildGameInfo() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
-        long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
+        long timeLeft = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
         return new CaptureTheFlagInfo(
                 this.team1Flag,
                 this.team2Flag,
                 this.team1Score,
                 this.team2Score,
-                roundTimeRemainingSeconds
+                timeLeft
         );
     }
 

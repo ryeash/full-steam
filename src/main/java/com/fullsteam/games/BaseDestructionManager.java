@@ -131,8 +131,8 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
     @Override
     protected GameInfo buildGameInfo() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
-        long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
-        return new BaseDestructionInfo(defendingBase, roundTimeRemainingSeconds, baseDestroyed);
+        long timeLeft = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
+        return new BaseDestructionInfo(defendingBase, timeLeft, baseDestroyed);
     }
 
     @Override

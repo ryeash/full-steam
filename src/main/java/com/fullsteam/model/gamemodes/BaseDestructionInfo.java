@@ -8,17 +8,17 @@ import com.fullsteam.model.Base;
  */
 public final class BaseDestructionInfo extends GameInfo {
     private final Base base;
-    private final long roundTimeRemainingSeconds;
+    private final long timeLeft;
     private final boolean baseDestroyed;
 
     /**
      * @param base                       The base that Team 2 is defending
-     * @param roundTimeRemainingSeconds  The time left in the current round
+     * @param timeLeft  The time left in the current round
      * @param baseDestroyed             Whether the base has been destroyed
      */
-    public BaseDestructionInfo(Base base, long roundTimeRemainingSeconds, boolean baseDestroyed) {
+    public BaseDestructionInfo(Base base, long timeLeft, boolean baseDestroyed) {
         this.base = base;
-        this.roundTimeRemainingSeconds = roundTimeRemainingSeconds;
+        this.timeLeft = timeLeft;
         this.baseDestroyed = baseDestroyed;
     }
 
@@ -31,8 +31,8 @@ public final class BaseDestructionInfo extends GameInfo {
         return base;
     }
 
-    public long getRoundTimeRemainingSeconds() {
-        return roundTimeRemainingSeconds;
+    public long gettimeLeft() {
+        return timeLeft;
     }
 
     public boolean isBaseDestroyed() {

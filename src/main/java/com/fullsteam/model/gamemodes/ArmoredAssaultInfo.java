@@ -1,18 +1,18 @@
 package com.fullsteam.model.gamemodes;
 
-import com.fullsteam.model.Oddball;
-
-public final class OddballInfo extends GameInfo {
-    private final Oddball oddball;
+/**
+ * A record containing the specific state information for a Team Deathmatch game.
+ * When serialized, Jackson will automatically add a "gameType": "Team Deathmatch"
+ * property because of the annotations in the GameInfo base class.
+ */
+public final class ArmoredAssaultInfo extends GameInfo {
     private final double team1Score;
     private final double team2Score;
     private final long timeLeft;
 
-    public OddballInfo(Oddball oddball,
-                       double team1Score,
-                       double team2Score,
-                       long timeLeft) {
-        this.oddball = oddball;
+    public ArmoredAssaultInfo(double team1Score,
+                              double team2Score,
+                              long timeLeft) {
         this.team1Score = team1Score;
         this.team2Score = team2Score;
         this.timeLeft = timeLeft;
@@ -20,11 +20,7 @@ public final class OddballInfo extends GameInfo {
 
     @Override
     public String getType() {
-        return "Oddball";
-    }
-
-    public Oddball getOddball() {
-        return oddball;
+        return "Armored Assault";
     }
 
     public double getTeam1Score() {
