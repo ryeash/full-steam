@@ -74,11 +74,6 @@ shadowJar {
     zip64 = true
 }
 
-// Fix for Micronaut plugin compatibility
-tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
-    mainClassName = 'com.fullsteam.Application'
-}
-
 graalvmNative {
     agent {
         defaultMode = "standard"
