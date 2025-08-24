@@ -8,7 +8,7 @@ RUN git clone --depth 1 --branch "${BRANCH}" --single-branch ${GITHUB_REPO_URL} 
 WORKDIR /app
 
 # Build the project with Gradle
-RUN gradle clean shadowJar --no-daemon --no-build-cache
+RUN ./gradlew clean shadowJar --no-daemon --no-build-cache
 
 # Stage 2: Runtime Stage
 FROM amazoncorretto:21-alpine-jdk
