@@ -1,7 +1,7 @@
 plugins {
     id 'java'
-    id 'io.micronaut.application' version '4.4.2'
-    id("com.gradleup.shadow") version "8.3.8"
+    id 'io.micronaut.application' version '4.5.4'
+    id 'com.gradleup.shadow' version "8.3.9"
     id 'org.graalvm.buildtools.native' version '0.11.0'
 }
 
@@ -18,7 +18,7 @@ repositories {
 }
 
 micronaut {
-    version = "4.6.3"
+    version = "4.9.2"
     runtime("netty")
     testRuntime("junit5")
     processing {
@@ -46,11 +46,11 @@ dependencies {
     compileOnly("io.micronaut:micronaut-inject-java")
     
     // Keep existing dependencies for compatibility
-    implementation "io.netty:netty-transport:${nettyVersion}"
-    implementation "io.netty:netty-codec-http:${nettyVersion}"
-    implementation "io.netty:netty-handler:${nettyVersion}"
-    implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
-    implementation "com.fasterxml.jackson.module:jackson-module-blackbird:${jacksonVersion}"
+//     implementation "io.netty:netty-transport:${nettyVersion}"
+//     implementation "io.netty:netty-codec-http:${nettyVersion}"
+//     implementation "io.netty:netty-handler:${nettyVersion}"
+//     implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+//     implementation "com.fasterxml.jackson.module:jackson-module-blackbird:${jacksonVersion}"
     implementation "ch.qos.logback:logback-classic:${logbackVersion}"
     implementation "org.apache.commons:commons-lang3:3.18.0"
 
@@ -65,6 +65,7 @@ test {
 
 shadowJar {
     mergeServiceFiles()
+    mainClassName = 'com.fullsteam.Application'
     manifest {
         attributes 'Main-Class': 'com.fullsteam.Application'
     }
