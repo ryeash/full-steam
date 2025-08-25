@@ -1136,7 +1136,6 @@
 
             this.ctx.drawImage(this.backgroundCanvas, 0, 0);
 
-            this.drawPowerUps();
             this.drawCrates();
             this.drawCratePreview();
             this.drawBase();
@@ -1163,6 +1162,7 @@
             this.drawLaserBlasts();
 
             interpolated.players.forEach(player => this.drawPlayer(player));
+            this.drawPowerUps();
             this.drawVehicles();
 
             const deadzone = 0.25;
@@ -1241,35 +1241,22 @@
             this.ctx.textBaseline = 'middle';
 
             this.gameState.powerUps.forEach(powerUp => {
-                const size = 15;
+                const radius = 15;
                 const centerX = powerUp.position.x;
                 const centerY = powerUp.position.y;
 
-                this.ctx.globalAlpha = 0.8;
+                // Draw pickup radius circle
+                this.ctx.strokeStyle = '#fff';
+                this.ctx.setLineDash([5, 5]);
+                this.ctx.lineWidth = 1;
                 this.ctx.beginPath();
-                this.ctx.arc(centerX, centerY, size, 0, 2 * Math.PI);
+                this.ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                this.ctx.stroke();
 
-                switch (powerUp.type) {
-                    case 'HEALTH_PACK':
-                        this.ctx.fillStyle = 'rgba(46, 204, 113, 0.7)';
-                        break;
-                    case 'SPEED_BOOST':
-                        this.ctx.fillStyle = 'rgba(241, 196, 15, 0.7)';
-                        break;
-                    case 'ARMOR_UP':
-                        this.ctx.fillStyle = 'rgba(52, 152, 219, 0.7)';
-                        break;
-                    case 'DAMAGE_BOOST':
-                        this.ctx.fillStyle = 'rgba(229, 57, 53, 0.7)';
-                        break;
-                    case 'INVISIBILITY':
-                        this.ctx.fillStyle = 'rgba(155, 89, 182, 0.7)';
-                        break;
-                }
-                this.ctx.fill();
-
-                this.ctx.globalAlpha = 1.0;
-                this.ctx.fillText(powerUp.icon, centerX, centerY + 2);
+                // Draw power-up icon
+                this.ctx.setLineDash([]);
+                this.ctx.fillStyle = '#fff';
+                this.ctx.fillText(powerUp.icon, centerX, centerY);
             });
 
             this.ctx.restore();
