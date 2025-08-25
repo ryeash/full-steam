@@ -612,7 +612,7 @@ public class AIPlayer extends Player {
         for (FieldEffect fieldEffect : fieldEffects) {
             double awarenessRadius = fieldEffect.getRadius() + 20;
             if (getTeam() != fieldEffect.getTeam()
-                && position().distanceSquared(fieldEffect.position()) < awarenessRadius * awarenessRadius) {
+                    && position().distanceSquared(fieldEffect.position()) < awarenessRadius * awarenessRadius) {
                 Vector2D fleeDirection = position().subtract(fieldEffect.position());
                 double weight = switch (fieldEffect.getType()) {
                     case MINE -> 0.3;
@@ -633,19 +633,21 @@ public class AIPlayer extends Player {
         double separationRadius = 30.0; // Increased for more "personal space" to reduce wall jitter
 
         for (Obstacle obstacle : obstacles) {
-            // Broad Phase: Check if the AI's "personal space" bubble overlaps the obstacle's bounding circle.
-            double combinedRadius = separationRadius + obstacle.getBoundingRadius();
-            if (position().distanceSquared(obstacle.getCenter()) > combinedRadius * combinedRadius) {
-                continue; // Not close enough to worry about.
-            }
+            if (obstacle != null) {
+                // Broad Phase: Check if the AI's "personal space" bubble overlaps the obstacle's bounding circle.
+                double combinedRadius = separationRadius + obstacle.getBoundingRadius();
+                if (position().distanceSquared(obstacle.getCenter()) > combinedRadius * combinedRadius) {
+                    continue; // Not close enough to worry about.
+                }
 
-            // Narrow Phase: We are close, so find the exact closest point to push away from.
-            Vector2D closestPoint = findClosestPointOnObstacle(position(), obstacle);
-            double distanceSq = position().distanceSquared(closestPoint);
-            if (distanceSq < separationRadius * separationRadius) {
-                Vector2D fleeDirection = position().subtract(closestPoint);
-                double strength = 1.0 - (Math.sqrt(distanceSq) / separationRadius);
-                totalSeparationForce = totalSeparationForce.add(fleeDirection.normalize().multiply(strength));
+                // Narrow Phase: We are close, so find the exact closest point to push away from.
+                Vector2D closestPoint = findClosestPointOnObstacle(position(), obstacle);
+                double distanceSq = position().distanceSquared(closestPoint);
+                if (distanceSq < separationRadius * separationRadius) {
+                    Vector2D fleeDirection = position().subtract(closestPoint);
+                    double strength = 1.0 - (Math.sqrt(distanceSq) / separationRadius);
+                    totalSeparationForce = totalSeparationForce.add(fleeDirection.normalize().multiply(strength));
+                }
             }
         }
         return totalSeparationForce;
