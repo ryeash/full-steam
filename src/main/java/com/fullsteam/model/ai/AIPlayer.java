@@ -1006,9 +1006,9 @@ public class AIPlayer extends Player {
             }
 
             double distanceSq = weapon.position().distanceSquared(potentialTarget.position());
-            if (distanceSq > weaponRangeSq) {
-                continue;
-            }
+//            if (distanceSq > weaponRangeSq) {
+//                continue;
+//            }
 
             // Check if target is within traverse arc
             Vector2D toTarget = potentialTarget.position().subtract(weapon.position());
@@ -1016,9 +1016,9 @@ public class AIPlayer extends Player {
             double constrainedAngle = weapon.getConstrainedAngle(targetAngle, vehicle.getAngle());
             double angleDifference = Math.abs(targetAngle - constrainedAngle);
 
-            if (angleDifference > 0.2) { // Target is outside traverse limits
-                continue;
-            }
+//            if (angleDifference > 0.2) { // Target is outside traverse limits
+//                continue;
+//            }
 
             // Check line of sight
             if (findBlockingObstacle(weapon.position(), potentialTarget.position(), gameState.obstacles()) != null) {

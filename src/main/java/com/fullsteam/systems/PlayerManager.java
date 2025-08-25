@@ -178,14 +178,11 @@ public class PlayerManager {
                 // AI is in a vehicle - handle mounted weapon firing
                 MountedWeapon controlledWeapon = aiVehicle.getWeaponControlledBy(ai.getId());
                 if (controlledWeapon != null && controlledWeapon.canShoot()) {
-                    AIPlayer.ShootAction action = shootAction.get();
-
                     // Create a mock PlayerInput for vehicle weapon firing
                     PlayerInput mockInput = new PlayerInput();
                     mockInput.setMouseX(ai.getMouseX());
                     mockInput.setMouseY(ai.getMouseY());
                     mockInput.setFire(true);
-
                     // Fire the mounted weapon
                     weaponSystem.fireVehicleWeapon(aiVehicle, controlledWeapon, ai.getId(), mockInput);
                 }
