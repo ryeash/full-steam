@@ -1,9 +1,9 @@
 package com.fullsteam.systems;
 
 import com.fullsteam.CollisionUtils;
-import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Explosion;
 import com.fullsteam.model.FieldEffect;
+import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.HasLife;
 import com.fullsteam.model.Mine;
 import com.fullsteam.model.Obstacle;
@@ -16,7 +16,6 @@ import com.fullsteam.model.Turret;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
 
-
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -26,7 +25,7 @@ import static com.fullsteam.Config.PLAYER_RADIUS;
 
 /**
  * Handles all field effects including explosions, poison clouds, mines, smoke fields,
- * and slow fields. Separated from AbstractGameStateManager to follow 
+ * and slow fields. Separated from AbstractGameStateManager to follow
  * Single Responsibility Principle.
  */
 public class FieldEffectSystem {
@@ -112,7 +111,8 @@ public class FieldEffectSystem {
                             hasLife.takeDamage(explosion.getDamage());
                         }
                     }
-                    case null, default -> throw new UnsupportedOperationException("unsupported explosion target type: " + target);
+                    case null, default ->
+                            throw new UnsupportedOperationException("unsupported explosion target type: " + target);
                 }
             }
             explosion.markDamageApplied(); // Mark it so damage isn't applied again.
@@ -203,6 +203,11 @@ public class FieldEffectSystem {
                 // If the player is within the mine's radius, trigger the explosion
                 if (player.position().distanceSquared(mine.position()) < Math.pow(mine.getRadius() + PLAYER_RADIUS, 2)) {
                     // Trigger the explosion effect
+                    entities.getFieldEffects().add(Mine.mineExplosion(mine));
+                    mine.markTriggered();
+                }
+            } else if (target instanceof Vehicle vehicle && !vehicle.isDestroyed() && vehicle.getTeam() != mine.getTeam()) {
+                if (CollisionUtils.checkCirclePolygonCollision(mine.position(), mine.getRadius(), vehicle.getVertices())) {
                     entities.getFieldEffects().add(Mine.mineExplosion(mine));
                     mine.markTriggered();
                 }

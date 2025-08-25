@@ -29,6 +29,9 @@ public class Obstacle implements HasId {
 
     public Obstacle(List<Vector2D> vertices, boolean rendered) {
         this.id = idCounter.incrementAndGet();
+        if (vertices == null || vertices.size() < 3) {
+            throw new IllegalArgumentException("obstacles must be polygons with at least 3 vertices");
+        }
         this.vertices = new ArrayList<>(vertices);
 
         // --- Calculate Bounding Information ---

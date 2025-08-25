@@ -989,18 +989,16 @@ public class AIPlayer extends Player {
     /**
      * Finds the best target for a mounted weapon, considering traverse limits.
      */
-    private Optional<Targetable> findBestMountedWeaponTarget(GameState gameState, SpatialGrid<Targetable> playerGrid,
-                                                             MountedWeapon weapon, Vehicle vehicle) {
+    private Optional<Targetable> findBestMountedWeaponTarget(GameState gameState,
+                                                             SpatialGrid<Targetable> playerGrid,
+                                                             MountedWeapon weapon,
+                                                             Vehicle vehicle) {
         Targetable bestTarget = null;
         double bestScore = Double.MAX_VALUE;
         double weaponRange = weapon.getWeapon().getBulletRange();
         double weaponRangeSq = weaponRange * weaponRange;
 
-        Set<Targetable> nearTargets = playerGrid.getNearby(
-                weapon.getX() - weaponRange, weapon.getY() - weaponRange,
-                weaponRange * 2, weaponRange * 2
-        );
-
+        Set<Targetable> nearTargets = playerGrid.getNearby(weapon.position(), weapon.getWeapon().getBulletRange());
         for (Targetable potentialTarget : nearTargets) {
             if (!isValidMountedWeaponTarget(potentialTarget)) {
                 continue;
@@ -1069,9 +1067,9 @@ public class AIPlayer extends Player {
      */
     public boolean shouldEnterVehicle() {
         return getVehicleId() == null
-               && currentState == AIState.SEEKING_VEHICLE &&
-               targetVehicle != null &&
-               position().distance(targetVehicle.position()) <= Config.VEHICLE_INTERACTION_RADIUS;
+               && currentState == AIState.SEEKING_VEHICLE
+               && targetVehicle != null
+               && position().distance(targetVehicle.position()) <= Config.VEHICLE_INTERACTION_RADIUS;
     }
 
     /**

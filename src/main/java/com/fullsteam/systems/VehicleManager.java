@@ -220,14 +220,7 @@ public class VehicleManager {
      */
     public MountedWeapon getPlayerMountedWeapon(Long playerId) {
         Vehicle vehicle = getPlayerVehicle(playerId);
-        if (vehicle != null) {
-            for (Vehicle.Seat seat : vehicle.getSeats()) {
-                if (seat.mountedWeapon != null && seat.player != null && seat.player.id() == playerId) {
-                    return seat.mountedWeapon;
-                }
-            }
-        }
-        return null;
+        return vehicle != null ? vehicle.getWeaponControlledBy(playerId) : null;
     }
 
     /**
