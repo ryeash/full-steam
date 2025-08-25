@@ -4,12 +4,12 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.model.Explosion;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEntities;
+import com.fullsteam.model.GravityWell;
 import com.fullsteam.model.HasLife;
 import com.fullsteam.model.Mine;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PoisonCloud;
-import com.fullsteam.model.SlowField;
 import com.fullsteam.model.SmokeCloud;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Turret;
@@ -46,15 +46,55 @@ public class FieldEffectSystem {
             switch (fieldEffect) {
                 case Explosion explosion -> updateExplosion(explosion);
                 case PoisonCloud poisonCloud -> updatePoisonClouds(poisonCloud);
-                case SlowField slowField -> updateSlowField(slowField);
                 case SmokeCloud smokeCloud -> updateSmokeField(smokeCloud);
                 case Mine mine -> updateMineField(mine);
+                case GravityWell gravityWell -> updateGravityWell(gravityWell);
                 case null, default ->
                         throw new UnsupportedOperationException("unsupported field effect type: " + fieldEffect.getClass().getSimpleName());
             }
         }
         // Next, remove any effects that have exceeded their duration.
         entities.getFieldEffects().removeIf(FieldEffect::isExpired);
+    }
+
+    public void updateGravityWellAffect(Player player) {
+        for (FieldEffect fieldEffect : List.copyOf(entities.getFieldEffects())) {
+            if (fieldEffect instanceof GravityWell gravityWell) {
+                updateGravityWell(gravityWell, player);
+            }
+        }
+    }
+
+    private void updateGravityWell(GravityWell gravityWell, Player player) {
+        Vector2D gravityCenter = gravityWell.position();
+        if (!player.isDead()) {
+            Vector2D playerPos = player.position();
+            double distanceFromCenter = playerPos.distance(gravityCenter);
+
+            // Only apply gravity if player is within the gravity well radius
+            if (distanceFromCenter < gravityWell.getRadius()) {
+                // Calculate gravity force based on distance
+                double gravityForce = gravityWell.calculateGravityForce(distanceFromCenter);
+
+                if (gravityForce > 0) {
+                    // Calculate direction toward the gravity well center
+                    Vector2D gravityDirection = gravityCenter.subtract(playerPos);
+                    if (gravityDirection.magnitudeSq() > 0.001) { // Avoid division by zero
+                        gravityDirection = gravityDirection.normalize();
+
+                        // Apply gravity as a velocity modification
+                        Vector2D gravityVector = gravityDirection.multiply(gravityForce * 0.01); // Scale for game balance
+                        Vector2D newVelocity = player.getVelocity().add(gravityVector);
+
+                        // Limit maximum velocity to prevent too extreme effects
+                        double maxVelocity = player.getSpeed() * 1.5; // Allow 50% over normal speed
+                        newVelocity = newVelocity.limit(maxVelocity);
+
+                        player.setVelocity(newVelocity);
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -166,20 +206,6 @@ public class FieldEffectSystem {
     }
 
     /**
-     * Handles slow fields that reduce player movement speed
-     */
-    private void updateSlowField(SlowField slowField) {
-        Set<Targetable> nearbyTargets = entities.getTargetGrid().getNearby(slowField.position(), slowField.getRadius());
-        for (Targetable target : nearbyTargets) {
-            if (target instanceof Player player && !player.isDead() && player.getTeam() != slowField.getTeam()) {
-                if (player.position().distanceSquared(slowField.position()) < slowField.getRadiusSquared()) {
-                    player.setSpeed(player.getDefaultSpeed() * slowField.getSlowFactor());
-                }
-            }
-        }
-    }
-
-    /**
      * Handles smoke fields that obscure player vision
      */
     private void updateSmokeField(SmokeCloud smokeCloud) {
@@ -223,65 +249,70 @@ public class FieldEffectSystem {
     }
 
     /**
-     * Gets all current field effects (read-only access)
-     */
-    public List<FieldEffect> getFieldEffects() {
-        return java.util.Collections.unmodifiableList(entities.getFieldEffects());
-    }
-
-    /**
-     * Removes all field effects of a specific type
-     */
-    public void removeFieldEffectsOfType(Class<? extends FieldEffect> effectType) {
-        entities.getFieldEffects().removeIf(effectType::isInstance);
-    }
-
-    /**
-     * Counts field effects of a specific type
-     */
-    public long countFieldEffectsOfType(Class<? extends FieldEffect> effectType) {
-        return entities.getFieldEffects().stream()
-                .filter(effectType::isInstance)
-                .count();
-    }
-
-    /**
      * Creates an explosion at the specified location
      */
-    public void createExplosion(double x, double y, long shooterId, int team, double radius, double damage, long duration) {
+    public void createExplosion(double x, double y, long shooterId, int team, double radius, double damage,
+                                long duration) {
         Explosion explosion = new Explosion(x, y, shooterId, team, radius, damage, duration);
         addFieldEffect(explosion);
     }
 
     /**
-     * Creates a poison cloud at the specified location
+     * Handles gravity wells that pull players toward their center
      */
-    public void createPoisonCloud(double x, double y, long shooterId, int team, double radius, double damagePerTick, long duration) {
-        PoisonCloud poisonCloud = new PoisonCloud(x, y, shooterId, team, radius, damagePerTick, duration);
-        addFieldEffect(poisonCloud);
-    }
+    private void updateGravityWell(GravityWell gravityWell) {
+        Set<Targetable> nearbyTargets = entities.getTargetGrid().getNearby(gravityWell.position(), gravityWell.getRadius());
+        Vector2D gravityCenter = gravityWell.position();
 
-    /**
-     * Creates a slow field at the specified location
-     */
-    public void createSlowField(double x, double y, long shooterId, int team, double radius, double slowFactor, long duration) {
-        SlowField slowField = new SlowField(x, y, shooterId, team, radius, slowFactor, duration);
-        addFieldEffect(slowField);
-    }
+        for (Targetable target : nearbyTargets) {
+            if (target instanceof Player player && !player.isDead()) {
+                Vector2D playerPos = player.position();
+                double distanceFromCenter = playerPos.distance(gravityCenter);
 
-    /**
-     * Creates a smoke cloud at the specified location
-     */
-    public void createSmokeCloud(double x, double y, long shooterId, int team, double radius, long duration) {
-        SmokeCloud smokeCloud = new SmokeCloud(x, y, shooterId, team, radius, duration);
-        addFieldEffect(smokeCloud);
-    }
+                // Only apply gravity if player is within the gravity well radius
+                if (distanceFromCenter < gravityWell.getRadius()) {
+                    // Calculate gravity force based on distance
+                    double gravityForce = gravityWell.calculateGravityForce(distanceFromCenter);
 
-    /**
-     * Creates a mine at the specified location
-     */
-    public void createMine(double x, double y, long ownerId, int team, double radius, long expiration) {
-        Mine mine = new Mine(com.fullsteam.Config.ID_COUNTER.incrementAndGet(), team, x, y, radius, expiration, ownerId);
-        addFieldEffect(mine);
+                    if (gravityForce > 0) {
+                        // Calculate direction toward the gravity well center
+                        Vector2D gravityDirection = gravityCenter.subtract(playerPos);
+                        if (gravityDirection.magnitudeSq() > 0.001) { // Avoid division by zero
+                            gravityDirection = gravityDirection.normalize();
+
+                            // Apply gravity as a velocity modification
+                            Vector2D gravityVector = gravityDirection.multiply(gravityForce * 0.01); // Scale for game balance
+                            Vector2D newVelocity = player.getVelocity().add(gravityVector);
+
+                            // Limit maximum velocity to prevent too extreme effects
+                            double maxVelocity = player.getSpeed() * 1.5; // Allow 50% over normal speed
+                            newVelocity = newVelocity.limit(maxVelocity);
+
+                            player.setVelocity(newVelocity);
+                        }
+                    }
+                }
+            } else if (target instanceof Vehicle vehicle && !vehicle.isDestroyed()) {
+                // Apply gravity to vehicles as well, but with reduced effect
+                Vector2D vehiclePos = vehicle.position();
+                double distanceFromCenter = vehiclePos.distance(gravityCenter);
+
+                if (distanceFromCenter < gravityWell.getRadius()) {
+                    double gravityForce = gravityWell.calculateGravityForce(distanceFromCenter) * 0.3; // Reduced effect for vehicles
+
+                    if (gravityForce > 0) {
+                        Vector2D gravityDirection = gravityCenter.subtract(vehiclePos);
+                        if (gravityDirection.magnitudeSq() > 0.001) {
+                            gravityDirection = gravityDirection.normalize();
+
+                            // Apply gravity to vehicle velocity components
+                            Vector2D gravityVector = gravityDirection.multiply(gravityForce * 0.005); // Even smaller scale for vehicles
+                            vehicle.setVelocityX(vehicle.getVelocityX() + gravityVector.x());
+                            vehicle.setVelocityY(vehicle.getVelocityY() + gravityVector.y());
+                        }
+                    }
+                }
+            }
+        }
     }
 }

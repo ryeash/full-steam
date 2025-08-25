@@ -1435,6 +1435,8 @@
                     this.drawSmokeField(effect);
                 } else if (effect.type == 'MINE') {
                     this.drawMine(effect);
+                } else if (effect.type == 'GRAVITY_WELL') {
+                    this.drawGravityWell(effect);
                 }
             });
         }
@@ -1711,6 +1713,89 @@
             this.ctx.lineWidth = 1;
             this.ctx.stroke();
 
+            this.ctx.restore();
+        }
+
+        drawGravityWell(gravityWell) {
+            this.ctx.save();
+            const now = this.gameState.serverTime;
+            if (!now) return;
+
+            // Gravity wells last for 8 seconds
+            const lifetime = 8000;
+            const timeRemaining = gravityWell.expiration - now;
+
+            if (timeRemaining < 0 || timeRemaining > lifetime) return;
+
+            const progress = 1 - (timeRemaining / lifetime); // 0.0 to 1.0
+
+            // Quick expansion to full size
+            const expandTime = 0.1;
+            const radiusProgress = Math.min(1.0, progress / expandTime);
+            const currentRadius = gravityWell.radius * radiusProgress;
+
+            // Fade in quickly, then slowly fade out
+            const alpha = (1.5 - progress) * 0.8; // Max alpha 0.8
+
+            // Create a gravity field gradient - darker center, purple/blue tones
+            const gradient = this.ctx.createRadialGradient(
+                gravityWell.x, gravityWell.y, 0,
+                gravityWell.x, gravityWell.y, currentRadius
+            );
+            
+            // Use dark purple/violet colors to suggest gravitational distortion
+            gradient.addColorStop(0, `rgba(75, 0, 130, ${alpha})`);         // Indigo center (strong gravity)
+            gradient.addColorStop(0.3, `rgba(138, 43, 226, ${alpha * 0.8})`); // Blue violet
+            gradient.addColorStop(0.6, `rgba(148, 0, 211, ${alpha * 0.6})`);  // Dark violet
+            gradient.addColorStop(1, 'rgba(25, 25, 112, 0)');               // Fade to transparent
+
+            // Draw main gravity field
+            this.ctx.fillStyle = gradient;
+            this.ctx.beginPath();
+            this.ctx.arc(gravityWell.x, gravityWell.y, currentRadius, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            // Add swirling gravitational distortion effect
+            const time = now / 1000;
+            const spirals = 4;
+            this.ctx.strokeStyle = `rgba(138, 43, 226, ${alpha * 0.4})`;
+            this.ctx.lineWidth = 3;
+            this.ctx.setLineDash([8, 12]);
+
+            for (let i = 0; i < spirals; i++) {
+                const spiralTime = time * 1.5 + i * (Math.PI * 2 / spirals);
+                const spiralRadius = currentRadius * (0.2 + (i * 0.2));
+                
+                // Create inward spiral to show gravitational pull
+                this.ctx.beginPath();
+                let lastX = null, lastY = null;
+                
+                for (let t = 0; t <= Math.PI * 3; t += 0.2) {
+                    const radius = spiralRadius * (1 - t / (Math.PI * 3)) * 0.8;
+                    const angle = spiralTime + t;
+                    const x = gravityWell.x + Math.cos(angle) * radius;
+                    const y = gravityWell.y + Math.sin(angle) * radius;
+                    
+                    if (lastX !== null) {
+                        this.ctx.moveTo(lastX, lastY);
+                        this.ctx.lineTo(x, y);
+                    }
+                    lastX = x;
+                    lastY = y;
+                }
+                this.ctx.stroke();
+            }
+
+            // Add pulsing center to show the gravitational core
+            const pulseRate = 800; // Faster pulse for gravity effect
+            const pulsePhase = (now % pulseRate) / pulseRate;
+            const pulseBrightness = 0.6 + Math.sin(pulsePhase * Math.PI * 2) * 0.3;
+            
+            this.ctx.setLineDash([]);
+            this.ctx.fillStyle = `rgba(138, 43, 226, ${alpha * pulseBrightness})`;
+            this.ctx.beginPath();
+            this.ctx.arc(gravityWell.x, gravityWell.y, 8 + Math.sin(pulsePhase * Math.PI * 2) * 3, 0, Math.PI * 2);
+            this.ctx.fill();
             this.ctx.restore();
         }
 

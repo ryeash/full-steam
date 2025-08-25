@@ -199,6 +199,7 @@ public abstract class AbstractGameStateManager {
             updatePlayers(delta);
             weaponSystem.updateBullets(delta);
             weaponSystem.updateLaserBlasts(delta);
+            fieldEffectSystem.updateFieldEffects(delta);
             turretSystem.updateTurrets(delta);
             vehicleManager.updateVehicles(delta);
             sendGameState();

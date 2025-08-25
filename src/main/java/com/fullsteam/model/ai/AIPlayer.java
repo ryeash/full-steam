@@ -638,6 +638,7 @@ public class AIPlayer extends Player {
                 double weight = switch (fieldEffect.getType()) {
                     case MINE -> 0.3;
                     case POISON -> 0.25;
+                    case GRAVITY_WELL -> 0.4; // AI should avoid gravity wells more strongly
                     default -> 0.1;
                 };
                 totalAvoidanceForce = totalAvoidanceForce.add(fleeDirection.normalize().multiply(weight));

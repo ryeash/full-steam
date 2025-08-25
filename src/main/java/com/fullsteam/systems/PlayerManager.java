@@ -124,8 +124,6 @@ public class PlayerManager {
             player.setVisionObscured(false);
             resetDamageMultiplier(player);
 
-            fieldEffectSystem.updateFieldEffects(delta);
-
             // Speed boost overrides any slowing effects.
             if (System.currentTimeMillis() < player.getSpeedBoostEndTime()) {
                 player.setSpeed(player.getDefaultSpeed() * POWER_UP_SPEED_BOOST_FACTOR);
@@ -144,6 +142,7 @@ public class PlayerManager {
                 if (input != null) {
                     handlePlayerInput(player.getId(), input, delta);
                 }
+                fieldEffectSystem.updateGravityWellAffect(player);
                 player.update(delta);
             }
 
