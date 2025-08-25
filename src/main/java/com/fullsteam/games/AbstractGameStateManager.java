@@ -152,6 +152,9 @@ public abstract class AbstractGameStateManager {
 
     public void addSpectator(Channel channel) {
         entities.getSpectatorChannels().add(channel);
+        // Send welcome message to spectator with current game state
+        channel.writeAndFlush(new WelcomeMessage(-1, 0, gameId, entities.getObstacles()));
+        log.info("Spectator {} joined game {}", channel.id().asShortText(), gameId);
     }
 
     public void removeSpectator(Channel channel) {
@@ -328,11 +331,11 @@ public abstract class AbstractGameStateManager {
         });
 
         // Send to all spectators
-        GameState gameState = spectatorGameState();
-        if (!entities.getPlayerChannels().isEmpty()) {
+        if (!entities.getSpectatorChannels().isEmpty()) {
+            GameState spectatorGameState = spectatorGameState();
             for (Channel spectatorChannel : entities.getSpectatorChannels()) {
                 if (spectatorChannel.isActive() && spectatorChannel.isOpen()) {
-                    spectatorChannel.writeAndFlush(gameState).addListener(future -> {
+                    spectatorChannel.writeAndFlush(spectatorGameState).addListener(future -> {
                         if (!future.isSuccess()) {
                             log.error("Failed to send game state to spectator {}. Closing channel.", spectatorChannel.id().asShortText(), future.cause());
                             spectatorChannel.close();

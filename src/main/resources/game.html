@@ -850,7 +850,10 @@
             this.backgroundCanvas.height = this.canvas.height;
 
             this.ws.onopen = () => {
-                if (!this.isSpectator) {
+                if (this.isSpectator) {
+                    document.getElementById('status').textContent = 'Spectating';
+                    document.getElementById('status').style.color = GameColors.accent.blue;
+                } else {
                     document.getElementById('status').textContent = 'Connected';
                     document.getElementById('status').style.color = GameColors.teams.team1.primary;
                 }
