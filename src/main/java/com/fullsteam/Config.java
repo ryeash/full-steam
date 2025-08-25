@@ -165,6 +165,12 @@ public class Config {
     public static final long VEHICLE_ACTION_DEBOUNCE_MS = getLong("game.vehicle.action_debounce_ms", 500);
     public static final long VEHICLE_RESPAWN_DELAY_MS = getLong("game.vehicle.respawn_delay_ms", 30_000);
 
+    // --- Armored Assault MotorPool System ---
+    public static final double MOTOR_POOL_RADIUS = getDouble("game.armored_assault.motor_pool_radius", 80.0);
+    public static final long MOTOR_POOL_CONTROL_TIME_MS = getLong("game.armored_assault.motor_pool_control_time_ms", 15_000); // 15 seconds to control
+    public static final double VEHICLE_REPAIR_RATE = getDouble("game.armored_assault.vehicle_repair_rate", 2.0); // HP per tick
+    public static final long VEHICLE_SPAWN_INTERVAL_MS = getLong("game.armored_assault.vehicle_spawn_interval_ms", 20_000); // 20 seconds between spawns
+
     // Tank Configuration
     public static final double TANK_HEALTH = getDouble("game.vehicle.tank.health", 800.0);
     public static final double TANK_MAX_SPEED = getDouble("game.vehicle.tank.max_speed", 0.08);

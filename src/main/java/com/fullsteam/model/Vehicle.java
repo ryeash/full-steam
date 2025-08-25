@@ -26,7 +26,11 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     protected VehicleType vehicleType;
 
     public enum VehicleType {
-        TANK, MECH, JEEP, FIXED_CANNON, DAVINCI
+        JEEP,
+        DAVINCI,
+        FIXED_CANNON,
+        MECH,
+        TANK,
     }
 
     public static class Seat {
@@ -198,6 +202,18 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
             }
         }
         return this.hp <= 0;
+    }
+
+    /**
+     * Heals the vehicle by the specified amount.
+     * Will not heal beyond maxHp.
+     *
+     * @param amount The amount to heal
+     */
+    public void heal(double amount) {
+        if (!destroyed && amount > 0) {
+            this.hp = Math.min(maxHp, this.hp + amount);
+        }
     }
 
     public double getAngle() {

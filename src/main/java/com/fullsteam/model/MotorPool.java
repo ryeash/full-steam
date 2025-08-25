@@ -4,12 +4,14 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.micronaut.core.annotation.Introspected;
 
 /**
- * Represents the state of the capture point ("the hill") in King of the Hill.
+ * Represents the state of a Motor Pool zone in Armored Assault.
  *
- * @param position        The center coordinates of the hill.
- * @param radius          The radius of the capture zone.
- * @param controllingTeam The team currently in control (0=neutral, 1=team1, 2=team2).
- * @param contested       True if players from both teams are on the hill.
+ * @param position               The center coordinates of the motor pool.
+ * @param radius                 The radius of the capture zone.
+ * @param controllingTeam        The team currently in control (0=neutral, 1=team1, 2=team2).
+ * @param contested              True if players from both teams are in the zone.
+ * @param controlStartTime       When the current team started controlling (0 if neutral/contested).
+ * @param timeToControl          Time in milliseconds needed to fully control the motor pool.
  */
 @Introspected
 public record MotorPool(
@@ -17,13 +19,34 @@ public record MotorPool(
         double radius,
         @JsonIgnore double radiusSq,
         int controllingTeam,
-        boolean contested
+        boolean contested,
+        long controlStartTime,
+        long timeToControl
 ) {
     /**
-     * Returns a new Hill instance with an updated state.
+     * Returns a new MotorPool instance with an updated state.
      * This is used to maintain immutability.
      */
-    public MotorPool withState(int newControllingTeam, boolean newContested) {
-        return new MotorPool(this.position, this.radius, this.radiusSq, newControllingTeam, newContested);
+    public MotorPool withState(int newControllingTeam, boolean newContested, long newControlStartTime) {
+        return new MotorPool(this.position, this.radius, this.radiusSq, newControllingTeam, newContested, newControlStartTime, this.timeToControl);
+    }
+
+    /**
+     * Checks if the motor pool is fully controlled by a team.
+     */
+    public boolean isFullyControlled() {
+        return !contested && controllingTeam > 0 && 
+               (System.currentTimeMillis() - controlStartTime) >= timeToControl;
+    }
+
+    /**
+     * Gets the control progress as a percentage (0.0 to 1.0).
+     */
+    public double getControlProgress() {
+        if (contested || controllingTeam <= 0) {
+            return 0.0;
+        }
+        long elapsed = System.currentTimeMillis() - controlStartTime;
+        return Math.min(1.0, (double) elapsed / timeToControl);
     }
 }

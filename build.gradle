@@ -27,30 +27,22 @@ micronaut {
     }
 }
 
-def nettyVersion = "4.2.3.Final"
-def jacksonVersion = "2.19.2"
 def logbackVersion = "1.5.13"
 
 dependencies {
     // Micronaut BOM for version management
     implementation platform("io.micronaut.platform:micronaut-platform:4.6.3")
-    
+
     // Micronaut core dependencies
     annotationProcessor("io.micronaut:micronaut-http-validation")
     annotationProcessor("io.micronaut:micronaut-inject-java")
+    compileOnly("io.micronaut:micronaut-inject-java")
+
     implementation("io.micronaut:micronaut-http-server-netty")
     implementation("io.micronaut:micronaut-websocket")
     implementation("io.micronaut:micronaut-jackson-databind")
     implementation("io.micronaut:micronaut-runtime")
     implementation("io.micronaut:micronaut-inject")
-    compileOnly("io.micronaut:micronaut-inject-java")
-    
-    // Keep existing dependencies for compatibility
-//     implementation "io.netty:netty-transport:${nettyVersion}"
-//     implementation "io.netty:netty-codec-http:${nettyVersion}"
-//     implementation "io.netty:netty-handler:${nettyVersion}"
-//     implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
-//     implementation "com.fasterxml.jackson.module:jackson-module-blackbird:${jacksonVersion}"
     implementation "ch.qos.logback:logback-classic:${logbackVersion}"
     implementation "org.apache.commons:commons-lang3:3.18.0"
 
