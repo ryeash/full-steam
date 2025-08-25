@@ -362,14 +362,14 @@ public class Player implements HasId, HasLife, Targetable {
     public String getPowerUpIcons() {
         StringBuilder icons = new StringBuilder();
         long currentTime = System.currentTimeMillis();
+        if (currentTime < damageBoostEndTime) {
+            icons.append(PowerUpType.DAMAGE_BOOST.icon);
+        }
         if (currentTime < speedBoostEndTime) {
             icons.append(PowerUpType.SPEED_BOOST.icon);
         }
         if (currentTime < armorUpEndTime) {
             icons.append(PowerUpType.ARMOR_UP.icon);
-        }
-        if (currentTime < damageBoostEndTime) {
-            icons.append(PowerUpType.DAMAGE_BOOST.icon);
         }
         if (currentTime < invisibilityEndTime) {
             icons.append(PowerUpType.INVISIBILITY.icon);

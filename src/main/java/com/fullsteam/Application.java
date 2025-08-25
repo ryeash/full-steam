@@ -47,7 +47,7 @@ public class Application {
         @Override
         public void serialize(BigDecimal value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
             if (value != null) {
-                gen.writeNumber(value.setScale(3, RoundingMode.FLOOR));
+                gen.writeNumber(value.setScale(1, RoundingMode.FLOOR));
             } else {
                 gen.writeNull();
             }
@@ -59,7 +59,7 @@ public class Application {
         public void serialize(Double value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
             if (value != null) {
                 BigDecimal bd = BigDecimal.valueOf(value);
-                gen.writeNumber(bd.setScale(3, RoundingMode.FLOOR));
+                gen.writeNumber(bd.setScale(1, RoundingMode.FLOOR));
             } else {
                 gen.writeNull();
             }
