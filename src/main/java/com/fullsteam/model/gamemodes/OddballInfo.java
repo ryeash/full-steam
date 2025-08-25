@@ -6,16 +6,16 @@ public final class OddballInfo extends GameInfo {
     private final Oddball oddball;
     private final double team1Score;
     private final double team2Score;
-    private final long roundTimeRemainingSeconds;
+    private final long timeLeft;
 
     public OddballInfo(Oddball oddball,
                        double team1Score,
                        double team2Score,
-                       long roundTimeRemainingSeconds) {
+                       long timeLeft) {
         this.oddball = oddball;
         this.team1Score = team1Score;
         this.team2Score = team2Score;
-        this.roundTimeRemainingSeconds = roundTimeRemainingSeconds;
+        this.timeLeft = timeLeft;
     }
 
     @Override
@@ -35,7 +35,7 @@ public final class OddballInfo extends GameInfo {
         return team2Score;
     }
 
-    public long getRoundTimeRemainingSeconds() {
-        return roundTimeRemainingSeconds;
+    public long getTimeLeft() {
+        return timeLeft;
     }
 }

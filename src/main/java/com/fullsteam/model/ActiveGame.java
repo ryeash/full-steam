@@ -2,7 +2,9 @@ package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fullsteam.games.AbstractGameStateManager;
+import io.micronaut.core.annotation.Introspected;
 
+@Introspected
 public class ActiveGame {
     String gameType;
     @JsonIgnore AbstractGameStateManager game;

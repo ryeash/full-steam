@@ -1,7 +1,10 @@
 package com.fullsteam.model;
 
+import io.micronaut.core.annotation.Introspected;
+
 import static com.fullsteam.Config.ID_COUNTER;
 
+@Introspected
 public class LaserBlast implements HasId {
     private final long id = ID_COUNTER.incrementAndGet();
     private final Vector2D start;

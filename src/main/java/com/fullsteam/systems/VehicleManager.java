@@ -3,10 +3,12 @@ package com.fullsteam.systems;
 import com.fullsteam.Config;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameEvent;
+import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
+import com.fullsteam.model.vehicles.DaVinci;
 import com.fullsteam.model.vehicles.FixedCannon;
 import com.fullsteam.model.vehicles.Jeep;
 import com.fullsteam.model.vehicles.Mech;
@@ -50,7 +52,7 @@ public class VehicleManager {
     public void updateVehicles(long delta) {
         // Check mounted weapon reload completion for all vehicles
         for (Vehicle vehicle : entities.getVehicles()) {
-            for (Vehicle.MountedWeapon mountedWeapon : vehicle.getMountedWeapons()) {
+            for (MountedWeapon mountedWeapon : vehicle.getMountedWeapons()) {
                 if (mountedWeapon != null && mountedWeapon.isReloading() &&
                     System.currentTimeMillis() >= mountedWeapon.getReloadCompleteTime()) {
                     mountedWeapon.finishReload();
@@ -124,12 +126,13 @@ public class VehicleManager {
 
         // Update vehicle physics
         Vector2D startingPosition = vehicle.position();
+        double startingAngle = vehicle.getAngle();
         vehicle.handleDriverInput(input, delta);
         vehicle.update(delta);
 
         // Check collision with obstacles
         // Simple collision response - stop the vehicle
-        if (physicsEngine.isColliding(vehicle, entities.getObstacles())) {
+        if (physicsEngine.isColliding(vehicle, entities.getObstacles()) || physicsEngine.isColliding(vehicle, entities.getVehicles())) {
             vehicle.setVelocityX(0);
             vehicle.setVelocityY(0);
             vehicle.setPosition(startingPosition); // reset to starting position
@@ -141,7 +144,7 @@ public class VehicleManager {
      * Handles weapon firing for vehicle occupants
      */
     public void handleVehicleWeaponFiring(Vehicle vehicle, Long playerId, PlayerInput input) {
-        Vehicle.MountedWeapon controlledWeapon = vehicle.getWeaponControlledBy(playerId);
+        MountedWeapon controlledWeapon = vehicle.getWeaponControlledBy(playerId);
         if (controlledWeapon == null) {
             return;
         }
@@ -213,6 +216,14 @@ public class VehicleManager {
     }
 
     /**
+     * Get the {@link MountedWeapon} that the player is using.
+     */
+    public MountedWeapon getPlayerMountedWeapon(Long playerId) {
+        Vehicle vehicle = getPlayerVehicle(playerId);
+        return vehicle != null ? vehicle.getWeaponControlledBy(playerId) : null;
+    }
+
+    /**
      * Finds a vehicle near the player within interaction radius
      */
     public Vehicle findNearbyVehicle(Player player) {
@@ -228,20 +239,6 @@ public class VehicleManager {
         return null;
     }
 
-    /**
-     * Spawns all default vehicles for a new round
-     */
-    public void spawnVehicles() {
-        // Clear existing vehicles
-        entities.getVehicles().clear();
-
-        // Spawn vehicles at strategic locations
-        spawnVehicle(Vehicle.VehicleType.TANK);
-        spawnVehicle(Vehicle.VehicleType.MECH);
-        spawnVehicle(Vehicle.VehicleType.JEEP);
-        spawnVehicle(Vehicle.VehicleType.FIXED_CANNON);
-    }
-
     public void resetVehicles() {
         for (Vehicle vehicle : entities.getVehicles()) {
             vehicle.clearSeats();
@@ -251,7 +248,7 @@ public class VehicleManager {
     /**
      * Spawns a specific vehicle type at a random valid position
      */
-    public void spawnVehicle(Vehicle.VehicleType type) {
+    public Vehicle spawnVehicle(Vehicle.VehicleType type) {
         // Try to find a valid position
         Vehicle vehicle = createVehicle(type);
         double randomAngle = ThreadLocalRandom.current().nextDouble() * 2 * Math.PI;
@@ -278,24 +275,23 @@ public class VehicleManager {
             }
         }
 
-        // Fallback: spawn anyway at the center if no valid position found
         if (!foundValidPosition) {
-            vehicle.setPosition(new Vector2D(bestX, bestY));
-            entities.getVehicles().add(vehicle);
             log.warn("Could not find valid position for {} after 20 attempts, spawning at ({}, {}) with rotation {} anyway",
                     type, bestX, bestY, Math.toDegrees(randomAngle));
         }
+        return vehicle;
     }
 
     /**
      * Creates a new vehicle of the specified type
      */
-    private Vehicle createVehicle(Vehicle.VehicleType type) {
+    public Vehicle createVehicle(Vehicle.VehicleType type) {
         return switch (type) {
             case TANK -> new Tank();
             case MECH -> new Mech();
             case JEEP -> new Jeep();
             case FIXED_CANNON -> new FixedCannon();
+            case DAVINCI -> new DaVinci();
         };
     }
 }

@@ -5,11 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Full Steam</title>
     <style>
+        :root {
+            /* CSS Custom Properties - will be populated by JavaScript */
+        }
+
         body {
             margin: 0;
             padding: 20px;
-            background-color: #222;
-            color: white;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
             font-family: Arial, sans-serif;
             display: flex;
             justify-content: center; /* Center the main wrapper */
@@ -28,8 +32,8 @@
         }
 
         #gameCanvas {
-            border: 2px solid #444;
-            background-color: #333;
+            border: 2px solid var(--border-primary);
+            background-color: var(--bg-secondary);
             cursor: crosshair;
         }
 
@@ -38,8 +42,8 @@
             justify-content: space-between;
             align-items: center;
             width: 1000px;
-            padding: 5px 0;
-            font-size: 1.1em;
+            padding: 0 0;
+            font-size: 1.0em;
         }
 
         .scoreboard-header {
@@ -47,8 +51,8 @@
             font-weight: bold;
         }
 
-        .team1 { color: #4CAF50; }
-        .team2 { color: #F44336; }
+        .team1 { color: var(--team1-primary); }
+        .team2 { color: var(--team2-primary); }
 
         .player-stats, .game-info {
             display: flex;
@@ -63,9 +67,9 @@
         }
 
         #playerNameInput, #weaponSelector {
-            background-color: #444;
-            color: white;
-            border: 1px solid #666;
+            background-color: var(--input-bg);
+            color: var(--input-text);
+            border: 1px solid var(--input-border);
             padding: 3px;
             border-radius: 3px;
         }
@@ -77,8 +81,8 @@
         /* --- New Scoreboard Styles --- */
         #scoreboard-container {
             width: 280px;
-            background-color: #2a2a2a;
-            border: 1px solid #444;
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-primary);
             padding: 15px;
             border-radius: 5px;
             max-height: 850px;
@@ -89,14 +93,14 @@
             text-align: center;
             margin-top: 0;
             padding-bottom: 10px;
-            border-bottom: 2px solid #555;
+            border-bottom: 2px solid var(--border-light);
         }
 
         #scoreboard-container h3 {
             margin-top: 20px;
             margin-bottom: 10px;
             padding-bottom: 5px;
-            border-bottom: 1px solid #555;
+            border-bottom: 1px solid var(--border-light);
         }
 
         #scoreboard-container ul {
@@ -110,7 +114,7 @@
             justify-content: space-between;
             align-items: center;
             padding: 6px 4px;
-            border-bottom: 1px solid #3a3a3a;
+            border-bottom: 1px solid var(--border-lighter);
             font-size: 0.9em;
         }
 
@@ -133,19 +137,19 @@
 
         .local-player-highlight {
             font-weight: bold;
-            color: #FFC107; /* Highlight color for the local player */
+            color: var(--accent-gold); /* Highlight color for the local player */
         }
 
         #player-config {
             margin-bottom: 20px;
             padding-bottom: 15px;
-            border-bottom: 1px solid #444;
+            border-bottom: 1px solid var(--border-primary);
         }
 
         #player-config h3 {
             margin-top: 0;
             margin-bottom: 10px;
-            color: #ccc;
+            color: var(--text-secondary);
             font-size: 1.1em;
             border-bottom: none; /* Override general h3 style */
         }
@@ -159,7 +163,7 @@
 
         .config-item label {
             margin-right: 10px;
-            color: #aaa;
+            color: var(--text-muted);
         }
 
         #playerNameInput, #weaponSelector {
@@ -167,9 +171,9 @@
         }
 
         #leaveGameBtn, #switchTeamBtn {
-            background-color: #a1322a;
-            color: white;
-            border: 1px solid #c7574e;
+            background-color: var(--btn-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--btn-border);
             padding: 10px 15px;
             border-radius: 5px;
             cursor: pointer;
@@ -179,20 +183,20 @@
             margin-top: 10px;
         }
         #leaveGameBtn:hover, #switchTeamBtn:hover {
-            background-color: #c7574e;
+            background-color: var(--btn-hover);
         }
 
         /* --- Styles for collapsible controls --- */
         #controls-details {
             margin-top: 20px;
-            border-top: 1px solid #444;
+            border-top: 1px solid var(--border-primary);
             padding-top: 10px;
         }
 
         #controls-details summary {
             cursor: pointer;
             font-weight: bold;
-            color: #ccc;
+            color: var(--text-secondary);
             list-style: none; /* Hide the default triangle */
             outline: none; /* Hide focus ring on click */
         }
@@ -202,7 +206,7 @@
         }
 
         #controls-details summary:hover {
-            color: white;
+            color: var(--text-primary);
         }
 
         #controls-details summary::before {
@@ -221,7 +225,7 @@
 
         #controls {
             font-size: 0.9em;
-            color: #aaa;
+            color: var(--text-muted);
             padding-left: 15px; /* Indent the controls text */
         }
 
@@ -252,22 +256,23 @@
             </div>
             <div class="scoreboard-header">
                 <span id="team1Score" class="team1">0</span>
-                <span id="roundTimer" style="margin: 0 20px; color: #FFC107;">00:00</span>
+                <span id="roundTimer" style="margin: 0 20px; color: var(--accent-gold);">00:00</span>
                 <span id="team2Score" class="team2">0</span>
             </div>
             <div class="game-info-right">
                 <span>Ping: <b id="latency" style="color: white;">--</b> ms</span>
-                <span>Status: <b id="status" style="color: #FFC107;">Connecting...</b></span>
+                <span>Status: <b id="status" style="color: var(--accent-gold);">Connecting...</b></span>
             </div>
         </div>
         <canvas id="gameCanvas" width="1000" height="800" tabindex="-1" style="outline: none;"></canvas>
     </div>
 
     <div id="scoreboard-container">
-        <h2>Scoreboard <span id="gameIdIndicator" style="font-size: 0.6em; color: #aaa; font-weight: normal;"></span>
+        <h2>Scoreboard <span id="gameIdIndicator"
+                             style="font-size: 0.6em; color: var(--text-muted); font-weight: normal;"></span>
         </h2>
         <h4 id="gameModeDisplay"
-            style="text-align: center; margin-top: -5px; margin-bottom: 15px; color: #ccc; font-weight: normal;">
+            style="text-align: center; margin-top: -5px; margin-bottom: 15px; color: var(--text-secondary); font-weight: normal;">
             Loading...</h4>
 
         <div id="player-config">
@@ -297,19 +302,55 @@
             </ul>
         </div>
         <div id="ffa-scoreboard" style="display: none;">
-            <h3 style="color: #FFC107;">Players</h3>
+            <h3 style="color: var(--accent-gold);">Players</h3>
             <ul id="ffa-players">
                 <!-- FFA players will be populated here -->
             </ul>
         </div>
         <details id="controls-details">
             <summary>Controls</summary>
-            <div id="controls">
-                <p>⌨️ WASD/Arrows: Move | R: Reload | E: Build | Mouse: Aim & Shoot</p>
-                <p>🚗 F: Enter/Exit Vehicle | Q: Secondary Fire (passengers)</p>
-                <p>🎮 L Stick: Move | R Stick: Aim | Y/△: Swap Weapon | X/□: Reload | RT/R2: Shoot</p>
-                <p>🎮 A/X: Enter/Exit Vehicle | LT/L2: Secondary Fire</p>
-            </div>
+            <table style="width: 100%; border-collapse: collapse; color: var(--text-muted);">
+                <tr>
+                    <th style="text-align: left; padding: 4px; border-bottom: 1px solid var(--border-lighter);">Action</th>
+                    <th style="text-align: left; padding: 4px; border-bottom: 1px solid var(--border-lighter);">Keyboard/Mouse</th>
+                    <th style="text-align: left; padding: 4px; border-bottom: 1px solid var(--border-lighter);">Gamepad</th>
+                </tr>
+                <tr>
+                    <td style="padding: 4px;">Move</td>
+                    <td style="padding: 4px;">WASD/Arrows</td>
+                    <td style="padding: 4px;">L Stick</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px;">Aim</td>
+                    <td style="padding: 4px;">Mouse</td>
+                    <td style="padding: 4px;">R Stick</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px;">Reload</td>
+                    <td style="padding: 4px;">R</td>
+                    <td style="padding: 4px;">X/□</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px;">Build/Swap Seat</td>
+                    <td style="padding: 4px;">E</td>
+                    <td style="padding: 4px;">RB/R1</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px;">Swap Weapon</td>
+                    <td style="padding: 4px;"></td>
+                    <td style="padding: 4px;">Y/△</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px;">Enter/Exit Vehicle</td>
+                    <td style="padding: 4px;">F</td>
+                    <td style="padding: 4px;">A/X</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px;">Shoot</td>
+                    <td style="padding: 4px;">LMB</td>
+                    <td style="padding: 4px;">RT/R2</td>
+                </tr>
+            </table>
         </details>
         <div style="text-align: center; margin-top: 20px; padding: 0 5px;">
             <button id="leaveGameBtn">Leave Game</button>
@@ -317,6 +358,61 @@
     </div>
 </div>
 
+<script src="color-palette.js"></script>
+<script type="text/javascript">
+    // Initialize CSS custom properties with GameColors
+    function initializeColorPalette() {
+        const root = document.documentElement;
+
+        // Background colors
+        root.style.setProperty('--bg-primary', GameColors.background.primary);
+        root.style.setProperty('--bg-secondary', GameColors.background.secondary);
+        root.style.setProperty('--bg-panel', GameColors.background.panel);
+        root.style.setProperty('--bg-card', GameColors.background.card);
+
+        // Team colors
+        root.style.setProperty('--team1-primary', GameColors.teams.team1.primary);
+        root.style.setProperty('--team1-secondary', GameColors.teams.team1.secondary);
+        root.style.setProperty('--team1-dark', GameColors.teams.team1.dark);
+        root.style.setProperty('--team2-primary', GameColors.teams.team2.primary);
+        root.style.setProperty('--team2-secondary', GameColors.teams.team2.secondary);
+        root.style.setProperty('--team2-dark', GameColors.teams.team2.dark);
+
+        // Border colors
+        root.style.setProperty('--border-primary', GameColors.borders.primary);
+        root.style.setProperty('--border-secondary', GameColors.borders.secondary);
+        root.style.setProperty('--border-light', GameColors.borders.light);
+        root.style.setProperty('--border-lighter', GameColors.borders.lighter);
+
+        // Text colors
+        root.style.setProperty('--text-primary', GameColors.text.primary);
+        root.style.setProperty('--text-secondary', GameColors.text.secondary);
+        root.style.setProperty('--text-muted', GameColors.text.muted);
+
+        // Accent colors
+        root.style.setProperty('--accent-gold', GameColors.accent.gold);
+        root.style.setProperty('--accent-yellow', GameColors.accent.yellow);
+        root.style.setProperty('--accent-blue', GameColors.accent.blue);
+
+        // Interactive elements
+        root.style.setProperty('--btn-primary', GameColors.interactive.button.primary);
+        root.style.setProperty('--btn-hover', GameColors.interactive.button.hover);
+        root.style.setProperty('--btn-border', GameColors.interactive.button.border);
+        root.style.setProperty('--input-bg', GameColors.interactive.input.background);
+        root.style.setProperty('--input-border', GameColors.interactive.input.border);
+        root.style.setProperty('--input-text', GameColors.interactive.input.text);
+
+        // Health colors
+        root.style.setProperty('--health-high', GameColors.health.high);
+        root.style.setProperty('--health-medium', GameColors.health.medium);
+        root.style.setProperty('--health-low', GameColors.health.low);
+        root.style.setProperty('--health-bg', GameColors.health.background);
+        root.style.setProperty('--health-border', GameColors.health.border);
+    }
+
+    // Initialize colors when DOM is ready
+    document.addEventListener('DOMContentLoaded', initializeColorPalette);
+</script>
 <script type="text/javascript">
     class GameUIManager {
         constructor(gameInstance) {
@@ -372,8 +468,8 @@
                     this.elements.switchTeamBtn.style.display = 'none';
                     this.elements.team1Score.style.display = 'inline';
                     this.elements.team2Score.style.display = 'inline';
-                    this.elements.team1Score.innerHTML = `Wave: <span style="color: #FFC107;">${info.waveNumber}</span>`;
-                    this.elements.team2Score.innerHTML = `Zombies: <span style="color: #FFC107;">${info.zombiesAlive}</span>`;
+                    this.elements.team1Score.innerHTML = `Wave: <span style="color: ${GameColors.accent.gold};">${info.waveNumber}</span>`;
+                    this.elements.team2Score.innerHTML = `Zombies: <span style="color: ${GameColors.accent.gold};">${info.zombiesAlive}</span>`;
                 },
                 'Elimination': (info) => {
                     this.game.shouldDrawRespawnOverlay = false;
@@ -381,8 +477,8 @@
                     this.elements.switchTeamBtn.style.display = 'block';
                     this.elements.team1Score.style.display = 'inline';
                     this.elements.team2Score.style.display = 'inline';
-                    this.elements.team1Score.innerHTML = `${info.team1Score} <span style="font-size: 0.7em; color: #ccc;">(${info.team1PlayersAlive} alive)</span>`;
-                    this.elements.team2Score.innerHTML = `${info.team2Score} <span style="font-size: 0.7em; color: #ccc;">(${info.team2PlayersAlive} alive)</span>`;
+                    this.elements.team1Score.innerHTML = `${info.team1Score} <span style="font-size: 0.7em; color: ${GameColors.text.secondary};">(${info.team1PlayersAlive} alive)</span>`;
+                    this.elements.team2Score.innerHTML = `${info.team2Score} <span style="font-size: 0.7em; color: ${GameColors.text.secondary};">(${info.team2PlayersAlive} alive)</span>`;
                 },
                 'Lone Wolf': (info) => {
                     this.game.shouldDrawRespawnOverlay = false;
@@ -403,7 +499,16 @@
                     // Show base health percentage and team labels
                     const baseHealthPercent = info.base ? Math.round((info.base.hp / info.base.maxHp) * 100) : 0;
                     this.elements.team1Score.innerHTML = `Attackers`;
-                    this.elements.team2Score.innerHTML = `Defenders<br><span style="font-size: 0.8em; color: ${baseHealthPercent > 50 ? '#4CAF50' : baseHealthPercent > 25 ? '#FFC107' : '#F44336'};">Base: ${baseHealthPercent}%</span>`;
+                    this.elements.team2Score.innerHTML = `Defenders<br><span style="font-size: 0.8em; color: ${baseHealthPercent > 50 ? GameColors.health.high : baseHealthPercent > 25 ? GameColors.health.medium : GameColors.health.low};">Base: ${baseHealthPercent}%</span>`;
+                },
+                'Armored Assault': (info) => {
+                    this.game.shouldDrawRespawnOverlay = true;
+                    this.elements.yourTeam.style.display = 'inline';
+                    this.elements.switchTeamBtn.style.display = 'block';
+                    this.elements.team1Score.style.display = 'inline';
+                    this.elements.team2Score.style.display = 'inline';
+                    this.elements.team1Score.innerHTML = `${Math.floor(info.team1Score)}`;
+                    this.elements.team2Score.innerHTML = `${Math.floor(info.team2Score)}`;
                 },
                 'default': (info) => {
                     this.game.shouldDrawRespawnOverlay = true;
@@ -466,8 +571,8 @@
             this.elements.playerCount.textContent = gameState.players ? gameState.players.length : 0;
             this.elements.gameModeDisplay.textContent = gameState.info.type.replace('Manager', '');
 
-            if (gameState.info.roundTimeRemainingSeconds !== undefined) {
-                const totalSeconds = gameState.info.roundTimeRemainingSeconds;
+            if (gameState.info.timeLeft !== undefined) {
+                const totalSeconds = gameState.info.timeLeft;
                 const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
                 const seconds = (totalSeconds % 60).toString().padStart(2, '0');
                 this.elements.roundTimer.textContent = `${minutes}:${seconds}`;
@@ -781,9 +886,12 @@
             this.backgroundCanvas.height = this.canvas.height;
 
             this.ws.onopen = () => {
-                if (!this.isSpectator) {
+                if (this.isSpectator) {
+                    document.getElementById('status').textContent = 'Spectating';
+                    document.getElementById('status').style.color = GameColors.accent.blue;
+                } else {
                     document.getElementById('status').textContent = 'Connected';
-                    document.getElementById('status').style.color = '#4CAF50';
+                    document.getElementById('status').style.color = GameColors.teams.team1.primary;
                 }
                 setInterval(() => {
                     this.pingStartTime = Date.now();
@@ -792,20 +900,17 @@
             };
 
             this.ws.onmessage = (event) => {
-                const textDecoder = new TextDecoder();
-                const jsonString = textDecoder.decode(event.data);
-                let data = JSON.parse(jsonString);
-
+                let data = JSON.parse(event.data);
                 if (data.type === 'pong') {
                     this.latency = Date.now() - this.pingStartTime;
                     const latencyEl = document.getElementById('latency');
                     latencyEl.textContent = this.latency;
                     if (this.latency > 150) {
-                        latencyEl.style.color = '#F44336';
+                        latencyEl.style.color = GameColors.teams.team2.primary;
                     } else if (this.latency > 80) {
-                        latencyEl.style.color = '#FFC107';
+                        latencyEl.style.color = GameColors.accent.gold;
                     } else {
-                        latencyEl.style.color = 'white';
+                        latencyEl.style.color = GameColors.text.primary;
                     }
                     return;
                 }
@@ -834,7 +939,7 @@
 
             this.ws.onclose = () => {
                 document.getElementById('status').textContent = 'Disconnected';
-                document.getElementById('status').style.color = '#F44336';
+                document.getElementById('status').style.color = GameColors.teams.team2.primary;
                 this.resetGameState();
                 // Keep render loop running to show disconnected state
             };
@@ -903,7 +1008,7 @@
             this.isSpectator = true;
             const statusEl = document.getElementById('status');
             statusEl.textContent = 'Spectating';
-            statusEl.style.color = '#4FC3F7'; // A nice blue for spectator mode
+            statusEl.style.color = GameColors.accent.blue; // A nice blue for spectator mode
             document.getElementById('player-config').style.display = 'none';
             document.getElementById('yourTeam').parentElement.style.display = 'none';
             this.canvas.style.cursor = 'default';
@@ -1092,11 +1197,11 @@
 
         preRenderBackground() {
             const bCtx = this.backgroundCtx;
-            bCtx.fillStyle = '#333';
+            bCtx.fillStyle = GameColors.background.secondary;
             bCtx.fillRect(0, 0, this.backgroundCanvas.width, this.backgroundCanvas.height);
 
             bCtx.save();
-            bCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            bCtx.strokeStyle = GameColors.overlays.gridLines;
             bCtx.lineWidth = 2;
             bCtx.setLineDash([15, 15]);
             bCtx.beginPath();
@@ -1111,11 +1216,11 @@
                        return;
                     }
                     bCtx.save();
-                    const cornerRadius = 7;
+                    const cornerRadius = 4;
                     bCtx.lineJoin = 'round';
                     bCtx.lineWidth = cornerRadius * 2;
-                    bCtx.fillStyle = '#888';
-                    bCtx.strokeStyle = '#888';
+                    bCtx.fillStyle = GameColors.entities.gameObjects.obstacles;
+                    bCtx.strokeStyle = GameColors.entities.gameObjects.obstacles;
 
                     bCtx.beginPath();
                     bCtx.moveTo(obstacle.vertices[0].x, obstacle.vertices[0].y);
@@ -1128,7 +1233,6 @@
                     bCtx.restore();
                 });
             }
-            console.log("Pre-rendered static background.");
         }
 
         render(currentTime) {
@@ -1139,7 +1243,6 @@
 
             this.ctx.drawImage(this.backgroundCanvas, 0, 0);
 
-            this.drawPowerUps();
             this.drawCrates();
             this.drawCratePreview();
             this.drawBase();
@@ -1156,7 +1259,7 @@
 
             if (interpolated.bullets) {
                 interpolated.bullets.forEach(bullet => {
-                    this.ctx.fillStyle = bullet.team === 1 ? '#81C784' : '#E57373';
+                    this.ctx.fillStyle = bullet.team === 1 ? GameColors.teams.team1.secondary : GameColors.teams.team2.secondary;
                     this.ctx.beginPath();
                     this.ctx.arc(bullet.x, bullet.y, 3, 0, 2 * Math.PI);
                     this.ctx.fill();
@@ -1166,6 +1269,7 @@
             this.drawLaserBlasts();
 
             interpolated.players.forEach(player => this.drawPlayer(player));
+            this.drawPowerUps();
             this.drawVehicles();
 
             const deadzone = 0.25;
@@ -1198,7 +1302,7 @@
                     this.ctx.stroke();
                 }
             } else if (!this.isSpectator && !this.isGamepadActive && this.mouse.x && this.mouse.y) {
-                this.ctx.strokeStyle = '#fff';
+                this.ctx.strokeStyle = GameColors.text.primary;
                 this.ctx.lineWidth = 1;
                 this.ctx.beginPath();
                 this.ctx.moveTo(this.mouse.x - 10, this.mouse.y);
@@ -1209,6 +1313,7 @@
             }
 
             this.drawHill();
+            this.drawMotorPools();
             this.drawFlags();
             this.drawOddball();
             this.drawPayload();
@@ -1218,9 +1323,9 @@
             if (this.isLocalPlayerDead && this.shouldDrawRespawnOverlay) {
                 if (this.localPlayer && this.localPlayer.respawnTime && this.gameState.serverTime > 0) {
                     const remainingTime = Math.max(0, (this.localPlayer.respawnTime - this.gameState.serverTime) / 1000);
-                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    this.ctx.fillStyle = GameColors.overlays.respawn;
                     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-                    this.ctx.fillStyle = 'white';
+                    this.ctx.fillStyle = GameColors.text.primary;
                     this.ctx.font = '48px Arial';
                     this.ctx.textAlign = 'center';
                     this.ctx.textBaseline = 'middle';
@@ -1234,7 +1339,9 @@
         }
 
         drawPowerUps() {
-            if (!this.gameState.powerUps) return;
+            if (!this.gameState.powerUps) {
+                return;
+            }
 
             this.ctx.save();
             this.ctx.font = '20px Arial';
@@ -1242,43 +1349,22 @@
             this.ctx.textBaseline = 'middle';
 
             this.gameState.powerUps.forEach(powerUp => {
-                const size = 15;
+                const radius = 15;
                 const centerX = powerUp.position.x;
                 const centerY = powerUp.position.y;
 
-                this.ctx.globalAlpha = 0.8;
+                // Draw pickup radius circle
+                this.ctx.strokeStyle = GameColors.entities.powerUps.clear;
+                this.ctx.setLineDash([5, 5]);
+                this.ctx.lineWidth = 1;
                 this.ctx.beginPath();
-                this.ctx.arc(centerX, centerY, size, 0, 2 * Math.PI);
+                this.ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                this.ctx.stroke();
 
-                let icon = '';
-                switch (powerUp.type) {
-                    case 'HEALTH_PACK':
-                        this.ctx.fillStyle = 'rgba(46, 204, 113, 0.7)';
-                        icon = '❤️';
-                        break;
-                    case 'SPEED_BOOST':
-                        this.ctx.fillStyle = 'rgba(241, 196, 15, 0.7)';
-                        icon = '⚡';
-                        break;
-                    case 'ARMOR_UP':
-                        this.ctx.fillStyle = 'rgba(52, 152, 219, 0.7)';
-                        icon = '🛡️';
-                        break;
-                    case 'DAMAGE_BOOST':
-                        this.ctx.fillStyle = 'rgba(229, 57, 53, 0.7)';
-                        icon = '⚔️';
-                        break;
-                    case 'INVISIBILITY':
-                        this.ctx.fillStyle = 'rgba(155, 89, 182, 0.7)';
-                        icon = '👻';
-                        break;
-                }
-                this.ctx.fill();
-
-                this.ctx.globalAlpha = 1.0;
-                if (icon) {
-                    this.ctx.fillText(icon, centerX, centerY + 2);
-                }
+                // Draw power-up icon
+                this.ctx.setLineDash([]);
+                this.ctx.fillStyle = GameColors.entities.powerUps.clear;
+                this.ctx.fillText(powerUp.icon, centerX, centerY);
             });
 
             this.ctx.restore();
@@ -1292,8 +1378,8 @@
             this.ctx.save();
             this.gameState.info.crates.forEach(crate => {
                 // Draw crate body
-                this.ctx.fillStyle = '#8B4513'; // SaddleBrown
-                this.ctx.strokeStyle = '#5D2906'; // Darker brown for border
+                this.ctx.fillStyle = GameColors.entities.gameObjects.crates.body; // SaddleBrown
+                this.ctx.strokeStyle = GameColors.entities.gameObjects.crates.border; // Darker brown for border
                 this.ctx.lineWidth = 2;
                 this.ctx.fillRect(crate.x, crate.y, crate.size, crate.size);
                 this.ctx.strokeRect(crate.x, crate.y, crate.size, crate.size);
@@ -1308,15 +1394,15 @@
                     const barY = crate.y - 10;
 
                     // Background of health bar
-                    this.ctx.fillStyle = '#333';
+                    this.ctx.fillStyle = GameColors.health.background;
                     this.ctx.fillRect(barX, barY, barWidth, barHeight);
 
                     // Foreground of health bar
-                    this.ctx.fillStyle = healthPercentage > 0.5 ? '#4CAF50' : (healthPercentage > 0.2 ? '#FFC107' : '#F44336');
+                    this.ctx.fillStyle = healthPercentage > 0.5 ? GameColors.health.high : (healthPercentage > 0.2 ? GameColors.health.medium : GameColors.health.low);
                     this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
 
                     // Border for the health bar
-                    this.ctx.strokeStyle = '#111';
+                    this.ctx.strokeStyle = GameColors.health.border;
                     this.ctx.lineWidth = 1;
                     this.ctx.strokeRect(barX, barY, barWidth, barHeight);
                 }
@@ -1357,8 +1443,8 @@
 
             // Draw the preview
             this.ctx.save();
-            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            this.ctx.strokeStyle = GameColors.overlays.previewStroke;
+            this.ctx.fillStyle = GameColors.overlays.preview;
             this.ctx.lineWidth = 2;
             this.ctx.setLineDash([5, 5]);
 
@@ -1379,12 +1465,12 @@
                     this.drawExplosion(effect);
                 } else if (effect.type == 'POISON') {
                     this.drawPoisonCloud(effect);
-                } else if (effect.type == 'SLOW') {
-                    this.drawSlowField(effect);
                 } else if (effect.type == 'SMOKE') {
                     this.drawSmokeField(effect);
                 } else if (effect.type == 'MINE') {
                     this.drawMine(effect);
+                } else if (effect.type == 'GRAVITY_WELL') {
+                    this.drawGravityWell(effect);
                 }
             });
         }
@@ -1414,9 +1500,9 @@
                 explosion.x, explosion.y, 0,
                 explosion.x, explosion.y, currentRadius
             );
-            gradient.addColorStop(0, `rgba(255, 255, 150, ${alpha * 0.9})`);
-            gradient.addColorStop(0.5, `rgba(255, 100, 0, ${alpha * 0.7})`);
-            gradient.addColorStop(1, `rgba(200, 0, 0, 0)`); // Fade to fully transparent at the edge
+            gradient.addColorStop(0, GameColors.effects.explosion.core.replace('0.9', (alpha * 0.9).toString()));
+            gradient.addColorStop(0.5, GameColors.effects.explosion.middle.replace('0.7', (alpha * 0.7).toString()));
+            gradient.addColorStop(1, GameColors.effects.explosion.edge); // Fade to fully transparent at the edge
 
             this.ctx.fillStyle = gradient;
             this.ctx.beginPath();
@@ -1428,7 +1514,9 @@
         drawPoisonCloud(cloud) {
             this.ctx.save();
             const now = this.gameState.serverTime;
-            if (!now) return;
+            if (!now) {
+                return;
+            }
 
             // TODO: better math that doesn't rely on lifetime
             const lifetime = 5000; // All poison clouds last for 5 seconds.
@@ -1458,108 +1546,6 @@
             this.ctx.beginPath();
             this.ctx.arc(cloud.x, cloud.y, currentRadius, 0, 2 * Math.PI);
             this.ctx.fill();
-            this.ctx.restore();
-        }
-
-        drawSlowField(field) {
-            this.ctx.save();
-            const now = this.gameState.serverTime;
-            if (!now) return;
-
-            // TODO: better math that doesn't rely on lifetime
-            const lifetime = 7000; // All slow fields last for 7 seconds.
-            const timeRemaining = field.expiration - now;
-
-            if (timeRemaining < 0 || timeRemaining > lifetime) return;
-
-            const progress = 1 - (timeRemaining / lifetime); // 0.0 to 1.0
-
-            // Let the field expand to full size then linger
-            const expandTime = 0.2; // 20% of lifetime to expand
-            const radiusProgress = Math.min(1.0, progress / expandTime);
-            const currentRadius = field.radius * radiusProgress;
-
-            // Fade out over the whole duration
-            const alpha = (1.0 - progress) * 0.5; // Max alpha 0.5 (slightly lower than poison)
-
-            // Draw the base field with a more subtle gradient
-            const gradient = this.ctx.createRadialGradient(
-                field.x, field.y, 0,
-                field.x, field.y, currentRadius
-            );
-
-            // Use ice/frost-like colors to suggest slowing
-            if (field.team === 1) {
-                gradient.addColorStop(0, `rgba(173, 216, 230, ${alpha * 0.7})`); // Light blue
-                gradient.addColorStop(0.7, `rgba(100, 149, 237, ${alpha * 0.5})`); // Medium blue
-                gradient.addColorStop(1, `rgba(65, 105, 225, 0)`); // Fade to transparent
-            } else if (field.team === 2) {
-                gradient.addColorStop(0, `rgba(255, 182, 193, ${alpha * 0.7})`); // Light pink
-                gradient.addColorStop(0.7, `rgba(219, 112, 147, ${alpha * 0.5})`); // Medium pink
-                gradient.addColorStop(1, `rgba(199, 21, 133, 0)`); // Fade to transparent
-            } else {
-                gradient.addColorStop(0, `rgba(176, 196, 222, ${alpha * 0.7})`); // Light steel blue
-                gradient.addColorStop(0.7, `rgba(119, 136, 153, ${alpha * 0.5})`); // Light slate gray
-                gradient.addColorStop(1, `rgba(70, 130, 180, 0)`); // Fade to transparent
-            }
-
-            this.ctx.fillStyle = gradient;
-            this.ctx.beginPath();
-            this.ctx.arc(field.x, field.y, currentRadius, 0, 2 * Math.PI);
-            this.ctx.fill();
-
-            // Add animated ripple rings to suggest slow/impediment effect
-            const time = now / 1000; // Convert to seconds for smoother animation
-            const numRings = 3;
-            
-            // Set team-specific ring colors
-            let ringColor;
-            if (field.team === 1) {
-                ringColor = `rgba(100, 149, 237, ${alpha * 0.8})`; // Blue
-            } else if (field.team === 2) {
-                ringColor = `rgba(219, 112, 147, ${alpha * 0.8})`; // Pink
-            } else {
-                ringColor = `rgba(119, 136, 153, ${alpha * 0.8})`; // Gray
-            }
-
-            this.ctx.strokeStyle = ringColor;
-            this.ctx.lineWidth = 2;
-            this.ctx.setLineDash([8, 12]); // Dashed pattern suggests broken/slow movement
-
-            for (let i = 0; i < numRings; i++) {
-                const ringOffset = (time * 0.5 + i * 0.8) % 2.0; // Slow animation cycle
-                const ringRadius = (currentRadius * 0.3) + (ringOffset * currentRadius * 0.35);
-                const ringAlpha = alpha * (1.0 - ringOffset * 0.5); // Fade as rings expand
-                
-                if (ringRadius <= currentRadius) {
-                    this.ctx.globalAlpha = ringAlpha;
-                    this.ctx.beginPath();
-                    this.ctx.arc(field.x, field.y, ringRadius, 0, 2 * Math.PI);
-                    this.ctx.stroke();
-                }
-            }
-
-            // Add crystalline/frost pattern at center to reinforce "freezing/slowing" theme
-            this.ctx.globalAlpha = alpha * 0.6;
-            this.ctx.setLineDash([]); // Solid lines for center pattern
-            this.ctx.lineWidth = 1.5;
-            
-            const centerPattern = 6; // Number of lines radiating from center
-            const centerRadius = Math.min(15, currentRadius * 0.3);
-            
-            for (let i = 0; i < centerPattern; i++) {
-                const angle = (i * 2 * Math.PI / centerPattern) + (time * 0.2); // Slow rotation
-                const x1 = field.x + Math.cos(angle) * (centerRadius * 0.3);
-                const y1 = field.y + Math.sin(angle) * (centerRadius * 0.3);
-                const x2 = field.x + Math.cos(angle) * centerRadius;
-                const y2 = field.y + Math.sin(angle) * centerRadius;
-                
-                this.ctx.beginPath();
-                this.ctx.moveTo(x1, y1);
-                this.ctx.lineTo(x2, y2);
-                this.ctx.stroke();
-            }
-
             this.ctx.restore();
         }
 
@@ -1627,10 +1613,10 @@
 
             // Set colors based on team
             const teamColors = {
-                1: { base: '#4CAF50', dark: '#2E7D32' }, // Green for team 1
-                2: { base: '#F44336', dark: '#C62828' }  // Red for team 2
+                1: { base: GameColors.teams.team1.primary, dark: GameColors.teams.team1.dark }, // Green for team 1
+                2: { base: GameColors.teams.team2.primary, dark: GameColors.teams.team2.dark }  // Red for team 2
             };
-            const colors = teamColors[field.team] || { base: '#9E9E9E', dark: '#616161' };
+            const colors = teamColors[field.team] || GameColors.special.mine.neutral;
 
             // Draw main disc
             this.ctx.beginPath();
@@ -1662,6 +1648,89 @@
             this.ctx.restore();
         }
 
+        drawGravityWell(gravityWell) {
+            this.ctx.save();
+            const now = this.gameState.serverTime;
+            if (!now) return;
+
+            // Gravity wells last for 8 seconds
+            const lifetime = 8000;
+            const timeRemaining = gravityWell.expiration - now;
+
+            if (timeRemaining < 0 || timeRemaining > lifetime) return;
+
+            const progress = 1 - (timeRemaining / lifetime); // 0.0 to 1.0
+
+            // Quick expansion to full size
+            const expandTime = 0.1;
+            const radiusProgress = Math.min(1.0, progress / expandTime);
+            const currentRadius = gravityWell.radius * radiusProgress;
+
+            // Fade in quickly, then slowly fade out
+            const alpha = (1.5 - progress) * 0.8; // Max alpha 0.8
+
+            // Create a gravity field gradient - darker center, purple/blue tones
+            const gradient = this.ctx.createRadialGradient(
+                gravityWell.x, gravityWell.y, 0,
+                gravityWell.x, gravityWell.y, currentRadius
+            );
+            
+            // Use dark purple/violet colors to suggest gravitational distortion
+            gradient.addColorStop(0, `rgba(75, 0, 130, ${alpha})`);         // Indigo center (strong gravity)
+            gradient.addColorStop(0.3, `rgba(138, 43, 226, ${alpha * 0.8})`); // Blue violet
+            gradient.addColorStop(0.6, `rgba(148, 0, 211, ${alpha * 0.6})`);  // Dark violet
+            gradient.addColorStop(1, 'rgba(25, 25, 112, 0)');               // Fade to transparent
+
+            // Draw main gravity field
+            this.ctx.fillStyle = gradient;
+            this.ctx.beginPath();
+            this.ctx.arc(gravityWell.x, gravityWell.y, currentRadius, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            // Add swirling gravitational distortion effect
+            const time = now / 1000;
+            const spirals = 4;
+            this.ctx.strokeStyle = `rgba(138, 43, 226, ${alpha * 0.4})`;
+            this.ctx.lineWidth = 3;
+            this.ctx.setLineDash([8, 12]);
+
+            for (let i = 0; i < spirals; i++) {
+                const spiralTime = time * 1.5 + i * (Math.PI * 2 / spirals);
+                const spiralRadius = currentRadius * (0.2 + (i * 0.2));
+                
+                // Create inward spiral to show gravitational pull
+                this.ctx.beginPath();
+                let lastX = null, lastY = null;
+                
+                for (let t = 0; t <= Math.PI * 3; t += 0.2) {
+                    const radius = spiralRadius * (1 - t / (Math.PI * 3)) * 0.8;
+                    const angle = spiralTime + t;
+                    const x = gravityWell.x + Math.cos(angle) * radius;
+                    const y = gravityWell.y + Math.sin(angle) * radius;
+                    
+                    if (lastX !== null) {
+                        this.ctx.moveTo(lastX, lastY);
+                        this.ctx.lineTo(x, y);
+                    }
+                    lastX = x;
+                    lastY = y;
+                }
+                this.ctx.stroke();
+            }
+
+            // Add pulsing center to show the gravitational core
+            const pulseRate = 800; // Faster pulse for gravity effect
+            const pulsePhase = (now % pulseRate) / pulseRate;
+            const pulseBrightness = 0.6 + Math.sin(pulsePhase * Math.PI * 2) * 0.3;
+            
+            this.ctx.setLineDash([]);
+            this.ctx.fillStyle = `rgba(138, 43, 226, ${alpha * pulseBrightness})`;
+            this.ctx.beginPath();
+            this.ctx.arc(gravityWell.x, gravityWell.y, 8 + Math.sin(pulsePhase * Math.PI * 2) * 3, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.restore();
+        }
+
         drawTurrets() {
             if (!this.gameState.turrets) return;
 
@@ -1675,7 +1744,7 @@
                 this.ctx.translate(turretX, turretY);
 
                 // Draw tripod legs
-                this.ctx.strokeStyle = '#616161'; // Dark grey
+                this.ctx.strokeStyle = GameColors.special.turrets.legs;
                 this.ctx.lineWidth = 4;
                 for (let i = 0; i < 3; i++) {
                     const legAngle = (i * 2 * Math.PI / 3) + Math.PI / 2;
@@ -1686,8 +1755,8 @@
                 }
 
                 // Draw base with team color
-                const teamColor = turret.team === 1 ? '#4CAF50' : '#F44336';
-                const darkTeamColor = turret.team === 1 ? '#2E7D32' : '#C62828';
+                const teamColor = turret.team === 1 ? GameColors.teams.team1.primary : GameColors.teams.team2.primary;
+                const darkTeamColor = turret.team === 1 ? GameColors.teams.team1.dark : GameColors.teams.team2.dark;
                 this.ctx.fillStyle = teamColor;
                 this.ctx.strokeStyle = darkTeamColor;
                 this.ctx.lineWidth = 2;
@@ -1698,8 +1767,8 @@
 
                 // Draw rotating barrel
                 this.ctx.rotate(turret.angle);
-                this.ctx.fillStyle = '#424242'; // Darker grey for barrel
-                this.ctx.strokeStyle = '#212121';
+                this.ctx.fillStyle = GameColors.special.turrets.barrel;
+                this.ctx.strokeStyle = GameColors.special.turrets.barrelStroke;
                 this.ctx.lineWidth = 1;
                 this.ctx.fillRect(0, -4, turretRadius * 1.2, 8);
                 this.ctx.strokeRect(0, -4, turretRadius * 1.2, 8);
@@ -1714,11 +1783,11 @@
                     const barX = turretX - turretRadius;
                     const barY = turretY - turretRadius - 15;
 
-                    this.ctx.fillStyle = '#333';
+                    this.ctx.fillStyle = GameColors.health.background;
                     this.ctx.fillRect(barX, barY, barWidth, barHeight);
-                    this.ctx.fillStyle = healthPercentage > 0.5 ? '#4CAF50' : (healthPercentage > 0.2 ? '#FFC107' : '#F44336');
+                    this.ctx.fillStyle = healthPercentage > 0.5 ? GameColors.health.high : (healthPercentage > 0.2 ? GameColors.health.medium : GameColors.health.low);
                     this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
-                    this.ctx.strokeStyle = '#111';
+                    this.ctx.strokeStyle = GameColors.health.border;
                     this.ctx.lineWidth = 1;
                     this.ctx.strokeRect(barX, barY, barWidth, barHeight);
                 }
@@ -1731,12 +1800,11 @@
 
             this.ctx.save();
             this.gameState.laserBlasts.forEach(blast => {
-                // Set team colors (bright energetic colors)
                 const teamColors = {
-                    1: ['rgba(0, 255, 100, 0.8)', 'rgba(0, 255, 100, 0.2)'],  // Bright green
-                    2: ['rgba(255, 50, 50, 0.8)', 'rgba(255, 50, 50, 0.2)']   // Bright red
+                    1: [GameColors.laser.team1.core, GameColors.laser.team1.glow],
+                    2: [GameColors.laser.team2.core, GameColors.laser.team2.glow]
                 };
-                const [coreColor, glowColor] = teamColors[blast.team] || ['rgba(255, 255, 255, 0.8)', 'rgba(255, 255, 255, 0.2)'];
+                const [coreColor, glowColor] = teamColors[blast.team] || [GameColors.laser.neutral.core, GameColors.laser.neutral.glow];
 
                 // Draw the outer glow
                 this.ctx.beginPath();
@@ -1778,13 +1846,13 @@
             this.ctx.globalAlpha = 0.25;
 
             if (hill.contested) {
-                this.ctx.fillStyle = '#FFC107';
+                this.ctx.fillStyle = GameColors.special.hill.contested;
             } else if (hill.controllingTeam === 1) {
-                this.ctx.fillStyle = '#81C784';
+                this.ctx.fillStyle = GameColors.teams.team1.primary;
             } else if (hill.controllingTeam === 2) {
-                this.ctx.fillStyle = '#F44336';
+                this.ctx.fillStyle = GameColors.teams.team2.primary;
             } else {
-                this.ctx.fillStyle = '#9E9E9E';
+                this.ctx.fillStyle = GameColors.special.hill.neutral;
             }
 
             this.ctx.beginPath();
@@ -1798,7 +1866,7 @@
 
             this.ctx.globalAlpha = 1.0;
 
-            this.ctx.strokeStyle = '#616161';
+            this.ctx.strokeStyle = GameColors.special.hill.flag;
             this.ctx.lineWidth = 3;
             this.ctx.beginPath();
             this.ctx.moveTo(pos.x, pos.y + 15);
@@ -1814,6 +1882,83 @@
             this.ctx.fill();
 
             this.ctx.restore();
+        }
+
+        drawMotorPools() {
+            const gameInfo = this.gameState.info;
+            if (!gameInfo || gameInfo.type !== 'Armored Assault' || !gameInfo.motorPools) {
+                return;
+            }
+
+            gameInfo.motorPools.forEach(motorPool => {
+                this.drawSingleMotorPool(motorPool, gameInfo);
+            });
+        }
+
+        drawSingleMotorPool(motorPool, gameInfo) {
+            const pos = motorPool.position;
+            const radius = motorPool.radius;
+            const currentTime = this.gameState.serverTime || Date.now();
+
+            this.ctx.save();
+
+            // Determine colors based on control state
+            let fillColor, strokeColor, fillAlpha = 0.25, strokeAlpha = 0.8;
+            
+            if (motorPool.contested) {
+                fillColor = GameColors.special.hill.contested;
+                strokeColor = '#FF8F00';
+            } else if (motorPool.controllingTeam === 1) {
+                fillColor = GameColors.teams.team1.primary;
+                strokeColor = GameColors.teams.team1.secondary;
+            } else if (motorPool.controllingTeam === 2) {
+                fillColor = GameColors.teams.team2.primary;
+                strokeColor = GameColors.teams.team2.secondary;
+            } else {
+                fillColor = GameColors.special.hill.neutral;
+                strokeColor = '#616161';
+            }
+
+            // Draw main motor pool area
+            this.ctx.globalAlpha = fillAlpha;
+            this.ctx.fillStyle = fillColor;
+            this.ctx.beginPath();
+            this.ctx.arc(pos.x, pos.y, radius, 0, 2 * Math.PI);
+            this.ctx.fill();
+
+            // Draw control progress ring if being captured
+            if (!motorPool.contested && motorPool.controllingTeam > 0) {
+                // Calculate control progress based on time elapsed
+                let progress = 0;
+                if (motorPool.controlStartTime > 0 && motorPool.timeToControl > 0) {
+                    const elapsed = Math.max(0, currentTime - motorPool.controlStartTime);
+                    progress = Math.min(1.0, elapsed / motorPool.timeToControl);
+                }
+                if (progress > 0 && progress < 1) {
+                    this.ctx.globalAlpha = 0.6;
+                    this.ctx.strokeStyle = strokeColor;
+                    this.ctx.lineWidth = 8;
+                    this.ctx.beginPath();
+                    this.ctx.arc(pos.x, pos.y, radius + 5, -Math.PI / 2, -Math.PI / 2 + (progress * 2 * Math.PI));
+                    this.ctx.stroke();
+                }
+            }
+
+            // Draw border
+            this.ctx.globalAlpha = strokeAlpha;
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeStyle = strokeColor;
+            this.ctx.beginPath();
+            this.ctx.arc(pos.x, pos.y, radius, 0, 2 * Math.PI);
+            this.ctx.stroke();
+
+            this.ctx.globalAlpha = 1.0;
+
+            // Draw motor pool icon - mechanical gear-like symbol
+            this.ctx.font = '20px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText('⚙️', pos.x, pos.y);
         }
 
         drawOddball() {
@@ -1947,15 +2092,11 @@
             this.gameEvents.slice(-6).forEach((event, index) => {
                 const yPos = startY + (index * 25);
                 switch (event.type) {
-                    case 'FLAG_CAPTURE': this.ctx.fillStyle = '#FFD700'; break;
-                    case 'FLAG_PICKUP':  this.ctx.fillStyle = '#4FC3F7'; break;
-                    case 'FLAG_DROP':    this.ctx.fillStyle = '#BDBDBD'; break;
-                    case 'FLAG_RETURN':  this.ctx.fillStyle = '#81C784'; break;
-                    case 'GREEN':        this.ctx.fillStyle = '#81C784'; break;
-                    case 'RED':          this.ctx.fillStyle = '#F44336'; break;
-                    case 'YELLOW':       this.ctx.fillStyle = '#FFD700'; break;
-                    case 'BLUE':         this.ctx.fillStyle = '#4FC3F7'; break;
-                    default: this.ctx.fillStyle = '#FFFFFF'; break;
+                    case 'GREEN':        this.ctx.fillStyle = GameColors.events.green; break;
+                    case 'RED':          this.ctx.fillStyle = GameColors.events.red; break;
+                    case 'YELLOW':       this.ctx.fillStyle = GameColors.events.yellow; break;
+                    case 'BLUE':         this.ctx.fillStyle = GameColors.events.blue; break;
+                    default: this.ctx.fillStyle = GameColors.events.default; break;
                 }
                 this.ctx.fillText(event.message, this.canvas.width / 2, yPos);
             });
@@ -1997,23 +2138,60 @@
                     const barX = vehicleX - barWidth / 2;
                     const barY = vehicleY - vehicleRadius - 20;
 
-                    this.ctx.fillStyle = '#333';
+                    this.ctx.fillStyle = GameColors.health.background;
                     this.ctx.fillRect(barX, barY, barWidth, barHeight);
-                    this.ctx.fillStyle = healthPercentage > 0.5 ? '#4CAF50' : (healthPercentage > 0.2 ? '#FFC107' : '#F44336');
+                    this.ctx.fillStyle = healthPercentage > 0.5 ? GameColors.health.high : (healthPercentage > 0.2 ? GameColors.health.medium : GameColors.health.low);
                     this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
-                    this.ctx.strokeStyle = '#111';
+                    this.ctx.strokeStyle = GameColors.health.border;
                     this.ctx.lineWidth = 1;
                     this.ctx.strokeRect(barX, barY, barWidth, barHeight);
                 }
 
                 // Draw vehicle name and passenger count
-                this.ctx.fillStyle = '#fff';
+                this.ctx.fillStyle = GameColors.text.primary;
                 this.ctx.font = '12px Arial';
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'bottom';
-                const passengerCount = vehicle.passengerIds.length;
+                const passengerCount = vehicle.passengerIds?.length || 0;
                 const maxPassengers = vehicle.maxPassengers;
                 this.ctx.fillText(`${vehicle.vehicleName} (${passengerCount}/${maxPassengers})`, vehicleX, vehicleY - vehicleRadius - 25);
+
+                // Draw repair indicator if vehicle is being repaired
+                if (this.gameState.info && this.gameState.info.type === 'Armored Assault' && this.gameState.info.motorPools) {
+                    const teamPool = this.gameState.info.motorPools.find(pool => pool.teamId === vehicle.team);
+                    if (teamPool) {
+                        const distanceToPool = Math.sqrt(
+                            Math.pow(vehicleX - teamPool.position.x, 2) + 
+                            Math.pow(vehicleY - teamPool.position.y, 2)
+                        );
+                        
+                        if (distanceToPool <= teamPool.radius && vehicle.hp < vehicle.maxHp) {
+                            // Draw repair effect
+                            const time = this.gameState.serverTime / 1000;
+                            const sparkles = 6;
+                            
+                            this.ctx.save();
+                            this.ctx.fillStyle = GameColors.accent.gold;
+                            this.ctx.font = '16px Arial';
+                            this.ctx.textAlign = 'center';
+                            
+                            for (let i = 0; i < sparkles; i++) {
+                                const angle = (i * 2 * Math.PI / sparkles) + (time * 2);
+                                const radius = vehicleRadius + 15 + Math.sin(time * 4) * 5;
+                                const sparkleX = vehicleX + Math.cos(angle) * radius;
+                                const sparkleY = vehicleY + Math.sin(angle) * radius;
+                                
+                                this.ctx.fillText('✨', sparkleX, sparkleY);
+                            }
+                            
+                            // Draw "REPAIRING" text
+                            this.ctx.fillStyle = GameColors.accent.gold;
+                            this.ctx.font = 'bold 12px Arial';
+                            this.ctx.fillText('REPAIRING', vehicleX, vehicleY + vehicleRadius + 35);
+                            this.ctx.restore();
+                        }
+                    }
+                }
 
                 // Draw interaction hint if player is nearby
                 if (this.localPlayer && !this.localPlayer.dead && !this.localPlayer.vehicleId) {
@@ -2024,7 +2202,7 @@
                     const interactionRadius = 40; // Should match server-side VEHICLE_INTERACTION_RADIUS
                     
                     if (distance <= interactionRadius) {
-                        this.ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
+                        this.ctx.fillStyle = GameColors.overlays.interaction;
                         this.ctx.font = '14px Arial';
                         this.ctx.textAlign = 'center';
                         this.ctx.fillText('Press F to enter', vehicleX, vehicleY + vehicleRadius + 20);
@@ -2163,6 +2341,29 @@
                     // Laser weapons
                     return { ...baseProps, length: vehicle.radius * 0.6, width: 5, turretRadius: vehicle.radius * 0.1,
                             barrelColor: '#4A90E2', barrelStroke: '#2E5C8A' };
+                case 'DAVINCI':
+                    // Pentagon vehicle with 5 different weapons at vertices
+                    if (weaponIndex === 0) {
+                        // Driver - Rocket Launcher (front vertex)
+                        return { ...baseProps, length: vehicle.radius * .6, width: 5, turretRadius: vehicle.radius * 0.015,
+                                barrelColor: '#D32F2F', barrelStroke: '#B71C1C' }; // Red for rockets
+                    } else if (weaponIndex === 1) {
+                        // Sniper Rifle (front-right vertex)
+                        return { ...baseProps, length: vehicle.radius * .6, width: 2, turretRadius: vehicle.radius * 0.01,
+                                barrelColor: '#1976D2', barrelStroke: '#0D47A1' }; // Blue for precision
+                    } else if (weaponIndex === 2) {
+                        // Minigun (rear-right vertex)
+                        return { ...baseProps, length: vehicle.radius * 0.4, width: 4, turretRadius: vehicle.radius * 0.01,
+                                barrelColor: '#388E3C', barrelStroke: '#1B5E20' }; // Green for sustained fire
+                    } else if (weaponIndex === 3) {
+                        // Flamethrower (rear-left vertex)
+                        return { ...baseProps, length: vehicle.radius * 0.3, width: 6, turretRadius: vehicle.radius * 0.011,
+                                barrelColor: '#F57C00', barrelStroke: '#E65100' }; // Orange for fire
+                    } else {
+                        // Laser Minigun (front-left vertex)
+                        return { ...baseProps, length: vehicle.radius * 0.4, width: 3, turretRadius: vehicle.radius * 0.012,
+                                barrelColor: '#7B1FA2', barrelStroke: '#4A148C' }; // Purple for energy
+                    }
                 default:
                     return baseProps;
             }
@@ -2384,6 +2585,12 @@
                         strokeColor: '#424242',
                         accentColor: '#757575'
                     };
+                case 'DAVINCI':
+                    return {
+                        bodyColor: '#8E24AA',  // Purple - artistic/renaissance theme
+                        strokeColor: '#4A148C', // Dark purple
+                        accentColor: '#BA68C8'  // Light purple accent
+                    };
                 default:
                     return {
                         bodyColor: '#666666',
@@ -2451,8 +2658,8 @@
                 this.ctx.restore();
             }
 
-            this.ctx.fillStyle = player.team === 1 ? '#4CAF50' : '#F44336';
-            this.ctx.strokeStyle = myself ? '#FFD700' : (player.team === 1 ? '#388E3C' : '#B71C1C');
+            this.ctx.fillStyle = player.team === 1 ? GameColors.teams.team1.primary : GameColors.teams.team2.primary;
+            this.ctx.strokeStyle = myself ? GameColors.accent.gold : (player.team === 1 ? GameColors.teams.team1.darker : GameColors.teams.team2.darker);
             this.ctx.lineWidth = myself? 3 : 2;
             this.ctx.beginPath();
             this.ctx.arc(playerCenterX, playerCenterY, playerSize / 2, 0, 2 * Math.PI);
@@ -2521,19 +2728,7 @@
             this.ctx.font = '12px Arial';
             this.ctx.textAlign = 'center';
             const baseName = player.playerName || (player.id.startsWith('ai-') ? 'AI' : 'Player');
-            let displayName = `${baseName} | ${player.weapon.shortName}`;
-            if (player.damageBoostEndTime > this.gameState.serverTime) {
-                displayName = `⚔️ ${displayName}`;
-            }
-            if (player.speedBoostEndTime > this.gameState.serverTime) {
-                displayName = `⚡ ${displayName}`;
-            }
-            if (player.armorUpEndTime > this.gameState.serverTime) {
-                displayName = `🛡️ ${displayName}`;
-            }
-            if (player.invisibilityEndTime > this.gameState.serverTime) {
-                displayName = `👻 ${displayName}`;
-            }
+            let displayName = `${player.powerUpIcons || ''}${baseName} | ${player.weapon.shortName}`;
             this.ctx.fillText(displayName, playerCenterX, player.y - 15);
 
             if (myself) {
@@ -2542,7 +2737,7 @@
                 this.ctx.textBaseline = 'middle';
 
                 this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                const text = player.reloading ? 'R' : player.currentAmmoInMagazine.toString();
+                const text = player.reloading ? 'R' : player.ammoInMag.toString();
                 this.ctx.fillText(text, playerCenterX + 1, playerCenterY + 1);
 
                 this.ctx.fillStyle = player.reloading ? '#FFC107' : '#FFFFFF';
@@ -2741,10 +2936,10 @@
             // Optional FPS display (can be toggled with a key)
             if (this.keys['F3'] || localStorage.getItem('showFPS') === 'true') {
                 this.ctx.save();
-                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                this.ctx.fillStyle = GameColors.overlays.debug;
                 this.ctx.fillRect(10, this.canvas.height - 110, 200, 100);
                 
-                this.ctx.fillStyle = '#00FF00';
+                this.ctx.fillStyle = GameColors.teams.team1.bright;
                 this.ctx.font = '14px monospace';
                 this.ctx.textAlign = 'left';
                 this.ctx.textBaseline = 'top';

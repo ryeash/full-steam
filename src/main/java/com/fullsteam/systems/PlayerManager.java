@@ -1,11 +1,11 @@
 package com.fullsteam.systems;
 
 import com.fullsteam.Config;
-import com.fullsteam.Jackson;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
+import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
@@ -124,8 +124,6 @@ public class PlayerManager {
             player.setVisionObscured(false);
             resetDamageMultiplier(player);
 
-            fieldEffectSystem.updateFieldEffects(delta);
-
             // Speed boost overrides any slowing effects.
             if (System.currentTimeMillis() < player.getSpeedBoostEndTime()) {
                 player.setSpeed(player.getDefaultSpeed() * POWER_UP_SPEED_BOOST_FACTOR);
@@ -144,6 +142,7 @@ public class PlayerManager {
                 if (input != null) {
                     handlePlayerInput(player.getId(), input, delta);
                 }
+                fieldEffectSystem.updateGravityWellAffect(player);
                 player.update(delta);
             }
 
@@ -160,16 +159,51 @@ public class PlayerManager {
      */
     private void updateAIPlayer(AIPlayer ai, long delta) {
         GameState gameState = createPlayerGameState(ai, null, true);
+
+        // Handle vehicle entry/exit decisions
+        // Check if AI should enter/exit vehicle
+        if (ai.shouldExitVehicle(gameState)) {
+            vehicleManager.handleVehicleEnterExit(ai);
+        } else if (ai.shouldEnterVehicle()) {
+            vehicleManager.handleVehicleEnterExit(ai);
+        }
+        Vehicle aiVehicle = vehicleManager.getPlayerVehicle(ai.getId());
+        if (aiVehicle != null) {
+            ai.setVelocity(Vector2D.ZERO);
+            ai.setX(aiVehicle.position().x());
+            ai.setY(aiVehicle.position().y());
+        }
+
+        // Get AI decision (shooting or mounted weapon control)
         Optional<AIPlayer.ShootAction> shootAction = ai.update(gameState, entities.getTargetGrid(), delta);
+
         if (shootAction.isPresent()) {
-            if (ai.canShoot()) {
-                AIPlayer.ShootAction action = shootAction.get();
-                double baseAngle = Math.atan2(action.directionY(), action.directionX());
-                weaponSystem.fireWeapon(ai, baseAngle);
+            // Check if AI is in a vehicle and controlling a mounted weapon
+            if (aiVehicle != null) {
+                // AI is in a vehicle - handle mounted weapon firing
+                MountedWeapon controlledWeapon = aiVehicle.getWeaponControlledBy(ai.getId());
+                if (controlledWeapon != null && controlledWeapon.canShoot()) {
+                    // Create a mock PlayerInput for vehicle weapon firing
+                    PlayerInput mockInput = new PlayerInput();
+                    mockInput.setMouseX(ai.getMouseX());
+                    mockInput.setMouseY(ai.getMouseY());
+                    mockInput.setFire(true);
+                    // Fire the mounted weapon
+                    weaponSystem.fireVehicleWeapon(aiVehicle, controlledWeapon, ai.getId(), mockInput);
+                }
+            } else {
+                // AI is on foot - normal weapon firing
+                if (ai.canShoot()) {
+                    AIPlayer.ShootAction action = shootAction.get();
+                    double baseAngle = Math.atan2(action.directionY(), action.directionX());
+                    weaponSystem.fireWeapon(ai, baseAngle);
+                }
             }
-        } else if (ai.getCurrentAmmoInMagazine() <= 0 && !ai.isReloading()) {
+        } else if (ai.getAmmoInMag() <= 0 && !ai.isReloading() && ai.getVehicleId() == null) {
+            // Only reload personal weapon if not in a vehicle
             ai.startReload();
         }
+
     }
 
     /**
@@ -250,7 +284,7 @@ public class PlayerManager {
                     double baseAngle = Math.atan2(dy / length, dx / length);
                     weaponSystem.fireWeapon(player, baseAngle);
                 }
-            } else if (player.getCurrentAmmoInMagazine() <= 0 && !player.isReloading()) {
+            } else if (player.getAmmoInMag() <= 0 && !player.isReloading()) {
                 player.startReload();
             }
         }
@@ -351,8 +385,8 @@ public class PlayerManager {
         long currentTime = System.currentTimeMillis();
         for (Player player : entities.getPlayers().values()) {
             if (player.isDead()
-                && player.getRespawnTime() != -1 // indicates a player's respawn has been disabled
-                && currentTime >= player.getRespawnTime()) {
+                    && player.getRespawnTime() != -1 // indicates a player's respawn has been disabled
+                    && currentTime >= player.getRespawnTime()) {
                 respawnPlayer(player);
             }
         }
@@ -396,7 +430,7 @@ public class PlayerManager {
 
         // Send welcome message
         WelcomeMessage welcomeMessage = new WelcomeMessage(player.getId(), player.getTeam(), entities.getGameId(), entities.getObstacles());
-        channel.writeAndFlush(Jackson.msgFrame(welcomeMessage));
+        channel.writeAndFlush(welcomeMessage);
         return player;
     }
 
@@ -439,8 +473,8 @@ public class PlayerManager {
         }
 
         if (request.getWeaponName() != null
-            && !request.getWeaponName().isEmpty()
-            && !request.getWeaponName().equals(player.getWeapon().getName())) {
+                && !request.getWeaponName().isEmpty()
+                && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
             turretSystem.removeAllTurretsOwnedBy(player.id());
@@ -471,8 +505,7 @@ public class PlayerManager {
             player.setTeam(otherTeam);
             // Kill the player to force a respawn on the new team's side
             killPlayerHandler.accept(player, null);
-            entities.getPlayerChannel(player.getId())
-                    .writeAndFlush(Jackson.msgFrame(welcomeMessage));
+            entities.getPlayerChannel(player.getId()).writeAndFlush(welcomeMessage);
             log.info("Player {} switched to team {}", player.getId(), otherTeam);
         } else {
 

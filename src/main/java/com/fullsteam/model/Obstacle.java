@@ -2,6 +2,7 @@ package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fullsteam.Config;
+import io.micronaut.core.annotation.Introspected;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,18 +10,18 @@ import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
+@Introspected
 public class Obstacle implements HasId {
 
     private static final AtomicLong idCounter = new AtomicLong(0);
 
     private final long id;
     private final List<Vector2D> vertices;
+    private final boolean rendered;
     @JsonIgnore
     private Vector2D center;
     @JsonIgnore
     private final double boundingRadius;
-    @JsonIgnore
-    private final boolean rendered;
 
     public Obstacle(List<Vector2D> vertices) {
         this(vertices, true);
@@ -28,6 +29,9 @@ public class Obstacle implements HasId {
 
     public Obstacle(List<Vector2D> vertices, boolean rendered) {
         this.id = idCounter.incrementAndGet();
+        if (vertices == null || vertices.size() < 3) {
+            throw new IllegalArgumentException("obstacles must be polygons with at least 3 vertices");
+        }
         this.vertices = new ArrayList<>(vertices);
 
         // --- Calculate Bounding Information ---

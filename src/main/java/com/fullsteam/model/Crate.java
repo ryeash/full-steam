@@ -1,9 +1,11 @@
 package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.micronaut.core.annotation.Introspected;
 
 import java.util.List;
 
+@Introspected
 public class Crate extends Obstacle implements HasId, HasLife, Targetable {
     @JsonIgnore
     private final long ownerId;

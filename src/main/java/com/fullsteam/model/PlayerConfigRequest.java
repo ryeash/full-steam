@@ -1,5 +1,8 @@
 package com.fullsteam.model;
 
+import io.micronaut.core.annotation.Introspected;
+
+@Introspected
 public class PlayerConfigRequest {
     private String playerName;
     private String weaponName;

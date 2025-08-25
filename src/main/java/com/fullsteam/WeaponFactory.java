@@ -1,9 +1,9 @@
 package com.fullsteam;
 
 import com.fullsteam.model.Explosion;
+import com.fullsteam.model.GravityWell;
 import com.fullsteam.model.Mine;
 import com.fullsteam.model.PoisonCloud;
-import com.fullsteam.model.SlowField;
 import com.fullsteam.model.SmokeCloud;
 import com.fullsteam.model.Turret;
 import com.fullsteam.model.Weapon;
@@ -191,21 +191,6 @@ public class WeaponFactory {
         ));
 
         addPreset(new Weapon(
-                "Grenade (Slow)",
-                "GS",
-                4, // Fire Rate
-                0, // Damage (damage is from the cloud)
-                14,// Range
-                8, // Speed
-                2, // Speed Decay
-                0, // Accuracy
-                0, // Multi-shot
-                3, // Magazine Size
-                9, // Reload Speed
-                SlowField::create
-        ));
-
-        addPreset(new Weapon(
                 "Grenade (Smoke)",
                 "SM",
                 8, // Fire Rate
@@ -218,6 +203,21 @@ public class WeaponFactory {
                 3, // Magazine Size
                 9, // Reload Speed
                 SmokeCloud::create
+        ));
+
+        addPreset(new Weapon(
+                "Grenade (Gravity Well)",
+                "GW",
+                2, // Fire Rate
+                0, // Damage (effect is from the gravity well)
+                15,// Range
+                8, // Speed
+                3, // Speed Decay
+                0, // Accuracy
+                0, // Multi-shot
+                2, // Magazine Size
+                10, // Reload Speed
+                GravityWell::create
         ));
 
         addPreset(new Weapon(
@@ -420,6 +420,7 @@ public class WeaponFactory {
             "Engineer Wrench",
             "Grenade (Slow)",
             "Grenade (Smoke)",
+            "Grenade (Gravity Well)",
             "Mine Layer");
 
     public static Weapon getRandomWeapon() {

@@ -2,11 +2,13 @@ package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fullsteam.Config;
+import io.micronaut.core.annotation.Introspected;
 
 /**
  * Represents a lingering cloud that applies damage over time to players within its radius.
  * This is a type of {@link BulletEffect} that is created upon a bullet'''s destruction.
  */
+@Introspected
 public class SmokeCloud extends AbstractFieldEffect implements BulletEffect {
     @JsonIgnore
     private final long shooterId;

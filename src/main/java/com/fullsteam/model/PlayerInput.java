@@ -1,7 +1,10 @@
 package com.fullsteam.model;
 
+import io.micronaut.core.annotation.Introspected;
+
 import java.util.Objects;
 
+@Introspected
 public class PlayerInput {
     private double moveX;
     private double moveY;

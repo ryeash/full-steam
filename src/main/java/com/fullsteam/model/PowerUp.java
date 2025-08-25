@@ -1,10 +1,15 @@
 package com.fullsteam.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.micronaut.core.annotation.Introspected;
+
 import static com.fullsteam.Config.ID_COUNTER;
 
+@Introspected
 public class PowerUp implements HasId {
     public final long id = ID_COUNTER.incrementAndGet();
     public final Vector2D position;
+    @JsonIgnore
     public final PowerUpType type;
 
     public PowerUp(Vector2D position, PowerUpType type) {
@@ -15,6 +20,10 @@ public class PowerUp implements HasId {
     @Override
     public long id() {
         return id;
+    }
+
+    public String getIcon() {
+        return type.icon;
     }
 
     public Vector2D getPosition() {

@@ -138,12 +138,12 @@ public class EscortManager extends AbstractTeamBasedManager {
     @Override
     protected GameInfo buildGameInfo() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
-        long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
+        long timeLeft = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
 
         return new EscortGameInfo(
                 team1Score,
                 team1Score,
-                roundTimeRemainingSeconds,
+                timeLeft,
                 payload,
                 Config.ESCORT_PLAYER_PROXIMITY
         );

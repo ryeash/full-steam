@@ -10,16 +10,16 @@ public final class KingOfTheHillInfo extends GameInfo {
     private final Hill hill;
     private final double team1Score;
     private final double team2Score;
-    private final long roundTimeRemainingSeconds;
+    private final long timeLeft;
 
     public KingOfTheHillInfo(Hill hill,
                              double team1Score, // Scores are doubles to allow for fractional points per tick
                              double team2Score,
-                             long roundTimeRemainingSeconds) {
+                             long timeLeft) {
         this.hill = hill;
         this.team1Score = team1Score;
         this.team2Score = team2Score;
-        this.roundTimeRemainingSeconds = roundTimeRemainingSeconds;
+        this.timeLeft = timeLeft;
     }
 
     @Override
@@ -39,7 +39,7 @@ public final class KingOfTheHillInfo extends GameInfo {
         return team2Score;
     }
 
-    public long getRoundTimeRemainingSeconds() {
-        return roundTimeRemainingSeconds;
+    public long getTimeLeft() {
+        return timeLeft;
     }
 }

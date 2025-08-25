@@ -1,5 +1,6 @@
 package com.fullsteam.model.ai;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.SpatialGrid;
@@ -7,6 +8,7 @@ import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.Base;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameState;
+import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PowerUp;
@@ -40,33 +42,54 @@ public class AIPlayer extends Player {
         WANDERING,
         ATTACKING,
         FLEEING,
-        CAPTURING_OBJECTIVE
+        CAPTURING_OBJECTIVE,
+        SEEKING_VEHICLE
     }
 
     // --- AI State & Strategy ---
+    @JsonIgnore
     private transient AIState currentState = AIState.WANDERING;
+    @JsonIgnore
     protected transient Player currentTarget;
+    @JsonIgnore
     private transient Vector2D objectiveTargetPoint;
+    @JsonIgnore
     private transient Vector2D wanderTarget;
+    @JsonIgnore
+    private transient Vehicle targetVehicle;
+    @JsonIgnore
+    private transient Long lastDriverSeenTime;
+    @JsonIgnore
     private transient final IAIStrategy aiStrategy;
+    @JsonIgnore
     private transient final AIArchetype archetype;
 
     // --- Debug/Analytics Fields ---
+    @JsonIgnore
     private transient long stateChangeTime = System.currentTimeMillis();
 
     // --- AI Behavior Timing & State ---
+    @JsonIgnore
     private transient long lastWanderDirectionChangeTime;
+    @JsonIgnore
     private transient long lastStrafeTime;
+    @JsonIgnore
     private transient boolean strafeRight = true;
+    @JsonIgnore
     private transient long timeTargetAcquired;
 
     // --- Steering Behavior Fields ---
+    @JsonIgnore
     private transient Vector2D acceleration;
 
     // --- AI "Personality" Traits ---
+    @JsonIgnore
     private transient final long reactionTimeMs;
+    @JsonIgnore
     private transient final double aimInaccuracyRadians;
+    @JsonIgnore
     private transient final long strafeInterval;
+    @JsonIgnore
     private transient final double rangeSlew;
 
     /**
@@ -113,6 +136,15 @@ public class AIPlayer extends Player {
             return Optional.empty();
         }
 
+        // Handle vehicle-related logic first
+        handleVehicleLogic(gameState);
+
+        // If in a vehicle, handle mounted weapon firing
+        if (getVehicleId() != null) {
+            return handleVehicleWeaponControl(gameState, playerGrid);
+        }
+
+        // Standard ground-based AI logic
         // 1. Reset acceleration for the new frame.
         this.acceleration = Vector2D.ZERO;
 
@@ -214,6 +246,7 @@ public class AIPlayer extends Player {
             case ATTACKING -> calculateAttackForce(obstacles);
             case FLEEING -> calculateFleeForce(currentTarget.position(), obstacles);
             case CAPTURING_OBJECTIVE -> calculateSeekForce(this.objectiveTargetPoint, obstacles);
+            case SEEKING_VEHICLE -> calculateVehicleSeekForce(obstacles);
             default -> calculateWanderForce(obstacles);
         };
     }
@@ -416,8 +449,13 @@ public class AIPlayer extends Player {
                         double vehicleScore = Math.sqrt(position().distanceSquared(vehicleCenter));
                         if (vehicleScore < bestScore) {
                             if (findBlockingObstacle(this.position(), vehicleCenter, obstacles) == null) {
-                                // Simple distance-based priority for now.
-                                bestScore = vehicleScore; // TODO: weight based on vehicle type
+                                bestScore = switch (vehicle.getVehicleType()) {
+                                    case JEEP -> vehicleScore * 1.75;
+                                    case DAVINCI -> vehicleScore * 1.25;
+                                    case FIXED_CANNON -> vehicleScore * 0.5;
+                                    case MECH -> vehicleScore * 1.35;
+                                    case TANK -> vehicleScore * 1.1;
+                                };
                                 bestTarget = potentialTarget;
                             }
                         }
@@ -600,6 +638,7 @@ public class AIPlayer extends Player {
                 double weight = switch (fieldEffect.getType()) {
                     case MINE -> 0.3;
                     case POISON -> 0.25;
+                    case GRAVITY_WELL -> 0.4; // AI should avoid gravity wells more strongly
                     default -> 0.1;
                 };
                 totalAvoidanceForce = totalAvoidanceForce.add(fleeDirection.normalize().multiply(weight));
@@ -616,19 +655,21 @@ public class AIPlayer extends Player {
         double separationRadius = 30.0; // Increased for more "personal space" to reduce wall jitter
 
         for (Obstacle obstacle : obstacles) {
-            // Broad Phase: Check if the AI's "personal space" bubble overlaps the obstacle's bounding circle.
-            double combinedRadius = separationRadius + obstacle.getBoundingRadius();
-            if (position().distanceSquared(obstacle.getCenter()) > combinedRadius * combinedRadius) {
-                continue; // Not close enough to worry about.
-            }
+            if (obstacle != null) {
+                // Broad Phase: Check if the AI's "personal space" bubble overlaps the obstacle's bounding circle.
+                double combinedRadius = separationRadius + obstacle.getBoundingRadius();
+                if (position().distanceSquared(obstacle.getCenter()) > combinedRadius * combinedRadius) {
+                    continue; // Not close enough to worry about.
+                }
 
-            // Narrow Phase: We are close, so find the exact closest point to push away from.
-            Vector2D closestPoint = findClosestPointOnObstacle(position(), obstacle);
-            double distanceSq = position().distanceSquared(closestPoint);
-            if (distanceSq < separationRadius * separationRadius) {
-                Vector2D fleeDirection = position().subtract(closestPoint);
-                double strength = 1.0 - (Math.sqrt(distanceSq) / separationRadius);
-                totalSeparationForce = totalSeparationForce.add(fleeDirection.normalize().multiply(strength));
+                // Narrow Phase: We are close, so find the exact closest point to push away from.
+                Vector2D closestPoint = findClosestPointOnObstacle(position(), obstacle);
+                double distanceSq = position().distanceSquared(closestPoint);
+                if (distanceSq < separationRadius * separationRadius) {
+                    Vector2D fleeDirection = position().subtract(closestPoint);
+                    double strength = 1.0 - (Math.sqrt(distanceSq) / separationRadius);
+                    totalSeparationForce = totalSeparationForce.add(fleeDirection.normalize().multiply(strength));
+                }
             }
         }
         return totalSeparationForce;
@@ -731,5 +772,322 @@ public class AIPlayer extends Player {
         y = Math.max(50, Math.min(Config.GAME_HEIGHT - 50, y));
 
         return new Vector2D(x, y);
+    }
+
+    // --- Vehicle-Related AI Methods ---
+
+    /**
+     * Handles vehicle entry/exit logic and mounted weapon control.
+     */
+    private void handleVehicleLogic(GameState gameState) {
+        Vehicle currentVehicle = getCurrentVehicle(gameState);
+
+        if (currentVehicle != null) {
+            // AI is in a vehicle - check if driver is still present
+            Player driver = getVehicleDriver(currentVehicle, gameState);
+            if (driver != null && !driver.isDead()) {
+                // Update last driver seen time
+                lastDriverSeenTime = System.currentTimeMillis();
+            } else {
+                // Driver is missing or dead
+                if (lastDriverSeenTime == null) {
+                    // First time noticing driver is gone - initialize the timer
+                    lastDriverSeenTime = System.currentTimeMillis();
+                } else if (System.currentTimeMillis() - lastDriverSeenTime > 3000) { // 3 seconds grace period
+                    // Driver has been gone too long, exit vehicle
+                    setCurrentState(AIState.WANDERING);
+                    this.targetVehicle = null;
+                    // Note: Actual vehicle exit is handled by the VehicleManager
+                }
+            }
+        } else {
+            // AI is not in a vehicle - consider entering one
+            considerVehicleEntry(gameState);
+            // Reset driver timer when not in vehicle
+            lastDriverSeenTime = null;
+        }
+    }
+
+    /**
+     * Considers whether the AI should seek a vehicle to enter.
+     */
+    private void considerVehicleEntry(GameState gameState) {
+        if (currentState == AIState.SEEKING_VEHICLE && targetVehicle != null) {
+            // Already seeking a vehicle - check if it's still valid
+            if (isVehicleAvailable(targetVehicle)) {
+                double distanceToVehicle = position().distance(targetVehicle.position());
+                if (distanceToVehicle <= Config.VEHICLE_INTERACTION_RADIUS) {
+                    // Close enough to enter - this will be handled by the game manager
+                    return;
+                }
+            } else {
+                // Target vehicle is no longer available
+                targetVehicle = null;
+                setCurrentState(AIState.WANDERING);
+            }
+        }
+
+        // Look for available vehicles with human drivers
+        if (ThreadLocalRandom.current().nextDouble() < 0.02) { // 2% chance per frame to look for vehicles
+            Vehicle bestVehicle = findBestAvailableVehicle(gameState);
+            if (bestVehicle != null) {
+                targetVehicle = bestVehicle;
+                setCurrentState(AIState.SEEKING_VEHICLE);
+            }
+        }
+    }
+
+    /**
+     * Finds the best available vehicle for the AI to enter.
+     */
+    private Vehicle findBestAvailableVehicle(GameState gameState) {
+        Vehicle bestVehicle = null;
+        double bestScore = Double.MAX_VALUE;
+        double maxSearchDistance = 300.0; // Maximum distance to consider vehicles
+
+        for (Vehicle vehicle : gameState.vehicles()) {
+            if (!isVehicleAvailable(vehicle)) {
+                continue;
+            }
+
+            // Check if vehicle has a human driver from our team
+            Player driver = getVehicleDriver(vehicle, gameState);
+            if (driver == null || driver instanceof AIPlayer || driver.getTeam() != getTeam()) {
+                continue;
+            }
+
+            double distance = position().distance(vehicle.position());
+            if (distance > maxSearchDistance) {
+                continue;
+            }
+
+            // Prefer closer vehicles with better health
+            double healthRatio = vehicle.getHp() / vehicle.getMaxHp();
+            double score = distance / healthRatio; // Lower is better
+
+            if (score < bestScore) {
+                bestScore = score;
+                bestVehicle = vehicle;
+            }
+        }
+
+        return bestVehicle;
+    }
+
+    /**
+     * Checks if a vehicle is available for the AI to enter.
+     */
+    private boolean isVehicleAvailable(Vehicle vehicle) {
+        if (vehicle == null || vehicle.isDestroyed()) {
+            return false;
+        }
+
+        // Check if there are available seats
+        return hasAvailableSeats(vehicle) &&
+               (vehicle.getTeam() < 0 || vehicle.getTeam() == getTeam());
+    }
+
+    /**
+     * Checks if a vehicle has available seats.
+     */
+    private boolean hasAvailableSeats(Vehicle vehicle) {
+        // Check if any seat is empty (we can't access seats directly, so use passenger IDs)
+        return vehicle.getPassengerIds().size() < vehicle.getMaxPassengers();
+    }
+
+    /**
+     * Gets the driver of a vehicle.
+     */
+    private Player getVehicleDriver(Vehicle vehicle, GameState gameState) {
+        // Use the vehicle's getDriverId method which should correctly identify the driver
+        Long driverId = vehicle.getDriverId();
+        if (driverId == null) {
+            return null;
+        }
+
+        // Find the player with this ID in the game state
+        for (Player player : gameState.players()) {
+            if (player.getId() == driverId) { // Compare primitive long with Long
+                return player;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Gets the current vehicle the AI is in.
+     */
+    private Vehicle getCurrentVehicle(GameState gameState) {
+        if (getVehicleId() == null) {
+            return null;
+        }
+
+        for (Vehicle vehicle : gameState.vehicles()) {
+            if (vehicle.id() == getVehicleId()) {
+                return vehicle;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Calculates a steering force to seek the target vehicle.
+     */
+    private Vector2D calculateVehicleSeekForce(List<Obstacle> obstacles) {
+        if (targetVehicle == null) {
+            return calculateWanderForce(obstacles);
+        }
+        return calculateSeekForce(targetVehicle.position(), obstacles);
+    }
+
+    /**
+     * Handles mounted weapon control when the AI is in a vehicle.
+     */
+    private Optional<ShootAction> handleVehicleWeaponControl(GameState gameState, SpatialGrid<Targetable> playerGrid) {
+        Vehicle currentVehicle = getCurrentVehicle(gameState);
+        if (currentVehicle == null) {
+            return Optional.empty();
+        }
+
+        // Find the weapon this AI is controlling
+        MountedWeapon controlledWeapon = currentVehicle.getWeaponControlledBy(getId());
+        if (controlledWeapon == null || !controlledWeapon.canShoot()) {
+            return Optional.empty();
+        }
+
+        // Find the best target for the mounted weapon
+        Optional<Targetable> bestTarget = findBestMountedWeaponTarget(gameState, playerGrid, controlledWeapon, currentVehicle);
+
+        if (bestTarget.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Targetable target = bestTarget.get();
+        Vector2D directionToTarget = target.position().subtract(controlledWeapon.position());
+
+        // Calculate desired weapon angle
+        double desiredAngle = Math.atan2(directionToTarget.y(), directionToTarget.x());
+
+        // Check if target is within weapon traverse limits
+        double constrainedAngle = controlledWeapon.getConstrainedAngle(desiredAngle, currentVehicle.getAngle());
+        double angleDifference = Math.abs(desiredAngle - constrainedAngle);
+
+        // Only shoot if we can actually aim at the target (within traverse limits)
+        if (angleDifference < 0.1) { // Small tolerance for aiming precision
+            // Set mouse position for weapon aiming
+            Vector2D aimPoint = controlledWeapon.position().add(
+                    new Vector2D(Math.cos(constrainedAngle), Math.sin(constrainedAngle)).multiply(100)
+            );
+            setMouseX(aimPoint.x());
+            setMouseY(aimPoint.y());
+
+            return Optional.of(new ShootAction(Math.cos(constrainedAngle), Math.sin(constrainedAngle)));
+        }
+
+        return Optional.empty();
+    }
+
+    /**
+     * Finds the best target for a mounted weapon, considering traverse limits.
+     */
+    private Optional<Targetable> findBestMountedWeaponTarget(GameState gameState,
+                                                             SpatialGrid<Targetable> playerGrid,
+                                                             MountedWeapon weapon,
+                                                             Vehicle vehicle) {
+        Targetable bestTarget = null;
+        double bestScore = Double.MAX_VALUE;
+        double weaponRange = weapon.getWeapon().getBulletRange();
+
+        Set<Targetable> nearTargets = playerGrid.getNearby(weapon.position(), weapon.getWeapon().getBulletRange());
+        for (Targetable potentialTarget : nearTargets) {
+            if (!isValidMountedWeaponTarget(potentialTarget)) {
+                continue;
+            }
+
+            double distanceSq = weapon.position().distanceSquared(potentialTarget.position());
+
+            // Check if target is within traverse arc
+            Vector2D toTarget = potentialTarget.position().subtract(weapon.position());
+            double targetAngle = Math.atan2(toTarget.y(), toTarget.x());
+            double constrainedAngle = weapon.getConstrainedAngle(targetAngle, vehicle.getAngle());
+            double angleDifference = Math.abs(targetAngle - constrainedAngle);
+
+            // Check line of sight
+            if (findBlockingObstacle(weapon.position(), potentialTarget.position(), gameState.obstacles()) != null) {
+                continue;
+            }
+
+            // Calculate priority score
+            double score = Math.sqrt(distanceSq) + (angleDifference * 100); // Prefer closer targets and better angles
+
+            if (potentialTarget instanceof Player player) {
+                // Prioritize low-health enemies
+                double healthRatio = player.getHp() / player.getMaxHp();
+                if (healthRatio < 0.3) {
+                    score *= 0.7;
+                }
+            }
+
+            if (score < bestScore) {
+                bestScore = score;
+                bestTarget = potentialTarget;
+            }
+        }
+
+        return Optional.ofNullable(bestTarget);
+    }
+
+    /**
+     * Checks if a target is valid for mounted weapon targeting.
+     */
+    private boolean isValidMountedWeaponTarget(Targetable target) {
+        return switch (target) {
+            case Player player -> player.getId() != this.getId() &&
+                                  !player.isDead() &&
+                                  player.getTeam() != this.getTeam() &&
+                                  player.getInvisibilityEndTime() <= System.currentTimeMillis();
+            case Vehicle vehicle -> vehicle.getTeam() != this.getTeam() &&
+                                    !vehicle.isDestroyed() &&
+                                    vehicle.getDriverId() != null;
+            case Turret turret -> turret.getTeam() != this.getTeam();
+            case Base base -> base.getTeam() != this.getTeam();
+            default -> false;
+        };
+    }
+
+    /**
+     * Returns true if the AI should attempt to enter a vehicle.
+     */
+    public boolean shouldEnterVehicle() {
+        return getVehicleId() == null
+               && currentState == AIState.SEEKING_VEHICLE
+               && targetVehicle != null
+               && position().distance(targetVehicle.position()) <= Config.VEHICLE_INTERACTION_RADIUS;
+    }
+
+    /**
+     * Returns true if the AI should exit its current vehicle.
+     */
+    public boolean shouldExitVehicle(GameState gameState) {
+        if (getVehicleId() == null) {
+            return false;
+        }
+        Vehicle currentVehicle = getCurrentVehicle(gameState);
+        if (currentVehicle == null) {
+            return false;
+        }
+
+        // Don't exit immediately after entering - wait for handleVehicleLogic to set up timing
+        if (lastDriverSeenTime == null) {
+            return false; // Just entered vehicle, don't exit yet
+        }
+
+        // Exit if driver has been gone too long
+        Player driver = getVehicleDriver(currentVehicle, gameState);
+        if (driver == null || driver.isDead()) {
+            return System.currentTimeMillis() - lastDriverSeenTime > 3000;
+        }
+
+        return false;
     }
 }

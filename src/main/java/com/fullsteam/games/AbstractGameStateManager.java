@@ -2,13 +2,13 @@ package com.fullsteam.games;
 
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
-import com.fullsteam.Jackson;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.BulletEffect;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
+import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
@@ -30,12 +30,12 @@ import com.fullsteam.systems.TurretSystem;
 import com.fullsteam.systems.VehicleManager;
 import com.fullsteam.systems.WeaponSystem;
 import io.netty.channel.Channel;
-import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -105,18 +105,15 @@ public abstract class AbstractGameStateManager {
                 "type", "gameEvent",
                 "event", gameEvent
         );
-        BinaryWebSocketFrame frame = Jackson.msgFrame(message);
-
         if (gameEvent.playerId() != null) {
             Channel channel = entities.getPlayerChannel(gameEvent.playerId());
             if (channel != null && channel.isActive()) {
-                channel.writeAndFlush(frame.retainedDuplicate());
+                channel.writeAndFlush(message);
             }
         } else {
-            entities.getPlayerChannels().values().forEach(ch -> ch.writeAndFlush(frame.retainedDuplicate()));
-            entities.getSpectatorChannels().forEach(ch -> ch.writeAndFlush(frame.retainedDuplicate()));
+            entities.getPlayerChannels().values().forEach(ch -> ch.writeAndFlush(message));
+            entities.getSpectatorChannels().forEach(ch -> ch.writeAndFlush(message));
         }
-        frame.release();
     }
 
     public boolean isFull() {
@@ -155,6 +152,9 @@ public abstract class AbstractGameStateManager {
 
     public void addSpectator(Channel channel) {
         entities.getSpectatorChannels().add(channel);
+        // Send welcome message to spectator with current game state
+        channel.writeAndFlush(new WelcomeMessage(-1, 0, gameId, entities.getObstacles()));
+        log.info("Spectator {} joined game {}", channel.id().asShortText(), gameId);
     }
 
     public void removeSpectator(Channel channel) {
@@ -199,6 +199,7 @@ public abstract class AbstractGameStateManager {
             updatePlayers(delta);
             weaponSystem.updateBullets(delta);
             weaponSystem.updateLaserBlasts(delta);
+            fieldEffectSystem.updateFieldEffects(delta);
             turretSystem.updateTurrets(delta);
             vehicleManager.updateVehicles(delta);
             sendGameState();
@@ -223,7 +224,6 @@ public abstract class AbstractGameStateManager {
             entities.clearTransientObjects();
 
             generateObstacles();
-            vehicleManager.spawnVehicles();
 
             // Reset all players
             for (Player player : entities.getPlayers().values()) {
@@ -237,11 +237,11 @@ public abstract class AbstractGameStateManager {
                 player.setVisionObscured(false);
                 if (!(player instanceof AIPlayer)) {
                     entities.getPlayerChannel(player.getId())
-                            .writeAndFlush(Jackson.msgFrame(playerWelcomeMessage(player)));
+                            .writeAndFlush(playerWelcomeMessage(player));
                 }
             }
             entities.getSpectatorChannels().forEach(channel ->
-                    channel.writeAndFlush(Jackson.msgFrame(new WelcomeMessage(-1, 0, gameId, entities.getObstacles()))));
+                    channel.writeAndFlush(new WelcomeMessage(-1, 0, gameId, entities.getObstacles())));
 
             log.info("New round started! Round will end in {} seconds.", ROUND_DURATION_SECONDS);
             sendGameState(); // Send an immediate update to reflect the reset
@@ -282,7 +282,11 @@ public abstract class AbstractGameStateManager {
 
         if (shooter != null) {
             shooter.incrementKills();
-            sendGameEvent(GameEvent.yellow("You were eliminated by %s (%s)".formatted(shooter.getPlayerName(), shooter.getWeapon().getName()), victim.id()));
+            String weaponUsed = Optional.ofNullable(vehicleManager.getPlayerMountedWeapon(shooter.id()))
+                    .map(MountedWeapon::getWeapon)
+                    .map(Weapon::getName)
+                    .orElse(shooter.getWeapon().getName());
+            sendGameEvent(GameEvent.yellow("You were eliminated by %s (%s)".formatted(shooter.getPlayerName(), weaponUsed), victim.id()));
             sendGameEvent(GameEvent.blue("You eliminated %s".formatted(victim.getPlayerName()), shooter.id()));
         }
 
@@ -321,8 +325,8 @@ public abstract class AbstractGameStateManager {
         entities.getPlayerChannels().forEach((playerId, channel) -> {
             if (channel.isActive() && channel.isOpen()) {
                 Player player = entities.getPlayer(playerId);
-                BinaryWebSocketFrame frameToSend = Jackson.msgFrame(playerGameState(player, gameInfo, false));
-                channel.writeAndFlush(frameToSend).addListener(future -> { // retainedDuplicate is crucial
+                GameState gameState = playerGameState(player, gameInfo, false);
+                channel.writeAndFlush(gameState).addListener(future -> { // retainedDuplicate is crucial
                     if (!future.isSuccess()) {
                         log.error("Failed to send game state to player {}. Closing channel.", playerId, future.cause());
                         channel.close();
@@ -332,12 +336,11 @@ public abstract class AbstractGameStateManager {
         });
 
         // Send to all spectators
-        GameState gameState = spectatorGameState();
-        BinaryWebSocketFrame frame = Jackson.msgFrame(gameState);
-        if (!entities.getPlayerChannels().isEmpty()) {
+        if (!entities.getSpectatorChannels().isEmpty()) {
+            GameState spectatorGameState = spectatorGameState();
             for (Channel spectatorChannel : entities.getSpectatorChannels()) {
                 if (spectatorChannel.isActive() && spectatorChannel.isOpen()) {
-                    spectatorChannel.writeAndFlush(frame.retainedDuplicate()).addListener(future -> {
+                    spectatorChannel.writeAndFlush(spectatorGameState).addListener(future -> {
                         if (!future.isSuccess()) {
                             log.error("Failed to send game state to spectator {}. Closing channel.", spectatorChannel.id().asShortText(), future.cause());
                             spectatorChannel.close();
@@ -346,7 +349,6 @@ public abstract class AbstractGameStateManager {
                 }
             }
         }
-        frame.release();
     }
 
     protected void generateObstacles() {

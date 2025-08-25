@@ -2,6 +2,7 @@ package com.fullsteam.model.vehicles;
 
 import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
+import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;

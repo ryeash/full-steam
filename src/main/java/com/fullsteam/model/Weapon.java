@@ -1,6 +1,7 @@
 package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.micronaut.core.annotation.Introspected;
 
 import java.util.function.BiFunction;
 
@@ -9,6 +10,7 @@ import java.util.function.BiFunction;
  * Each stat's effectiveness is determined by the number of points allocated to it,
  * with a total cap to ensure balanced weapon design.
  */
+@Introspected
 public class Weapon {
 
     public static final int MAX_TOTAL_POINTS = 100;

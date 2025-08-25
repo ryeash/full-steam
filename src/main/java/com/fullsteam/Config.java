@@ -1,5 +1,10 @@
 package com.fullsteam;
 
+import com.fullsteam.games.AbstractGameStateManager;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.AttributeKey;
+
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -7,6 +12,22 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 public class Config {
+
+    public static final AttributeKey<AbstractGameStateManager> GAME_STATE_MANAGER_KEY = AttributeKey.valueOf("gameStateManager");
+    public static final AttributeKey<Long> PLAYER_ID_KEY = AttributeKey.valueOf("playerId");
+    public static final AttributeKey<Boolean> IS_SPECTATOR_KEY = AttributeKey.valueOf("isSpectator");
+
+    public static Long playerId(ChannelHandlerContext ctx) {
+        return playerId(ctx.channel());
+    }
+
+    public static Long playerId(Channel ch) {
+        if (ch.attr(PLAYER_ID_KEY).get() == null) {
+            return ch.attr(PLAYER_ID_KEY).setIfAbsent(Config.ID_COUNTER.incrementAndGet());
+        } else {
+            return ch.attr(PLAYER_ID_KEY).get();
+        }
+    }
 
     // Helper methods to read from System Properties with defaults
     private static int getInt(String name, int defaultValue) {
@@ -144,6 +165,12 @@ public class Config {
     public static final long VEHICLE_ACTION_DEBOUNCE_MS = getLong("game.vehicle.action_debounce_ms", 500);
     public static final long VEHICLE_RESPAWN_DELAY_MS = getLong("game.vehicle.respawn_delay_ms", 30_000);
 
+    // --- Armored Assault MotorPool System ---
+    public static final double MOTOR_POOL_RADIUS = getDouble("game.armored_assault.motor_pool_radius", 80.0);
+    public static final long MOTOR_POOL_CONTROL_TIME_MS = getLong("game.armored_assault.motor_pool_control_time_ms", 15_000); // 15 seconds to control
+    public static final double VEHICLE_REPAIR_RATE = getDouble("game.armored_assault.vehicle_repair_rate", 2.0); // HP per tick
+    public static final long VEHICLE_SPAWN_INTERVAL_MS = getLong("game.armored_assault.vehicle_spawn_interval_ms", 20_000); // 20 seconds between spawns
+
     // Tank Configuration
     public static final double TANK_HEALTH = getDouble("game.vehicle.tank.health", 800.0);
     public static final double TANK_MAX_SPEED = getDouble("game.vehicle.tank.max_speed", 0.08);
@@ -152,21 +179,27 @@ public class Config {
     public static final double TANK_WIDTH = getDouble("game.vehicle.tank.width", 42.0);
 
     // Mech Configuration  
-    public static final double MECH_HEALTH = getDouble("game.vehicle.mech.health", 400.0);
+    public static final double MECH_HEALTH = getDouble("game.vehicle.mech.health", 475.0);
     public static final double MECH_MAX_SPEED = getDouble("game.vehicle.mech.max_speed", 0.06);
     public static final double MECH_TURN_SPEED = getDouble("game.vehicle.mech.turn_speed", 0.003);
     public static final double MECH_HEIGHT = getDouble("game.vehicle.mech.height", 55.0);
     public static final double MECH_WIDTH = getDouble("game.vehicle.mech.width", 35.0);
 
     // Jeep Configuration
-    public static final double JEEP_HEALTH = getDouble("game.vehicle.jeep.health", 200.0);
+    public static final double JEEP_HEALTH = getDouble("game.vehicle.jeep.health", 300.0);
     public static final double JEEP_MAX_SPEED = getDouble("game.vehicle.jeep.max_speed", 0.25);
     public static final double JEEP_TURN_SPEED = getDouble("game.vehicle.jeep.turn_speed", 0.004);
     public static final double JEEP_LENGTH = getDouble("game.vehicle.jeep.radius", 40.0);
     public static final double JEEP_WIDTH = getDouble("game.vehicle.jeep.radius", 25.0);
 
     // Fixed Cannon Configuration
-    public static final double FIXED_CANNON_HEALTH = getDouble("game.vehicle.fixed_cannon.health", 500.0);
+    public static final double FIXED_CANNON_HEALTH = getDouble("game.vehicle.fixed_cannon.health", 600.0);
     public static final double FIXED_CANNON_TURN_SPEED = getDouble("game.vehicle.fixed_cannon.turn_speed", 0.001);
     public static final double FIXED_CANNON_RADIUS = getDouble("game.vehicle.fixed_cannon.radius", 20.0);
+
+    // DaVinci Configuration
+    public static final double DAVINCI_HEALTH = getDouble("game.vehicle.davinci.health", 1000.0);
+    public static final double DAVINCI_MAX_SPEED = getDouble("game.vehicle.davinci.max_speed", 0.06);
+    public static final double DAVINCI_TURN_SPEED = getDouble("game.vehicle.davinci.turn_speed", 0.0025);
+    public static final double DAVINCI_RADIUS = getDouble("game.vehicle.davinci.radius", 35.0);
 }

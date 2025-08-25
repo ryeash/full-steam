@@ -2,6 +2,7 @@ package com.fullsteam.model.vehicles;
 
 import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
+import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
@@ -36,7 +37,7 @@ public class Jeep extends Vehicle {
                         new Seat(false, new MountedWeapon(
                                 new Vector2D(-Config.JEEP_LENGTH / 4, 0), // Mount at rear center
                                 WeaponFactory.getWeapon("Minigun"),
-                                Math.PI, // Default angle (rear-facing)
+                                0, // Default angle (rear-facing)
                                 Math.PI * 4/3, // ±120° traverse range (wide coverage)
                                 1.0
                         ))));

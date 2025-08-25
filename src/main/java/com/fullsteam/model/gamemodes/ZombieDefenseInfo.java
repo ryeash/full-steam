@@ -7,7 +7,7 @@ public final class ZombieDefenseInfo extends GameInfo {
     private final int waveNumber;
     private final long zombiesAlive;
     private final long timeUntilNextWave;
-    private final long roundTimeRemainingSeconds;
+    private final long timeLeft;
 
     /**
      *
@@ -15,11 +15,11 @@ public final class ZombieDefenseInfo extends GameInfo {
     public ZombieDefenseInfo(int waveNumber,
                              long zombiesAlive,
                              long timeUntilNextWave,
-                             long roundTimeRemainingSeconds) {
+                             long timeLeft) {
         this.waveNumber = waveNumber;
         this.zombiesAlive = zombiesAlive;
         this.timeUntilNextWave = timeUntilNextWave;
-        this.roundTimeRemainingSeconds = roundTimeRemainingSeconds;
+        this.timeLeft = timeLeft;
     }
 
     @Override
@@ -39,7 +39,7 @@ public final class ZombieDefenseInfo extends GameInfo {
         return timeUntilNextWave;
     }
 
-    public long getRoundTimeRemainingSeconds() {
-        return roundTimeRemainingSeconds;
+    public long getTimeLeft() {
+        return timeLeft;
     }
 }

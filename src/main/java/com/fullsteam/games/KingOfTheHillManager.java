@@ -96,12 +96,12 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
     @Override
     protected GameInfo buildGameInfo() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
-        long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
+        long timeLeft = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
         return new KingOfTheHillInfo(
                 this.hill,
                 this.team1Score,
                 this.team2Score,
-                roundTimeRemainingSeconds
+                timeLeft
         );
     }
 

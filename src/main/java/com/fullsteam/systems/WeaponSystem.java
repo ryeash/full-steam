@@ -6,6 +6,7 @@ import com.fullsteam.model.BulletEffect;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.HasLife;
 import com.fullsteam.model.LaserBlast;
+import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
@@ -59,7 +60,7 @@ public class WeaponSystem {
         double bulletY = player.getY();
 
         // Fire all bullets for this shot (or whatever is left in the magazine)
-        int bulletsToFire = Math.min(weapon.getBulletsPerShot(), player.getCurrentAmmoInMagazine());
+        int bulletsToFire = Math.min(weapon.getBulletsPerShot(), player.getAmmoInMag());
 
         for (int i = 0; i < bulletsToFire; i++) {
             // Apply random spread to each bullet individually
@@ -144,7 +145,7 @@ public class WeaponSystem {
     /**
      * Fires a vehicle-mounted weapon
      */
-    public void fireVehicleWeapon(Vehicle vehicle, Vehicle.MountedWeapon mountedWeapon, Long playerId, PlayerInput input) {
+    public void fireVehicleWeapon(Vehicle vehicle, MountedWeapon mountedWeapon, Long playerId, PlayerInput input) {
         if (!mountedWeapon.canShoot()) {
             return;
         }

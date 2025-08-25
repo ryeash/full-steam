@@ -23,7 +23,7 @@ import static com.fullsteam.Config.CTF_FLAG_RETURN_TIMEOUT_MS;
 import static com.fullsteam.Config.CTF_SCORE_TO_WIN;
 import static com.fullsteam.Config.GAME_HEIGHT;
 import static com.fullsteam.Config.GAME_WIDTH;
-import static com.fullsteam.model.GameEvent.EventType.FLAG_RETURN;
+
 
 public class CaptureTheFlagManager extends AbstractTeamBasedManager {
 
@@ -81,11 +81,11 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
         // Check for automatic flag returns
         if (team1Flag.state() == Flag.FlagState.DROPPED && System.currentTimeMillis() - team1Flag.dropTimestamp() > CTF_FLAG_RETURN_TIMEOUT_MS) {
             team1Flag = team1Flag.asReturned();
-            sendGameEvent(GameEvent.withType("Team 1 flag returned", FLAG_RETURN));
+            sendGameEvent(GameEvent.team(1, "Team 1 flag returned"));
         }
         if (team2Flag.state() == Flag.FlagState.DROPPED && System.currentTimeMillis() - team2Flag.dropTimestamp() > CTF_FLAG_RETURN_TIMEOUT_MS) {
             team2Flag = team2Flag.asReturned();
-            sendGameEvent(GameEvent.withType("Team 2 flag returned", FLAG_RETURN));
+            sendGameEvent(GameEvent.team(2, "Team 2 flag returned"));
         }
 
         // Check for player interactions with flags
@@ -98,14 +98,14 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
             if (player.getTeam() == 1 && team2Flag.carrierId() != null && team2Flag.carrierId().equals(player.getId())) {
                 if (team1Flag.state() == Flag.FlagState.AT_BASE && player.position().distanceSquared(team1Flag.basePosition()) < FLAG_PICKUP_RADIUS_SQ) {
                     team1Score++;
-                    sendGameEvent(GameEvent.withType(String.format("%s scored for Team 1!", player.getPlayerName()), GameEvent.EventType.FLAG_CAPTURE));
+                    sendGameEvent(GameEvent.team(1, String.format("%s scored for Team 1!", player.getPlayerName())));
                     team2Flag = team2Flag.asReturned();
                 }
             }
             if (player.getTeam() == 2 && team1Flag.carrierId() != null && team1Flag.carrierId().equals(player.getId())) {
                 if (team2Flag.state() == Flag.FlagState.AT_BASE && player.position().distanceSquared(team2Flag.basePosition()) < FLAG_PICKUP_RADIUS_SQ) {
                     team2Score++;
-                    sendGameEvent(GameEvent.withType(String.format("%s scored for Team 2!", player.getPlayerName()), GameEvent.EventType.FLAG_CAPTURE));
+                    sendGameEvent(GameEvent.team(2, String.format("%s scored for Team 2!", player.getPlayerName())));
                     team1Flag = team1Flag.asReturned();
                 }
             }
@@ -116,32 +116,32 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
                 // Pick up enemy flag from base
                 if (team2Flag.state() == Flag.FlagState.AT_BASE && player.position().distanceSquared(team2Flag.basePosition()) < FLAG_PICKUP_RADIUS_SQ) {
                     team2Flag = team2Flag.asCarriedBy(player.getId());
-                    sendGameEvent(GameEvent.withType(String.format("Team 1 took the flag! (%s)", player.getPlayerName()), GameEvent.EventType.FLAG_PICKUP));
+                    sendGameEvent(GameEvent.team(1, String.format("Team 1 took the flag! (%s)", player.getPlayerName())));
                 }
                 // Pick up enemy flag when dropped
                 if (team2Flag.state() == Flag.FlagState.DROPPED && player.position().distanceSquared(team2Flag.position()) < FLAG_PICKUP_RADIUS_SQ) {
                     team2Flag = team2Flag.asCarriedBy(player.getId());
-                    sendGameEvent(GameEvent.withType("Team 2's flag was picked up!", FLAG_RETURN));
+                    sendGameEvent(GameEvent.team(2, "Team 2's flag was picked up!"));
                 }
                 // Return friendly flag when dropped
                 if (team1Flag.state() == Flag.FlagState.DROPPED && player.position().distanceSquared(team1Flag.position()) < FLAG_PICKUP_RADIUS_SQ) {
                     team1Flag = team1Flag.asReturned();
-                    sendGameEvent(GameEvent.withType(String.format("Team 1's flag was returned by %s!", player.getPlayerName()), FLAG_RETURN));
+                    sendGameEvent(GameEvent.team(1, String.format("Team 1's flag was returned by %s!", player.getPlayerName())));
                 }
             }
             // Team 2 player interactions
             else if (player.getTeam() == 2) {
                 if (team1Flag.state() == Flag.FlagState.AT_BASE && player.position().distanceSquared(team1Flag.basePosition()) < FLAG_PICKUP_RADIUS_SQ) {
                     team1Flag = team1Flag.asCarriedBy(player.getId());
-                    sendGameEvent(GameEvent.withType(String.format("Team 2 took the flag! (%s)", player.getPlayerName()), GameEvent.EventType.FLAG_PICKUP));
+                    sendGameEvent(GameEvent.team(2, String.format("Team 2 took the flag! (%s)", player.getPlayerName())));
                 }
                 if (team1Flag.state() == Flag.FlagState.DROPPED && player.position().distanceSquared(team1Flag.position()) < FLAG_PICKUP_RADIUS_SQ) {
                     team1Flag = team1Flag.asCarriedBy(player.getId());
-                    sendGameEvent(GameEvent.withType("Team 1's flag was picked up!", FLAG_RETURN));
+                    sendGameEvent(GameEvent.team(1, "Team 1's flag was picked up!"));
                 }
                 if (team2Flag.state() == Flag.FlagState.DROPPED && player.position().distanceSquared(team2Flag.position()) < FLAG_PICKUP_RADIUS_SQ) {
                     team2Flag = team2Flag.asReturned();
-                    sendGameEvent(GameEvent.withType(String.format("Team 2's flag was returned by %s!", player.getPlayerName()), FLAG_RETURN));
+                    sendGameEvent(GameEvent.team(2, String.format("Team 2's flag was returned by %s!", player.getPlayerName())));
                 }
             }
         }
@@ -152,11 +152,11 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
         // Check if the victim was carrying a flag
         if (team1Flag.state() == Flag.FlagState.CARRIED && Objects.equals(victim.getId(), team1Flag.carrierId())) {
             team1Flag = team1Flag.asDroppedAt(victim.position());
-            sendGameEvent(GameEvent.withType("Team 1's flag was dropped!", GameEvent.EventType.FLAG_DROP));
+            sendGameEvent(GameEvent.team(1, "Team 1's flag was dropped!"));
         }
         if (team2Flag.state() == Flag.FlagState.CARRIED && Objects.equals(victim.getId(), team2Flag.carrierId())) {
             team2Flag = team2Flag.asDroppedAt(victim.position());
-            sendGameEvent(GameEvent.withType("Team 2's flag was dropped!", GameEvent.EventType.FLAG_DROP));
+            sendGameEvent(GameEvent.team(2, "Team 2's flag was dropped!"));
         }
         super.killPlayer(victim, shooter); // Handle the rest of the death logic
     }
@@ -175,13 +175,13 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
     @Override
     protected GameInfo buildGameInfo() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
-        long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
+        long timeLeft = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
         return new CaptureTheFlagInfo(
                 this.team1Flag,
                 this.team2Flag,
                 this.team1Score,
                 this.team2Score,
-                roundTimeRemainingSeconds
+                timeLeft
         );
     }
 

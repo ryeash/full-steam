@@ -4,9 +4,9 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
-import com.fullsteam.model.PowerUp;
 
 import java.util.List;
 
@@ -17,7 +17,7 @@ import static com.fullsteam.Config.PLAYER_SIZE;
 
 /**
  * Handles all physics-related operations including collision detection, movement validation,
- * and spatial grid management. Separated from AbstractGameStateManager to follow 
+ * and spatial grid management. Separated from AbstractGameStateManager to follow
  * Single Responsibility Principle.
  */
 public class PhysicsEngine {
@@ -37,9 +37,10 @@ public class PhysicsEngine {
 
     /**
      * Applies collision resolution for a player against obstacles with sliding mechanics
+     *
      * @param player The player to check collisions for
-     * @param oldX The player's previous X position
-     * @param oldY The player's previous Y position
+     * @param oldX   The player's previous X position
+     * @param oldY   The player's previous Y position
      * @return true if the player's position was modified due to collision
      */
     public boolean resolvePlayerObstacleCollisions(Player player, double oldX, double oldY) {
@@ -49,7 +50,7 @@ public class PhysicsEngine {
 
         // Player's new position is invalid. Attempt to slide along the obstacle.
         // This is done by testing movement on each axis independently.
-        
+
         // First, try moving only on the Y axis.
         player.setX(oldX);
         if (isColliding(player, entities.getObstacles())) {
@@ -68,6 +69,7 @@ public class PhysicsEngine {
 
     /**
      * Constrains a player's position within game boundaries
+     *
      * @param player The player to constrain
      */
     public void constrainPlayerToBounds(Player player) {
@@ -77,7 +79,8 @@ public class PhysicsEngine {
 
     /**
      * Checks if a player is colliding with any obstacles in a list
-     * @param player The player to check
+     *
+     * @param player         The player to check
      * @param checkObstacles The list of obstacles to check against
      * @return true if collision detected
      */
@@ -92,7 +95,8 @@ public class PhysicsEngine {
 
     /**
      * Checks if a player is colliding with a specific obstacle
-     * @param player The player to check
+     *
+     * @param player   The player to check
      * @param obstacle The obstacle to check against
      * @return true if collision detected
      */
@@ -114,7 +118,8 @@ public class PhysicsEngine {
 
     /**
      * Checks if a player is colliding with a power-up
-     * @param player The player to check
+     *
+     * @param player  The player to check
      * @param powerUp The power-up to check against
      * @return true if collision detected
      */
@@ -124,13 +129,14 @@ public class PhysicsEngine {
 
     /**
      * Checks if a vehicle is colliding with any obstacles
-     * @param vehicle The vehicle to check
+     *
+     * @param vehicle   The vehicle to check
      * @param obstacles The list of obstacles to check against
      * @return true if collision detected
      */
-    public boolean isColliding(Vehicle vehicle, List<Obstacle> obstacles) {
+    public boolean isColliding(Vehicle vehicle, List<? extends Obstacle> obstacles) {
         for (Obstacle obstacle : obstacles) {
-            if (CollisionUtils.areObstaclesColliding(vehicle, obstacle)) {
+            if (vehicle.id() != obstacle.id() && CollisionUtils.areObstaclesColliding(vehicle, obstacle)) {
                 return true;
             }
         }
@@ -139,47 +145,59 @@ public class PhysicsEngine {
 
     /**
      * Checks if a position is out of bounds
+     *
      * @param position The position to check
      * @return true if the position is outside game boundaries
      */
     public boolean isOutOfBounds(Vector2D position) {
-        return position.x() < 0 
-               || position.x() > GAME_WIDTH 
-               || position.y() < 0 
+        return position.x() < 0
+               || position.x() > GAME_WIDTH
+               || position.y() < 0
                || position.y() > GAME_HEIGHT;
     }
 
     /**
      * Checks if a point is within game bounds with a given radius
-     * @param x The x coordinate
-     * @param y The y coordinate
+     *
+     * @param x      The x coordinate
+     * @param y      The y coordinate
      * @param radius The radius to check
      * @return true if the point (including radius) is within bounds
      */
     public boolean isWithinBounds(double x, double y, double radius) {
-        return x >= radius && x <= GAME_WIDTH - radius && 
+        return x >= radius && x <= GAME_WIDTH - radius &&
                y >= radius && y <= GAME_HEIGHT - radius;
     }
 
     /**
      * Validates if a vehicle can be placed at a specific position without colliding with obstacles
-     * @param vehicle The vehicle to check
-     * @param position The position to test
+     *
+     * @param vehicle     The vehicle to check
+     * @param position    The position to test
      * @param minDistance Minimum distance from obstacles
      * @return true if the position is valid
      */
     public boolean isValidVehiclePosition(Vehicle vehicle, Vector2D position, double minDistance) {
         Vector2D originalPosition = vehicle.position();
         vehicle.setPosition(position);
-        
+
         boolean isValid = true;
+
         for (Obstacle obstacle : entities.getObstacles()) {
             if (CollisionUtils.checkObstacleOverlap(vehicle, obstacle, minDistance)) {
                 isValid = false;
                 break;
             }
         }
-        
+        if (isValid) {
+            for (Vehicle otherVehicle : entities.getVehicles()) {
+                if (CollisionUtils.checkObstacleOverlap(vehicle, otherVehicle, minDistance)) {
+                    isValid = false;
+                    break;
+                }
+            }
+        }
+
         // Restore original position
         vehicle.setPosition(originalPosition);
         return isValid;
@@ -187,6 +205,7 @@ public class PhysicsEngine {
 
     /**
      * Gets the spatial grid for advanced collision queries
+     *
      * @return The spatial grid containing all targetable entities
      */
     public com.fullsteam.SpatialGrid<com.fullsteam.model.Targetable> getSpatialGrid() {

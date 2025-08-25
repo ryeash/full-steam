@@ -7,9 +7,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fullsteam.serialization.CustomSerializationModule;
-import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 
 import java.io.UncheckedIOException;
 
@@ -23,8 +20,7 @@ public class Jackson {
             .configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true)
             .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
 //            .configOverride(Double.class).setFormat()
-            .setDefaultMergeable(true)
-            .registerModule(new CustomSerializationModule());
+            .setDefaultMergeable(true);
 
     public static String writeValueAsString(Object obj) {
         try {
@@ -32,18 +28,6 @@ public class Jackson {
         } catch (JsonProcessingException e) {
             throw new UncheckedIOException(e);
         }
-    }
-
-    public static byte[] writeValueAsBytes(Object obj) {
-        try {
-            return objectMapper.writeValueAsBytes(obj);
-        } catch (JsonProcessingException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    public static BinaryWebSocketFrame msgFrame(Object value) {
-        return new BinaryWebSocketFrame(Unpooled.wrappedBuffer(writeValueAsBytes(value)));
     }
 
     public static JsonNode readTree(String text) {

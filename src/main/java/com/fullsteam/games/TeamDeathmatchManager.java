@@ -28,11 +28,11 @@ public class TeamDeathmatchManager extends AbstractTeamBasedManager {
     @Override
     protected GameInfo buildGameInfo() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
-        long roundTimeRemainingSeconds = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
+        long timeLeft = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
         return new TeamDeathmatchInfo(
                 team1Score,
                 team2Score,
-                roundTimeRemainingSeconds);
+                timeLeft);
     }
 
     @Override
