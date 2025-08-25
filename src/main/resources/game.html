@@ -1305,7 +1305,7 @@
                 const centerY = powerUp.position.y;
 
                 // Draw pickup radius circle
-                this.ctx.strokeStyle = '#fff';
+                this.ctx.strokeStyle = GameColors.entities.powerUps.clear;
                 this.ctx.setLineDash([5, 5]);
                 this.ctx.lineWidth = 1;
                 this.ctx.beginPath();
@@ -1314,7 +1314,7 @@
 
                 // Draw power-up icon
                 this.ctx.setLineDash([]);
-                this.ctx.fillStyle = '#fff';
+                this.ctx.fillStyle = GameColors.entities.powerUps.clear;
                 this.ctx.fillText(powerUp.icon, centerX, centerY);
             });
 

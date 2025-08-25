@@ -75,11 +75,7 @@ const GameColors = {
   entities: {
     // Power-ups
     powerUps: {
-      health: 'rgba(46, 204, 113, 0.7)',    // Health pack - green
-      speed: 'rgba(241, 196, 15, 0.7)',     // Speed boost - yellow
-      armor: 'rgba(52, 152, 219, 0.7)',     // Armor up - blue
-      damage: 'rgba(229, 57, 53, 0.7)',     // Damage boost - red
-      invisibility: 'rgba(155, 89, 182, 0.7)' // Invisibility - purple
+      clear: '#fff'
     },
 
     // Vehicles

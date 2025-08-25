@@ -59,9 +59,9 @@ public class GameController {
         return serveStaticFile("game.html", MediaType.TEXT_HTML);
     }
 
-    @Get(value = "/color-palette.js", produces = MediaType.TEXT_HTML)
+    @Get(value = "/color-palette.js", produces = MediaType.TEXT_JAVASCRIPT)
     public HttpResponse<StreamedFile> colorPalette() {
-        return serveStaticFile("color-palette.js", MediaType.TEXT_HTML);
+        return serveStaticFile("color-palette.js", MediaType.TEXT_JAVASCRIPT);
     }
 
     @Get(value = "/favicon.ico", produces = MediaType.TEXT_HTML)
