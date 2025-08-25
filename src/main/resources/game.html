@@ -309,12 +309,48 @@
         </div>
         <details id="controls-details">
             <summary>Controls</summary>
-            <div id="controls">
-                <p>⌨️ WASD/Arrows: Move | R: Reload | E: Build | Mouse: Aim & Shoot</p>
-                <p>🚗 F: Enter/Exit Vehicle | Q: Secondary Fire (passengers)</p>
-                <p>🎮 L Stick: Move | R Stick: Aim | Y/△: Swap Weapon | X/□: Reload | RT/R2: Shoot</p>
-                <p>🎮 A/X: Enter/Exit Vehicle | LT/L2: Secondary Fire</p>
-            </div>
+            <table style="width: 100%; border-collapse: collapse; color: var(--text-muted);">
+                <tr>
+                    <th style="text-align: left; padding: 4px; border-bottom: 1px solid var(--border-lighter);">Action</th>
+                    <th style="text-align: left; padding: 4px; border-bottom: 1px solid var(--border-lighter);">Keyboard/Mouse</th>
+                    <th style="text-align: left; padding: 4px; border-bottom: 1px solid var(--border-lighter);">Gamepad</th>
+                </tr>
+                <tr>
+                    <td style="padding: 4px;">Move</td>
+                    <td style="padding: 4px;">WASD/Arrows</td>
+                    <td style="padding: 4px;">L Stick</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px;">Aim</td>
+                    <td style="padding: 4px;">Mouse</td>
+                    <td style="padding: 4px;">R Stick</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px;">Reload</td>
+                    <td style="padding: 4px;">R</td>
+                    <td style="padding: 4px;">X/□</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px;">Build/Swap Seat</td>
+                    <td style="padding: 4px;">E</td>
+                    <td style="padding: 4px;">RB/R1</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px;">Swap Weapon</td>
+                    <td style="padding: 4px;"></td>
+                    <td style="padding: 4px;">Y/△</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px;">Enter/Exit Vehicle</td>
+                    <td style="padding: 4px;">F</td>
+                    <td style="padding: 4px;">A/X</td>
+                </tr>
+                <tr>
+                    <td style="padding: 4px;">Shoot</td>
+                    <td style="padding: 4px;">LMB</td>
+                    <td style="padding: 4px;">RT/R2</td>
+                </tr>
+            </table>
         </details>
         <div style="text-align: center; margin-top: 20px; padding: 0 5px;">
             <button id="leaveGameBtn">Leave Game</button>
@@ -1429,8 +1465,6 @@
                     this.drawExplosion(effect);
                 } else if (effect.type == 'POISON') {
                     this.drawPoisonCloud(effect);
-                } else if (effect.type == 'SLOW') {
-                    this.drawSlowField(effect);
                 } else if (effect.type == 'SMOKE') {
                     this.drawSmokeField(effect);
                 } else if (effect.type == 'MINE') {
@@ -1512,108 +1546,6 @@
             this.ctx.beginPath();
             this.ctx.arc(cloud.x, cloud.y, currentRadius, 0, 2 * Math.PI);
             this.ctx.fill();
-            this.ctx.restore();
-        }
-
-        drawSlowField(field) {
-            this.ctx.save();
-            const now = this.gameState.serverTime;
-            if (!now) return;
-
-            // TODO: better math that doesn't rely on lifetime
-            const lifetime = 7000; // All slow fields last for 7 seconds.
-            const timeRemaining = field.expiration - now;
-
-            if (timeRemaining < 0 || timeRemaining > lifetime) return;
-
-            const progress = 1 - (timeRemaining / lifetime); // 0.0 to 1.0
-
-            // Let the field expand to full size then linger
-            const expandTime = 0.2; // 20% of lifetime to expand
-            const radiusProgress = Math.min(1.0, progress / expandTime);
-            const currentRadius = field.radius * radiusProgress;
-
-            // Fade out over the whole duration
-            const alpha = (1.0 - progress) * 0.5; // Max alpha 0.5 (slightly lower than poison)
-
-            // Draw the base field with a more subtle gradient
-            const gradient = this.ctx.createRadialGradient(
-                field.x, field.y, 0,
-                field.x, field.y, currentRadius
-            );
-
-            // Use ice/frost-like colors to suggest slowing
-            if (field.team === 1) {
-                gradient.addColorStop(0, `rgba(173, 216, 230, ${alpha * 0.7})`); // Light blue
-                gradient.addColorStop(0.7, `rgba(100, 149, 237, ${alpha * 0.5})`); // Medium blue
-                gradient.addColorStop(1, `rgba(65, 105, 225, 0)`); // Fade to transparent
-            } else if (field.team === 2) {
-                gradient.addColorStop(0, `rgba(255, 182, 193, ${alpha * 0.7})`); // Light pink
-                gradient.addColorStop(0.7, `rgba(219, 112, 147, ${alpha * 0.5})`); // Medium pink
-                gradient.addColorStop(1, `rgba(199, 21, 133, 0)`); // Fade to transparent
-            } else {
-                gradient.addColorStop(0, `rgba(176, 196, 222, ${alpha * 0.7})`); // Light steel blue
-                gradient.addColorStop(0.7, `rgba(119, 136, 153, ${alpha * 0.5})`); // Light slate gray
-                gradient.addColorStop(1, `rgba(70, 130, 180, 0)`); // Fade to transparent
-            }
-
-            this.ctx.fillStyle = gradient;
-            this.ctx.beginPath();
-            this.ctx.arc(field.x, field.y, currentRadius, 0, 2 * Math.PI);
-            this.ctx.fill();
-
-            // Add animated ripple rings to suggest slow/impediment effect
-            const time = now / 1000; // Convert to seconds for smoother animation
-            const numRings = 3;
-            
-            // Set team-specific ring colors
-            let ringColor;
-            if (field.team === 1) {
-                ringColor = `rgba(100, 149, 237, ${alpha * 0.8})`; // Blue
-            } else if (field.team === 2) {
-                ringColor = `rgba(219, 112, 147, ${alpha * 0.8})`; // Pink
-            } else {
-                ringColor = `rgba(119, 136, 153, ${alpha * 0.8})`; // Gray
-            }
-
-            this.ctx.strokeStyle = ringColor;
-            this.ctx.lineWidth = 2;
-            this.ctx.setLineDash([8, 12]); // Dashed pattern suggests broken/slow movement
-
-            for (let i = 0; i < numRings; i++) {
-                const ringOffset = (time * 0.5 + i * 0.8) % 2.0; // Slow animation cycle
-                const ringRadius = (currentRadius * 0.3) + (ringOffset * currentRadius * 0.35);
-                const ringAlpha = alpha * (1.0 - ringOffset * 0.5); // Fade as rings expand
-                
-                if (ringRadius <= currentRadius) {
-                    this.ctx.globalAlpha = ringAlpha;
-                    this.ctx.beginPath();
-                    this.ctx.arc(field.x, field.y, ringRadius, 0, 2 * Math.PI);
-                    this.ctx.stroke();
-                }
-            }
-
-            // Add crystalline/frost pattern at center to reinforce "freezing/slowing" theme
-            this.ctx.globalAlpha = alpha * 0.6;
-            this.ctx.setLineDash([]); // Solid lines for center pattern
-            this.ctx.lineWidth = 1.5;
-            
-            const centerPattern = 6; // Number of lines radiating from center
-            const centerRadius = Math.min(15, currentRadius * 0.3);
-            
-            for (let i = 0; i < centerPattern; i++) {
-                const angle = (i * 2 * Math.PI / centerPattern) + (time * 0.2); // Slow rotation
-                const x1 = field.x + Math.cos(angle) * (centerRadius * 0.3);
-                const y1 = field.y + Math.sin(angle) * (centerRadius * 0.3);
-                const x2 = field.x + Math.cos(angle) * centerRadius;
-                const y2 = field.y + Math.sin(angle) * centerRadius;
-                
-                this.ctx.beginPath();
-                this.ctx.moveTo(x1, y1);
-                this.ctx.lineTo(x2, y2);
-                this.ctx.stroke();
-            }
-
             this.ctx.restore();
         }
 
