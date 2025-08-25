@@ -5,7 +5,7 @@ import com.fullsteam.Config;
 import io.micronaut.core.annotation.Introspected;
 
 @Introspected
-public class Mine extends AbstractFieldEffect implements HasId, BulletEffect {
+public final class Mine extends AbstractFieldEffect implements HasId, BulletEffect {
 
     @JsonIgnore
     private final long ownerId;

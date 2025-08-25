@@ -3,7 +3,7 @@ package com.fullsteam.model;
 import io.micronaut.core.annotation.Introspected;
 
 @Introspected
-public class MountedWeapon {
+public final class MountedWeapon {
     private Vector2D position; // absolute position of the weapon mount
     private final Weapon weapon;
     private final double defaultAngle; // default direction relative to vehicle (0 = forward)
@@ -131,8 +131,12 @@ public class MountedWeapon {
         double angleDiff = desiredAngle - weaponDefaultAngle;
 
         // Normalize angle difference to be between -π and π
-        while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-        while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+        while (angleDiff > Math.PI){
+            angleDiff -= 2 * Math.PI;
+        }
+        while (angleDiff < -Math.PI) {
+            angleDiff += 2 * Math.PI;
+        }
 
         // Constrain to maximum traverse range
         double halfTraverse = maximumRadian / 2.0;
