@@ -1,5 +1,6 @@
 package com.fullsteam.model.ai;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.SpatialGrid;
@@ -44,29 +45,45 @@ public class AIPlayer extends Player {
     }
 
     // --- AI State & Strategy ---
+    @JsonIgnore
     private transient AIState currentState = AIState.WANDERING;
+    @JsonIgnore
     protected transient Player currentTarget;
+    @JsonIgnore
     private transient Vector2D objectiveTargetPoint;
+    @JsonIgnore
     private transient Vector2D wanderTarget;
+    @JsonIgnore
     private transient final IAIStrategy aiStrategy;
+    @JsonIgnore
     private transient final AIArchetype archetype;
 
     // --- Debug/Analytics Fields ---
+    @JsonIgnore
     private transient long stateChangeTime = System.currentTimeMillis();
 
     // --- AI Behavior Timing & State ---
+    @JsonIgnore
     private transient long lastWanderDirectionChangeTime;
+    @JsonIgnore
     private transient long lastStrafeTime;
+    @JsonIgnore
     private transient boolean strafeRight = true;
+    @JsonIgnore
     private transient long timeTargetAcquired;
 
     // --- Steering Behavior Fields ---
+    @JsonIgnore
     private transient Vector2D acceleration;
 
     // --- AI "Personality" Traits ---
+    @JsonIgnore
     private transient final long reactionTimeMs;
+    @JsonIgnore
     private transient final double aimInaccuracyRadians;
+    @JsonIgnore
     private transient final long strafeInterval;
+    @JsonIgnore
     private transient final double rangeSlew;
 
     /**

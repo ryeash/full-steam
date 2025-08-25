@@ -17,4 +17,4 @@ EXPOSE 8080
 
 COPY --from=build /app/build/native/nativeCompile/full-steam /app/full-steam
 
-ENTRYPOINT ["/app/full-steam"]
+CMD ["/app/full-steam"]
