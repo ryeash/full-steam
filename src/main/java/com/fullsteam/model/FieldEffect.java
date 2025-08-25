@@ -1,5 +1,7 @@
 package com.fullsteam.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public interface FieldEffect extends HasId {
 
     enum Type {
@@ -68,6 +70,7 @@ public interface FieldEffect extends HasId {
      *
      * @return true if the effect is expired, false otherwise.
      */
+    @JsonIgnore
     default boolean isExpired() {
         return System.currentTimeMillis() > getExpiration();
     }

@@ -1231,7 +1231,9 @@
         }
 
         drawPowerUps() {
-            if (!this.gameState.powerUps) return;
+            if (!this.gameState.powerUps) {
+                return;
+            }
 
             this.ctx.save();
             this.ctx.font = '20px Arial';
@@ -1247,35 +1249,27 @@
                 this.ctx.beginPath();
                 this.ctx.arc(centerX, centerY, size, 0, 2 * Math.PI);
 
-                let icon = '';
                 switch (powerUp.type) {
                     case 'HEALTH_PACK':
                         this.ctx.fillStyle = 'rgba(46, 204, 113, 0.7)';
-                        icon = '❤️';
                         break;
                     case 'SPEED_BOOST':
                         this.ctx.fillStyle = 'rgba(241, 196, 15, 0.7)';
-                        icon = '⚡';
                         break;
                     case 'ARMOR_UP':
                         this.ctx.fillStyle = 'rgba(52, 152, 219, 0.7)';
-                        icon = '🛡️';
                         break;
                     case 'DAMAGE_BOOST':
                         this.ctx.fillStyle = 'rgba(229, 57, 53, 0.7)';
-                        icon = '⚔️';
                         break;
                     case 'INVISIBILITY':
                         this.ctx.fillStyle = 'rgba(155, 89, 182, 0.7)';
-                        icon = '👻';
                         break;
                 }
                 this.ctx.fill();
 
                 this.ctx.globalAlpha = 1.0;
-                if (icon) {
-                    this.ctx.fillText(icon, centerX, centerY + 2);
-                }
+                this.ctx.fillText(powerUp.icon, centerX, centerY + 2);
             });
 
             this.ctx.restore();
@@ -2543,19 +2537,7 @@
             this.ctx.font = '12px Arial';
             this.ctx.textAlign = 'center';
             const baseName = player.playerName || (player.id.startsWith('ai-') ? 'AI' : 'Player');
-            let displayName = `${baseName} | ${player.weapon.shortName}`;
-            if (player.damageBoostEndTime > this.gameState.serverTime) {
-                displayName = `⚔️ ${displayName}`;
-            }
-            if (player.speedBoostEndTime > this.gameState.serverTime) {
-                displayName = `⚡ ${displayName}`;
-            }
-            if (player.armorUpEndTime > this.gameState.serverTime) {
-                displayName = `🛡️ ${displayName}`;
-            }
-            if (player.invisibilityEndTime > this.gameState.serverTime) {
-                displayName = `👻 ${displayName}`;
-            }
+            let displayName = `${player.powerUpIcons || ''}${baseName} | ${player.weapon.shortName}`;
             this.ctx.fillText(displayName, playerCenterX, player.y - 15);
 
             if (myself) {
@@ -2564,7 +2546,7 @@
                 this.ctx.textBaseline = 'middle';
 
                 this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                const text = player.reloading ? 'R' : player.currentAmmoInMagazine.toString();
+                const text = player.reloading ? 'R' : player.ammoInMag.toString();
                 this.ctx.fillText(text, playerCenterX + 1, playerCenterY + 1);
 
                 this.ctx.fillStyle = player.reloading ? '#FFC107' : '#FFFFFF';

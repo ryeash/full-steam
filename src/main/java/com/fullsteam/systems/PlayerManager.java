@@ -166,7 +166,7 @@ public class PlayerManager {
                 double baseAngle = Math.atan2(action.directionY(), action.directionX());
                 weaponSystem.fireWeapon(ai, baseAngle);
             }
-        } else if (ai.getCurrentAmmoInMagazine() <= 0 && !ai.isReloading()) {
+        } else if (ai.getAmmoInMag() <= 0 && !ai.isReloading()) {
             ai.startReload();
         }
     }
@@ -249,7 +249,7 @@ public class PlayerManager {
                     double baseAngle = Math.atan2(dy / length, dx / length);
                     weaponSystem.fireWeapon(player, baseAngle);
                 }
-            } else if (player.getCurrentAmmoInMagazine() <= 0 && !player.isReloading()) {
+            } else if (player.getAmmoInMag() <= 0 && !player.isReloading()) {
                 player.startReload();
             }
         }

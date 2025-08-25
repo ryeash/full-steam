@@ -20,6 +20,10 @@ public class PowerUp implements HasId {
         return id;
     }
 
+    public String getIcon() {
+        return type.icon;
+    }
+
     public Vector2D getPosition() {
         return position;
     }

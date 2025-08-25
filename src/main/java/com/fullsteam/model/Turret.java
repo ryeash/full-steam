@@ -29,7 +29,7 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
     @JsonIgnore
     private long nextShotTime;
     @JsonIgnore
-    private int currentAmmoInMagazine;
+    private int ammoInMag;
     @JsonIgnore
     private boolean reloading;
     @JsonIgnore
@@ -55,7 +55,7 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
         this.maxHp = this.hp;
         this.nextShotTime = 0;
         this.reloading = false;
-        this.currentAmmoInMagazine = weapon.getRoundsPerMagazine();
+        this.ammoInMag = weapon.getRoundsPerMagazine();
         this.reloadCompleteTime = 0;
     }
 
@@ -135,12 +135,12 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
         return reloadCompleteTime;
     }
 
-    public int getCurrentAmmoInMagazine() {
-        return currentAmmoInMagazine;
+    public int getAmmoInMag() {
+        return ammoInMag;
     }
 
     public void startReload() {
-        if (reloading || currentAmmoInMagazine == weapon.getRoundsPerMagazine()) {
+        if (reloading || ammoInMag == weapon.getRoundsPerMagazine()) {
             return;
         }
         reloading = true;
@@ -149,12 +149,12 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
 
     public void finishReload() {
         reloading = false;
-        currentAmmoInMagazine = weapon.getRoundsPerMagazine();
+        ammoInMag = weapon.getRoundsPerMagazine();
     }
 
     public boolean canShoot() {
         return !reloading
-                && currentAmmoInMagazine > 0
+                && ammoInMag > 0
                 && System.currentTimeMillis() >= nextShotTime;
     }
 
@@ -163,7 +163,7 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
             return;
         }
         this.nextShotTime = System.currentTimeMillis() + weapon.getFireRateCooldown();
-        this.currentAmmoInMagazine -= weapon.getBulletsPerShot();
+        this.ammoInMag -= weapon.getBulletsPerShot();
     }
 
     /**
@@ -180,7 +180,7 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
             finishReload();
         }
         // If no ammo left and not reloading, start reloading
-        if (getCurrentAmmoInMagazine() <= 0 && !isReloading()) {
+        if (getAmmoInMag() <= 0 && !isReloading()) {
             startReload();
             return Optional.empty();
         }

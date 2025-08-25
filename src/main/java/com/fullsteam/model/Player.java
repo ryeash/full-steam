@@ -32,21 +32,26 @@ public class Player implements HasId, HasLife, Targetable {
     protected long respawnTime;
     protected int kills;
     protected int deaths;
-    protected int currentAmmoInMagazine;
+    protected int ammoInMag;
     protected boolean isReloading;
     @JsonIgnore
     protected long reloadCompleteTime;
     @JsonIgnore
     protected long nextShotTime;
+    @JsonIgnore
     public long speedBoostEndTime;
-    public long armorUpEndTime;
+    @JsonIgnore
     public long damageBoostEndTime;
+    @JsonIgnore
+    public long armorUpEndTime;
+    @JsonIgnore
     public long invisibilityEndTime;
     @JsonIgnore
     public double damageMultiplier;
     @JsonIgnore
     public boolean visionObscured;
     public Long vehicleId;
+    @JsonIgnore
     public boolean shootDisabled;
 
     public Player(long id, double x, double y, int team) {
@@ -72,7 +77,7 @@ public class Player implements HasId, HasLife, Targetable {
         this.deaths = 0;
         this.mouseX = x;
         this.mouseY = y;
-        this.currentAmmoInMagazine = weapon.getRoundsPerMagazine();
+        this.ammoInMag = weapon.getRoundsPerMagazine();
         this.isReloading = false;
         this.reloadCompleteTime = 0;
         this.nextShotTime = 0;
@@ -91,10 +96,10 @@ public class Player implements HasId, HasLife, Targetable {
 
     public boolean canShoot() {
         return !isDead()
-               && !shootDisabled
-               && !isReloading
-               && currentAmmoInMagazine > 0
-               && System.currentTimeMillis() >= nextShotTime;
+                && !shootDisabled
+                && !isReloading
+                && ammoInMag > 0
+                && System.currentTimeMillis() >= nextShotTime;
     }
 
     /**
@@ -105,7 +110,7 @@ public class Player implements HasId, HasLife, Targetable {
             return;
         }
         this.nextShotTime = System.currentTimeMillis() + weapon.getFireRateCooldown();
-        this.currentAmmoInMagazine -= weapon.getBulletsPerShot();
+        this.ammoInMag -= weapon.getBulletsPerShot();
     }
 
     /**
@@ -113,7 +118,7 @@ public class Player implements HasId, HasLife, Targetable {
      */
     public void startReload() {
         // Can't reload if already reloading or the magazine is full
-        if (isReloading || currentAmmoInMagazine == weapon.getRoundsPerMagazine()) {
+        if (isReloading || ammoInMag == weapon.getRoundsPerMagazine()) {
             return;
         }
         this.isReloading = true;
@@ -125,7 +130,7 @@ public class Player implements HasId, HasLife, Targetable {
      */
     public void finishReload() {
         this.isReloading = false;
-        this.currentAmmoInMagazine = weapon.getRoundsPerMagazine();
+        this.ammoInMag = weapon.getRoundsPerMagazine();
     }
 
     @Override
@@ -283,10 +288,10 @@ public class Player implements HasId, HasLife, Targetable {
     public void setWeapon(Weapon weapon) {
         double percentMagRemain = 1;
         if (this.weapon != null) {
-            percentMagRemain = (double) currentAmmoInMagazine / this.weapon.getRoundsPerMagazine();
+            percentMagRemain = (double) ammoInMag / this.weapon.getRoundsPerMagazine();
         }
         this.weapon = weapon;
-        this.currentAmmoInMagazine = (int) (percentMagRemain * (double) weapon.getRoundsPerMagazine());
+        this.ammoInMag = (int) (percentMagRemain * (double) weapon.getRoundsPerMagazine());
         this.isReloading = false;
     }
 
@@ -298,12 +303,12 @@ public class Player implements HasId, HasLife, Targetable {
         this.hp = hp;
     }
 
-    public int getCurrentAmmoInMagazine() {
-        return currentAmmoInMagazine;
+    public int getAmmoInMag() {
+        return ammoInMag;
     }
 
-    public void setCurrentAmmoInMagazine(int currentAmmoInMagazine) {
-        this.currentAmmoInMagazine = currentAmmoInMagazine;
+    public void setAmmoInMag(int ammoInMag) {
+        this.ammoInMag = ammoInMag;
     }
 
     public boolean isReloading() {
@@ -352,6 +357,24 @@ public class Player implements HasId, HasLife, Targetable {
         this.deaths = 0;
         this.armorUpEndTime = 0;
         this.speedBoostEndTime = 0;
+    }
+
+    public String getPowerUpIcons() {
+        StringBuilder icons = new StringBuilder();
+        long currentTime = System.currentTimeMillis();
+        if (currentTime < speedBoostEndTime) {
+            icons.append(PowerUpType.SPEED_BOOST.icon);
+        }
+        if (currentTime < armorUpEndTime) {
+            icons.append(PowerUpType.ARMOR_UP.icon);
+        }
+        if (currentTime < damageBoostEndTime) {
+            icons.append(PowerUpType.DAMAGE_BOOST.icon);
+        }
+        if (currentTime < invisibilityEndTime) {
+            icons.append(PowerUpType.INVISIBILITY.icon);
+        }
+        return icons.toString();
     }
 
     public long getSpeedBoostEndTime() {

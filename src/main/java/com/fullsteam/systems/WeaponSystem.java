@@ -60,7 +60,7 @@ public class WeaponSystem {
         double bulletY = player.getY();
 
         // Fire all bullets for this shot (or whatever is left in the magazine)
-        int bulletsToFire = Math.min(weapon.getBulletsPerShot(), player.getCurrentAmmoInMagazine());
+        int bulletsToFire = Math.min(weapon.getBulletsPerShot(), player.getAmmoInMag());
 
         for (int i = 0; i < bulletsToFire; i++) {
             // Apply random spread to each bullet individually
