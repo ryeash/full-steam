@@ -167,13 +167,18 @@ public class PlayerManager {
         } else if (ai.shouldEnterVehicle()) {
             vehicleManager.handleVehicleEnterExit(ai);
         }
+        Vehicle aiVehicle = vehicleManager.getPlayerVehicle(ai.getId());
+        if (aiVehicle != null) {
+            ai.setVelocity(Vector2D.ZERO);
+            ai.setX(aiVehicle.position().x());
+            ai.setY(aiVehicle.position().y());
+        }
 
         // Get AI decision (shooting or mounted weapon control)
         Optional<AIPlayer.ShootAction> shootAction = ai.update(gameState, entities.getTargetGrid(), delta);
 
         if (shootAction.isPresent()) {
             // Check if AI is in a vehicle and controlling a mounted weapon
-            Vehicle aiVehicle = vehicleManager.getPlayerVehicle(ai.getId());
             if (aiVehicle != null) {
                 // AI is in a vehicle - handle mounted weapon firing
                 MountedWeapon controlledWeapon = aiVehicle.getWeaponControlledBy(ai.getId());
@@ -198,6 +203,7 @@ public class PlayerManager {
             // Only reload personal weapon if not in a vehicle
             ai.startReload();
         }
+
     }
 
     /**
@@ -379,8 +385,8 @@ public class PlayerManager {
         long currentTime = System.currentTimeMillis();
         for (Player player : entities.getPlayers().values()) {
             if (player.isDead()
-                && player.getRespawnTime() != -1 // indicates a player's respawn has been disabled
-                && currentTime >= player.getRespawnTime()) {
+                    && player.getRespawnTime() != -1 // indicates a player's respawn has been disabled
+                    && currentTime >= player.getRespawnTime()) {
                 respawnPlayer(player);
             }
         }
@@ -467,8 +473,8 @@ public class PlayerManager {
         }
 
         if (request.getWeaponName() != null
-            && !request.getWeaponName().isEmpty()
-            && !request.getWeaponName().equals(player.getWeapon().getName())) {
+                && !request.getWeaponName().isEmpty()
+                && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
             turretSystem.removeAllTurretsOwnedBy(player.id());

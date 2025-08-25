@@ -997,7 +997,6 @@ public class AIPlayer extends Player {
         Targetable bestTarget = null;
         double bestScore = Double.MAX_VALUE;
         double weaponRange = weapon.getWeapon().getBulletRange();
-        double weaponRangeSq = weaponRange * weaponRange;
 
         Set<Targetable> nearTargets = playerGrid.getNearby(weapon.position(), weapon.getWeapon().getBulletRange());
         for (Targetable potentialTarget : nearTargets) {
@@ -1006,19 +1005,12 @@ public class AIPlayer extends Player {
             }
 
             double distanceSq = weapon.position().distanceSquared(potentialTarget.position());
-//            if (distanceSq > weaponRangeSq) {
-//                continue;
-//            }
 
             // Check if target is within traverse arc
             Vector2D toTarget = potentialTarget.position().subtract(weapon.position());
             double targetAngle = Math.atan2(toTarget.y(), toTarget.x());
             double constrainedAngle = weapon.getConstrainedAngle(targetAngle, vehicle.getAngle());
             double angleDifference = Math.abs(targetAngle - constrainedAngle);
-
-//            if (angleDifference > 0.2) { // Target is outside traverse limits
-//                continue;
-//            }
 
             // Check line of sight
             if (findBlockingObstacle(weapon.position(), potentialTarget.position(), gameState.obstacles()) != null) {
