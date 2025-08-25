@@ -5,6 +5,7 @@ import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
+import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
@@ -159,14 +160,46 @@ public class PlayerManager {
      */
     private void updateAIPlayer(AIPlayer ai, long delta) {
         GameState gameState = createPlayerGameState(ai, null, true);
+
+        // Handle vehicle entry/exit decisions
+        // Check if AI should enter/exit vehicle
+        if (ai.shouldExitVehicle(gameState)) {
+            vehicleManager.handleVehicleEnterExit(ai);
+        } else if (ai.shouldEnterVehicle()) {
+            vehicleManager.handleVehicleEnterExit(ai);
+        }
+
+        // Get AI decision (shooting or mounted weapon control)
         Optional<AIPlayer.ShootAction> shootAction = ai.update(gameState, entities.getTargetGrid(), delta);
+
         if (shootAction.isPresent()) {
-            if (ai.canShoot()) {
-                AIPlayer.ShootAction action = shootAction.get();
-                double baseAngle = Math.atan2(action.directionY(), action.directionX());
-                weaponSystem.fireWeapon(ai, baseAngle);
+            // Check if AI is in a vehicle and controlling a mounted weapon
+            Vehicle aiVehicle = vehicleManager.getPlayerVehicle(ai.getId());
+            if (aiVehicle != null) {
+                // AI is in a vehicle - handle mounted weapon firing
+                MountedWeapon controlledWeapon = aiVehicle.getWeaponControlledBy(ai.getId());
+                if (controlledWeapon != null && controlledWeapon.canShoot()) {
+                    AIPlayer.ShootAction action = shootAction.get();
+
+                    // Create a mock PlayerInput for vehicle weapon firing
+                    PlayerInput mockInput = new PlayerInput();
+                    mockInput.setMouseX(ai.getMouseX());
+                    mockInput.setMouseY(ai.getMouseY());
+                    mockInput.setFire(true);
+
+                    // Fire the mounted weapon
+                    weaponSystem.fireVehicleWeapon(aiVehicle, controlledWeapon, ai.getId(), mockInput);
+                }
+            } else {
+                // AI is on foot - normal weapon firing
+                if (ai.canShoot()) {
+                    AIPlayer.ShootAction action = shootAction.get();
+                    double baseAngle = Math.atan2(action.directionY(), action.directionX());
+                    weaponSystem.fireWeapon(ai, baseAngle);
+                }
             }
-        } else if (ai.getAmmoInMag() <= 0 && !ai.isReloading()) {
+        } else if (ai.getAmmoInMag() <= 0 && !ai.isReloading() && ai.getVehicleId() == null) {
+            // Only reload personal weapon if not in a vehicle
             ai.startReload();
         }
     }

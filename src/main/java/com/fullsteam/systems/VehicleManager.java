@@ -216,6 +216,21 @@ public class VehicleManager {
     }
 
     /**
+     * Get the {@link MountedWeapon} that the player is using.
+     */
+    public MountedWeapon getPlayerMountedWeapon(Long playerId) {
+        Vehicle vehicle = getPlayerVehicle(playerId);
+        if (vehicle != null) {
+            for (Vehicle.Seat seat : vehicle.getSeats()) {
+                if (seat.mountedWeapon != null && seat.player != null && seat.player.id() == playerId) {
+                    return seat.mountedWeapon;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Finds a vehicle near the player within interaction radius
      */
     public Vehicle findNearbyVehicle(Player player) {

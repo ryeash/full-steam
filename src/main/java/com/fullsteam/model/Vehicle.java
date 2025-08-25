@@ -330,6 +330,10 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
         super.setPosition(position);
     }
 
+    public List<Seat> getSeats() {
+        return seats;
+    }
+
     public void cycleSeats(Player player) {
         for (int i = 0; i < seats.size(); i++) {
             Seat currentSeat = seats.get(i);

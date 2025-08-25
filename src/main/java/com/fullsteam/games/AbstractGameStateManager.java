@@ -2,13 +2,13 @@ package com.fullsteam.games;
 
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
-import com.fullsteam.Jackson;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.BulletEffect;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
+import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
@@ -30,12 +30,12 @@ import com.fullsteam.systems.TurretSystem;
 import com.fullsteam.systems.VehicleManager;
 import com.fullsteam.systems.WeaponSystem;
 import io.netty.channel.Channel;
-import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -281,7 +281,11 @@ public abstract class AbstractGameStateManager {
 
         if (shooter != null) {
             shooter.incrementKills();
-            sendGameEvent(GameEvent.yellow("You were eliminated by %s (%s)".formatted(shooter.getPlayerName(), shooter.getWeapon().getName()), victim.id()));
+            String weaponUsed = Optional.ofNullable(vehicleManager.getPlayerMountedWeapon(shooter.id()))
+                    .map(MountedWeapon::getWeapon)
+                    .map(Weapon::getName)
+                    .orElse(shooter.getWeapon().getName());
+            sendGameEvent(GameEvent.yellow("You were eliminated by %s (%s)".formatted(shooter.getPlayerName(), weaponUsed), victim.id()));
             sendGameEvent(GameEvent.blue("You eliminated %s".formatted(victim.getPlayerName()), shooter.id()));
         }
 

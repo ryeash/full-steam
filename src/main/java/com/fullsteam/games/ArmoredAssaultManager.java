@@ -167,7 +167,6 @@ public class ArmoredAssaultManager extends AbstractTeamBasedManager {
 
             // Check if control was just completed
             if (pool.isFullyControlled()) {
-                sendGameEvent(GameEvent.team(controllingTeam, "Team %d has secured the Motor Pool!".formatted(controllingTeam)));
                 spawnVehicleForTeam(controllingTeam, pool.position());
                 motorPools.set(i, pool.withState(controllingTeam, false, System.currentTimeMillis()));
             }
