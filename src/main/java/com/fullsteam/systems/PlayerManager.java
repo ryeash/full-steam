@@ -298,6 +298,7 @@ public class PlayerManager {
         entities.getPlayerSessions().compute(playerId, (id, session) -> {
             if (session != null) {
                 session.setInput(input);
+                session.getPlayer().setLastInputTime(System.currentTimeMillis());
             }
             return session;
         });

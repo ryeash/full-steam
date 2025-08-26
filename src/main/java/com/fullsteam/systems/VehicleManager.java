@@ -227,11 +227,10 @@ public class VehicleManager {
      * Finds a vehicle near the player within interaction radius
      */
     public Vehicle findNearbyVehicle(Player player) {
-        double interactionRadius = Config.VEHICLE_INTERACTION_RADIUS;
         for (Vehicle vehicle : entities.getVehicles()) {
             if (!vehicle.isDestroyed()) {
                 double distance = player.position().distance(vehicle.position());
-                if (distance <= interactionRadius) {
+                if (distance <= vehicle.getRadius()) {
                     return vehicle;
                 }
             }

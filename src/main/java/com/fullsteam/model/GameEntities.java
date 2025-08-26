@@ -187,19 +187,6 @@ public class GameEntities {
     }
 
     /**
-     * Sets player input for a given player
-     */
-    public PlayerInput setPlayerInput(Long playerId, PlayerInput input) {
-        PlayerSession playerSession = playerSessions.get(playerId);
-        if (playerSession != null) {
-            PlayerInput previous = playerSession.getInput();
-            playerSession.setInput(input);
-            return previous;
-        }
-        return null;
-    }
-
-    /**
      * Removes player input for a given player
      */
     public void removePlayerInput(Long playerId) {

@@ -51,7 +51,8 @@ public class ArmoredAssaultManager extends AbstractTeamBasedManager {
                 0, // initially neutral
                 false, // not contested
                 0, // no control start time
-                MOTOR_POOL_CONTROL_TIME_MS
+                MOTOR_POOL_CONTROL_TIME_MS,
+                1
         );
 
         // Team 2 motor pool (right side)
@@ -63,7 +64,8 @@ public class ArmoredAssaultManager extends AbstractTeamBasedManager {
                 0, // initially neutral
                 false, // not contested
                 0, // no control start time
-                MOTOR_POOL_CONTROL_TIME_MS
+                MOTOR_POOL_CONTROL_TIME_MS,
+                2
         );
 
         motorPools.add(team1Pool);

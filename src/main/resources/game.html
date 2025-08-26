@@ -311,9 +311,14 @@
             <summary>Controls</summary>
             <table style="width: 100%; border-collapse: collapse; color: var(--text-muted);">
                 <tr>
-                    <th style="text-align: left; padding: 4px; border-bottom: 1px solid var(--border-lighter);">Action</th>
-                    <th style="text-align: left; padding: 4px; border-bottom: 1px solid var(--border-lighter);">Keyboard/Mouse</th>
-                    <th style="text-align: left; padding: 4px; border-bottom: 1px solid var(--border-lighter);">Gamepad</th>
+                    <th style="text-align: left; padding: 4px; border-bottom: 1px solid var(--border-lighter);">Action
+                    </th>
+                    <th style="text-align: left; padding: 4px; border-bottom: 1px solid var(--border-lighter);">
+                        Keyboard/Mouse
+                    </th>
+                    <th style="text-align: left; padding: 4px; border-bottom: 1px solid var(--border-lighter);">
+                        Gamepad
+                    </th>
                 </tr>
                 <tr>
                     <td style="padding: 4px;">Move</td>
@@ -2158,7 +2163,7 @@
 
                 // Draw repair indicator if vehicle is being repaired
                 if (this.gameState.info && this.gameState.info.type === 'Armored Assault' && this.gameState.info.motorPools) {
-                    const teamPool = this.gameState.info.motorPools.find(pool => pool.teamId === vehicle.team);
+                    const teamPool = this.gameState.info.motorPools.find(pool => pool.team === vehicle.team);
                     if (teamPool) {
                         const distanceToPool = Math.sqrt(
                             Math.pow(vehicleX - teamPool.position.x, 2) + 
@@ -2199,13 +2204,11 @@
                         Math.pow(vehicleX - this.localPlayer.x, 2) + 
                         Math.pow(vehicleY - this.localPlayer.y, 2)
                     );
-                    const interactionRadius = 40; // Should match server-side VEHICLE_INTERACTION_RADIUS
-                    
-                    if (distance <= interactionRadius) {
+                    if (distance <= vehicle.radius) {
                         this.ctx.fillStyle = GameColors.overlays.interaction;
                         this.ctx.font = '14px Arial';
                         this.ctx.textAlign = 'center';
-                        this.ctx.fillText('Press F to enter', vehicleX, vehicleY + vehicleRadius + 20);
+                        this.ctx.fillText('Press F/A to enter', vehicleX, vehicleY + vehicleRadius + 20);
                     }
                 }
             });
@@ -2629,28 +2632,9 @@
             const playerCenterX = player.x;
             const playerCenterY = player.y;
 
-            // --- Add respawn ping effect ---
-            const PING_DURATION = 1000;
-            const pingTimeRemaining = PING_DURATION - (this.gameState.serverTime - player.respawnTime);
-            if (myself && pingTimeRemaining > 0) {
-                const progress = pingTimeRemaining / PING_DURATION;
-
-                if (progress >= 0 && progress <= 1) {
-                    const maxRadius = 50;
-                    const currentRadius = maxRadius * progress;
-                    const alpha = progress;
-
-                    this.ctx.save();
-                    this.ctx.strokeStyle = `rgba(255, 215, 0, ${alpha})`; // Gold, fading out
-                    this.ctx.lineWidth = 3;
-                    this.ctx.beginPath();
-                    this.ctx.arc(playerCenterX, playerCenterY, currentRadius, 0, 2 * Math.PI);
-                    this.ctx.stroke();
-                    this.ctx.restore();
-                }
-            } else if(myself) {
+            if (myself) {
                 this.ctx.save();
-                this.ctx.strokeStyle = `rgba(255, 215, 0, 0.5)`; // Gold, fading out
+                this.ctx.strokeStyle = `rgba(255, 215, 0, 0.8)`; // Gold, fading out
                 this.ctx.lineWidth = 3;
                 this.ctx.beginPath();
                 this.ctx.arc(playerCenterX, playerCenterY, 20, 0, 2 * Math.PI);
@@ -2659,8 +2643,8 @@
             }
 
             this.ctx.fillStyle = player.team === 1 ? GameColors.teams.team1.primary : GameColors.teams.team2.primary;
-            this.ctx.strokeStyle = myself ? GameColors.accent.gold : (player.team === 1 ? GameColors.teams.team1.darker : GameColors.teams.team2.darker);
-            this.ctx.lineWidth = myself? 3 : 2;
+            this.ctx.strokeStyle = player.team === 1 ? GameColors.teams.team1.darker : GameColors.teams.team2.darker;
+            this.ctx.lineWidth = 2;
             this.ctx.beginPath();
             this.ctx.arc(playerCenterX, playerCenterY, playerSize / 2, 0, 2 * Math.PI);
             this.ctx.fill();
@@ -2735,14 +2719,11 @@
                 this.ctx.font = 'bold 12px Arial';
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'middle';
-
                 this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
                 const text = player.reloading ? 'R' : player.ammoInMag.toString();
                 this.ctx.fillText(text, playerCenterX + 1, playerCenterY + 1);
-
                 this.ctx.fillStyle = player.reloading ? '#FFC107' : '#FFFFFF';
                 this.ctx.fillText(text, playerCenterX, playerCenterY);
-
                 this.ctx.textBaseline = 'alphabetic';
             }
 
