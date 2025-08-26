@@ -5,11 +5,10 @@ import com.fullsteam.Jackson;
 import com.fullsteam.games.AbstractGameStateManager;
 import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
-import com.fullsteam.service.PlayerConnectionService;
 import com.fullsteam.model.PlayerSession;
+import com.fullsteam.service.PlayerConnectionService;
 import io.micronaut.websocket.WebSocketSession;
 import io.micronaut.websocket.annotation.OnClose;
-import io.micronaut.websocket.annotation.OnError;
 import io.micronaut.websocket.annotation.OnMessage;
 import io.micronaut.websocket.annotation.OnOpen;
 import io.micronaut.websocket.annotation.ServerWebSocket;
@@ -86,10 +85,4 @@ public class GameWebSocketEndpoint {
     public void onClose(WebSocketSession session) {
         connectionService.disconnectPlayer(session);
     }
-
-    @OnError
-    public void onError(Throwable t){
-        t.printStackTrace();
-    }
-
 }

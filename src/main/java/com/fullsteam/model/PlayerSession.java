@@ -9,7 +9,7 @@ import io.micronaut.websocket.WebSocketSession;
 public class PlayerSession {
     private final AbstractGameStateManager game;
     private final WebSocketSession session;
-    private Player player;
+    private final Player player;
     private PlayerInput input;
     private Long lastVehicleActionTime;
 
@@ -35,11 +35,6 @@ public class PlayerSession {
         return player;
     }
 
-    public PlayerSession setPlayer(Player player) {
-        this.player = player;
-        return this;
-    }
-
     public PlayerInput getInput() {
         return input;
     }
@@ -53,8 +48,7 @@ public class PlayerSession {
         return lastVehicleActionTime;
     }
 
-    public PlayerSession setLastVehicleActionTime(Long lastVehicleActionTime) {
+    public void setLastVehicleActionTime(Long lastVehicleActionTime) {
         this.lastVehicleActionTime = lastVehicleActionTime;
-        return this;
     }
 }
