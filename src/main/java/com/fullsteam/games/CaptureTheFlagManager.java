@@ -62,7 +62,7 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
     private void updateFlags() {
         // Update positions of carried flags
         if (team1Flag.state() == Flag.FlagState.CARRIED) {
-            Player carrier = entities.getPlayers().get(team1Flag.carrierId());
+            Player carrier = entities.getPlayer(team1Flag.carrierId());
             if (carrier != null && !carrier.isDead()) {
                 team1Flag = team1Flag.withPosition(carrier.position());
             } else { // Carrier disconnected or died without killPlayer catching it
@@ -70,7 +70,7 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
             }
         }
         if (team2Flag.state() == Flag.FlagState.CARRIED) {
-            Player carrier = entities.getPlayers().get(team2Flag.carrierId());
+            Player carrier = entities.getPlayer(team2Flag.carrierId());
             if (carrier != null && !carrier.isDead()) {
                 team2Flag = team2Flag.withPosition(carrier.position());
             } else {
@@ -89,7 +89,7 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
         }
 
         // Check for player interactions with flags
-        for (Player player : entities.getPlayers().values()) {
+        for (Player player : entities.getPlayers()) {
             if (player.isDead()) {
                 continue;
             }

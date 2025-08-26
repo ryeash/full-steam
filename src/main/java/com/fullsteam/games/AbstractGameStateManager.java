@@ -13,6 +13,7 @@ import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
+import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.PowerUpType;
 import com.fullsteam.model.Turret;
@@ -29,7 +30,7 @@ import com.fullsteam.systems.PlayerManager;
 import com.fullsteam.systems.TurretSystem;
 import com.fullsteam.systems.VehicleManager;
 import com.fullsteam.systems.WeaponSystem;
-import io.netty.channel.Channel;
+import io.micronaut.websocket.WebSocketSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,13 +107,13 @@ public abstract class AbstractGameStateManager {
                 "event", gameEvent
         );
         if (gameEvent.playerId() != null) {
-            Channel channel = entities.getPlayerChannel(gameEvent.playerId());
-            if (channel != null && channel.isActive()) {
-                channel.writeAndFlush(message);
+            WebSocketSession channel = entities.getPlayerChannel(gameEvent.playerId());
+            if (channel != null && channel.isWritable()) {
+                channel.sendSync(message);
             }
         } else {
-            entities.getPlayerChannels().values().forEach(ch -> ch.writeAndFlush(message));
-            entities.getSpectatorChannels().forEach(ch -> ch.writeAndFlush(message));
+            entities.getPlayerChannels().forEach(ch -> ch.sendSync(message));
+            entities.getSpectatorChannels().forEach(ch -> ch.sendSync(message));
         }
     }
 
@@ -121,7 +122,7 @@ public abstract class AbstractGameStateManager {
     }
 
     public boolean hasHumanPlayers() {
-        return !entities.getPlayers().values().stream().allMatch(p -> p instanceof AIPlayer);
+        return !entities.getPlayers().stream().allMatch(p -> p instanceof AIPlayer);
     }
 
     public boolean isSpectatorsFull() {
@@ -135,31 +136,35 @@ public abstract class AbstractGameStateManager {
     public void startGameLoop() {
         startNewRound();
         this.gameLoopHook = Config.EXECUTOR.scheduleAtFixedRate(() -> {
-            long delta = System.currentTimeMillis() - lastGameStateUpdate;
-            updateGame(delta);
-            lastGameStateUpdate = System.currentTimeMillis();
+            try {
+                long delta = System.currentTimeMillis() - lastGameStateUpdate;
+                updateGame(delta);
+                lastGameStateUpdate = System.currentTimeMillis();
+            } catch (Throwable t) {
+                log.error("catastrophic error", t);
+            }
         }, 0, 1000 / TICK_RATE, TimeUnit.MILLISECONDS);
         log.info("Game loop started at {} FPS", TICK_RATE);
     }
 
-    public Player addPlayer(long playerId, Channel channel) {
-        return playerManager.addPlayer(playerId, channel);
+    public PlayerSession addPlayer(long playerId, WebSocketSession channel) {
+        return playerManager.addPlayer(this, playerId, channel);
     }
 
-    protected Player addPlayer(long playerId, Channel channel, int team) {
-        return playerManager.addPlayer(playerId, channel, team);
+    protected PlayerSession addPlayer(long playerId, WebSocketSession channel, int team) {
+        return playerManager.addPlayer(this, playerId, channel, team);
     }
 
-    public void addSpectator(Channel channel) {
+    public void addSpectator(WebSocketSession channel) {
         entities.getSpectatorChannels().add(channel);
         // Send welcome message to spectator with current game state
-        channel.writeAndFlush(new WelcomeMessage(-1, 0, gameId, entities.getObstacles()));
-        log.info("Spectator {} joined game {}", channel.id().asShortText(), gameId);
+        channel.sendSync(new WelcomeMessage(-1, 0, gameId, entities.getObstacles()));
+        log.info("Spectator {} joined game {}", channel.getId(), gameId);
     }
 
-    public void removeSpectator(Channel channel) {
+    public void removeSpectator(WebSocketSession channel) {
         entities.getSpectatorChannels().remove(channel);
-        log.info("Spectator {} left game {}", channel.id().asShortText(), gameId);
+        log.info("Spectator {} left game {}", channel.getId(), gameId);
     }
 
     /**
@@ -168,7 +173,7 @@ public abstract class AbstractGameStateManager {
      * @param team The team ID to add the AI player to.
      */
     public AIPlayer addAIPlayer(int team) {
-        return playerManager.addAIPlayer(team);
+        return playerManager.addAIPlayer(this, team);
     }
 
     protected IAIStrategy buildAIStrategy() {
@@ -226,7 +231,8 @@ public abstract class AbstractGameStateManager {
             generateObstacles();
 
             // Reset all players
-            for (Player player : entities.getPlayers().values()) {
+            for (Map.Entry<Long, PlayerSession> entry : entities.getPlayerSessions().entrySet()) {
+                Player player = entry.getValue().getPlayer();
                 player.resetStats();
                 player.resetHp();
                 player.finishReload();
@@ -235,13 +241,13 @@ public abstract class AbstractGameStateManager {
                 setValidSpawnPosition(player); // Move them to a spawn point
                 player.restoreSpeed();
                 player.setVisionObscured(false);
-                if (!(player instanceof AIPlayer)) {
-                    entities.getPlayerChannel(player.getId())
-                            .writeAndFlush(playerWelcomeMessage(player));
+                if (entry.getValue().getSession() != null) {
+                    entry.getValue().getSession()
+                            .sendSync(playerWelcomeMessage(player));
                 }
             }
             entities.getSpectatorChannels().forEach(channel ->
-                    channel.writeAndFlush(new WelcomeMessage(-1, 0, gameId, entities.getObstacles())));
+                    channel.sendSync(new WelcomeMessage(-1, 0, gameId, entities.getObstacles())));
 
             log.info("New round started! Round will end in {} seconds.", ROUND_DURATION_SECONDS);
             sendGameState(); // Send an immediate update to reflect the reset
@@ -322,13 +328,13 @@ public abstract class AbstractGameStateManager {
         GameInfo gameInfo = buildGameInfo();
 
         // Send state to all players
-        entities.getPlayerChannels().forEach((playerId, channel) -> {
-            if (channel.isActive() && channel.isOpen()) {
-                Player player = entities.getPlayer(playerId);
-                GameState gameState = playerGameState(player, gameInfo, false);
-                channel.writeAndFlush(gameState).addListener(future -> { // retainedDuplicate is crucial
-                    if (!future.isSuccess()) {
-                        log.error("Failed to send game state to player {}. Closing channel.", playerId, future.cause());
+        entities.getPlayerSessions().forEach((id, session) -> {
+            WebSocketSession channel = session.getSession();
+            if (channel != null && channel.isWritable() && channel.isOpen()) {
+                GameState gameState = playerGameState(session.getPlayer(), gameInfo, false);
+                channel.sendAsync(gameState).whenComplete((state, error) -> { // retainedDuplicate is crucial
+                    if (error != null) {
+                        log.error("Failed to send game state to player {}. Closing channel.", session.getPlayerId(), error);
                         channel.close();
                     }
                 });
@@ -337,12 +343,12 @@ public abstract class AbstractGameStateManager {
 
         // Send to all spectators
         if (!entities.getSpectatorChannels().isEmpty()) {
-            GameState spectatorGameState = spectatorGameState();
-            for (Channel spectatorChannel : entities.getSpectatorChannels()) {
-                if (spectatorChannel.isActive() && spectatorChannel.isOpen()) {
-                    spectatorChannel.writeAndFlush(spectatorGameState).addListener(future -> {
-                        if (!future.isSuccess()) {
-                            log.error("Failed to send game state to spectator {}. Closing channel.", spectatorChannel.id().asShortText(), future.cause());
+            GameState gameState = spectatorGameState();
+            for (WebSocketSession spectatorChannel : entities.getSpectatorChannels()) {
+                if (spectatorChannel.isWritable() && spectatorChannel.isOpen()) {
+                    spectatorChannel.sendAsync(gameState).whenComplete((state, error) -> { // retainedDuplicate is crucial
+                        if (error != null) {
+                            log.error("Failed to send game state to spectator {}. Closing channel.", spectatorChannel.getId(), error);
                             spectatorChannel.close();
                         }
                     });
@@ -436,14 +442,14 @@ public abstract class AbstractGameStateManager {
     }
 
     public void shutdown() {
-        entities.getPlayerChannels().values().forEach(Channel::close);
+        entities.getPlayerChannels().forEach(WebSocketSession::close);
         if (gameLoopHook != null) {
             gameLoopHook.cancel(true);
         }
     }
 
     public int getPlayerCount() {
-        return (int) entities.getPlayers().values().stream().filter(p -> !(p instanceof AIPlayer)).count();
+        return (int) entities.getPlayers().stream().filter(p -> !(p instanceof AIPlayer)).count();
     }
 
     public int getMaxPlayers() {
@@ -469,7 +475,7 @@ public abstract class AbstractGameStateManager {
                     gameInfo);
         } else {
             return new GameState(
-                    entities.getPlayers().values()
+                    entities.getPlayers()
                             .stream()
                             .filter(p -> p.getId() == player.getId() || p.getInvisibilityEndTime() < System.currentTimeMillis())
                             .toList(),
@@ -487,7 +493,7 @@ public abstract class AbstractGameStateManager {
 
     protected GameState spectatorGameState() {
         return new GameState(
-                entities.getPlayers().values(),
+                entities.getPlayers(),
                 entities.getBullets(),
                 entities.getLaserBlasts(),
                 entities.getFieldEffects(),

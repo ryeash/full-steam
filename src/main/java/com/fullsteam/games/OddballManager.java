@@ -85,7 +85,7 @@ public class OddballManager extends AbstractTeamBasedManager {
 
         // --- Check for player pickups ---
         if (oddball.state() == Oddball.OddballState.ON_SPAWN || oddball.state() == Oddball.OddballState.DROPPED) {
-            for (Player player : entities.getPlayers().values()) {
+            for (Player player : entities.getPlayers()) {
                 if (player.isDead()) {
                     continue;
                 }

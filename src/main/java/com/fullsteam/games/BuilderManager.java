@@ -66,7 +66,7 @@ public class BuilderManager extends AbstractFreeForAllManager {
             // Now the super method will handle collision with both permanent obstacles and crates.
             super.updatePlayers(delta);
 
-            for (Player player : entities.getPlayers().values()) {
+            for (Player player : entities.getPlayers()) {
                 PlayerInput input = entities.getPlayerInput(player.id());
                 if (input != null) {
                     if (input.isAction1()) {
@@ -133,7 +133,7 @@ public class BuilderManager extends AbstractFreeForAllManager {
     }
 
     private boolean isCollidingWithAnyPlayer(Crate newCrate) {
-        for (Player player : entities.getPlayers().values()) {
+        for (Player player : entities.getPlayers()) {
             if (CollisionUtils.checkCirclePolygonCollision(player.position(), PLAYER_RADIUS, newCrate.getVertices())) {
                 return true;
             }

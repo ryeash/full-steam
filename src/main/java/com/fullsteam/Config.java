@@ -1,9 +1,6 @@
 package com.fullsteam;
 
-import com.fullsteam.games.AbstractGameStateManager;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.util.AttributeKey;
+import io.micronaut.websocket.WebSocketSession;
 
 import java.util.Optional;
 import java.util.concurrent.Executors;
@@ -13,20 +10,16 @@ import java.util.function.Function;
 
 public class Config {
 
-    public static final AttributeKey<AbstractGameStateManager> GAME_STATE_MANAGER_KEY = AttributeKey.valueOf("gameStateManager");
-    public static final AttributeKey<Long> PLAYER_ID_KEY = AttributeKey.valueOf("playerId");
-    public static final AttributeKey<Boolean> IS_SPECTATOR_KEY = AttributeKey.valueOf("isSpectator");
+    public static final String GAME_STATE_MANAGER_KEY = "gameStateManager";
+    public static final String PLAYER_ID_KEY = "playerId";
+    public static final String IS_SPECTATOR_KEY = "isSpectator";
 
-    public static Long playerId(ChannelHandlerContext ctx) {
-        return playerId(ctx.channel());
-    }
-
-    public static Long playerId(Channel ch) {
-        if (ch.attr(PLAYER_ID_KEY).get() == null) {
-            return ch.attr(PLAYER_ID_KEY).setIfAbsent(Config.ID_COUNTER.incrementAndGet());
-        } else {
-            return ch.attr(PLAYER_ID_KEY).get();
+    public static Long playerId(WebSocketSession ch) {
+        Optional<Long> l = ch.getAttributes().get(PLAYER_ID_KEY, Long.class);
+        if (l.isEmpty()) {
+            ch.put(PLAYER_ID_KEY, ID_COUNTER.incrementAndGet());
         }
+        return ch.getAttributes().get(PLAYER_ID_KEY, Long.class).orElse(null);
     }
 
     // Helper methods to read from System Properties with defaults

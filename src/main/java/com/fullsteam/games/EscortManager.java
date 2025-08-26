@@ -46,7 +46,7 @@ public class EscortManager extends AbstractTeamBasedManager {
         Vector2D payloadCenter = getPayloadCenter();
         double proximitySq = Config.ESCORT_PLAYER_PROXIMITY * Config.ESCORT_PLAYER_PROXIMITY;
 
-        Set<Integer> teamsNearPayload = entities.getPlayers().values()
+        Set<Integer> teamsNearPayload = entities.getPlayers()
                 .stream()
                 .filter(p -> !p.isDead())
                 .filter(p -> p.position().distanceSquared(payloadCenter) < proximitySq)

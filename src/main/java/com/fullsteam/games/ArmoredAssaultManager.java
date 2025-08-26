@@ -135,7 +135,7 @@ public class ArmoredAssaultManager extends AbstractTeamBasedManager {
             int team1Count = 0;
             int team2Count = 0;
 
-            for (Player player : entities.getPlayers().values()) {
+            for (Player player : entities.getPlayers()) {
                 if (player.isDead()) {
                     continue;
                 }

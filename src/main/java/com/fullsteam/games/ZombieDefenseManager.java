@@ -6,11 +6,12 @@ import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.ZombiePlayer;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.ZombieDefenseInfo;
-import io.netty.channel.Channel;
+import io.micronaut.websocket.WebSocketSession;
 
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -35,7 +36,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     }
 
     @Override
-    public Player addPlayer(long playerId, Channel channel) {
+    public PlayerSession addPlayer(long playerId, WebSocketSession channel) {
         // All human players are on Team 1 (Survivors)
         return super.addPlayer(playerId, channel, 1);
     }
@@ -47,7 +48,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         this.waveNumber = 0;
 
         // clear the zombies from the previous round
-        entities.getPlayers().values()
+        entities.getPlayers()
                 .stream()
                 .filter(p -> p.getTeam() == 2)
                 .map(Player::getId)
@@ -129,7 +130,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         zombie.resetHp();
         // Spawn zombies at the edges of the map
         setZombieSpawnPosition(zombie);
-        entities.addPlayer(zombie, null);
+        entities.addPlayer(new PlayerSession(this, zombie, null));
     }
 
     private void setZombieSpawnPosition(Player zombie) {
@@ -145,7 +146,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         if (entities.getPlayers().isEmpty()) {
             return false;
         }
-        long humansAlive = entities.getPlayers().values().stream()
+        long humansAlive = entities.getPlayers().stream()
                 .filter(p -> p.getTeam() == 1 && !p.isDead())
                 .count();
         // Use an if / else-if structure to prevent incorrect win conditions
@@ -218,7 +219,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long timeLeft = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
         long timeToNextWave = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(nextWaveTime - System.currentTimeMillis()));
-        long zombiesAlive = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
+        long zombiesAlive = entities.getPlayers().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
         return new ZombieDefenseInfo(
                 this.waveNumber,
                 zombiesAlive,

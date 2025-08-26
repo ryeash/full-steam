@@ -109,13 +109,13 @@ public class JuggernautManager extends AbstractTeamBasedManager {
         // Select new Juggernauts
         team1Juggernaut = null;
         team2Juggernaut = null;
-        for (Player player : entities.getPlayers().values()) {
+        for (Player player : entities.getPlayers()) {
             player.setMaxHp(Config.DEFAULT_PLAYER_HEALTH);
             player.setHp(Config.DEFAULT_PLAYER_HEALTH);
         }
         sendGameEvent(GameEvent.info("Starting new round!"));
         sendGameEvent(GameEvent.blue("Will select new juggernauts in " + (JUGGERNAUT_SELECTION_DELAY_MS / 1000) + " seconds"));
-        entities.getPlayers().values().forEach(this::setValidSpawnPosition);
+        entities.getPlayers().forEach(this::setValidSpawnPosition);
         schedule(() -> {
             selectNewJuggernautForTeam(1);
             selectNewJuggernautForTeam(2);
@@ -123,7 +123,7 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     }
 
     private void selectNewJuggernautForTeam(int team) {
-        List<Player> teamPlayers = entities.getPlayers().values().stream()
+        List<Player> teamPlayers = entities.getPlayers().stream()
                 .filter(p -> p.getTeam() == team)
                 .toList();
 

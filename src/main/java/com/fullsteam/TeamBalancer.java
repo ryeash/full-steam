@@ -6,8 +6,8 @@ import com.fullsteam.model.ai.AIPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
 
@@ -28,10 +28,10 @@ public class TeamBalancer {
      *
      * @param players The current map of all players in the game.
      */
-    public void balanceTeams(Map<Long, Player> players) {
+    public void balanceTeams(Collection<Player> players) {
         // Count players on each team
-        long team1Count = players.values().stream().filter(p -> p.getTeam() == 1).count();
-        long team2Count = players.values().stream().filter(p -> p.getTeam() == 2).count();
+        long team1Count = players.stream().filter(p -> p.getTeam() == 1).count();
+        long team2Count = players.stream().filter(p -> p.getTeam() == 2).count();
 
         // Balance Team 1
         balanceTeam(1, team1Count, MAX_PLAYERS_PER_TEAM, players);
@@ -40,7 +40,7 @@ public class TeamBalancer {
         balanceTeam(2, team2Count, MAX_PLAYERS_PER_TEAM, players);
     }
 
-    public void balanceTeam(int teamId, long currentTeamSize, long targetTeamSize, Map<Long, Player> players) {
+    public void balanceTeam(int teamId, long currentTeamSize, long targetTeamSize, Collection<Player> players) {
         if (currentTeamSize < targetTeamSize) {
             // Add AI players to fill the team
             long playersToAdd = targetTeamSize - currentTeamSize;
@@ -52,7 +52,7 @@ public class TeamBalancer {
             }
         } else if (currentTeamSize > targetTeamSize) {
             // Remove AI players if team is over capacity (e.g., a human joined)
-            List<Player> aiPlayersOnTeam = players.values().stream()
+            List<Player> aiPlayersOnTeam = players.stream()
                     .filter(p -> p.getTeam() == teamId && p instanceof AIPlayer)
                     .toList();
 

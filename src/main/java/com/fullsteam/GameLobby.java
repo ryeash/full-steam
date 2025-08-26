@@ -17,8 +17,7 @@ import com.fullsteam.games.OddballManager;
 import com.fullsteam.games.TeamDeathmatchManager;
 import com.fullsteam.games.ZombieDefenseManager;
 import com.fullsteam.model.ActiveGame;
-import com.fullsteam.model.Player;
-import io.netty.channel.Channel;
+import io.micronaut.websocket.WebSocketSession;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
@@ -50,13 +49,13 @@ public class GameLobby {
     public GameLobby(GameConfig gameConfig) {
         this.gameConfig = gameConfig;
         this.globalPlayerCountSemaphore = new Semaphore(gameConfig.getMaxGlobalPlayers());
-        
-        Config.EXECUTOR.scheduleAtFixedRate(this::cleanupEmptyGames, 
-            gameConfig.getLobby().getCleanupIntervalSeconds(), 
-            gameConfig.getLobby().getCleanupIntervalSeconds(), 
-            TimeUnit.SECONDS);
-        log.info("Lobby maintenance task scheduled to run every {} seconds.", 
-            gameConfig.getLobby().getCleanupIntervalSeconds());
+
+        Config.EXECUTOR.scheduleAtFixedRate(this::cleanupEmptyGames,
+                gameConfig.getLobby().getCleanupIntervalSeconds(),
+                gameConfig.getLobby().getCleanupIntervalSeconds(),
+                TimeUnit.SECONDS);
+        log.info("Lobby maintenance task scheduled to run every {} seconds.",
+                gameConfig.getLobby().getCleanupIntervalSeconds());
         gameMap.put("Team Deathmatch", () -> new TeamDeathmatchManager(this));
         gameMap.put("Capture The Flag", () -> new CaptureTheFlagManager(this));
         gameMap.put("King Of The Hill", () -> new KingOfTheHillManager(this));
@@ -87,7 +86,7 @@ public class GameLobby {
      * This entire method is synchronized to prevent race conditions during matchmaking.
      * This ensures that two players cannot simultaneously create a new game or overfill an existing one.
      */
-    public synchronized void joinGame(Channel channel, String gameIdStr, String gameTypeStr) {
+    public synchronized void joinGame(WebSocketSession channel, String gameIdStr, String gameTypeStr) {
         AbstractGameStateManager gameToJoin = null;
 
         // 1. Try to join by specific game ID
@@ -135,7 +134,7 @@ public class GameLobby {
         joinGame(channel, gameToJoin);
     }
 
-    public void spectateGame(Channel channel, String gameIdStr) {
+    public void spectateGame(WebSocketSession channel, String gameIdStr) {
         long gameId = Long.parseLong(gameIdStr);
         ActiveGame activeGame = activeGames.get(gameId);
         AbstractGameStateManager game = activeGame != null ? activeGame.getGame() : null;
@@ -145,9 +144,9 @@ public class GameLobby {
                 if (!game.isSpectatorsFull()) {
                     game.addSpectator(channel);
                     // Associate the game and a spectator flag with the channel for cleanup on disconnect
-                    channel.attr(Config.GAME_STATE_MANAGER_KEY).set(game);
-                    channel.attr(Config.IS_SPECTATOR_KEY).set(true);
-                    log.info("Channel {} is now spectating game {}", channel.id().asShortText(), gameId);
+                    channel.put(Config.GAME_STATE_MANAGER_KEY, game);
+                    channel.put(Config.IS_SPECTATOR_KEY, true);
+                    log.info("Channel {} is now spectating game {}", channel.getId(), gameId);
                 } else {
                     log.warn("Spectator failed to join game {}: spectator slots are full.", gameId);
                     playerDisconnected(); // Decrement the count since the connection will be closed
@@ -161,13 +160,13 @@ public class GameLobby {
         }
     }
 
-    public void joinGame(Channel ctx, AbstractGameStateManager game) {
+    public void joinGame(WebSocketSession ctx, AbstractGameStateManager game) {
         // Add the player to that specific game instance
         Long playerId = Config.playerId(ctx);
-        Player player = game.addPlayer(playerId, ctx);
+        game.addPlayer(playerId, ctx);
         // Associate the channel with its game and player ID for future lookups
-        ctx.attr(GAME_STATE_MANAGER_KEY).set(game);
-        ctx.attr(PLAYER_ID_KEY).set(playerId);
+        ctx.put(GAME_STATE_MANAGER_KEY, game);
+        ctx.put(PLAYER_ID_KEY, playerId);
     }
 
     // Finds an available game or creates a new one
@@ -232,7 +231,7 @@ public class GameLobby {
     public int getGlobalPlayerCount() {
         return gameConfig.getMaxGlobalPlayers() - globalPlayerCountSemaphore.availablePermits();
     }
-    
+
     /**
      * Find a game by its ID
      */

@@ -41,7 +41,7 @@ public class TurretSystem {
     public void updateTurrets(long delta) {
         // Create a game state snapshot for turret AI
         GameState gameState = new GameState(
-                entities.getPlayers().values().stream()
+                entities.getPlayers().stream()
                         .filter(p -> p.getInvisibilityEndTime() < System.currentTimeMillis())
                         .toList(),
                 entities.getBullets(),

@@ -49,8 +49,8 @@ public class EliminationManager extends AbstractTeamBasedManager {
             return false;
         }
         // Next, check for the inter-round-ending conditions.
-        long team1Alive = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 1 && !p.isDead()).count();
-        long team2Alive = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
+        long team1Alive = entities.getPlayers().stream().filter(p -> p.getTeam() == 1 && !p.isDead()).count();
+        long team2Alive = entities.getPlayers().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
 
         int winningTeam = -1;
         if (team1Alive > 0 && team2Alive == 0) {
@@ -84,7 +84,7 @@ public class EliminationManager extends AbstractTeamBasedManager {
     private void respawnPlayers() {
         roundDecided = false;
         vehicleManager.resetVehicles();
-        for (Player player : entities.getPlayers().values()) {
+        for (Player player : entities.getPlayers()) {
             player.setDead(false);
             player.resetHp();
             player.finishReload();
@@ -98,8 +98,8 @@ public class EliminationManager extends AbstractTeamBasedManager {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long timeLeft = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
 
-        long team1Alive = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 1 && !p.isDead()).count();
-        long team2Alive = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
+        long team1Alive = entities.getPlayers().stream().filter(p -> p.getTeam() == 1 && !p.isDead()).count();
+        long team2Alive = entities.getPlayers().stream().filter(p -> p.getTeam() == 2 && !p.isDead()).count();
 
         return new EliminationInfo(
                 this.team1Score,

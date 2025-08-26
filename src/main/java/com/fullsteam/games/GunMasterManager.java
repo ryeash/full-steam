@@ -5,11 +5,12 @@ import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
+import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.Weapon;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.GunMasterInfo;
-import io.netty.channel.Channel;
+import io.micronaut.websocket.WebSocketSession;
 
 import java.util.Objects;
 
@@ -54,22 +55,22 @@ public class GunMasterManager extends AbstractFreeForAllManager {
             this.currentGlobalWeapon = WeaponFactory.getRandomWeapon();
         }
         sendGameEvent(GameEvent.blue("Weapon switched to: " + this.currentGlobalWeapon.getName()));
-        for (Player player : entities.getPlayers().values()) {
+        for (Player player : entities.getPlayers()) {
             player.setWeapon(this.currentGlobalWeapon);
         }
     }
 
     @Override
-    public Player addPlayer(long playerId, Channel channel) {
-        Player player = super.addPlayer(playerId, channel);
-        if (player != null) {
+    public PlayerSession addPlayer(long playerId, WebSocketSession channel) {
+        PlayerSession session = super.addPlayer(playerId, channel);
+        if (session != null) {
             // Ensure new players get the current weapon
             if (currentGlobalWeapon != null) {
                 sendGameEvent(GameEvent.yellow("Weapon switched to: " + this.currentGlobalWeapon.getName(), playerId));
-                player.setWeapon(currentGlobalWeapon);
+                session.getPlayer().setWeapon(currentGlobalWeapon);
             }
         }
-        return player;
+        return session;
     }
 
     @Override

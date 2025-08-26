@@ -7,10 +7,11 @@ import com.fullsteam.model.Base;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.gamemodes.BaseDestructionInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
-import io.netty.channel.Channel;
+import io.micronaut.websocket.WebSocketSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,11 +42,11 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    public Player addPlayer(long playerId, Channel channel) {
+    public PlayerSession addPlayer(long playerId, WebSocketSession channel) {
         // In Base Destruction mode, Team 1 are attackers, Team 2 are defenders
         // Try to balance teams but prefer defenders (Team 2) if both teams are equal
-        long team1Count = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 1).count();
-        long team2Count = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 2).count();
+        long team1Count = entities.getPlayers().stream().filter(p -> p.getTeam() == 1).count();
+        long team2Count = entities.getPlayers().stream().filter(p -> p.getTeam() == 2).count();
 
         int team;
         if (team1Count < Config.MAX_PLAYERS_PER_TEAM && team2Count < Config.MAX_PLAYERS_PER_TEAM) {
