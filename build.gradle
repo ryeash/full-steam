@@ -19,32 +19,26 @@ repositories {
 
 micronaut {
     version = "4.9.2"
-    runtime("netty")
-    testRuntime("junit5")
-    processing {
-        incremental = true
-        annotations = ["com.fullsteam.*"]
-    }
+//     runtime("netty")
+//     testRuntime("junit5")
+//     processing {
+//         incremental = true
+//         annotations = ["com.fullsteam.*"]
+//     }
 }
 
-def logbackVersion = "1.5.13"
-
 dependencies {
-    // Micronaut BOM for version management
-    implementation platform("io.micronaut.platform:micronaut-platform:4.6.3")
-
-    // Micronaut core dependencies
-    annotationProcessor("io.micronaut:micronaut-http-validation")
+    annotationProcessor("io.micronaut:micronaut-core")
     annotationProcessor("io.micronaut:micronaut-inject-java")
-    compileOnly("io.micronaut:micronaut-inject-java")
 
     implementation("io.micronaut:micronaut-http-server-netty")
     implementation("io.micronaut:micronaut-websocket")
     implementation("io.micronaut:micronaut-jackson-databind")
     implementation("io.micronaut:micronaut-runtime")
     implementation("io.micronaut:micronaut-inject")
-    implementation "ch.qos.logback:logback-classic:${logbackVersion}"
+    implementation "ch.qos.logback:logback-classic"
     implementation "org.apache.commons:commons-lang3:3.18.0"
+    runtimeOnly "org.yaml:snakeyaml"
 
     testImplementation platform("org.junit:junit-bom:5.10.0")
     testImplementation 'org.junit.jupiter:junit-jupiter'
