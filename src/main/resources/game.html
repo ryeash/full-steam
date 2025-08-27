@@ -2116,7 +2116,7 @@
 
             this.ctx.save();
             this.gameState.vehicles.forEach(vehicle => {
-                if (vehicle.destroyed) {
+                if (vehicle.hp <= 0) {
                     return;
                 }
 

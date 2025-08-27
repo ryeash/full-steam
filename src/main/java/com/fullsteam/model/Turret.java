@@ -16,8 +16,6 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
     @JsonIgnore
     private final long ownerId;
     private final int team;
-    private final double x;
-    private final double y;
     @JsonIgnore
     private final Vector2D position;
     private final double radius;
@@ -45,8 +43,6 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
         this.id = id;
         this.ownerId = ownerId;
         this.team = team;
-        this.x = x;
-        this.y = y;
         this.position = new Vector2D(x, y);
         this.radius = radius;
         this.weapon = weapon;
@@ -72,11 +68,11 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
     }
 
     public double getX() {
-        return x;
+        return position.x();
     }
 
     public double getY() {
-        return y;
+        return position.y();
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.fullsteam.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.micronaut.core.annotation.Introspected;
 
 @Introspected
@@ -9,10 +10,15 @@ public final class MountedWeapon {
     private final double defaultAngle; // default direction relative to vehicle (0 = forward)
     private final double maximumRadian; // max traverse range in radians (e.g., Math.PI/2 = 90°)
     private Long controllerId;
+    @JsonIgnore
     private int currentAmmo;
+    @JsonIgnore
     private boolean reloading;
+    @JsonIgnore
     private long reloadCompleteTime;
+    @JsonIgnore
     private long nextShotTime;
+    @JsonIgnore
     private final double damageModification;
 
     public MountedWeapon(Vector2D position, Weapon weapon, double defaultAngle, double maximumRadian, double damageModification) {

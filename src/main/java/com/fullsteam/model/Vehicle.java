@@ -1,5 +1,6 @@
 package com.fullsteam.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import io.micronaut.core.annotation.Introspected;
@@ -10,20 +11,6 @@ import java.util.Optional;
 
 @Introspected
 public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
-    protected final long id = Config.ID_COUNTER.incrementAndGet();
-    protected double angle; // Vehicle rotation in radians
-    protected double velocityX;
-    protected double velocityY;
-    protected double speed;
-    protected double maxSpeed;
-    protected double turnSpeed;
-    protected double hp;
-    protected double maxHp;
-    protected boolean destroyed;
-    protected List<Seat> seats;
-
-    // Vehicle-specific properties
-    protected VehicleType vehicleType;
 
     public enum VehicleType {
         JEEP,
@@ -32,6 +19,24 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
         MECH,
         TANK,
     }
+
+    protected final long id = Config.ID_COUNTER.incrementAndGet();
+    protected double angle; // Vehicle rotation in radians
+    @JsonIgnore
+    protected double velocityX;
+    @JsonIgnore
+    protected double velocityY;
+    @JsonIgnore
+    protected double speed;
+    @JsonIgnore
+    protected double maxSpeed;
+    @JsonIgnore
+    protected double turnSpeed;
+    protected double hp;
+    protected double maxHp;
+    @JsonIgnore
+    protected List<Seat> seats;
+    protected VehicleType vehicleType;
 
     public static class Seat {
         public Player player;
@@ -57,7 +62,6 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
         this.speed = 0;
         this.velocityX = 0;
         this.velocityY = 0;
-        this.destroyed = false;
         this.seats = seats;
     }
 
@@ -189,7 +193,6 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     public boolean takeDamage(double damage) {
         this.hp -= damage;
         if (this.hp <= 0) {
-            this.destroyed = true;
             // Eject all passengers when destroyed
             for (Seat seat : seats) {
                 if (seat.player != null) {
@@ -211,7 +214,7 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
      * @param amount The amount to heal
      */
     public void heal(double amount) {
-        if (!destroyed && amount > 0) {
+        if (this.hp > 0 && amount > 0) {
             this.hp = Math.min(maxHp, this.hp + amount);
         }
     }
@@ -244,16 +247,9 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
         return speed;
     }
 
-    public double getMaxSpeed() {
-        return maxSpeed;
-    }
-
-    public double getTurnSpeed() {
-        return turnSpeed;
-    }
-
+    @JsonIgnore
     public boolean isDestroyed() {
-        return destroyed;
+        return hp <= 0;
     }
 
     public VehicleType getVehicleType() {
