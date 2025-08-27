@@ -4,6 +4,7 @@ import com.fullsteam.SpatialGrid;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Vector2D;
 
@@ -31,15 +32,11 @@ public class ZombiePlayer extends AIPlayer {
     }
 
     @Override
-    public Optional<ShootAction> update(GameState gameState, SpatialGrid<Targetable> playerGrid, long delta) {
-        // Override the standard update to implement zombie-specific behavior
+    public PlayerInput generateInput(GameState gameState, SpatialGrid<Targetable> playerGrid, long delta) {
+        PlayerInput input = new PlayerInput();
+        
         if (isDead()) {
-            setVelocity(Vector2D.ZERO);
-            super.update(delta);
-            return Optional.empty();
-        }
-        if (getVelocity().magnitudeSq() > 0.01) {
-            aimInDirection(getVelocity());
+            return input; // Return empty input for dead zombies
         }
 
         // Zombies always try to find the nearest human player
@@ -47,39 +44,92 @@ public class ZombiePlayer extends AIPlayer {
         if (nearestHuman.isPresent()) {
             Player target = nearestHuman.get();
             setCurrentTarget(target);
-            aimInDirection(target.position());
 
-            // Update charging state
-            long currentTime = System.currentTimeMillis();
-            if (!isCharging && currentTime - lastChargeTime > CHARGE_COOLDOWN) {
-                double distanceToTarget = position().distance(target.position());
-                if (distanceToTarget < CLOSE_RANGE * 2) {
-                    isCharging = true;
-                    setSpeed(zombieSpeed * 1.5); // 50% speed boost during charge
-                }
-            }
+            // Update charging state based on distance to target
+            updateChargingBehavior(target);
 
-            // End charge when close to target
-            if (isCharging && position().distance(target.position()) <= CLOSE_RANGE) {
-                isCharging = false;
-                setSpeed(zombieSpeed);
-                lastChargeTime = currentTime;
+            // Generate movement input toward target
+            generateZombieMovementInput(target, input);
+
+            // Generate attack input if in range
+            generateZombieAttackInput(target, input);
+        } else {
+            // No target found - wander around
+            generateWanderInput(input);
+        }
+
+        return input;
+    }
+
+    /**
+     * Updates zombie charging behavior based on target proximity
+     */
+    private void updateChargingBehavior(Player target) {
+        long currentTime = System.currentTimeMillis();
+        double distanceToTarget = position().distance(target.position());
+
+        // Start charging if not already charging and cooldown is over
+        if (!isCharging && currentTime - lastChargeTime > CHARGE_COOLDOWN) {
+            if (distanceToTarget < CLOSE_RANGE * 2) {
+                isCharging = true;
+                setSpeed(zombieSpeed * 1.5); // 50% speed boost during charge
             }
         }
 
-        // Use the standard movement and targeting logic
-        Optional<ShootAction> action = super.update(gameState, playerGrid, delta);
-
-        // Zombies always try to attack when in range
-        if (action.isEmpty() && getCurrentTarget() != null) {
-            double distanceToTarget = position().distance(getCurrentTarget().position());
-            if (distanceToTarget <= getWeapon().getBulletRange()) {
-                Vector2D directionToTarget = getCurrentTarget().position().subtract(position()).normalize();
-                return Optional.of(new ShootAction(directionToTarget.x(), directionToTarget.y()));
-            }
+        // End charge when close to target
+        if (isCharging && distanceToTarget <= CLOSE_RANGE) {
+            isCharging = false;
+            setSpeed(zombieSpeed);
+            lastChargeTime = currentTime;
         }
+    }
 
-        return action;
+    /**
+     * Generates movement input to aggressively pursue the target
+     */
+    private void generateZombieMovementInput(Player target, PlayerInput input) {
+        Vector2D directionToTarget = target.position().subtract(position());
+        if (directionToTarget.magnitudeSq() > 0.01) {
+            Vector2D normalized = directionToTarget.normalize();
+            input.setMoveX(normalized.x());
+            input.setMoveY(normalized.y());
+            
+            // Set mouse position for aiming
+            aimInDirection(directionToTarget);
+            input.setMouseX(getMouseX());
+            input.setMouseY(getMouseY());
+        }
+    }
+
+    /**
+     * Generates attack input when target is in range
+     */
+    private void generateZombieAttackInput(Player target, PlayerInput input) {
+        double distanceToTarget = position().distance(target.position());
+        
+        // Zombies attack aggressively when in range (melee weapons have short range)
+        if (distanceToTarget <= getWeapon().getBulletRange()) {
+            // Zombies fire continuously when in range - no hesitation
+            input.setFire(true);
+        }
+    }
+
+    /**
+     * Generates wandering movement when no target is found
+     */
+    private void generateWanderInput(PlayerInput input) {
+        // Simple random movement when no target
+        if (ThreadLocalRandom.current().nextDouble() < 0.1) { // 10% chance to change direction
+            double randomAngle = ThreadLocalRandom.current().nextDouble() * 2 * Math.PI;
+            Vector2D randomDirection = new Vector2D(Math.cos(randomAngle), Math.sin(randomAngle));
+            
+            input.setMoveX(randomDirection.x());
+            input.setMoveY(randomDirection.y());
+            
+            aimInDirection(randomDirection);
+            input.setMouseX(getMouseX());
+            input.setMouseY(getMouseY());
+        }
     }
 
     private Optional<Player> findNearestHuman(GameState gameState) {
@@ -99,7 +149,5 @@ public class ZombiePlayer extends AIPlayer {
         return Optional.ofNullable(nearest);
     }
 
-    public Player getCurrentTarget() {
-        return super.currentTarget;
-    }
+
 }

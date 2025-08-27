@@ -6,7 +6,7 @@ import com.fullsteam.games.AbstractGameStateManager;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
-import com.fullsteam.model.MountedWeapon;
+import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
@@ -134,18 +134,14 @@ public class PlayerManager {
                 player.setDamageMultiplier(POWER_UP_DAMAGE_BOOST_MULTIPLIER);
             }
 
-            // Let the AI make its decisions first, then apply movement
-            if (player instanceof AIPlayer ai) {
-                updateAIPlayer(ai, delta);
-            } else {
-                // Apply velocity for human players
-                PlayerInput input = entities.getPlayerInput(player.getId());
-                if (input != null) {
-                    handlePlayerInput(player.getId(), input, delta);
-                }
-                fieldEffectSystem.updateGravityWellAffect(player);
-                player.update(delta);
-            }
+            // Handle player input and movement
+            PlayerInput input = player instanceof AIPlayer ai
+                    ? updateAIPlayer(ai, delta)
+                    : entities.getPlayerInput(player.getId());
+            handlePlayerInput(player.getId(), input, delta);
+            // Apply field effects and physics for AI players too
+            fieldEffectSystem.updateGravityWellAffect(player);
+            player.update(delta);
 
             // --- Collision Resolution with Obstacles ---
             physicsEngine.resolvePlayerObstacleCollisions(player, oldX, oldY);
@@ -158,59 +154,25 @@ public class PlayerManager {
     /**
      * Updates an AI player's decision making and actions
      */
-    private void updateAIPlayer(AIPlayer ai, long delta) {
+    private PlayerInput updateAIPlayer(AIPlayer ai, long delta) {
         GameState gameState = createPlayerGameState(ai, null, true);
-
         // Handle vehicle entry/exit decisions
-        // Check if AI should enter/exit vehicle
         if (ai.shouldExitVehicle(gameState)) {
             vehicleManager.handleVehicleEnterExit(ai);
         } else if (ai.shouldEnterVehicle()) {
             vehicleManager.handleVehicleEnterExit(ai);
         }
-        Vehicle aiVehicle = vehicleManager.getPlayerVehicle(ai.getId());
-        if (aiVehicle != null) {
-            ai.setVelocity(Vector2D.ZERO);
-            ai.setX(aiVehicle.position().x());
-            ai.setY(aiVehicle.position().y());
-        }
-
-        // Get AI decision (shooting or mounted weapon control)
-        Optional<AIPlayer.ShootAction> shootAction = ai.update(gameState, entities.getTargetGrid(), delta);
-
-        if (shootAction.isPresent()) {
-            // Check if AI is in a vehicle and controlling a mounted weapon
-            if (aiVehicle != null) {
-                // AI is in a vehicle - handle mounted weapon firing
-                MountedWeapon controlledWeapon = aiVehicle.getWeaponControlledBy(ai.getId());
-                if (controlledWeapon != null && controlledWeapon.canShoot()) {
-                    // Create a mock PlayerInput for vehicle weapon firing
-                    PlayerInput mockInput = new PlayerInput();
-                    mockInput.setMouseX(ai.getMouseX());
-                    mockInput.setMouseY(ai.getMouseY());
-                    mockInput.setFire(true);
-                    // Fire the mounted weapon
-                    weaponSystem.fireVehicleWeapon(aiVehicle, controlledWeapon, ai.getId(), mockInput);
-                }
-            } else {
-                // AI is on foot - normal weapon firing
-                if (ai.canShoot()) {
-                    AIPlayer.ShootAction action = shootAction.get();
-                    double baseAngle = Math.atan2(action.directionY(), action.directionX());
-                    weaponSystem.fireWeapon(ai, baseAngle);
-                }
-            }
-        } else if (ai.getAmmoInMag() <= 0 && !ai.isReloading() && ai.getVehicleId() == null) {
-            // Only reload personal weapon if not in a vehicle
-            ai.startReload();
-        }
-
+        // Generate AI input using the new unified system
+        return ai.generateInput(gameState, entities.getTargetGrid(), delta);
     }
 
     /**
      * Handles player input for movement, shooting, reloading
      */
     public void handlePlayerInput(Long playerId, PlayerInput input, long delta) {
+        if (input == null) {
+            return;
+        }
         Player player = entities.getPlayer(playerId);
         if (player == null || player.isDead()) {
             return;
@@ -298,7 +260,9 @@ public class PlayerManager {
         entities.getPlayerSessions().compute(playerId, (id, session) -> {
             if (session != null) {
                 session.setInput(input);
-                session.getPlayer().setLastInputTime(System.currentTimeMillis());
+                if (!Objects.equals(session.getInput(), input)) {
+                    session.getPlayer().setLastInputTime(System.currentTimeMillis());
+                }
             }
             return session;
         });
@@ -384,8 +348,8 @@ public class PlayerManager {
         long currentTime = System.currentTimeMillis();
         for (Player player : entities.getPlayers()) {
             if (player.isDead()
-                    && player.getRespawnTime() != -1 // indicates a player's respawn has been disabled
-                    && currentTime >= player.getRespawnTime()) {
+                && player.getRespawnTime() != -1 // indicates a player's respawn has been disabled
+                && currentTime >= player.getRespawnTime()) {
                 respawnPlayer(player);
             }
         }
@@ -473,8 +437,8 @@ public class PlayerManager {
         }
 
         if (request.getWeaponName() != null
-                && !request.getWeaponName().isEmpty()
-                && !request.getWeaponName().equals(player.getWeapon().getName())) {
+            && !request.getWeaponName().isEmpty()
+            && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
             turretSystem.removeAllTurretsOwnedBy(player.id());
@@ -543,7 +507,7 @@ public class PlayerManager {
                 entities.getFieldEffects(),
                 entities.getTurrets(),
                 entities.getVehicles(),
-                includeAllObstacles ? entities.getObstacles() : entities.getObstacles().stream().filter(o -> o.isRendered()).toList(),
+                includeAllObstacles ? entities.getObstacles() : entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
                 entities.getPowerUps(),
                 System.currentTimeMillis(),
                 gameInfo);

@@ -146,6 +146,16 @@ public final class MountedWeapon {
             angleDiff = -halfTraverse;
         }
 
-        return weaponDefaultAngle + angleDiff;
+        double finalAngle = weaponDefaultAngle + angleDiff;
+        
+        // Normalize final angle to [0, 2π] range
+        while (finalAngle < 0) {
+            finalAngle += 2 * Math.PI;
+        }
+        while (finalAngle >= 2 * Math.PI) {
+            finalAngle -= 2 * Math.PI;
+        }
+        
+        return finalAngle;
     }
 }
