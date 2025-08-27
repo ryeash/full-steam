@@ -103,26 +103,6 @@ public class GameEntities {
         return targetGrid;
     }
 
-    public void populateSpatialGrids() {
-        targetGrid.clear();
-        for (PlayerSession playerSession : playerSessions.values()) {
-            Player player = playerSession.getPlayer();
-            if (player.getVehicleId() != null) {
-                continue;
-            }
-            targetGrid.insert(player, player.getX() - PLAYER_RADIUS, player.getY() - PLAYER_RADIUS, PLAYER_SIZE, PLAYER_SIZE);
-        }
-        for (Turret turret : turrets) {
-            double size = turret.getRadius() * 2;
-            targetGrid.insert(turret, turret.getX() - turret.getRadius(), turret.getY() - turret.getRadius(), size, size);
-        }
-        for (Vehicle vehicle : vehicles) {
-            if (!vehicle.isDestroyed()) {
-                targetGrid.insertPolygon(vehicle, vehicle.vertices());
-            }
-        }
-    }
-
     // === Convenience methods for common operations ===
 
     /**

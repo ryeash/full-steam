@@ -34,7 +34,6 @@ import io.micronaut.websocket.WebSocketSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
@@ -257,7 +256,7 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void updatePlayers(long delta) {
-        playerManager.updatePlayers(delta);
+        playerManager.updatePlayers(delta, buildGameInfo());
     }
 
     protected void applyBulletEffect(BulletEffect bulletEffect) {
@@ -331,7 +330,7 @@ public abstract class AbstractGameStateManager {
         entities.getPlayerSessions().forEach((id, session) -> {
             WebSocketSession channel = session.getSession();
             if (channel != null && channel.isWritable() && channel.isOpen()) {
-                GameState gameState = playerGameState(session.getPlayer(), gameInfo, false);
+                GameState gameState = playerManager.createPlayerGameState(session.getPlayer(), gameInfo, false);
                 channel.sendAsync(gameState).whenComplete((state, error) -> { // retainedDuplicate is crucial
                     if (error != null) {
                         log.error("Failed to send game state to player {}. Closing channel.", session.getPlayerId(), error);
@@ -458,37 +457,6 @@ public abstract class AbstractGameStateManager {
 
     protected WelcomeMessage playerWelcomeMessage(Player player) {
         return new WelcomeMessage(player.getId(), player.getTeam(), gameId, entities.getObstacles());
-    }
-
-    protected GameState playerGameState(Player player, GameInfo gameInfo, boolean includeAllObstacles) {
-        if (player.isVisionObscured()) {
-            return new GameState(
-                    List.of(player),
-                    List.of(),
-                    List.of(),
-                    entities.getFieldEffects(),
-                    List.of(),
-                    List.of(),
-                    includeAllObstacles ? entities.getObstacles() : entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
-                    List.of(),
-                    System.currentTimeMillis(),
-                    gameInfo);
-        } else {
-            return new GameState(
-                    entities.getPlayers()
-                            .stream()
-                            .filter(p -> p.getId() == player.getId() || p.getInvisibilityEndTime() < System.currentTimeMillis())
-                            .toList(),
-                    entities.getBullets(),
-                    entities.getLaserBlasts(),
-                    entities.getFieldEffects(),
-                    entities.getTurrets(),
-                    entities.getVehicles(),
-                    includeAllObstacles ? entities.getObstacles() : entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
-                    entities.getPowerUps(),
-                    System.currentTimeMillis(),
-                    gameInfo);
-        }
     }
 
     protected GameState spectatorGameState() {

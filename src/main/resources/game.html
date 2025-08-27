@@ -7,6 +7,7 @@
     <style>
         :root {
             /* CSS Custom Properties - will be populated by JavaScript */
+            --initial: 0; /* Placeholder to avoid empty ruleset */
         }
 
         body {
@@ -186,51 +187,132 @@
             background-color: var(--btn-hover);
         }
 
-        /* --- Styles for collapsible controls --- */
-        #controls-details {
-            margin-top: 20px;
-            border-top: 1px solid var(--border-primary);
-            padding-top: 10px;
+        /* --- Game Info Overlay Styles --- */
+        #game-info-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: none;
+            z-index: 1000;
+            overflow-y: auto;
         }
 
-        #controls-details summary {
-            cursor: pointer;
-            font-weight: bold;
-            color: var(--text-secondary);
-            list-style: none; /* Hide the default triangle */
-            outline: none; /* Hide focus ring on click */
-        }
-
-        #controls-details summary::-webkit-details-marker {
-            display: none; /* Hide the default triangle in Chrome/Safari */
-        }
-
-        #controls-details summary:hover {
+        #game-info-content {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 30px;
+            background-color: var(--bg-panel);
+            border: 2px solid var(--border-primary);
+            border-radius: 10px;
             color: var(--text-primary);
         }
 
-        #controls-details summary::before {
-            content: '▶ '; /* Right-pointing triangle for collapsed state */
-            font-size: 0.8em;
-            margin-right: 5px;
+        #game-info-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border-primary);
         }
 
-        #controls-details[open] > summary::before {
-            content: '▼ '; /* Down-pointing triangle for expanded state */
+        #game-info-header h1 {
+            margin: 0 0 10px 0;
+            color: var(--accent-gold);
+            font-size: 2.5em;
         }
 
-        #controls-details[open] > summary {
-            margin-bottom: 10px;
+        #game-info-header .game-mode-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.2em;
+            font-style: italic;
         }
 
-        #controls {
-            font-size: 0.9em;
+        .info-section {
+            margin-bottom: 30px;
+        }
+
+        .info-section h2 {
+            color: var(--accent-gold);
+            border-bottom: 1px solid var(--border-light);
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+        }
+
+        .objective-text {
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: var(--bg-card);
+            border-left: 4px solid var(--accent-gold);
+            border-radius: 5px;
+        }
+
+        .team-objective {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+
+        .team-objective > div {
+            flex: 1;
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        .team1-objective {
+            background-color: var(--team1-dark);
+            border: 1px solid var(--team1-primary);
+        }
+
+        .team2-objective {
+            background-color: var(--team2-dark);
+            border: 1px solid var(--team2-primary);
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .controls-column h3 {
+            text-align: center;
+            margin-bottom: 15px;
+            color: var(--accent-blue);
+        }
+
+        .controls-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .controls-table th,
+        .controls-table td {
+            text-align: left;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border-lighter);
+        }
+
+        .controls-table th {
+            background-color: var(--bg-secondary);
+            color: var(--text-secondary);
+            font-weight: bold;
+        }
+
+        .controls-table td {
             color: var(--text-muted);
-            padding-left: 15px; /* Indent the controls text */
         }
 
-        #controls p {
-            margin: 5px 0;
+        .close-hint {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-primary);
+            color: var(--text-muted);
+            font-style: italic;
         }
 
         /* --- Styles for the Redesigned Info Bar --- */
@@ -307,58 +389,93 @@
                 <!-- FFA players will be populated here -->
             </ul>
         </div>
-        <details id="controls-details">
-            <summary>Controls</summary>
-            <table style="width: 100%; border-collapse: collapse; color: var(--text-muted);">
-                <tr>
-                    <th style="text-align: left; padding: 4px; border-bottom: 1px solid var(--border-lighter);">Action
-                    </th>
-                    <th style="text-align: left; padding: 4px; border-bottom: 1px solid var(--border-lighter);">
-                        Keyboard/Mouse
-                    </th>
-                    <th style="text-align: left; padding: 4px; border-bottom: 1px solid var(--border-lighter);">
-                        Gamepad
-                    </th>
-                </tr>
-                <tr>
-                    <td style="padding: 4px;">Move</td>
-                    <td style="padding: 4px;">WASD/Arrows</td>
-                    <td style="padding: 4px;">L Stick</td>
-                </tr>
-                <tr>
-                    <td style="padding: 4px;">Aim</td>
-                    <td style="padding: 4px;">Mouse</td>
-                    <td style="padding: 4px;">R Stick</td>
-                </tr>
-                <tr>
-                    <td style="padding: 4px;">Reload</td>
-                    <td style="padding: 4px;">R</td>
-                    <td style="padding: 4px;">X/□</td>
-                </tr>
-                <tr>
-                    <td style="padding: 4px;">Build/Swap Seat</td>
-                    <td style="padding: 4px;">E</td>
-                    <td style="padding: 4px;">RB/R1</td>
-                </tr>
-                <tr>
-                    <td style="padding: 4px;">Swap Weapon</td>
-                    <td style="padding: 4px;"></td>
-                    <td style="padding: 4px;">Y/△</td>
-                </tr>
-                <tr>
-                    <td style="padding: 4px;">Enter/Exit Vehicle</td>
-                    <td style="padding: 4px;">F</td>
-                    <td style="padding: 4px;">A/X</td>
-                </tr>
-                <tr>
-                    <td style="padding: 4px;">Shoot</td>
-                    <td style="padding: 4px;">LMB</td>
-                    <td style="padding: 4px;">RT/R2</td>
-                </tr>
-            </table>
-        </details>
         <div style="text-align: center; margin-top: 20px; padding: 0 5px;">
             <button id="leaveGameBtn">Leave Game</button>
+        </div>
+        <div>
+            <p>* Hold Tab/Menu to see controls</p>
+        </div>
+    </div>
+</div>
+
+<!-- Game Info Overlay -->
+<div id="game-info-overlay">
+    <div id="game-info-content">
+        <div id="game-info-header">
+            <h1 id="overlay-game-mode">Game Mode</h1>
+            <div class="game-mode-subtitle" id="overlay-game-subtitle">Loading...</div>
+        </div>
+
+        <div class="info-section" id="objective-section">
+            <h2>Objective</h2>
+            <div class="objective-text" id="objective-text">
+                Loading game mode information...
+            </div>
+            <div id="team-objectives" style="display: none;">
+                <div class="team-objective">
+                    <div class="team1-objective">
+                        <h4 style="margin-top: 0; color: var(--team1-primary);">Team 1 (Green)</h4>
+                        <div id="team1-objective-text"></div>
+                    </div>
+                    <div class="team2-objective">
+                        <h4 style="margin-top: 0; color: var(--team2-primary);">Team 2 (Red)</h4>
+                        <div id="team2-objective-text"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <h2>Controls</h2>
+            <div class="controls-grid">
+                <div class="controls-column">
+                    <h3>Keyboard & Mouse</h3>
+                    <table class="controls-table">
+                        <thead>
+                            <tr>
+                                <th>Action</th>
+                                <th>Control</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Move</td><td>WASD / Arrow Keys</td></tr>
+                            <tr><td>Aim</td><td>Mouse</td></tr>
+                            <tr><td>Shoot</td><td>Left Mouse Button</td></tr>
+                            <tr><td>Reload</td><td>R</td></tr>
+                            <tr><td>Action/Build</td><td>E</td></tr>
+                            <tr><td>Enter/Exit Vehicle</td><td>F</td></tr>
+                            <tr><td>Special</td><td>Q</td></tr>
+                            <tr><td>Game Info</td><td>Tab (hold)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="controls-column">
+                    <h3>Gamepad</h3>
+                    <table class="controls-table">
+                        <thead>
+                            <tr>
+                                <th>Action</th>
+                                <th>Control</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Move</td><td>Left Stick</td></tr>
+                            <tr><td>Aim</td><td>Right Stick</td></tr>
+                            <tr><td>Shoot</td><td>RT / R2</td></tr>
+                            <tr><td>Reload</td><td>X / □</td></tr>
+                            <tr><td>Action/Build</td><td>RB / R1</td></tr>
+                            <tr><td>Enter/Exit Vehicle</td><td>A / X</td></tr>
+                            <tr><td>Swap Weapon</td><td>Y / △</td></tr>
+                            <tr><td>Special</td><td>LT / L2</td></tr>
+                            <tr><td>Game Info</td><td>Menu / Options</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="close-hint">
+            Release Tab or press Menu/Options again to close
         </div>
     </div>
 </div>
@@ -418,6 +535,216 @@
     // Initialize colors when DOM is ready
     document.addEventListener('DOMContentLoaded', initializeColorPalette);
 </script>
+<script type="text/javascript">
+    // Game mode information database
+    const GAME_MODE_INFO = {
+        'Team Deathmatch': {
+            subtitle: 'Classic team-based combat',
+            objective: 'Eliminate enemy players to score points for your team. The team with the most eliminations when time runs out wins.',
+            teamBased: true,
+            team1Objective: 'Eliminate Team 2 players',
+            team2Objective: 'Eliminate Team 1 players'
+        },
+        'King of the Hill': {
+            subtitle: 'Control the central point',
+            objective: 'Control the central hill to accumulate points for your team. Contest the hill to prevent the enemy from scoring.',
+            teamBased: true,
+            team1Objective: 'Control and hold the hill',
+            team2Objective: 'Control and hold the hill'
+        },
+        'Capture the Flag': {
+            subtitle: 'Capture and return enemy flags',
+            objective: 'Infiltrate the enemy base, steal their flag, and return it to your base to score. Defend your own flag from enemy flag carriers. Your flag must be present at your base to score.',
+            teamBased: true,
+            team1Objective: 'Capture Team 2\'s flag and return it to your base',
+            team2Objective: 'Capture Team 1\'s flag and return it to your base'
+        },
+        'Free For All': {
+            subtitle: 'Every player for themselves',
+            objective: 'Eliminate all other players to accumulate the most kills. There are no teams - everyone is your enemy.',
+            teamBased: false
+        },
+        'Elimination': {
+            subtitle: 'Last team standing wins',
+            objective: 'Eliminate all members of the opposing team to win the round. Players do not respawn until the next round begins.',
+            teamBased: true,
+            team1Objective: 'Eliminate all Team 2 players',
+            team2Objective: 'Eliminate all Team 1 players'
+        },
+        'Zombie Defense': {
+            subtitle: 'Survive the undead horde',
+            objective: 'Work together as survivors to defend against increasingly difficult waves of zombies until the timer runs out.',
+            teamBased: true,
+            team1Objective: 'Survive all zombie waves',
+            team2Objective: 'Eliminate all survivors (AI Zombies)'
+        },
+        'Oddball': {
+            subtitle: 'Hold the oddball to score',
+            objective: 'Control the Oddball to accumulate points for your team. Eliminate the carrier to make them drop it. The carrier is not able to shoot.',
+            teamBased: true,
+            team1Objective: 'Hold the Oddball and defend the carrier',
+            team2Objective: 'Hold the Oddball and defend the carrier'
+        },
+        'Base Destruction': {
+            subtitle: 'Attack vs. Defense',
+            objective: 'Attackers must destroy the defending team\'s base before time runs out. Defenders must protect their base.',
+            teamBased: true,
+            team1Objective: 'Destroy Team 2\'s base',
+            team2Objective: 'Defend your base until time runs out'
+        },
+        'Escort': {
+            subtitle: 'Move the payload',
+            objective: 'Teams compete to move the payload to the opposite side of the map. Stand near the payload to move it towards your goal.',
+            teamBased: true,
+            team1Objective: 'Push the payload to the right side',
+            team2Objective: 'Push the payload to the left side'
+        },
+        'Juggernaut': {
+            subtitle: 'Target the chosen ones',
+            objective: 'Each team has one Juggernaut with enhanced health. Score by eliminating the enemy Juggernaut.',
+            teamBased: true,
+            team1Objective: 'Eliminate Team 2\'s Juggernaut',
+            team2Objective: 'Eliminate Team 1\'s Juggernaut'
+        },
+        'Gun Master': {
+            subtitle: 'Rotating weapon mayhem',
+            objective: 'All players use the same weapon, which changes every 20 seconds. Adapt quickly to each new weapon.',
+            teamBased: false
+        },
+        'Builder': {
+            subtitle: 'Create your battlefield',
+            objective: 'Use the action key (E) to place destructible crates. Build defensive positions and destroy enemy structures.',
+            teamBased: false
+        },
+        'Armored Assault': {
+            subtitle: 'Vehicle-based warfare',
+            objective: 'Control Motor Pools to spawn powerful vehicles. Use teamwork to dominate with tanks, mechs, and other armored units.',
+            teamBased: true,
+            team1Objective: 'Control Motor Pools and destroy enemy vehicles',
+            team2Objective: 'Control Motor Pools and destroy enemy vehicles'
+        },
+        'Lone Wolf': {
+            subtitle: 'One vs. many survival',
+            objective: 'One enhanced player (the Lone Wolf) fights against multiple hunters. Survive as long as possible or hunt down the wolf.',
+            teamBased: true,
+            team1Objective: 'Survive as the Lone Wolf',
+            team2Objective: 'Hunt down the Lone Wolf'
+        }
+    };
+
+    // Game info overlay management
+    class GameInfoOverlay {
+        constructor() {
+            this.overlay = document.getElementById('game-info-overlay');
+            this.isVisible = false;
+            this.currentGameMode = null;
+            this.setupEventListeners();
+        }
+
+        setupEventListeners() {
+            // Keyboard event for Tab key
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Tab') {
+                    e.preventDefault();
+                    if (!this.isVisible) {
+                        this.show();
+                    }
+                }
+            });
+
+            document.addEventListener('keyup', (e) => {
+                if (e.code === 'Tab') {
+                    e.preventDefault();
+                    if (this.isVisible) {
+                        this.hide();
+                    }
+                }
+            });
+
+            // Close overlay when clicking outside the content
+            this.overlay.addEventListener('click', (e) => {
+                if (e.target === this.overlay) {
+                    this.hide();
+                }
+            });
+        }
+
+        updateGamepadEvents(gamepad) {
+            if (!gamepad) return;
+
+            // Check for menu/options button (button 9 on most gamepads)
+            const menuButton = gamepad.buttons[9]; // Start/Options/Menu button
+            const selectButton = gamepad.buttons[8]; // Back/Select/View button
+
+            if ((menuButton && menuButton.pressed) || (selectButton && selectButton.pressed)) {
+                if (!this.gamepadButtonPressed) {
+                    this.gamepadButtonPressed = true;
+                    if (this.isVisible) {
+                        this.hide();
+                    } else {
+                        this.show();
+                    }
+                }
+            } else {
+                this.gamepadButtonPressed = false;
+            }
+        }
+
+        show() {
+            this.isVisible = true;
+            this.overlay.style.display = 'block';
+            this.updateContent();
+        }
+
+        hide() {
+            this.isVisible = false;
+            this.overlay.style.display = 'none';
+        }
+
+        updateGameMode(gameMode) {
+            this.currentGameMode = gameMode;
+            if (this.isVisible) {
+                this.updateContent();
+            }
+        }
+
+        updateContent() {
+            if (!this.currentGameMode) return;
+
+            const modeInfo = GAME_MODE_INFO[this.currentGameMode];
+            if (!modeInfo) {
+                // Fallback for unknown game modes
+                document.getElementById('overlay-game-mode').textContent = this.currentGameMode;
+                document.getElementById('overlay-game-subtitle').textContent = 'Custom game mode';
+                document.getElementById('objective-text').textContent = 'Game mode information not available.';
+                document.getElementById('team-objectives').style.display = 'none';
+                return;
+            }
+
+            // Update header
+            document.getElementById('overlay-game-mode').textContent = this.currentGameMode;
+            document.getElementById('overlay-game-subtitle').textContent = modeInfo.subtitle;
+
+            // Update objective
+            document.getElementById('objective-text').textContent = modeInfo.objective;
+
+            // Update team objectives if applicable
+            if (modeInfo.teamBased && modeInfo.team1Objective && modeInfo.team2Objective) {
+                document.getElementById('team1-objective-text').textContent = modeInfo.team1Objective;
+                document.getElementById('team2-objective-text').textContent = modeInfo.team2Objective;
+                document.getElementById('team-objectives').style.display = 'block';
+            } else {
+                document.getElementById('team-objectives').style.display = 'none';
+            }
+        }
+    }
+
+    // Initialize the overlay system
+    const gameInfoOverlay = new GameInfoOverlay();
+    // Make it globally available
+    window.gameInfoOverlay = gameInfoOverlay;
+</script>
+
 <script type="text/javascript">
     class GameUIManager {
         constructor(gameInstance) {
@@ -574,7 +901,13 @@
             if (!gameState || !gameState.info) return;
 
             this.elements.playerCount.textContent = gameState.players ? gameState.players.length : 0;
-            this.elements.gameModeDisplay.textContent = gameState.info.type.replace('Manager', '');
+            const gameModeName = gameState.info.type.replace('Manager', '');
+            this.elements.gameModeDisplay.textContent = gameModeName;
+
+            // Update the game info overlay with the current game mode
+            if (window.gameInfoOverlay) {
+                window.gameInfoOverlay.updateGameMode(gameModeName);
+            }
 
             if (gameState.info.timeLeft !== undefined) {
                 const totalSeconds = gameState.info.timeLeft;
@@ -1025,6 +1358,12 @@
 
             if (firstGamepad) {
                 this.gamepad = firstGamepad;
+                
+                // Update overlay with gamepad events
+                if (window.gameInfoOverlay) {
+                    window.gameInfoOverlay.updateGamepadEvents(this.gamepad);
+                }
+
                 const stickMoved = Math.abs(this.gamepad.axes[0]) > 0.1 ||
                                    Math.abs(this.gamepad.axes[1]) > 0.1 ||
                                    Math.abs(this.gamepad.axes[2]) > 0.1 ||

@@ -1,10 +1,14 @@
 package com.fullsteam.systems;
 
 import com.fullsteam.CollisionUtils;
+import com.fullsteam.SpatialGrid;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.PowerUp;
+import com.fullsteam.model.Targetable;
+import com.fullsteam.model.Turret;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
 
@@ -32,7 +36,24 @@ public class PhysicsEngine {
      * Populates the spatial grid with all targetable entities for efficient collision detection
      */
     public void populateSpatialGrids() {
-        entities.populateSpatialGrids();
+        SpatialGrid<Targetable> targetGrid = entities.getTargetGrid();
+        targetGrid.clear();
+        for (PlayerSession playerSession : entities.getPlayerSessions().values()) {
+            Player player = playerSession.getPlayer();
+            if (player.getVehicleId() != null) {
+                continue;
+            }
+            targetGrid.insert(player, player.getX() - PLAYER_RADIUS, player.getY() - PLAYER_RADIUS, PLAYER_SIZE, PLAYER_SIZE);
+        }
+        for (Turret turret : entities.getTurrets()) {
+            double size = turret.getRadius() * 2;
+            targetGrid.insert(turret, turret.getX() - turret.getRadius(), turret.getY() - turret.getRadius(), size, size);
+        }
+        for (Vehicle vehicle : entities.getVehicles()) {
+            if (!vehicle.isDestroyed()) {
+                targetGrid.insertPolygon(vehicle, vehicle.vertices());
+            }
+        }
     }
 
     /**

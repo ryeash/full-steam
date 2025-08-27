@@ -109,7 +109,7 @@ public class PlayerManager {
     /**
      * Updates all players, handles movement, AI decisions, effects, and collisions
      */
-    public void updatePlayers(long delta) {
+    public void updatePlayers(long delta, GameInfo gameInfo) {
         for (Player player : entities.getPlayers()) {
             double oldX = player.getX();
             double oldY = player.getY();
@@ -136,7 +136,7 @@ public class PlayerManager {
 
             // Handle player input and movement
             PlayerInput input = player instanceof AIPlayer ai
-                    ? updateAIPlayer(ai, delta)
+                    ? updateAIPlayer(ai, gameInfo, delta)
                     : entities.getPlayerInput(player.getId());
             handlePlayerInput(player.getId(), input, delta);
             // Apply field effects and physics for AI players too
@@ -154,8 +154,8 @@ public class PlayerManager {
     /**
      * Updates an AI player's decision making and actions
      */
-    private PlayerInput updateAIPlayer(AIPlayer ai, long delta) {
-        GameState gameState = createPlayerGameState(ai, null, true);
+    private PlayerInput updateAIPlayer(AIPlayer ai, GameInfo gameInfo, long delta) {
+        GameState gameState = createPlayerGameState(ai, gameInfo, true);
         // Handle vehicle entry/exit decisions
         if (ai.shouldExitVehicle(gameState)) {
             vehicleManager.handleVehicleEnterExit(ai);
@@ -497,19 +497,34 @@ public class PlayerManager {
     /**
      * Creates a game state for a specific player (for AI or other purposes)
      */
-    private GameState createPlayerGameState(Player player, GameInfo gameInfo, boolean includeAllObstacles) {
-        return new GameState(
-                entities.getPlayers().stream()
-                        .filter(p -> p.getInvisibilityEndTime() < System.currentTimeMillis() || Objects.equals(p.getId(), player.getId()))
-                        .toList(),
-                entities.getBullets(),
-                entities.getLaserBlasts(),
-                entities.getFieldEffects(),
-                entities.getTurrets(),
-                entities.getVehicles(),
-                includeAllObstacles ? entities.getObstacles() : entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
-                entities.getPowerUps(),
-                System.currentTimeMillis(),
-                gameInfo);
+    public GameState createPlayerGameState(Player player, GameInfo gameInfo, boolean includeAllObstacles) {
+        if (player.isVisionObscured()) {
+            return new GameState(
+                    List.of(player),
+                    List.of(),
+                    List.of(),
+                    entities.getFieldEffects(),
+                    List.of(),
+                    List.of(),
+                    includeAllObstacles ? entities.getObstacles() : entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
+                    List.of(),
+                    System.currentTimeMillis(),
+                    gameInfo);
+        } else {
+            return new GameState(
+                    entities.getPlayers()
+                            .stream()
+                            .filter(p -> p.getId() == player.getId() || p.getInvisibilityEndTime() < System.currentTimeMillis())
+                            .toList(),
+                    entities.getBullets(),
+                    entities.getLaserBlasts(),
+                    entities.getFieldEffects(),
+                    entities.getTurrets(),
+                    entities.getVehicles(),
+                    includeAllObstacles ? entities.getObstacles() : entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
+                    entities.getPowerUps(),
+                    System.currentTimeMillis(),
+                    gameInfo);
+        }
     }
 }
