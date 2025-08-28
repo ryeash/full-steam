@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
@@ -260,9 +259,7 @@ public class PlayerManager {
         entities.getPlayerSessions().compute(playerId, (id, session) -> {
             if (session != null) {
                 session.setInput(input);
-                if (!Objects.equals(session.getInput(), input)) {
-                    session.getPlayer().setLastInputTime(System.currentTimeMillis());
-                }
+                session.getPlayer().setLastInputTime(System.currentTimeMillis());
             }
             return session;
         });

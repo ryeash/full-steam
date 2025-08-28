@@ -282,18 +282,18 @@ public class WeaponFactory {
         ));
 
         addPreset(new Weapon(
-                "Laser Minigun",
-                "LM",
+                "Laser Rifle",
+                "LR",
                 Weapon.Ordinance.LASER,
-                35,  // Fire Rate
-                5, // Damage
-                9,  // Range
+                9,  // Fire Rate
+                17, // Damage
+                18,  // Range
                 0, // Speed
                 0,  // Speed Decay
-                -10, // Accuracy
+                0, // Accuracy
                 0,  // Multi-shot
-                10,  // Magazine Size
-                1,  // Reload Speed
+                2,  // Magazine Size
+                4,  // Reload Speed
                 null
         ));
 
@@ -384,6 +384,22 @@ public class WeaponFactory {
             0,  // Magazine Size
             0,  // Reload Speed
             Explosion::shell
+    );
+
+    public static final Weapon MECH_LAZ_CANNON = new Weapon(
+            "Laser Minigun",
+            "LM",
+            Weapon.Ordinance.LASER,
+            35,  // Fire Rate
+            5, // Damage
+            9,  // Range
+            0, // Speed
+            0,  // Speed Decay
+            -10, // Accuracy
+            0,  // Multi-shot
+            10,  // Magazine Size
+            1,  // Reload Speed
+            null
     );
 
     public static void addPreset(Weapon weapon) {

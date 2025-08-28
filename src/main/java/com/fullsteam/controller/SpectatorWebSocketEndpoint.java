@@ -1,4 +1,4 @@
-package com.fullsteam.websocket;
+package com.fullsteam.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fullsteam.Jackson;

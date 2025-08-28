@@ -1234,7 +1234,7 @@
                 setInterval(() => {
                     this.pingStartTime = Date.now();
                     this.ws.send(JSON.stringify({ type: 'ping' }));
-                }, 2000);
+                },5000);
             };
 
             this.ws.onmessage = (event) => {
@@ -2687,11 +2687,11 @@
                     // Pentagon vehicle with 5 different weapons at vertices
                     if (weaponIndex === 0) {
                         // Driver - Rocket Launcher (front vertex)
-                        return { ...baseProps, length: vehicle.radius * .6, width: 5, turretRadius: vehicle.radius * 0.015,
+                        return { ...baseProps, length: vehicle.radius * 0.4, width: 5, turretRadius: vehicle.radius * 0.015,
                                 barrelColor: '#D32F2F', barrelStroke: '#B71C1C' }; // Red for rockets
                     } else if (weaponIndex === 1) {
                         // Sniper Rifle (front-right vertex)
-                        return { ...baseProps, length: vehicle.radius * .6, width: 2, turretRadius: vehicle.radius * 0.01,
+                        return { ...baseProps, length: vehicle.radius * 0.4, width: 2, turretRadius: vehicle.radius * 0.01,
                                 barrelColor: '#1976D2', barrelStroke: '#0D47A1' }; // Blue for precision
                     } else if (weaponIndex === 2) {
                         // Minigun (rear-right vertex)
@@ -2699,7 +2699,7 @@
                                 barrelColor: '#388E3C', barrelStroke: '#1B5E20' }; // Green for sustained fire
                     } else if (weaponIndex === 3) {
                         // Flamethrower (rear-left vertex)
-                        return { ...baseProps, length: vehicle.radius * 0.3, width: 6, turretRadius: vehicle.radius * 0.011,
+                        return { ...baseProps, length: vehicle.radius * 0.4, width: 6, turretRadius: vehicle.radius * 0.011,
                                 barrelColor: '#F57C00', barrelStroke: '#E65100' }; // Orange for fire
                     } else {
                         // Laser Minigun (front-left vertex)

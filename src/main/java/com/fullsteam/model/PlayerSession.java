@@ -6,7 +6,7 @@ import io.micronaut.websocket.WebSocketSession;
 /**
  * Player session information
  */
-public class PlayerSession {
+public final class PlayerSession {
     private final AbstractGameStateManager game;
     private final WebSocketSession session;
     private final Player player;
