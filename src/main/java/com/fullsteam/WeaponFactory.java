@@ -23,6 +23,7 @@ public class WeaponFactory {
     private static final Map<String, Weapon> weaponPresets = new HashMap<>();
     private static final List<String> weaponNames;
     private static final Weapon[] weaponArray;
+    private static final Weapon[] randomWeapons;
 
     static {
         addPreset(new Weapon(
@@ -335,6 +336,19 @@ public class WeaponFactory {
                 .stream()
                 .sorted(Comparator.comparing(Weapon::getName))
                 .toArray(Weapon[]::new);
+
+        List<String> randomExceptions = List.of(
+                "Engineer Wrench",
+                "Grenade (Slow)",
+                "Grenade (Smoke)",
+                "Grenade (Gravity Well)",
+                "Mine Layer");
+
+        randomWeapons = weaponPresets.values()
+                .stream()
+                .filter(w -> !randomExceptions.contains(w.getName()))
+                .sorted(Comparator.comparing(Weapon::getName))
+                .toArray(Weapon[]::new);
     }
 
     /**
@@ -432,18 +446,7 @@ public class WeaponFactory {
         return weaponArray[0];
     }
 
-    private static final List<String> RANDOM_EXCEPTIONS = List.of(
-            "Engineer Wrench",
-            "Grenade (Slow)",
-            "Grenade (Smoke)",
-            "Grenade (Gravity Well)",
-            "Mine Layer");
-
     public static Weapon getRandomWeapon() {
-        Weapon random = null;
-        while (random == null || RANDOM_EXCEPTIONS.contains(random.getName())) {
-            random = weaponArray[ThreadLocalRandom.current().nextInt(weaponArray.length)];
-        }
-        return random;
+        return randomWeapons[ThreadLocalRandom.current().nextInt(randomWeapons.length)];
     }
 }
