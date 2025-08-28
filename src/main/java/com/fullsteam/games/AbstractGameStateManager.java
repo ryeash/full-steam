@@ -60,6 +60,7 @@ public abstract class AbstractGameStateManager {
 
     protected final GameLobby gameLobby;
     protected final Long gameId = ID_COUNTER.incrementAndGet();
+    private final long createdTime = System.currentTimeMillis();
     protected GameEntities entities;
     protected WeaponSystem weaponSystem;
     protected PhysicsEngine physicsEngine;
@@ -94,6 +95,10 @@ public abstract class AbstractGameStateManager {
 
     public Long getGameId() {
         return gameId;
+    }
+
+    public long getCreatedTime() {
+        return createdTime;
     }
 
     public void sendGameEvent(String message, GameEvent.EventType type) {
