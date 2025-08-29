@@ -257,7 +257,7 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     }
 
     public Long getDriverId() {
-        return Optional.ofNullable(seats.isEmpty() ? null : seats.get(0))
+        return Optional.ofNullable(seats.isEmpty() ? null : seats.getFirst())
                 .map(s -> s.player)
                 .map(Player::id)
                 .orElse(null);
@@ -324,10 +324,6 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
             }
         }
         super.setPosition(position);
-    }
-
-    public List<Seat> getSeats() {
-        return seats;
     }
 
     public void cycleSeats(Player player) {

@@ -21,7 +21,6 @@ public class LoneWolfManager extends AbstractGameStateManager {
 
     private static final long AI_FILL_CHECK_INTERVAL_MS = 5000; // 5 seconds
     private long lastAIFillCheckTime = 0;
-
     private Long loneWolfId;
     private int loneWolfDeaths = 0;
 
