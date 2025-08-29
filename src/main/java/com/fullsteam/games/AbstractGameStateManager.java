@@ -34,6 +34,7 @@ import io.micronaut.websocket.WebSocketSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.channels.ClosedChannelException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
@@ -337,7 +338,7 @@ public abstract class AbstractGameStateManager {
             if (channel != null && channel.isWritable() && channel.isOpen()) {
                 GameState gameState = playerManager.createPlayerGameState(session.getPlayer(), gameInfo, false);
                 channel.sendAsync(gameState).whenComplete((state, error) -> { // retainedDuplicate is crucial
-                    if (error != null) {
+                    if (error != null && !(error instanceof ClosedChannelException)) {
                         log.error("Failed to send game state to player {}. Closing channel.", session.getPlayerId(), error);
                         channel.close();
                     }
