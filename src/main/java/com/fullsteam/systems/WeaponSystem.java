@@ -156,14 +156,9 @@ public class WeaponSystem {
             return;
         }
 
-        // Calculate desired weapon angle based on mouse input
-        double desiredAngle;
-        double dx = input.getMouseX() - mountedWeapon.position().x();
-        double dy = input.getMouseY() - mountedWeapon.position().y();
-        desiredAngle = Math.atan2(dy, dx);
-
-        // Apply traverse constraints to get the final weapon angle
-        double weaponAngle = mountedWeapon.getConstrainedAngle(desiredAngle, vehicle.getAngle());
+        // Use the current weapon angle that has already been updated by VehicleManager
+        // This ensures consistency between aiming and firing
+        double weaponAngle = mountedWeapon.getCurrentAngle();
 
         // Fire weapon
         int bulletsToFire = Math.min(weapon.getBulletsPerShot(), mountedWeapon.getCurrentAmmo());

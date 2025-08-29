@@ -303,6 +303,7 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
                 double newY = dx * sin + dy * cos + center.y();
                 // Update weapon position
                 mountedWeapon.setPosition(new Vector2D(newX, newY));
+                mountedWeapon.updateAngle(0, 1, getAngle());
             }
         }
     }

@@ -153,6 +153,10 @@ public class VehicleManager {
             controlledWeapon.finishReload();
         }
 
+        // Update weapon angle continuously based on mouse input
+        // This ensures the weapon tracks the player's mouse even when not firing
+        controlledWeapon.updateAngle(input.getMouseX(), input.getMouseY(), vehicle.getAngle());
+
         // Handle weapon firing
         if (input.isFire()) {
             if (controlledWeapon.getCurrentAmmo() <= 0) {

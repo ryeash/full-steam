@@ -315,7 +315,6 @@
             border: 1px solid rgba(100, 200, 255, 0.3);
             padding: 8px 16px;
             border-radius: 20px;
-            cursor: pointer;
             font-size: 0.9em;
             font-weight: 500;
             font-family: 'Exo 2', sans-serif;
@@ -2890,8 +2889,8 @@
         }
 
         drawSingleMountedWeapon(vehicle, mountedWeapon, style, weaponIndex) {
-            // Calculate current weapon angle
-            let currentAngle = this.calculateWeaponAngle(vehicle, mountedWeapon);
+            // Use the server-provided current angle instead of calculating client-side
+            const currentAngle = mountedWeapon.currentAngle || (vehicle.angle + mountedWeapon.defaultAngle);
             
             // Get weapon visual properties based on vehicle type and weapon index
             const weaponProps = this.getWeaponVisualProperties(vehicle, weaponIndex);
@@ -2908,52 +2907,7 @@
             this.drawWeaponBarrel(mountedWeapon, currentAngle, weaponProps);
         }
 
-        calculateWeaponAngle(vehicle, mountedWeapon) {
-            // Get the controlling player's mouse position
-            let controllingPlayer = this.findPlayer(mountedWeapon.controllerId);
-            
-            if (controllingPlayer && controllingPlayer.mouseX && controllingPlayer.mouseY) {
-                // Player is controlling - calculate desired angle
-                const mouseX = controllingPlayer.mouseX;
-                const mouseY = controllingPlayer.mouseY;
-                const dx = mouseX - mountedWeapon.x;
-                const dy = mouseY - mountedWeapon.y;
-                let desiredAngle = Math.atan2(dy, dx);
-                
-                // Apply traverse constraints
-                return this.constrainWeaponAngle(desiredAngle, vehicle.angle, mountedWeapon);
-            } else {
-                // No player controlling - use default angle relative to vehicle
-                return vehicle.angle + mountedWeapon.defaultAngle;
-            }
-        }
 
-        constrainWeaponAngle(desiredAngle, vehicleAngle, mountedWeapon) {
-            if (mountedWeapon.maximumRadian >= Math.PI * 2) {
-                // Full 360° traverse - no constraints
-                return desiredAngle;
-            }
-
-            // Calculate the weapon's default direction in world coordinates
-            const weaponDefaultAngle = vehicleAngle + mountedWeapon.defaultAngle;
-            
-            // Calculate the difference between desired and default angles
-            let angleDiff = desiredAngle - weaponDefaultAngle;
-            
-            // Normalize angle difference to be between -π and π
-            while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-            while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-            
-            // Constrain to maximum traverse range
-            const halfTraverse = mountedWeapon.maximumRadian / 2.0;
-            if (angleDiff > halfTraverse) {
-                angleDiff = halfTraverse;
-            } else if (angleDiff < -halfTraverse) {
-                angleDiff = -halfTraverse;
-            }
-            
-            return weaponDefaultAngle + angleDiff;
-        }
 
         getWeaponVisualProperties(vehicle, weaponIndex) {
             const baseProps = {
@@ -3019,6 +2973,7 @@
             // Calculate default angle in world coordinates
             const defaultWorldAngle = vehicle.angle + mountedWeapon.defaultAngle;
             const halfTraverse = mountedWeapon.maximumRadian / 2.0;
+            const currentAngle = mountedWeapon.currentAngle || defaultWorldAngle;
             
             // Draw traverse arc - much more subtle
             this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
@@ -3035,6 +2990,20 @@
                 defaultWorldAngle + halfTraverse
             );
             this.ctx.stroke();
+            
+            // Draw current weapon direction indicator
+            if (mountedWeapon.controllerId) {
+                this.ctx.setLineDash([]);
+                this.ctx.strokeStyle = 'rgba(100, 200, 255, 0.4)';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.moveTo(mountedWeapon.x, mountedWeapon.y);
+                this.ctx.lineTo(
+                    mountedWeapon.x + Math.cos(currentAngle) * (arcRadius * 0.8),
+                    mountedWeapon.y + Math.sin(currentAngle) * (arcRadius * 0.8)
+                );
+                this.ctx.stroke();
+            }
             
             // Draw limit lines - very subtle
             this.ctx.setLineDash([]);
