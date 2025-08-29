@@ -14,11 +14,17 @@ micronaut:
   jackson:
     bean-introspection-module: true
   http:
+    client:
+      ws:
+        compression:
+          enabled: true
     services:
       default:
         ws:
           compression:
             enabled: true
+
+
 
 # Game configuration
 game:

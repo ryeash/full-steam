@@ -412,7 +412,7 @@ public class PlayerManager {
     public void removePlayer(long playerId) {
         Player removed = entities.removePlayer(playerId);
         log.info("Player {} left the game", Optional.ofNullable(removed)
-                .map(Player::getPlayerName)
+                .map(Player::getName)
                 .orElse(String.valueOf(playerId)));
         Optional.ofNullable(removed)
                 .map(Player::id)
@@ -429,8 +429,8 @@ public class PlayerManager {
             return;
         }
 
-        if (request.getPlayerName() != null && !request.getPlayerName().isEmpty() && Config.ALLOW_NAME_CHANGE) {
-            player.setPlayerName(request.getPlayerName());
+        if (request.getName() != null && !request.getName().isEmpty() && Config.ALLOW_NAME_CHANGE) {
+            player.setName(request.getName());
         }
 
         if (request.getWeaponName() != null
@@ -444,7 +444,7 @@ public class PlayerManager {
         if (request.isRequestTeamChange()) {
             handleTeamChangeRequest(player);
         }
-        log.info("Player {} reconfigured: name={}, weapon={}", playerId, player.getPlayerName(), player.getWeapon().getName());
+        log.info("Player {} reconfigured: name={}, weapon={}", playerId, player.getName(), player.getWeapon().getName());
     }
 
     /**

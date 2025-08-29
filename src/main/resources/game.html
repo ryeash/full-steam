@@ -140,7 +140,7 @@
             color: var(--text-muted);
         }
 
-        #playerNameInput, #weaponSelector {
+        #nameInput, #weaponSelector {
             background-color: var(--input-bg);
             color: var(--input-text);
             border: 1px solid var(--input-border);
@@ -151,13 +151,13 @@
             transition: all 0.3s ease;
         }
 
-        #playerNameInput:focus, #weaponSelector:focus {
+        #nameInput:focus, #weaponSelector:focus {
             outline: none;
             border-color: rgba(100, 200, 255, 0.6);
             box-shadow: 0 0 10px rgba(100, 200, 255, 0.3);
         }
 
-        #playerNameInput {
+        #nameInput {
             width: 120px;
         }
 
@@ -303,7 +303,7 @@
             font-size: 0.9em;
         }
 
-        #player-config #playerNameInput, 
+        #player-config #nameInput,
         #player-config #weaponSelector {
             flex-grow: 1;
             max-width: 160px;
@@ -659,8 +659,8 @@
 
         <div id="player-config">
             <div class="config-item">
-                <label for="playerNameInput">Name:</label>
-                <input type="text" id="playerNameInput" placeholder="Your Name">
+                <label for="nameInput">Name:</label>
+                <input type="text" id="nameInput" placeholder="Your Name">
             </div>
             <div class="config-item">
                 <label for="weaponSelector">Weapon:</label>
@@ -1250,8 +1250,8 @@
 
             const nameSpan = this.doc.createElement('span');
             nameSpan.className = 'player-name';
-            nameSpan.textContent = player.playerName || (player.id.startsWith('ai-') ? `AI` : 'Player');
-            nameSpan.title = player.playerName || player.id;
+            nameSpan.textContent = player.name || (player.id.startsWith('ai-') ? `AI` : 'Player');
+            nameSpan.title = player.name || player.id;
 
             const scoreSpan = this.doc.createElement('span');
             scoreSpan.className = 'player-score';
@@ -1307,7 +1307,7 @@
             this.lastFpsTime = 0;
             this.resetGameState();
             this.uiManager = new GameUIManager(this);
-            this.loadPlayerName();
+            this.loadName();
             this.setupEventListeners();
             this.connect();
             this.startGameLoop();
@@ -1618,7 +1618,7 @@
 
             this.canvas.addEventListener('dragstart', (e) => e.preventDefault());
 
-            document.getElementById('playerNameInput').addEventListener('change', () => {
+            document.getElementById('nameInput').addEventListener('change', () => {
                 this.sendConfigChange();
                 this.canvas.focus();
             });
@@ -1778,18 +1778,18 @@
             if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
                 return;
             }
-            const playerName = document.getElementById('playerNameInput').value;
+            const name = document.getElementById('nameInput').value;
             const weaponName = weaponNameToSet || document.getElementById('weaponSelector').value;
 
-            localStorage.setItem('playerName', playerName);
+            localStorage.setItem('name', name);
             localStorage.setItem('weaponName', weaponName);
             const message = {
                 type: 'configChange',
-                playerName: playerName,
+                name: name,
                 weaponName: weaponName
             };
             this.ws.send(JSON.stringify(message));
-            console.log(`Sent player config: Name=${playerName}, Weapon=${weaponName}`);
+            console.log(`Sent player config: Name=${name}, Weapon=${weaponName}`);
         }
 
         sendTeamChangeRequest() {
@@ -1804,10 +1804,10 @@
             console.log('Sent team change request.');
         }
 
-        loadPlayerName() {
-            const savedName = localStorage.getItem('playerName');
+        loadName() {
+            const savedName = localStorage.getItem('name');
             if (savedName) {
-                document.getElementById('playerNameInput').value = savedName;
+                document.getElementById('nameInput').value = savedName;
             }
         }
 
@@ -3316,7 +3316,7 @@
             this.ctx.fillStyle = '#fff';
             this.ctx.font = '12px Arial';
             this.ctx.textAlign = 'center';
-            const baseName = player.playerName || (player.id.startsWith('ai-') ? 'AI' : 'Player');
+            const baseName = player.name || (player.id.startsWith('ai-') ? 'AI' : 'Player');
             let displayName = `${player.powerUpIcons || ''}${baseName} | ${player.weapon.shortName}`;
             this.ctx.fillText(displayName, playerCenterX, player.y - 15);
 

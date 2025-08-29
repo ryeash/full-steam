@@ -143,7 +143,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
         } else if (shooter != null && Objects.equals(shooter.getId(), loneWolfId)) {
             // A hunter was killed by the lone wolf
             victim.setRespawnTime(-1);
-            sendGameEvent(GameEvent.green("The Lone Wolf has eliminated " + victim.getPlayerName()));
+            sendGameEvent(GameEvent.green("The Lone Wolf has eliminated " + victim.getName()));
         }
     }
 
@@ -206,7 +206,7 @@ public class LoneWolfManager extends AbstractGameStateManager {
             player.setDamageMultiplier(1 + (loneWolfDeaths * Config.LONE_WOLF_DAMAGE_BOOST_PER_DEATH));
             player.setDamageBoostEndTime(Long.MAX_VALUE);
             player.resetHp();
-            sendGameEvent(GameEvent.red(player.getPlayerName() + " is the Lone Wolf!"));
+            sendGameEvent(GameEvent.red(player.getName() + " is the Lone Wolf!"));
         }
     }
 }

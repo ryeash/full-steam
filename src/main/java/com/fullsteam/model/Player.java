@@ -9,7 +9,7 @@ import org.apache.commons.lang3.StringUtils;
 @Introspected
 public class Player implements HasId, HasLife, Targetable {
     protected final long id;
-    protected String playerName;
+    protected String name;
     protected double x;
     protected double y;
     @JsonIgnore
@@ -58,9 +58,9 @@ public class Player implements HasId, HasLife, Targetable {
         this(id, RandomNames.randomName(), x, y, team, WeaponFactory.getDefaultWeapon());
     }
 
-    public Player(long id, String playerName, double x, double y, int team, Weapon weapon) {
+    public Player(long id, String name, double x, double y, int team, Weapon weapon) {
         this.id = id;
-        this.playerName = playerName;
+        this.name = name;
         this.x = x;
         this.y = y;
         this.team = team;
@@ -138,12 +138,12 @@ public class Player implements HasId, HasLife, Targetable {
         return id;
     }
 
-    public String getPlayerName() {
-        return playerName;
+    public String getName() {
+        return name;
     }
 
-    public void setPlayerName(String playerName) {
-        this.playerName = StringUtils.abbreviate(playerName, 25);
+    public void setName(String name) {
+        this.name = StringUtils.abbreviate(name, 25);
     }
 
     public double getX() {

@@ -100,7 +100,7 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
     protected void sendVictoryMessage() {
         entities.getPlayers().stream()
                 .max(Comparator.comparingInt(Player::getKills))
-                .ifPresent(winner -> sendGameEvent(GameEvent.blue(winner.getPlayerName() + " wins!")));
+                .ifPresent(winner -> sendGameEvent(GameEvent.blue(winner.getName() + " wins!")));
     }
 
     @Override

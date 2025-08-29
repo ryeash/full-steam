@@ -66,9 +66,9 @@ public class JuggernautManager extends AbstractTeamBasedManager {
         super.killPlayer(victim, shooter);
         if (Objects.equals(victim.getId(), team1Juggernaut) || Objects.equals(victim.getId(), team2Juggernaut)) {
             if (shooter != null) {
-                sendGameEvent(GameEvent.info("Team %s Juggernaut %s was eliminated by %s!".formatted(victim.getTeam(), victim.getPlayerName(), shooter.getPlayerName())));
+                sendGameEvent(GameEvent.info("Team %s Juggernaut %s was eliminated by %s!".formatted(victim.getTeam(), victim.getName(), shooter.getName())));
             } else {
-                sendGameEvent(GameEvent.info("Team %s Juggernaut %s was eliminated!".formatted(victim.getTeam(), victim.getPlayerName())));
+                sendGameEvent(GameEvent.info("Team %s Juggernaut %s was eliminated!".formatted(victim.getTeam(), victim.getName())));
             }
             team1Juggernaut = null;
             team2Juggernaut = null;
@@ -136,8 +136,8 @@ public class JuggernautManager extends AbstractTeamBasedManager {
             }
             juggernaut.setHp(JUGGERNAUT_HEALTH);
             juggernaut.setMaxHp(JUGGERNAUT_HEALTH);
-            sendGameEvent(GameEvent.team(team, "%s is Team %d's Juggernaut!".formatted(juggernaut.getPlayerName(), team)));
-            log.info("{} is the new Juggernaut for team {}", juggernaut.getPlayerName(), team);
+            sendGameEvent(GameEvent.team(team, "%s is Team %d's Juggernaut!".formatted(juggernaut.getName(), team)));
+            log.info("{} is the new Juggernaut for team {}", juggernaut.getName(), team);
         } else {
             log.warn("Cannot select Juggernaut for team {}: no players on team.", team);
         }

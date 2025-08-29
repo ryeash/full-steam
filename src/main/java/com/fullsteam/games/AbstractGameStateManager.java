@@ -297,8 +297,8 @@ public abstract class AbstractGameStateManager {
                     .map(MountedWeapon::getWeapon)
                     .map(Weapon::getName)
                     .orElse(shooter.getWeapon().getName());
-            sendGameEvent(GameEvent.yellow("You were eliminated by %s (%s)".formatted(shooter.getPlayerName(), weaponUsed), victim.id()));
-            sendGameEvent(GameEvent.blue("You eliminated %s".formatted(victim.getPlayerName()), shooter.id()));
+            sendGameEvent(GameEvent.yellow("You were eliminated by %s (%s)".formatted(shooter.getName(), weaponUsed), victim.id()));
+            sendGameEvent(GameEvent.blue("You eliminated %s".formatted(victim.getName()), shooter.id()));
         }
 
         // If an AI player's performance is unbalanced, give it a new random weapon.
@@ -311,7 +311,7 @@ public abstract class AbstractGameStateManager {
             if (deaths >= 3 && Math.abs(kills - deaths) > 5) {
                 Weapon oldWeapon = victim.getWeapon();
                 victim.setWeapon(WeaponFactory.getRandomWeapon());
-                log.info("{} performance (K/D: {}/{}) triggered a weapon change from {} to {}.", victim.getPlayerName(), kills, deaths, oldWeapon.getName(), victim.getWeapon().getName());
+                log.info("{} performance (K/D: {}/{}) triggered a weapon change from {} to {}.", victim.getName(), kills, deaths, oldWeapon.getName(), victim.getWeapon().getName());
             }
         }
         if (ThreadLocalRandom.current().nextDouble() < Config.POWERUP_DROP_RATE) {
