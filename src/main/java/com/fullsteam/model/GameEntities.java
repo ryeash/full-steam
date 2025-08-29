@@ -6,15 +6,13 @@ import io.micronaut.websocket.WebSocketSession;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
-
-import static com.fullsteam.Config.PLAYER_RADIUS;
-import static com.fullsteam.Config.PLAYER_SIZE;
 
 /**
  * Encapsulates all game entities and collections in a single container.
@@ -54,7 +52,11 @@ public class GameEntities {
     }
 
     public Collection<Player> getPlayers() {
-        return playerSessions.values().stream().map(PlayerSession::getPlayer).toList();
+        return playerSessions.values()
+                .stream()
+                .map(PlayerSession::getPlayer)
+                .sorted(Comparator.comparing(Player::getKills).reversed())
+                .toList();
     }
 
     // === Player-related getters ===

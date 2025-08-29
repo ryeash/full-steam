@@ -26,14 +26,15 @@ public class Player implements HasId, HasLife, Targetable {
     protected double maxHp;
     protected double mouseX;
     protected double mouseY;
-    @JsonIgnore
-    protected transient long lastInputTime;
     protected boolean isDead;
     protected long respawnTime;
     protected int kills;
     protected int deaths;
     protected int ammoInMag;
     protected boolean isReloading;
+    protected Long vehicleId;
+    @JsonIgnore
+    protected transient long lastInputTime;
     @JsonIgnore
     protected long reloadCompleteTime;
     @JsonIgnore
@@ -50,7 +51,6 @@ public class Player implements HasId, HasLife, Targetable {
     public double damageMultiplier;
     @JsonIgnore
     public boolean visionObscured;
-    public Long vehicleId;
     @JsonIgnore
     public boolean shootDisabled;
 
@@ -96,10 +96,10 @@ public class Player implements HasId, HasLife, Targetable {
 
     public boolean canShoot() {
         return !isDead()
-                && !shootDisabled
-                && !isReloading
-                && ammoInMag > 0
-                && System.currentTimeMillis() >= nextShotTime;
+               && !shootDisabled
+               && !isReloading
+               && ammoInMag > 0
+               && System.currentTimeMillis() >= nextShotTime;
     }
 
     /**

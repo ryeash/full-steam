@@ -4,6 +4,7 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.Base;
+import com.fullsteam.model.Explosion;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
@@ -84,6 +85,14 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
 
     private void updateBase() {
         if (defendingBase != null && !baseDestroyed && defendingBase.isDestroyed()) {
+            fieldEffectSystem.addFieldEffect(new Explosion(
+                    defendingBase.getX(),
+                    defendingBase.getY(),
+                    0,
+                    0,
+                    defendingBase.getRadius(),
+                    1000,
+                    300));
             baseDestroyed = true;
         }
     }

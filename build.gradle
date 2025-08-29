@@ -19,12 +19,6 @@ repositories {
 
 micronaut {
     version = "4.9.2"
-//     runtime("netty")
-//     testRuntime("junit5")
-//     processing {
-//         incremental = true
-//         annotations = ["com.fullsteam.*"]
-//     }
 }
 
 dependencies {
@@ -40,13 +34,17 @@ dependencies {
     implementation "org.apache.commons:commons-lang3:3.18.0"
     runtimeOnly "org.yaml:snakeyaml"
 
-    testImplementation platform("org.junit:junit-bom:5.10.0")
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testImplementation "io.micronaut.test:micronaut-test-junit5"
+    testAnnotationProcessor "io.micronaut:micronaut-inject-java"
+    testImplementation("io.micronaut.test:micronaut-test-junit5")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 test {
     useJUnitPlatform()
+    testLogging {
+        showStandardStreams = true
+    }
 }
 
 shadowJar {

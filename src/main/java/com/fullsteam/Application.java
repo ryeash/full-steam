@@ -28,13 +28,14 @@ public class Application {
         @Override
         public ObjectMapper onCreated(BeanCreatedEvent<ObjectMapper> event) {
             return event.getBean()
-                    .setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
+                    .setDefaultMergeable(true)
                     .configure(JsonGenerator.Feature.IGNORE_UNKNOWN, true)
                     .configure(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, false)
                     .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                     .configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true)
                     .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
-                    .setDefaultMergeable(true)
+                    .setSerializationInclusion(JsonInclude.Include.NON_DEFAULT)
+                    .setDefaultPropertyInclusion(JsonInclude.Include.NON_DEFAULT)
                     .registerModule(new SimpleModule()
                             .addSerializer(Double.class, new SerializerDouble())
                             .addSerializer(double.class, new SerializerDouble())
