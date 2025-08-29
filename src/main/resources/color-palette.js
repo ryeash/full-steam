@@ -1,8 +1,3 @@
-/**
- * Normalized Color Palette for Full Steam Game
- * Extracted and organized from game.html
- */
-
 const GameColors = {
   // ========== TEAMS ==========
   teams: {

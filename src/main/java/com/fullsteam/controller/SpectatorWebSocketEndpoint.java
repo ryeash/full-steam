@@ -1,8 +1,6 @@
 package com.fullsteam.controller;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fullsteam.Jackson;
-import com.fullsteam.service.PlayerConnectionService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.websocket.WebSocketSession;
 import io.micronaut.websocket.annotation.OnClose;
 import io.micronaut.websocket.annotation.OnMessage;
@@ -16,32 +14,32 @@ import java.util.Map;
 
 @ServerWebSocket("/game/{gameId}/spectate")
 public class SpectatorWebSocketEndpoint {
-    
+
     private static final Logger log = LoggerFactory.getLogger(SpectatorWebSocketEndpoint.class);
-    
+
     private final PlayerConnectionService connectionService;
-    
+    private final ObjectMapper objectMapper;
+
     @Inject
-    public SpectatorWebSocketEndpoint(PlayerConnectionService connectionService) {
+    public SpectatorWebSocketEndpoint(PlayerConnectionService connectionService, ObjectMapper objectMapper) {
         this.connectionService = connectionService;
+        this.objectMapper = objectMapper;
     }
-    
+
     @OnOpen
     public void onOpen(WebSocketSession session, String gameId) {
         if (!connectionService.connectSpectator(session, gameId)) {
             session.close();
         }
     }
-    
+
     @OnMessage
-    public void onMessage(String message, WebSocketSession session) {
+    public void onMessage(byte[] message, WebSocketSession session) {
         try {
-            JsonNode rootNode = Jackson.readTree(message);
-            String type = rootNode.path("type").asText("");
-            
-            // Handle ping messages for spectators
-            if ("ping".equals(type)) {
-                session.sendSync(Jackson.writeValueAsString(Map.of("type", "pong")));
+            Map<?, ?> map = objectMapper.readValue(message, Map.class);
+            String type = (String) map.get("type");
+            if (type.equals("ping")) {
+                session.sendSync(objectMapper.writeValueAsString(Map.of("type", "pong")));
             } else {
                 log.debug("Received message of type '{}' from spectator {}, ignoring", type, session.getId());
             }
@@ -49,7 +47,7 @@ public class SpectatorWebSocketEndpoint {
             log.error("Error processing message from spectator {}: {}", session.getId(), e.getMessage());
         }
     }
-    
+
     @OnClose
     public void onClose(WebSocketSession session) {
         connectionService.disconnectSpectator(session.getId());

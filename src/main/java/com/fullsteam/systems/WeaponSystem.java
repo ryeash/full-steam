@@ -36,12 +36,6 @@ public class WeaponSystem {
     private final Consumer<BulletEffect> bulletEffectHandler;
     private final BiConsumer<Player, Player> killPlayerHandler;
 
-    public WeaponSystem(WeaponSystem other) {
-        this.entities = other.entities;
-        this.bulletEffectHandler = other.bulletEffectHandler;
-        this.killPlayerHandler = other.killPlayerHandler;
-    }
-
     public WeaponSystem(GameEntities entities, Consumer<BulletEffect> bulletEffectHandler, BiConsumer<Player, Player> killPlayerHandler) {
         this.entities = entities;
         this.bulletEffectHandler = bulletEffectHandler;

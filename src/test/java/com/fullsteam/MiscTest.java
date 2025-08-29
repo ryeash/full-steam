@@ -24,7 +24,7 @@ public class MiscTest {
 
     @Test
     public void jsonTest() throws JsonProcessingException {
-        System.out.println(Jackson.writeValueAsString(GameEvent.info("toast")));
+        System.out.println(mapper.writeValueAsString(GameEvent.info("toast")));
         System.out.println(mapper.writeValueAsString(new Player(
                 1, "test", 123.3456, 653.22132, 1, WeaponFactory.getDefaultWeapon()
         )));
@@ -37,8 +37,8 @@ public class MiscTest {
         ByteArrayOutputStream os = new ByteArrayOutputStream();
         gzip(new ByteArrayInputStream(payload), os);
         byte[] compressed = os.toByteArray();
-        System.out.println("orig: "+payload.length);
-        System.out.println("gzip: "+compressed.length);
+        System.out.println("orig: " + payload.length);
+        System.out.println("gzip: " + compressed.length);
     }
 
     private static final int BUFFER_SIZE = 512;

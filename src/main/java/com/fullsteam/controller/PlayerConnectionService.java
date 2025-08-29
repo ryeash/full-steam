@@ -1,4 +1,4 @@
-package com.fullsteam.service;
+package com.fullsteam.controller;
 
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
@@ -119,10 +119,8 @@ public class PlayerConnectionService {
             AbstractGameStateManager game = playerSession.getGame();
             if (game != null) {
                 Long playerId = playerSession.getPlayerId();
-                if (playerId != null) {
-                    game.removePlayer(playerId);
-                    log.info("Player {} disconnected from game {}", playerId, game.getGameId());
-                }
+                game.removePlayer(playerId);
+                log.info("Player {} disconnected from game {}", playerId, game.getGameId());
             }
             gameLobby.playerDisconnected();
             log.info("Player connection closed. Global players: {}", gameLobby.getGlobalPlayerCount());

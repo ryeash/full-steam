@@ -131,12 +131,23 @@ public class VehicleManager {
         vehicle.update(delta);
 
         // Check collision with obstacles
-        // Simple collision response - stop the vehicle
+        // Simple collision response - stop the vehicle and restore position/rotation
         if (physicsEngine.isColliding(vehicle, entities.getObstacles()) || physicsEngine.isColliding(vehicle, entities.getVehicles())) {
             vehicle.setVelocityX(0);
             vehicle.setVelocityY(0);
-            vehicle.setPosition(startingPosition); // reset to starting position
-            // TODO: handle rotation back to original?
+            vehicle.setPosition(startingPosition); // Reset to starting position
+            
+            // Calculate angle difference before resetting the angle
+            double currentAngle = vehicle.getAngle();
+            double angleDifference = startingAngle - currentAngle;
+            
+            // Reset angle and update vehicle's polygon vertices to match
+            vehicle.setAngle(startingAngle);
+            
+            // If there was a rotation change, we need to rotate the vehicle's geometry back
+            if (Math.abs(angleDifference) > 0.001) { // Only rotate if there's a meaningful difference
+                vehicle.rotate(angleDifference);
+            }
         }
     }
 

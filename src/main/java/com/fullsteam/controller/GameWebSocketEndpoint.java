@@ -1,12 +1,11 @@
 package com.fullsteam.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fullsteam.Jackson;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.games.AbstractGameStateManager;
 import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.PlayerSession;
-import com.fullsteam.service.PlayerConnectionService;
 import io.micronaut.websocket.WebSocketSession;
 import io.micronaut.websocket.annotation.OnClose;
 import io.micronaut.websocket.annotation.OnMessage;
@@ -18,7 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
-import static com.fullsteam.service.PlayerConnectionService.SESSION_KEY;
+import static com.fullsteam.controller.PlayerConnectionService.SESSION_KEY;
 
 @ServerWebSocket("/game/{gameId}/{gameType}")
 public class GameWebSocketEndpoint {
@@ -26,10 +25,12 @@ public class GameWebSocketEndpoint {
     private static final Logger log = LoggerFactory.getLogger(GameWebSocketEndpoint.class);
 
     private final PlayerConnectionService connectionService;
+    private final ObjectMapper objectMapper;
 
     @Inject
-    public GameWebSocketEndpoint(PlayerConnectionService connectionService) {
+    public GameWebSocketEndpoint(PlayerConnectionService connectionService, ObjectMapper objectMapper) {
         this.connectionService = connectionService;
+        this.objectMapper = objectMapper;
     }
 
     @OnOpen
@@ -40,7 +41,7 @@ public class GameWebSocketEndpoint {
     }
 
     @OnMessage
-    public void onMessage(String message, WebSocketSession session) {
+    public void onMessage(byte[] message, WebSocketSession session) {
         PlayerSession playerSession = session.get(SESSION_KEY, PlayerSession.class).orElse(null);
 
         if (playerSession == null) {
@@ -50,26 +51,26 @@ public class GameWebSocketEndpoint {
         AbstractGameStateManager game = playerSession.getGame();
         Long playerId = playerSession.getPlayerId();
 
-        if (game == null || playerId == null) {
+        if (game == null) {
             log.warn("Received message from session without game context. Closing.");
             session.close();
             return;
         }
 
         try {
-            JsonNode rootNode = Jackson.readTree(message);
+            JsonNode rootNode = objectMapper.readTree(message);
             String type = rootNode.path("type").asText("playerInput");
 
             switch (type) {
                 case "ping":
-                    session.sendSync(Jackson.writeValueAsString(Map.of("type", "pong")));
+                    session.sendSync(objectMapper.writeValueAsString(Map.of("type", "pong")));
                     break;
                 case "configChange":
-                    PlayerConfigRequest request = Jackson.treeToValue(rootNode, PlayerConfigRequest.class);
+                    PlayerConfigRequest request = objectMapper.treeToValue(rootNode, PlayerConfigRequest.class);
                     game.handlePlayerConfigChange(playerId, request);
                     break;
                 case "playerInput":
-                    PlayerInput input = Jackson.treeToValue(rootNode, PlayerInput.class);
+                    PlayerInput input = objectMapper.treeToValue(rootNode, PlayerInput.class);
                     game.acceptPlayerInput(playerId, input);
                     break;
                 default:
