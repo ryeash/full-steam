@@ -8,14 +8,16 @@ import com.fullsteam.model.Turret;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.function.Consumer;
 
 import static com.fullsteam.Config.MAX_TURRETS_PER_PLAYER;
 import static com.fullsteam.Config.PLAYER_SIZE;
 
 /**
- * Handles all turret-related functionality including AI, firing logic, 
- * lifecycle management, and placement limits. Separated from AbstractGameStateManager 
+ * Handles all turret-related functionality including AI, firing logic,
+ * lifecycle management, and placement limits. Separated from AbstractGameStateManager
  * to follow Single Responsibility Principle.
  */
 public class TurretSystem {
@@ -27,8 +29,8 @@ public class TurretSystem {
     private final FieldEffectSystem fieldEffectSystem;
     private final Consumer<GameEvent> gameEventSender;
 
-    public TurretSystem(GameEntities entities, WeaponSystem weaponSystem, 
-                       FieldEffectSystem fieldEffectSystem, Consumer<GameEvent> gameEventSender) {
+    public TurretSystem(GameEntities entities, WeaponSystem weaponSystem,
+                        FieldEffectSystem fieldEffectSystem, Consumer<GameEvent> gameEventSender) {
         this.entities = entities;
         this.weaponSystem = weaponSystem;
         this.fieldEffectSystem = fieldEffectSystem;
@@ -93,104 +95,23 @@ public class TurretSystem {
         }
     }
 
-    /**
-     * Attempts to place a turret, enforcing player limits
-     */
-    public boolean placeTurret(Turret turret) {
-        long ownerId = turret.getOwnerId();
-        long existingTurrets = entities.getTurrets().stream()
-                .filter(existing -> existing.getOwnerId() == ownerId)
-                .count();
-
-        if (existingTurrets < MAX_TURRETS_PER_PLAYER) {
-            entities.getTurrets().add(turret);
-            return true;
-        } else {
-            // Send feedback message to the player who tried to place the turret
-            gameEventSender.accept(GameEvent.red("Turret limit reached!", ownerId));
-            return false;
+    public void placeTurret(Turret turret) {
+        List<Turret> owned = new LinkedList<>();
+        for (Turret t : entities.getTurrets()) {
+            if (t.getOwnerId() == turret.getOwnerId()) {
+                owned.add(t);
+            }
         }
-    }
-
-    /**
-     * Counts turrets owned by a specific player
-     */
-    public long countTurretsOwnedBy(long playerId) {
-        return entities.getTurrets().stream()
-                .filter(turret -> turret.getOwnerId() == playerId)
-                .count();
+        while (owned.size() >= MAX_TURRETS_PER_PLAYER) {
+            entities.getTurrets().remove(owned.removeFirst());
+        }
+        entities.getTurrets().add(turret);
     }
 
     /**
      * Removes all turrets owned by a specific player
      */
     public void removeAllTurretsOwnedBy(long playerId) {
-        long removedCount = entities.getTurrets().stream()
-                .filter(turret -> turret.getOwnerId() == playerId)
-                .count();
         entities.getTurrets().removeIf(turret -> turret.getOwnerId() == playerId);
-        if (removedCount > 0) {
-            log.debug("Removed {} turrets owned by player {}", removedCount, playerId);
-        }
-    }
-
-    /**
-     * Destroys a specific turret (triggers explosion)
-     */
-    public void destroyTurret(Turret turret) {
-        turret.takeDamage(turret.getHp()); // Deal enough damage to destroy it
-        // The updateTurrets method will handle the explosion and removal
-    }
-
-    /**
-     * Removes all turrets from the game
-     */
-    public void removeAllTurrets() {
-        int removedCount = entities.getTurrets().size();
-        entities.getTurrets().clear();
-        if (removedCount > 0) {
-            log.debug("Removed all {} turrets from the game", removedCount);
-        }
-    }
-
-    /**
-     * Checks if a turret can be placed at the specified location
-     */
-    public boolean canPlaceTurretAt(double x, double y, double radius) {
-        // Check if location is inside any obstacle
-        return entities.getObstacles().stream()
-                .noneMatch(obstacle -> CollisionUtils.checkCirclePolygonCollision(
-                        new com.fullsteam.model.Vector2D(x, y), radius, obstacle.vertices()));
-    }
-
-    /**
-     * Gets the maximum number of turrets a player can place
-     */
-    public int getMaxTurretsPerPlayer() {
-        return MAX_TURRETS_PER_PLAYER;
-    }
-
-    /**
-     * Checks if a player has reached their turret limit
-     */
-    public boolean hasReachedTurretLimit(long playerId) {
-        return countTurretsOwnedBy(playerId) >= MAX_TURRETS_PER_PLAYER;
-    }
-
-    /**
-     * Gets turrets within a specific radius of a point
-     */
-    public java.util.List<Turret> getTurretsNear(double x, double y, double radius) {
-        com.fullsteam.model.Vector2D center = new com.fullsteam.model.Vector2D(x, y);
-        return entities.getTurrets().stream()
-                .filter(turret -> turret.position().distanceSquared(center) <= radius * radius)
-                .toList();
-    }
-
-    /**
-     * Gets the total number of turrets in the game
-     */
-    public int getTotalTurretCount() {
-        return entities.getTurrets().size();
     }
 }

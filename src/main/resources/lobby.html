@@ -126,11 +126,11 @@
         }
 
         .stat-value {
+            font-family: 'Orbitron', monospace;
             font-size: 2em;
             font-weight: 600;
             color: var(--accent-green);
             display: block;
-            font-family: 'Orbitron', monospace;
         }
 
         .stat-label {
@@ -186,10 +186,10 @@
         }
 
         .game-type {
+            font-family: 'Orbitron', monospace;
             font-size: 1.4em;
             font-weight: 600;
             color: var(--accent-blue);
-            font-family: 'Orbitron', monospace;
         }
 
         .game-status {
@@ -241,17 +241,17 @@
         }
 
         .join-button, #create-buttons button {
+            font-family: 'Exo 2', sans-serif;
+            font-size: 1em;
+            font-weight: 500;
             background: linear-gradient(45deg, var(--accent-green), #22c55e);
             color: white;
             border: none;
             padding: 12px 20px;
-            font-size: 1em;
-            font-weight: 500;
             border-radius: 25px;
             transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
-            font-family: 'Exo 2', sans-serif;
         }
 
         .join-button::before, #create-buttons button::before {
@@ -489,7 +489,7 @@
         if (lobbyInfo.gameTypes && lobbyInfo.gameTypes.length > 0) {
             lobbyInfo.gameTypes.forEach(gameType => {
                 const button = document.createElement('button');
-                button.textContent = `Create ${gameType} Game`;
+                button.textContent = gameType;
                 button.onclick = () => createGame(gameType);
                 createButtons.appendChild(button);
             });

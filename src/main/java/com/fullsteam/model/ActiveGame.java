@@ -6,9 +6,9 @@ import io.micronaut.core.annotation.Introspected;
 
 @Introspected
 public class ActiveGame {
-    String gameType;
+    private final String gameType;
     @JsonIgnore
-    AbstractGameStateManager game;
+    private final AbstractGameStateManager game;
 
     public ActiveGame(String gameType, AbstractGameStateManager game) {
         this.gameType = gameType;

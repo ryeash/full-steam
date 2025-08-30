@@ -62,11 +62,10 @@ public class PhysicsEngine {
      * @param player The player to check collisions for
      * @param oldX   The player's previous X position
      * @param oldY   The player's previous Y position
-     * @return true if the player's position was modified due to collision
      */
-    public boolean resolvePlayerObstacleCollisions(Player player, double oldX, double oldY) {
+    public void resolvePlayerObstacleCollisions(Player player, double oldX, double oldY) {
         if (!isColliding(player, entities.getObstacles())) {
-            return false;
+            return;
         }
 
         // Player's new position is invalid. Attempt to slide along the obstacle.
@@ -82,10 +81,8 @@ public class PhysicsEngine {
             if (isColliding(player, entities.getObstacles())) {
                 // Still colliding, can't move on X either. Revert both.
                 player.setX(oldX);
-                return true;
             }
         }
-        return true;
     }
 
     /**

@@ -46,7 +46,7 @@ public class MiscTest {
     public static void gzip(InputStream is, OutputStream os) throws IOException {
         GZIPOutputStream gzipOs = new GZIPOutputStream(os);
         byte[] buffer = new byte[BUFFER_SIZE];
-        int bytesRead = 0;
+        int bytesRead;
         while ((bytesRead = is.read(buffer)) > -1) {
             gzipOs.write(buffer, 0, bytesRead);
         }

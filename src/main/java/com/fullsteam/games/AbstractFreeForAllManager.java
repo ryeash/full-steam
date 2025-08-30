@@ -72,7 +72,7 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
 
     @Override
     public AIPlayer addAIPlayer(int team) {
-        Long playerId = Config.ID_COUNTER.incrementAndGet();
+        long playerId = Config.ID_COUNTER.incrementAndGet();
         AIPlayer player = new AIPlayer(playerId, 0, 0, team, new DeathmatchAIStrategy(), AIArchetype.randomArchetype());
         setValidSpawnPosition(player);
         entities.addPlayer(new PlayerSession(this, player, null));

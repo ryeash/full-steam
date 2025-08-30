@@ -79,7 +79,7 @@ graalvmNative {
             buildArgs.add('--initialize-at-run-time=io.netty')
         }
 
-        all {
+        configureEach {
             resources.autodetect()
         }
     }

@@ -17,7 +17,6 @@ import com.fullsteam.games.OddballManager;
 import com.fullsteam.games.TeamDeathmatchManager;
 import com.fullsteam.games.ZombieDefenseManager;
 import com.fullsteam.model.ActiveGame;
-import io.micronaut.websocket.WebSocketSession;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
@@ -32,9 +31,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-
-import static com.fullsteam.Config.GAME_STATE_MANAGER_KEY;
-import static com.fullsteam.Config.PLAYER_ID_KEY;
 
 @Singleton
 public class GameLobby {

@@ -29,14 +29,14 @@ public abstract class Vehicle extends Obstacle implements HasLife, Targetable {
     @JsonIgnore
     protected double speed;
     @JsonIgnore
-    protected double maxSpeed;
+    protected final double maxSpeed;
     @JsonIgnore
-    protected double turnSpeed;
+    protected final double turnSpeed;
     protected double hp;
-    protected double maxHp;
+    protected final double maxHp;
     @JsonIgnore
-    protected List<Seat> seats;
-    protected VehicleType vehicleType;
+    protected final List<Seat> seats;
+    protected final VehicleType vehicleType;
 
     public static class Seat {
         public Player player;

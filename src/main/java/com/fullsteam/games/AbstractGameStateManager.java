@@ -297,7 +297,7 @@ public abstract class AbstractGameStateManager {
                     .map(MountedWeapon::getWeapon)
                     .map(Weapon::getName)
                     .orElse(shooter.getWeapon().getName());
-            sendGameEvent(GameEvent.yellow("You were eliminated by %s (%s)".formatted(shooter.getName(), weaponUsed), victim.id()));
+            sendGameEvent(GameEvent.yellow("You were eliminated by %s - %s".formatted(shooter.getName(), weaponUsed), victim.id()));
             sendGameEvent(GameEvent.blue("You eliminated %s".formatted(victim.getName()), shooter.id()));
         }
 

@@ -314,9 +314,6 @@ public class AIPlayer extends Player {
             generateVehicleWeaponInput(gameState, playerGrid, controlledWeapon, currentVehicle, input);
         }
 
-        // Generate vehicle action input (seat cycling, etc.)
-        generateVehicleActionInput(gameState, currentVehicle, input);
-
         return input;
     }
 
@@ -378,17 +375,6 @@ public class AIPlayer extends Player {
             input.setMouseX(getMouseX());
             input.setMouseY(getMouseY());
         }
-    }
-
-    /**
-     * Generates vehicle action input (seat cycling, entering/exiting).
-     */
-    private void generateVehicleActionInput(GameState gameState, Vehicle vehicle, PlayerInput input) {
-        // For now, AIs don't actively cycle seats or exit vehicles based on combat
-        // This could be enhanced later for more sophisticated vehicle AI behavior
-
-        // Example: AI could cycle to a better weapon position if current weapon is ineffective
-        // Example: AI could exit vehicle if it's heavily damaged and they're not the driver
     }
 
     /**
@@ -1139,7 +1125,7 @@ public class AIPlayer extends Player {
         );
         setMouseX(aimPoint.x());
         setMouseY(aimPoint.y());
-        
+
         // Update the weapon's angle based on this mouse position
         weapon.updateAngle(this.mouseX, this.mouseY, vehicle.getAngle());
     }
@@ -1164,7 +1150,7 @@ public class AIPlayer extends Player {
         );
         setMouseX(aimPoint.x());
         setMouseY(aimPoint.y());
-        
+
         // Update the weapon's angle based on this mouse position
         weapon.updateAngle(this.mouseX, this.mouseY, vehicle.getAngle());
     }
