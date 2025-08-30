@@ -184,15 +184,7 @@
     }
 
     function joinGame(gameId, gameType) {
-        // Add visual feedback
-        const button = event.target;
-        const originalText = button.textContent;
-        button.textContent = 'Joining...';
-        button.disabled = true;
-        
-        setTimeout(() => {
-            window.location.href = `/game.html?gameId=${gameId}&gameType=${gameType}`;
-        }, 500);
+        window.location.href = `/game.html?gameId=${gameId}&gameType=${gameType}`;
     }
 
     function createGame(gameType) {
@@ -200,15 +192,7 @@
     }
 
     function spectateGame(gameId) {
-        // Add visual feedback
-        const button = event.target;
-        const originalText = button.textContent;
-        button.textContent = 'Connecting...';
-        button.disabled = true;
-        
-        setTimeout(() => {
-            window.location.href = `/game.html?spectate=true&gameId=${gameId}`;
-        }, 500);
+        window.location.href = `/game.html?spectate=true&gameId=${gameId}`;
     }
 
     // Add connection status monitoring
