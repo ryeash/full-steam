@@ -196,9 +196,9 @@ public class WeaponFactory {
                 "SM",
                 8, // Fire Rate
                 0, // Damage (damage is from the cloud)
-                12,// Range
+                8,// Range
                 8, // Speed
-                0, // Speed Decay
+                4, // Speed Decay
                 0, // Accuracy
                 0, // Multi-shot
                 3, // Magazine Size
@@ -209,9 +209,9 @@ public class WeaponFactory {
         addPreset(new Weapon(
                 "Grenade (Gravity Well)",
                 "GW",
-                2, // Fire Rate
+                7, // Fire Rate
                 0, // Damage (effect is from the gravity well)
-                15,// Range
+                10,// Range
                 8, // Speed
                 3, // Speed Decay
                 0, // Accuracy

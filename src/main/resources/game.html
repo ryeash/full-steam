@@ -71,13 +71,10 @@
             background-color: var(--bg-secondary);
             cursor: crosshair;
             border-radius: 10px;
-            box-shadow: var(--shadow-glow);
-            transition: box-shadow 0.3s ease;
         }
 
         #gameCanvas:focus {
             outline: none;
-            box-shadow: 0 0 30px rgba(100, 200, 255, 0.4);
         }
 
         .info-bar {
@@ -163,7 +160,7 @@
 
         /* --- New Scoreboard Styles --- */
         #scoreboard-container {
-            width: 300px;
+            width: 350px;
             background: rgba(42, 42, 60, 0.95);
             border: 1px solid rgba(100, 200, 255, 0.3);
             padding: 16px;
@@ -306,7 +303,7 @@
         #player-config #nameInput,
         #player-config #weaponSelector {
             flex-grow: 1;
-            max-width: 160px;
+            max-width: 210px;
         }
 
         #leaveGameBtn, #switchTeamBtn {
@@ -345,7 +342,6 @@
         }
 
         #leaveGameBtn:hover, #switchTeamBtn:hover {
-            transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(100, 200, 255, 0.4);
         }
 
@@ -567,7 +563,7 @@
             
             #scoreboard-container {
                 width: 100%;
-                max-width: 350px;
+                max-width: 400px;
                 margin-top: 15px;
             }
             
@@ -608,7 +604,7 @@
             }
             
             #scoreboard-container {
-                max-width: 300px;
+                max-width: 350px;
                 padding: 12px;
             }
             

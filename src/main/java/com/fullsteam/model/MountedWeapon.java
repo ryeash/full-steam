@@ -132,13 +132,46 @@ public final class MountedWeapon {
      * @param vehicleAngle The current angle of the vehicle
      */
     public void updateAngle(double mouseX, double mouseY, double vehicleAngle) {
-        // Calculate desired angle from weapon position to mouse
-        double dx = mouseX - position.x();
-        double dy = mouseY - position.y();
-        double desiredAngle = Math.atan2(dy, dx);
-        
-        // Apply traverse constraints
-        this.currentAngle = getConstrainedAngle(desiredAngle, vehicleAngle);
+        if (controllerId == null) {
+            // No player controlling - use default angle relative to vehicle
+            this.currentAngle = vehicleAngle + defaultAngle;
+            // Normalize to [0, 2π] range
+            while (this.currentAngle < 0) {
+                this.currentAngle += 2 * Math.PI;
+            }
+            while (this.currentAngle >= 2 * Math.PI) {
+                this.currentAngle -= 2 * Math.PI;
+            }
+        } else {
+            // Player is controlling - calculate desired angle from weapon position to mouse
+            double dx = mouseX - position.x();
+            double dy = mouseY - position.y();
+            double desiredAngle = Math.atan2(dy, dx);
+            
+            // Apply traverse constraints
+            this.currentAngle = getConstrainedAngle(desiredAngle, vehicleAngle);
+        }
+    }
+
+    /**
+     * Updates the weapon's angle when the vehicle rotates.
+     * This ensures weapons maintain their relative orientation to the vehicle.
+     *
+     * @param vehicleAngle The current angle of the vehicle
+     */
+    public void updateAngleForVehicleRotation(double vehicleAngle) {
+        if (controllerId == null) {
+            // No player controlling - maintain default angle relative to vehicle
+            this.currentAngle = vehicleAngle + defaultAngle;
+            // Normalize to [0, 2π] range
+            while (this.currentAngle < 0) {
+                this.currentAngle += 2 * Math.PI;
+            }
+            while (this.currentAngle >= 2 * Math.PI) {
+                this.currentAngle -= 2 * Math.PI;
+            }
+        }
+        // If player is controlling, don't auto-update - let player input handle it
     }
 
     /**

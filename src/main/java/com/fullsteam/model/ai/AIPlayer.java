@@ -1139,6 +1139,9 @@ public class AIPlayer extends Player {
         );
         setMouseX(aimPoint.x());
         setMouseY(aimPoint.y());
+        
+        // Update the weapon's angle based on this mouse position
+        weapon.updateAngle(this.mouseX, this.mouseY, vehicle.getAngle());
     }
 
     /**
@@ -1161,6 +1164,9 @@ public class AIPlayer extends Player {
         );
         setMouseX(aimPoint.x());
         setMouseY(aimPoint.y());
+        
+        // Update the weapon's angle based on this mouse position
+        weapon.updateAngle(this.mouseX, this.mouseY, vehicle.getAngle());
     }
 
     /**
