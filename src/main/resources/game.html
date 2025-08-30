@@ -306,7 +306,7 @@
             max-width: 210px;
         }
 
-        #leaveGameBtn, #switchTeamBtn {
+        #leaveGameBtn, #switchTeamBtn, #spectatorBtn {
             background: linear-gradient(45deg, var(--btn-primary), rgba(100, 200, 255, 0.8));
             color: var(--text-primary);
             border: 1px solid rgba(100, 200, 255, 0.3);
@@ -323,7 +323,7 @@
             overflow: hidden;
         }
 
-        #leaveGameBtn::before, #switchTeamBtn::before {
+        #leaveGameBtn::before, #switchTeamBtn::before, #spectatorBtn::before {
             content: '';
             position: absolute;
             top: 50%;
@@ -336,12 +336,12 @@
             transform: translate(-50%, -50%);
         }
 
-        #leaveGameBtn:hover::before, #switchTeamBtn:hover::before {
+        #leaveGameBtn:hover::before, #switchTeamBtn:hover::before, #spectatorBtn:hover::before {
             width: 300px;
             height: 300px;
         }
 
-        #leaveGameBtn:hover, #switchTeamBtn:hover {
+        #leaveGameBtn:hover, #switchTeamBtn:hover, #spectatorBtn:hover {
             box-shadow: 0 5px 15px rgba(100, 200, 255, 0.4);
         }
 
@@ -352,6 +352,15 @@
 
         #leaveGameBtn:hover {
             box-shadow: 0 5px 15px rgba(244, 67, 54, 0.4);
+        }
+
+        #spectatorBtn {
+            background: linear-gradient(45deg, #9c27b0, #7b1fa2);
+            border-color: rgba(156, 39, 176, 0.3);
+        }
+
+        #spectatorBtn:hover {
+            box-shadow: 0 5px 15px rgba(156, 39, 176, 0.4);
         }
 
         /* --- Game Info Overlay Styles --- */
@@ -687,6 +696,7 @@
         </div>
         <div style="text-align: center; margin-top: 20px; padding: 0 5px;">
             <button id="leaveGameBtn">Leave Game</button>
+            <button id="spectatorBtn">👁️ Switch to Spectator</button>
         </div>
         <div>
             <p>* Hold Tab/Menu to see controls</p>
@@ -1264,7 +1274,7 @@
             this.canvas = document.getElementById('gameCanvas');
             this.ctx = this.canvas.getContext('2d');
             this.ws = null;
-            
+            this.gameId = null;
             this.keys = {};
             this.mouse = { x: 0, y: 0, down: false };
             this.playerId = null;
@@ -1546,6 +1556,7 @@
                 }
 
                 if (data.type === 'welcome') {
+                    this.gameId = data.gameId;
                     this.obstacles = data.obstacles;
                     this.playerId = data.playerId;
                     this.playerTeam = data.team;
@@ -1632,6 +1643,9 @@
                 this.sendTeamChangeRequest();
                 this.canvas.focus();
             });
+            document.getElementById('spectatorBtn').addEventListener('click', () => {
+                this.switchToSpectator();
+            });
         }
 
         enterSpectatorMode() {
@@ -1641,6 +1655,7 @@
             statusEl.style.color = GameColors.accent.blue; // A nice blue for spectator mode
             document.getElementById('player-config').style.display = 'none';
             document.getElementById('yourTeam').parentElement.style.display = 'none';
+            document.getElementById('spectatorBtn').style.display = 'none'; // Hide spectator button when already spectating
             this.canvas.style.cursor = 'default';
         }
 
@@ -1798,6 +1813,16 @@
             };
             this.ws.send(JSON.stringify(message));
             console.log('Sent team change request.');
+        }
+
+        switchToSpectator() {
+            if (this.gameId) {
+                // Redirect to spectator mode for the same game
+                window.location.href = `/game.html?spectate=true&gameId=${this.gameId}`;
+            } else {
+                // If no gameId, just go back to lobby
+                window.location.href = '/';
+            }
         }
 
         loadName() {
