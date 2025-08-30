@@ -50,7 +50,7 @@ public class GameController {
     }
 
     @Get(produces = MediaType.TEXT_HTML)
-    public HttpResponse<StreamedFile> index() {
+    public HttpResponse<StreamedFile> lobby() {
         return serveStaticFile("lobby.html", MediaType.TEXT_HTML);
     }
 
@@ -62,6 +62,16 @@ public class GameController {
     @Get(value = "/color-palette.js", produces = MediaType.TEXT_JAVASCRIPT)
     public HttpResponse<StreamedFile> colorPalette() {
         return serveStaticFile("color-palette.js", MediaType.TEXT_JAVASCRIPT);
+    }
+
+    @Get(value = "/unified.css", produces = MediaType.TEXT_CSS)
+    public HttpResponse<StreamedFile> unifiedCss() {
+        return serveStaticFile("unified.css", MediaType.TEXT_CSS);
+    }
+
+    @Get(value = "/game-engine.js", produces = MediaType.TEXT_JAVASCRIPT)
+    public HttpResponse<StreamedFile> gameEngine() {
+        return serveStaticFile("game-engine.js", MediaType.TEXT_JAVASCRIPT);
     }
 
     @Get(value = "/favicon.ico", produces = MediaType.TEXT_HTML)
