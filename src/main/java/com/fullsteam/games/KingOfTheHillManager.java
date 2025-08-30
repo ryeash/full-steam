@@ -1,5 +1,6 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
@@ -10,6 +11,7 @@ import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.ai.KingOfTheHillAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.KingOfTheHillInfo;
+import io.micronaut.context.annotation.Prototype;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -23,12 +25,13 @@ import static com.fullsteam.Config.KOTH_SCORE_TO_WIN;
  * Manages the game logic for the King of the Hill mode.
  * The objective is to control a central point to accumulate score.
  */
+@Prototype
 public class KingOfTheHillManager extends AbstractTeamBasedManager {
 
     private Hill hill;
 
-    public KingOfTheHillManager(GameLobby gameLobby) {
-        super(gameLobby);
+    public KingOfTheHillManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
         // Create the hill in the center of the map
         Vector2D hillPosition = new Vector2D(Config.GAME_WIDTH / 2.0, Config.GAME_HEIGHT / 2.0);
         this.hill = new Hill(hillPosition, KOTH_HILL_RADIUS, KOTH_HILL_RADIUS * KOTH_HILL_RADIUS, 0, false);

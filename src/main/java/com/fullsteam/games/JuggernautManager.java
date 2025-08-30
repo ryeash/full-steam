@@ -1,14 +1,18 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
+import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.ai.JuggernautAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.JuggernautInfo;
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.websocket.WebSocketSession;
 
 import java.util.List;
 import java.util.Objects;
@@ -23,13 +27,34 @@ import static com.fullsteam.Config.JUGGERNAUT_SELECTION_DELAY_MS;
  * A round-based game mode where each team has one "Juggernaut".
  * A team scores by eliminating the enemy Juggernaut.
  */
+@Prototype
 public class JuggernautManager extends AbstractTeamBasedManager {
 
     private Long team1Juggernaut;
     private Long team2Juggernaut;
 
-    public JuggernautManager(GameLobby gameLobby) {
-        super(gameLobby);
+    public JuggernautManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
+    }
+
+    @Override
+    public PlayerSession addPlayer(long playerId, WebSocketSession channel) {
+        PlayerSession playerSession = super.addPlayer(playerId, channel);
+        sendAwaitingJuggernautMessage(playerSession);
+        return playerSession;
+    }
+
+    @Override
+    protected PlayerSession addPlayer(long playerId, WebSocketSession channel, int team) {
+        PlayerSession playerSession = super.addPlayer(playerId, channel, team);
+        sendAwaitingJuggernautMessage(playerSession);
+        return playerSession;
+    }
+
+    private void sendAwaitingJuggernautMessage(PlayerSession playerSession) {
+        if (team1Juggernaut == null || team2Juggernaut == null) {
+            sendGameEvent(GameEvent.info("Awaiting juggernaut promotion", playerSession.getPlayerId()));
+        }
     }
 
     @Override
@@ -84,8 +109,8 @@ public class JuggernautManager extends AbstractTeamBasedManager {
     @Override
     protected boolean checkEndConditions() {
         if (System.currentTimeMillis() > roundEndTime
-                || team1Score >= JUGGERNAUT_SCORE_TO_WIN
-                || team2Score >= JUGGERNAUT_SCORE_TO_WIN) {
+            || team1Score >= JUGGERNAUT_SCORE_TO_WIN
+            || team2Score >= JUGGERNAUT_SCORE_TO_WIN) {
             sendVictoryMessage();
             return true;
         }

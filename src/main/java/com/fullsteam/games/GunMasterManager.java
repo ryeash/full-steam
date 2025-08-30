@@ -1,5 +1,6 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.GameLobby;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.GameEvent;
@@ -10,18 +11,20 @@ import com.fullsteam.model.Weapon;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.GunMasterInfo;
+import io.micronaut.context.annotation.Prototype;
 import io.micronaut.websocket.WebSocketSession;
 
 import java.util.Objects;
 
+@Prototype
 public class GunMasterManager extends AbstractFreeForAllManager {
 
     private static final long WEAPON_SWITCH_INTERVAL_MS = 20_000; // 20 seconds
     private long nextWeaponSwitchTime = 0;
     private Weapon currentGlobalWeapon;
 
-    public GunMasterManager(GameLobby gameLobby) {
-        super(gameLobby);
+    public GunMasterManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
     }
 
     @Override

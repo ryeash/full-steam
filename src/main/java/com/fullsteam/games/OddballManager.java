@@ -1,5 +1,6 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
@@ -11,6 +12,7 @@ import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.ai.OddballAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.OddballInfo;
+import io.micronaut.context.annotation.Prototype;
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -23,6 +25,7 @@ import static com.fullsteam.Config.ODDBALL_KEEP_OUT_RADIUS;
 import static com.fullsteam.Config.ODDBALL_POINTS_PER_SECOND;
 import static com.fullsteam.Config.ODDBALL_SCORE_TO_WIN;
 
+@Prototype
 public class OddballManager extends AbstractTeamBasedManager {
 
     private static final double BALL_PICKUP_RADIUS_SQ = ODDBALL_BALL_PICKUP_RADIUS * ODDBALL_BALL_PICKUP_RADIUS;
@@ -30,8 +33,8 @@ public class OddballManager extends AbstractTeamBasedManager {
     private Oddball oddball;
     private final Vector2D ballSpawnPoint = new Vector2D(Config.GAME_WIDTH / 2.0, Config.GAME_HEIGHT / 2.0);
 
-    public OddballManager(GameLobby gameLobby) {
-        super(gameLobby);
+    public OddballManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
         this.oddball = new Oddball(Oddball.OddballState.ON_SPAWN, ballSpawnPoint, null, 0);
     }
 

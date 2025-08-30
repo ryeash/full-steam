@@ -32,6 +32,7 @@ dependencies {
     implementation("io.micronaut:micronaut-inject")
     implementation "ch.qos.logback:logback-classic"
     implementation "org.apache.commons:commons-lang3:3.18.0"
+    implementation 'commons-io:commons-io:2.20.0'
     runtimeOnly "org.yaml:snakeyaml"
 
     testAnnotationProcessor "io.micronaut:micronaut-inject-java"

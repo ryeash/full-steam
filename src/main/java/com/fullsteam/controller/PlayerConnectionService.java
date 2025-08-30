@@ -2,7 +2,6 @@ package com.fullsteam.controller;
 
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
-import com.fullsteam.config.GameConfig;
 import com.fullsteam.games.AbstractGameStateManager;
 import com.fullsteam.model.PlayerSession;
 import io.micronaut.websocket.WebSocketSession;
@@ -27,15 +26,13 @@ public class PlayerConnectionService {
     private static final Logger log = LoggerFactory.getLogger(PlayerConnectionService.class);
 
     private final GameLobby gameLobby;
-    private final GameConfig gameConfig;
 
     // Session management
     private final Map<String, SpectatorSession> spectatorSessions = new ConcurrentHashMap<>();
 
     @Inject
-    public PlayerConnectionService(GameLobby gameLobby, GameConfig gameConfig) {
+    public PlayerConnectionService(GameLobby gameLobby) {
         this.gameLobby = gameLobby;
-        this.gameConfig = gameConfig;
     }
 
     /**
@@ -44,8 +41,7 @@ public class PlayerConnectionService {
     public boolean connectPlayer(WebSocketSession session, String gameId, String gameType) {
         // Check if server can accept new players
         if (!gameLobby.tryAcceptNewPlayer()) {
-            log.warn("Server is full ({} players). Rejecting new connection.",
-                    gameConfig.getMaxGlobalPlayers());
+            log.warn("Server is full ({} players). Rejecting new connection.", Config.MAX_GLOBAL_PLAYERS);
             return false;
         }
 
@@ -72,8 +68,7 @@ public class PlayerConnectionService {
 
         // Check if server can accept new connections
         if (!gameLobby.tryAcceptNewPlayer()) {
-            log.warn("Server is full ({} players). Rejecting new spectator connection.",
-                    gameConfig.getMaxGlobalPlayers());
+            log.warn("Server is full ({} players). Rejecting new spectator connection.", Config.MAX_GLOBAL_PLAYERS);
             return false;
         }
 

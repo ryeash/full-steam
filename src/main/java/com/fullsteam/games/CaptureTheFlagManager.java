@@ -1,5 +1,6 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.Flag;
@@ -10,6 +11,7 @@ import com.fullsteam.model.ai.CaptureTheFlagAIStrategy;
 import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.gamemodes.CaptureTheFlagInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
+import io.micronaut.context.annotation.Prototype;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +26,7 @@ import static com.fullsteam.Config.CTF_SCORE_TO_WIN;
 import static com.fullsteam.Config.GAME_HEIGHT;
 import static com.fullsteam.Config.GAME_WIDTH;
 
-
+@Prototype
 public class CaptureTheFlagManager extends AbstractTeamBasedManager {
 
     private static final Logger log = LoggerFactory.getLogger(CaptureTheFlagManager.class);
@@ -34,8 +36,8 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
     private Flag team1Flag;
     private Flag team2Flag;
 
-    public CaptureTheFlagManager(GameLobby gameLobby) {
-        super(gameLobby);
+    public CaptureTheFlagManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
         log.info("Capture the Flag game mode initialized.");
         randomizeBaseLocations();
     }

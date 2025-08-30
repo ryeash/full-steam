@@ -1,5 +1,6 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
@@ -10,6 +11,7 @@ import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.LoneWolfInfo;
 import com.fullsteam.systems.PlayerManager;
+import io.micronaut.context.annotation.Prototype;
 import io.micronaut.websocket.WebSocketSession;
 
 import java.util.Objects;
@@ -17,6 +19,7 @@ import java.util.Objects;
 import static com.fullsteam.Config.MAX_PLAYERS_PER_TEAM;
 import static com.fullsteam.Config.RESPAWN_IMMUNITY_DURATION;
 
+@Prototype
 public class LoneWolfManager extends AbstractGameStateManager {
 
     private static final long AI_FILL_CHECK_INTERVAL_MS = 5000; // 5 seconds
@@ -24,8 +27,8 @@ public class LoneWolfManager extends AbstractGameStateManager {
     private Long loneWolfId;
     private int loneWolfDeaths = 0;
 
-    public LoneWolfManager(GameLobby gameLobby) {
-        super(gameLobby);
+    public LoneWolfManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
 
         this.playerManager = new PlayerManager(playerManager) {
             // The Lone Wolf's damage multiplier is persistent and managed separately.

@@ -1,16 +1,19 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.TeamDeathmatchInfo;
+import io.micronaut.context.annotation.Prototype;
 
 import java.util.concurrent.TimeUnit;
 
+@Prototype
 public class TeamDeathmatchManager extends AbstractTeamBasedManager {
 
-    public TeamDeathmatchManager(GameLobby gameLobby) {
-        super(gameLobby);
+    public TeamDeathmatchManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
     }
 
     @Override

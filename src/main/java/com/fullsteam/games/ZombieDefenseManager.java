@@ -1,5 +1,6 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.WeaponFactory;
@@ -11,6 +12,7 @@ import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.ZombiePlayer;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.ZombieDefenseInfo;
+import io.micronaut.context.annotation.Prototype;
 import io.micronaut.websocket.WebSocketSession;
 
 import java.util.concurrent.ThreadLocalRandom;
@@ -24,6 +26,7 @@ import static com.fullsteam.Config.ZOMBIE_TIME_BETWEEN_WAVES_MS;
  * A cooperative PvE game mode where human players (Team 1) defend against
  * waves of AI-controlled zombies (Team 2).
  */
+@Prototype
 public class ZombieDefenseManager extends AbstractGameStateManager {
 
     private static final long WAVE_WARNING_TIME_MS = 5_000; // 5 seconds before the wave hits
@@ -31,8 +34,8 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
     private long nextWaveTime;
     private long roundEndTime;
 
-    public ZombieDefenseManager(GameLobby gameLobby) {
-        super(gameLobby);
+    public ZombieDefenseManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
     }
 
     @Override

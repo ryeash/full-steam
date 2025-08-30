@@ -1,5 +1,6 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
@@ -12,6 +13,7 @@ import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.gamemodes.BaseDestructionInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
+import io.micronaut.context.annotation.Prototype;
 import io.micronaut.websocket.WebSocketSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +31,7 @@ import static com.fullsteam.Config.GAME_WIDTH;
  * Team 1 (Attackers) tries to destroy Team 2's (Defenders) base before time runs out.
  * If the base is destroyed, Team 1 wins. If time runs out with the base intact, Team 2 wins.
  */
+@Prototype
 public class BaseDestructionManager extends AbstractTeamBasedManager {
 
     private static final Logger log = LoggerFactory.getLogger(BaseDestructionManager.class);
@@ -37,8 +40,8 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
     private boolean baseDestroyed = false;
     private boolean sent10SecondWarning = false;
 
-    public BaseDestructionManager(GameLobby gameLobby) {
-        super(gameLobby);
+    public BaseDestructionManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
         generateBasePosition();
     }
 

@@ -1,11 +1,13 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.gamemodes.EliminationInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
+import io.micronaut.context.annotation.Prototype;
 
 import java.util.concurrent.TimeUnit;
 
@@ -16,12 +18,13 @@ import static com.fullsteam.Config.ELIMINATION_SCORE_TO_WIN;
  * Players do not respawn until the round is over.
  * A team scores a point by eliminating all entities.getPlayers() on the opposing team.
  */
+@Prototype
 public class EliminationManager extends AbstractTeamBasedManager {
 
     boolean roundDecided = false;
 
-    public EliminationManager(GameLobby gameLobby) {
-        super(gameLobby);
+    public EliminationManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
     }
 
     @Override

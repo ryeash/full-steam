@@ -1,5 +1,6 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
@@ -29,8 +30,8 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
     protected long roundEndTime = 0;
     private long lastAIFillCheckTime = 0;
 
-    public AbstractFreeForAllManager(GameLobby gameLobby) {
-        super(gameLobby);
+    public AbstractFreeForAllManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
     }
 
     @Override

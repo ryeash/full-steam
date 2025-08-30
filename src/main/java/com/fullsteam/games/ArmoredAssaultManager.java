@@ -1,5 +1,6 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
@@ -10,6 +11,8 @@ import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
 import com.fullsteam.model.gamemodes.ArmoredAssaultInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
+import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Inject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +25,7 @@ import static com.fullsteam.Config.MOTOR_POOL_CONTROL_TIME_MS;
 import static com.fullsteam.Config.MOTOR_POOL_RADIUS;
 import static com.fullsteam.Config.VEHICLE_REPAIR_RATE;
 
+@Prototype
 public class ArmoredAssaultManager extends AbstractTeamBasedManager {
 
     private List<MotorPool> motorPools;
@@ -34,8 +38,9 @@ public class ArmoredAssaultManager extends AbstractTeamBasedManager {
     private int team1VehicleIndex = 0;
     private int team2VehicleIndex = 0;
 
-    public ArmoredAssaultManager(GameLobby gameLobby) {
-        super(gameLobby);
+    @Inject
+    public ArmoredAssaultManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
         initializeMotorPools();
     }
 

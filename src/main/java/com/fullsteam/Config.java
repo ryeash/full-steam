@@ -10,9 +10,7 @@ import java.util.function.Function;
 
 public class Config {
 
-    public static final String GAME_STATE_MANAGER_KEY = "gameStateManager";
     public static final String PLAYER_ID_KEY = "playerId";
-    public static final String IS_SPECTATOR_KEY = "isSpectator";
 
     public static Long playerId(WebSocketSession ch) {
         Optional<Long> l = ch.getAttributes().get(PLAYER_ID_KEY, Long.class);
@@ -48,17 +46,13 @@ public class Config {
     // global ID assignment
     public static final AtomicLong ID_COUNTER = new AtomicLong();
 
-    // --- Server Configuration ---
-    public static final int PORT = getInt("server.port", 8080);
-
     // AI
     public static final long AI_DECISION_COOLDOWN_MS = getLong("ai.decision_cooldown_ms", 800);
     public static final double VISION_RANGE = getDouble("ai.vision_range", 450.0);
     public static final long WANDER_DIRECTION_CHANGE_INTERVAL = getLong("ai.wander_interval_ms", 2000); // ms
-    public static final long BASE_REACTION_TIME_MS = getLong("ai.base_reaction_ms", 600);
-    public static final double BASE_AIM_INACCURACY_RADIANS = getDouble("ai.base_aim_inaccuracy", 0.4);
+    public static final double BASE_AIM_INACCURACY_RADIANS = getDouble("ai.base_aim_inaccuracy", 0.3);
     public static final long BASE_STRAFE_INTERVAL_MS = getLong("ai.base_strafe_interval_ms", 1500);
-    public static final double AI_MAX_FORCE = getDouble("ai.max_force", .5); // The maximum steering force, controls turning ability
+    public static final double AI_MAX_FORCE = getDouble("ai.max_force", .4); // The maximum steering force, controls turning ability
 
     // Lobby
     public static final long CLEANUP_INTERVAL_SECONDS = getLong("lobby.cleanup_interval_s", 10);
@@ -76,7 +70,6 @@ public class Config {
     public static final long RESPAWN_DELAY_MS = getLong("game.respawn_delay_ms", 5_000);
     public static final double PLAYER_SIZE = getDouble("game.player_size", 20.0);
     public static final double PLAYER_RADIUS = PLAYER_SIZE / 2;
-    public static final double PLAYER_RADIUS_SQ = PLAYER_RADIUS * PLAYER_RADIUS; // Squared radius for distance calculations
     public static final double DEFAULT_PLAYER_HEALTH = getDouble("game.default_player_health", 100.0);
     public static final double DEFAULT_PLAYER_SPEED = getDouble("game.default_player_speed", .18);
     public static final double ZOMBIE_SPEED = getDouble("game.zombie_speed", DEFAULT_PLAYER_SPEED / 2); // Slower than players
@@ -86,7 +79,6 @@ public class Config {
     public static final double SPAWN_VERTICAL_PADDING = getDouble("game.spawn_padding_v", 50.0);
     public static final double SPAWN_MIDFIELD_BUFFER = getDouble("game.spawn_midfield_buffer", 300.0);
     public static final int MAX_PLAYERS_PER_TEAM = getInt("game.max_players_per_team", 5);
-    public static final double SLOW_FIELD_FACTOR = getDouble("game.slow_field_factor", 0.33); // 33% speed
     public static final long RESPAWN_IMMUNITY_DURATION = getLong("game.respawn_immunity_duration", 2000);
     public static final int MAX_TURRETS_PER_PLAYER = getInt("game.max_turrets_per_player", 2);
     public static final double TURRET_INACCURACY = getDouble("game.turret_inaccuracy", .2);
@@ -151,18 +143,15 @@ public class Config {
     // --- Base Destruction Game Mode ---
     public static final double BASE_DESTRUCTION_BASE_HEALTH = getDouble("game.base_destruction.base_health", 5000.0);
     public static final double BASE_DESTRUCTION_BASE_RADIUS = getDouble("game.base_destruction.base_radius", 60.0);
-    public static final double BASE_DESTRUCTION_BASE_AREA_PADDING = getDouble("game.base_destruction.base_area_padding", 100.0);
 
     // --- Vehicle System ---
     public static final double VEHICLE_INTERACTION_RADIUS = getDouble("game.vehicle.interaction_radius", 40.0);
     public static final long VEHICLE_ACTION_DEBOUNCE_MS = getLong("game.vehicle.action_debounce_ms", 500);
-    public static final long VEHICLE_RESPAWN_DELAY_MS = getLong("game.vehicle.respawn_delay_ms", 30_000);
 
     // --- Armored Assault MotorPool System ---
     public static final double MOTOR_POOL_RADIUS = getDouble("game.armored_assault.motor_pool_radius", 80.0);
     public static final long MOTOR_POOL_CONTROL_TIME_MS = getLong("game.armored_assault.motor_pool_control_time_ms", 15_000); // 15 seconds to control
     public static final double VEHICLE_REPAIR_RATE = getDouble("game.armored_assault.vehicle_repair_rate", 2.0); // HP per tick
-    public static final long VEHICLE_SPAWN_INTERVAL_MS = getLong("game.armored_assault.vehicle_spawn_interval_ms", 20_000); // 20 seconds between spawns
 
     // Tank Configuration
     public static final double TANK_HEALTH = getDouble("game.vehicle.tank.health", 800.0);

@@ -1,5 +1,6 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.WeaponFactory;
@@ -13,6 +14,7 @@ import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
+import com.fullsteam.model.PlayerScores;
 import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.PowerUpType;
@@ -31,16 +33,21 @@ import com.fullsteam.systems.TurretSystem;
 import com.fullsteam.systems.VehicleManager;
 import com.fullsteam.systems.WeaponSystem;
 import io.micronaut.websocket.WebSocketSession;
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.channels.ClosedChannelException;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
+import java.util.zip.GZIPOutputStream;
 
 import static com.fullsteam.CollisionUtils.checkObstacleOverlap;
 import static com.fullsteam.Config.GAME_HEIGHT;
@@ -59,6 +66,7 @@ import static com.fullsteam.Config.TICK_RATE;
 public abstract class AbstractGameStateManager {
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
+    protected final ObjectMapper objectMapper;
     protected final GameLobby gameLobby;
     protected final Long gameId = ID_COUNTER.incrementAndGet();
     private final long createdTime = System.currentTimeMillis();
@@ -72,8 +80,11 @@ public abstract class AbstractGameStateManager {
     protected boolean isRoundOver = false;
     protected ScheduledFuture<?> gameLoopHook;
     protected long lastGameStateUpdate = System.currentTimeMillis();
+    protected long lastScoreUpdate = System.currentTimeMillis();
+    protected static final long SCORE_UPDATE_INTERVAL_MS = 2000; // Send scores every 2 seconds
 
-    public AbstractGameStateManager(GameLobby gameLobby) {
+    public AbstractGameStateManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        this.objectMapper = objectMapper;
         this.gameLobby = gameLobby;
         this.entities = new GameEntities(gameId, GAME_WIDTH, GAME_HEIGHT, 100, 100);
         this.weaponSystem = new WeaponSystem(entities, this::applyBulletEffect, this::killPlayer);
@@ -111,14 +122,12 @@ public abstract class AbstractGameStateManager {
                 "type", "gameEvent",
                 "event", gameEvent
         );
+        byte[] bytes = serializeAndCompress(message);
         if (gameEvent.playerId() != null) {
-            WebSocketSession channel = entities.getPlayerChannel(gameEvent.playerId());
-            if (channel != null && channel.isWritable()) {
-                channel.sendSync(message);
-            }
+            send(entities.getPlayerChannel(gameEvent.playerId()), bytes);
         } else {
-            entities.getPlayerChannels().forEach(ch -> ch.sendSync(message));
-            entities.getSpectatorChannels().forEach(ch -> ch.sendSync(message));
+            entities.getPlayerChannels().forEach(ch -> send(ch, message));
+            entities.getSpectatorChannels().forEach(ch -> send(ch, message));
         }
     }
 
@@ -163,7 +172,7 @@ public abstract class AbstractGameStateManager {
     public void addSpectator(WebSocketSession channel) {
         entities.getSpectatorChannels().add(channel);
         // Send welcome message to spectator with current game state
-        channel.sendSync(new WelcomeMessage(-1, 0, gameId, entities.getObstacles()));
+        send(channel, playerWelcomeMessage(null));
         log.info("Spectator {} joined game {}", channel.getId(), gameId);
     }
 
@@ -212,6 +221,13 @@ public abstract class AbstractGameStateManager {
             fieldEffectSystem.updateFieldEffects(delta);
             turretSystem.updateTurrets(delta);
             vehicleManager.updateVehicles(delta);
+
+            // Send scores less frequently to save bandwidth
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastScoreUpdate >= SCORE_UPDATE_INTERVAL_MS) {
+                sendPlayerScores();
+                lastScoreUpdate = currentTime;
+            }
             sendGameState();
         } catch (Throwable t) {
             log.error("error executing game loop", t);
@@ -247,15 +263,17 @@ public abstract class AbstractGameStateManager {
                 player.restoreSpeed();
                 player.setVisionObscured(false);
                 if (entry.getValue().getSession() != null) {
-                    entry.getValue().getSession()
-                            .sendSync(playerWelcomeMessage(player));
+                    send(entry.getValue(), playerWelcomeMessage(player));
                 }
             }
-            entities.getSpectatorChannels().forEach(channel ->
-                    channel.sendSync(new WelcomeMessage(-1, 0, gameId, entities.getObstacles())));
+
+            byte[] spectatorWelcome = serializeAndCompress(playerWelcomeMessage(null));
+            entities.getSpectatorChannels().forEach(channel -> send(channel, spectatorWelcome));
 
             log.info("New round started! Round will end in {} seconds.", ROUND_DURATION_SECONDS);
             sendGameState(); // Send an immediate update to reflect the reset
+            sendPlayerScores(); // Send initial scores for the new round
+            lastScoreUpdate = System.currentTimeMillis(); // Reset score update timer
         } catch (Throwable t) {
             log.error("error resetting game state", t);
         }
@@ -334,32 +352,46 @@ public abstract class AbstractGameStateManager {
 
         // Send state to all players
         entities.getPlayerSessions().forEach((id, session) -> {
-            WebSocketSession channel = session.getSession();
-            if (channel != null && channel.isWritable() && channel.isOpen()) {
-                GameState gameState = playerManager.createPlayerGameState(session.getPlayer(), gameInfo, false);
-                channel.sendAsync(gameState).whenComplete((state, error) -> { // retainedDuplicate is crucial
-                    if (error != null && !(error instanceof ClosedChannelException)) {
-                        log.error("Failed to send game state to player {}. Closing channel.", session.getPlayerId(), error);
-                        channel.close();
-                    }
-                });
-            }
+            GameState gameState = playerManager.createPlayerGameState(session.getPlayer(), gameInfo, false);
+            send(session, gameState);
         });
 
         // Send to all spectators
         if (!entities.getSpectatorChannels().isEmpty()) {
             GameState gameState = spectatorGameState();
+            byte[] bytes = serializeAndCompress(gameState);
             for (WebSocketSession spectatorChannel : entities.getSpectatorChannels()) {
-                if (spectatorChannel.isWritable() && spectatorChannel.isOpen()) {
-                    spectatorChannel.sendAsync(gameState).whenComplete((state, error) -> { // retainedDuplicate is crucial
-                        if (error != null) {
-                            log.error("Failed to send game state to spectator {}. Closing channel.", spectatorChannel.getId(), error);
-                            spectatorChannel.close();
-                        }
-                    });
-                }
+                send(spectatorChannel, bytes);
             }
         }
+    }
+
+    /**
+     * Sends player scores separately at lower frequency (every 2 seconds)
+     */
+    protected void sendPlayerScores() {
+        PlayerScores playerScores = createPlayerScores();
+        byte[] bytes = serializeAndCompress(playerScores);
+        entities.getPlayerChannels().forEach(channel -> send(channel, bytes));
+        entities.getSpectatorChannels().forEach(channel -> send(channel, bytes));
+    }
+
+    /**
+     * Creates PlayerScores object from current player data
+     */
+    protected PlayerScores createPlayerScores() {
+        return new PlayerScores("scores",
+                entities.getPlayers()
+                        .stream()
+                        .sorted(Comparator.comparing(Player::getKills).reversed())
+                        .map(player -> new PlayerScores.PlayerScore(
+                                player.getId(),
+                                player.getName(),
+                                player.getTeam(),
+                                player.getKills(),
+                                player.getDeaths()))
+                        .toList(),
+                System.currentTimeMillis());
     }
 
     protected void generateObstacles() {
@@ -462,7 +494,12 @@ public abstract class AbstractGameStateManager {
     }
 
     protected WelcomeMessage playerWelcomeMessage(Player player) {
-        return new WelcomeMessage(player.getId(), player.getTeam(), gameId, entities.getObstacles());
+        if (player != null) {
+            return new WelcomeMessage(player.getId(), player.getTeam(), gameId, entities.getObstacles());
+        } else {
+            // it's a spectator
+            return new WelcomeMessage(-1, 0, gameId, entities.getObstacles());
+        }
     }
 
     protected GameState spectatorGameState() {
@@ -477,5 +514,36 @@ public abstract class AbstractGameStateManager {
                 entities.getPowerUps(),
                 System.currentTimeMillis(),
                 buildGameInfo());
+    }
+
+    public void send(PlayerSession session, Object data) {
+        send(session.getSession(), data);
+    }
+
+    public void send(WebSocketSession channel, Object data) {
+        if (channel != null && channel.isWritable() && channel.isOpen()) {
+            byte[] bytes = data instanceof byte[] b ? b : serializeAndCompress(data);
+            channel.sendAsync(bytes)
+                    .whenComplete((msg, error) -> {
+                        if (error != null
+                            && !(error instanceof ClosedChannelException)
+                            && !(error.getCause() instanceof ClosedChannelException)) {
+                            log.error("Failed to send data to {}. Closing channel.", channel.getId(), error);
+                            channel.close();
+                        }
+                    });
+        }
+    }
+
+    public byte[] serializeAndCompress(Object data) {
+        try {
+            ByteArrayOutputStream os = new ByteArrayOutputStream(1025);
+            GZIPOutputStream gzipOs = new GZIPOutputStream(os);
+            objectMapper.writeValue(gzipOs, data);
+            gzipOs.close();
+            return os.toByteArray();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 }

@@ -1,6 +1,5 @@
 package com.fullsteam;
 
-import com.fullsteam.config.GameConfig;
 import com.fullsteam.games.AbstractGameStateManager;
 import com.fullsteam.games.ArmoredAssaultManager;
 import com.fullsteam.games.BaseDestructionManager;
@@ -17,6 +16,7 @@ import com.fullsteam.games.OddballManager;
 import com.fullsteam.games.TeamDeathmatchManager;
 import com.fullsteam.games.ZombieDefenseManager;
 import com.fullsteam.model.ActiveGame;
+import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
@@ -30,42 +30,41 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 
 @Singleton
 public class GameLobby {
     private static final Logger log = LoggerFactory.getLogger(GameLobby.class);
 
-    private final GameConfig gameConfig;
+    private final ApplicationContext ctx;
     private final Semaphore globalPlayerCountSemaphore;
     private final Map<Long, ActiveGame> activeGames = new ConcurrentHashMap<>();
-    private final Map<String, Supplier<AbstractGameStateManager>> gameMap = new LinkedHashMap<>();
+    private final Map<String, Class<? extends AbstractGameStateManager>> gameMap = new LinkedHashMap<>();
 
     @Inject
-    public GameLobby(GameConfig gameConfig) {
-        this.gameConfig = gameConfig;
-        this.globalPlayerCountSemaphore = new Semaphore(gameConfig.getMaxGlobalPlayers());
+    public GameLobby(ApplicationContext ctx) {
+        this.ctx = ctx;
+        this.globalPlayerCountSemaphore = new Semaphore(Config.MAX_GLOBAL_PLAYERS);
 
         Config.EXECUTOR.scheduleAtFixedRate(this::cleanupEmptyGames,
-                gameConfig.getLobby().getCleanupIntervalSeconds(),
-                gameConfig.getLobby().getCleanupIntervalSeconds(),
+                Config.CLEANUP_INTERVAL_SECONDS,
+                Config.CLEANUP_INTERVAL_SECONDS,
                 TimeUnit.SECONDS);
         log.info("Lobby maintenance task scheduled to run every {} seconds.",
-                gameConfig.getLobby().getCleanupIntervalSeconds());
-        gameMap.put("Team Deathmatch", () -> new TeamDeathmatchManager(this));
-        gameMap.put("Capture The Flag", () -> new CaptureTheFlagManager(this));
-        gameMap.put("King Of The Hill", () -> new KingOfTheHillManager(this));
-        gameMap.put("Elimination", () -> new EliminationManager(this));
-        gameMap.put("Oddball", () -> new OddballManager(this));
-        gameMap.put("Gun Master", () -> new GunMasterManager(this));
-        gameMap.put("Juggernaut", () -> new JuggernautManager(this));
-        gameMap.put("Escort", () -> new EscortManager(this));
-        gameMap.put("Free For All", () -> new FreeForAllManager(this));
-        gameMap.put("Lone Wolf", () -> new LoneWolfManager(this));
-        gameMap.put("Builder", () -> new BuilderManager(this));
-        gameMap.put("Zombie Defense", () -> new ZombieDefenseManager(this));
-        gameMap.put("Base Destruction", () -> new BaseDestructionManager(this));
-        gameMap.put("Armored Assault", () -> new ArmoredAssaultManager(this));
+                Config.CLEANUP_INTERVAL_SECONDS);
+        gameMap.put("Team Deathmatch", TeamDeathmatchManager.class);
+        gameMap.put("Capture The Flag", CaptureTheFlagManager.class);
+        gameMap.put("King Of The Hill", KingOfTheHillManager.class);
+        gameMap.put("Elimination", EliminationManager.class);
+        gameMap.put("Oddball", OddballManager.class);
+        gameMap.put("Gun Master", GunMasterManager.class);
+        gameMap.put("Juggernaut", JuggernautManager.class);
+        gameMap.put("Escort", EscortManager.class);
+        gameMap.put("Free For All", FreeForAllManager.class);
+        gameMap.put("Lone Wolf", LoneWolfManager.class);
+        gameMap.put("Builder", BuilderManager.class);
+        gameMap.put("Zombie Defense", ZombieDefenseManager.class);
+        gameMap.put("Base Destruction", BaseDestructionManager.class);
+        gameMap.put("Armored Assault", ArmoredAssaultManager.class);
     }
 
     public List<ActiveGame> getActiveGames() {
@@ -88,9 +87,9 @@ public class GameLobby {
             }
         }
 
-        Supplier<AbstractGameStateManager> gameBuilder = gameMap.get(gameType);
-        if (gameBuilder != null) {
-            AbstractGameStateManager newGame = gameBuilder.get();
+        Class<? extends AbstractGameStateManager> gameClass = gameMap.get(gameType);
+        if (gameClass != null) {
+            AbstractGameStateManager newGame = ctx.createBean(gameClass);
             log.info("No available games. Creating new game with ID: {}", newGame.getGameId());
             newGame.startGameLoop(); // Each game has its own loop
             activeGames.put(newGame.getGameId(), new ActiveGame(gameType, newGame));
@@ -138,7 +137,7 @@ public class GameLobby {
     }
 
     public int getGlobalPlayerCount() {
-        return gameConfig.getMaxGlobalPlayers() - globalPlayerCountSemaphore.availablePermits();
+        return Config.MAX_GLOBAL_PLAYERS - globalPlayerCountSemaphore.availablePermits();
     }
 
     /**

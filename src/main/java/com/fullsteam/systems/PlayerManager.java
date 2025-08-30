@@ -391,7 +391,7 @@ public class PlayerManager {
 
         // Send welcome message
         WelcomeMessage welcomeMessage = new WelcomeMessage(player.getId(), player.getTeam(), entities.getGameId(), entities.getObstacles());
-        channel.sendSync(welcomeMessage);
+        game.send(channel, welcomeMessage);
         return playerSession;
     }
 

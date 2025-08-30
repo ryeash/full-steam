@@ -201,6 +201,31 @@ class GameInfoOverlay {
     }
 }
 
+window.unzip = async function(compressedBuffer) {
+    const ds = new DecompressionStream("gzip");
+    const writer = ds.writable.getWriter();
+    writer.write(compressedBuffer);
+    writer.close();
+    const reader = ds.readable.getReader();
+    const chunks = [];
+    let totalSize = 0;
+    while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+            break;
+        }
+        chunks.push(value);
+        totalSize += value.byteLength;
+    }
+    const decompressedUint8Array = new Uint8Array(totalSize);
+    let offset = 0;
+    for (const chunk of chunks) {
+        decompressedUint8Array.set(chunk, offset);
+        offset += chunk.byteLength;
+    }
+    return JSON.parse(new TextDecoder().decode(decompressedUint8Array))
+}
+
 class GameUIManager {
     constructor(gameInstance) {
         this.game = gameInstance;
@@ -264,8 +289,8 @@ class GameUIManager {
                 this.elements.switchTeamBtn.style.display = 'block';
                 this.elements.team1Score.style.display = 'inline';
                 this.elements.team2Score.style.display = 'inline';
-                this.elements.team1Score.innerHTML = `${info.team1Score} <span style="font-size: 0.7em; color: ${GameColors.text.secondary};">(${info.team1PlayersAlive || 0} alive)</span>`;
-                this.elements.team2Score.innerHTML = `${info.team2Score} <span style="font-size: 0.7em; color: ${GameColors.text.secondary};">(${info.team2PlayersAlive || 0} alive)</span>`;
+                this.elements.team1Score.innerHTML = `${info.team1Score || 0} <span style="font-size: 0.7em; color: ${GameColors.text.secondary};">(${info.team1PlayersAlive || 0} alive)</span>`;
+                this.elements.team2Score.innerHTML = `${info.team2Score || 0} <span style="font-size: 0.7em; color: ${GameColors.text.secondary};">(${info.team2PlayersAlive || 0} alive)</span>`;
             },
             'Lone Wolf': (info) => {
                 this.game.shouldDrawRespawnOverlay = false;
@@ -284,7 +309,7 @@ class GameUIManager {
                 this.elements.team2Score.style.display = 'inline';
 
                 // Show base health percentage and team labels
-                const baseHealthPercent = info.base ? Math.round((info.base.hp || 0 / info.base.maxHp) * 100) : 0;
+                const baseHealthPercent = info.base ? Math.round(((info.base.hp || 0) / info.base.maxHp) * 100) : 0;
                 this.elements.team1Score.innerHTML = `Attackers`;
                 this.elements.team2Score.innerHTML = `Defenders<br><span style="font-size: 0.8em; color: ${baseHealthPercent > 50 ? GameColors.health.high : baseHealthPercent > 25 ? GameColors.health.medium : GameColors.health.low};">Base: ${baseHealthPercent}%</span>`;
             },
@@ -309,30 +334,30 @@ class GameUIManager {
         };
 
         this.scoreboardUpdaters = {
-            'Free For All': (players, playerId) => {
+            'Free For All': (scores, playerId) => {
                 this.elements.team1Scoreboard.style.display = 'none';
                 this.elements.team2Scoreboard.style.display = 'none';
                 this.elements.ffaScoreboard.style.display = 'block';
 
                 this.elements.ffaList.innerHTML = '';
-                players.forEach(p => this.elements.ffaList.appendChild(this.createPlayerEntry(p, playerId)));
+                scores.forEach(p => this.elements.ffaList.appendChild(this.createPlayerEntry(p, playerId)));
             },
-            'Builder': (players, playerId) => {
+            'Builder': (scores, playerId) => {
                 this.elements.team1Scoreboard.style.display = 'none';
                 this.elements.team2Scoreboard.style.display = 'none';
                 this.elements.ffaScoreboard.style.display = 'block';
                 this.elements.ffaList.innerHTML = '';
-                players.forEach(p => this.elements.ffaList.appendChild(this.createPlayerEntry(p, playerId)));
+                scores.forEach(p => this.elements.ffaList.appendChild(this.createPlayerEntry(p, playerId)));
             },
-            'Gun Master': (players, playerId) => {
+            'Gun Master': (scores, playerId) => {
                 this.elements.team1Scoreboard.style.display = 'none';
                 this.elements.team2Scoreboard.style.display = 'none';
                 this.elements.ffaScoreboard.style.display = 'block';
 
                 this.elements.ffaList.innerHTML = '';
-                players.forEach(p => this.elements.ffaList.appendChild(this.createPlayerEntry(p, playerId)));
+                scores.forEach(p => this.elements.ffaList.appendChild(this.createPlayerEntry(p, playerId)));
             },
-            'default': (players, playerId) => {
+            'default': (scores, playerId) => {
                 this.elements.team1Scoreboard.style.display = 'block';
                 this.elements.team2Scoreboard.style.display = 'block';
                 this.elements.ffaScoreboard.style.display = 'none';
@@ -340,8 +365,8 @@ class GameUIManager {
                 this.elements.team1List.innerHTML = '';
                 this.elements.team2List.innerHTML = '';
 
-                const team1Players = players.filter(p => p.team === 1);
-                const team2Players = players.filter(p => p.team === 2);
+                const team1Players = scores.filter(p => p.team === 1);
+                const team2Players = scores.filter(p => p.team === 2);
 
                 team1Players.forEach(p => this.elements.team1List.appendChild(this.createPlayerEntry(p, playerId)));
                 team2Players.forEach(p => this.elements.team2List.appendChild(this.createPlayerEntry(p, playerId)));
@@ -349,7 +374,7 @@ class GameUIManager {
         };
     }
 
-    update(gameState) {
+    update(gameState, scores) {
         if (!gameState || !gameState.info) return;
 
         this.elements.playerCount.textContent = gameState.players ? gameState.players.length : 0;
@@ -374,9 +399,7 @@ class GameUIManager {
         const now = Date.now();
         if (now - this.lastScoreboardUpdateTime > this.SCOREBOARD_UPDATE_INTERVAL) {
             const scoreboardUpdater = this.scoreboardUpdaters[gameState.info.type] || this.scoreboardUpdaters.default;
-            if (gameState.players) {
-                scoreboardUpdater(gameState.players, this.game.playerId);
-            }
+            scoreboardUpdater(scores, this.game.playerId);
             this.lastScoreboardUpdateTime = now;
         }
 
@@ -406,7 +429,7 @@ class GameUIManager {
 
         const nameSpan = this.doc.createElement('span');
         nameSpan.className = 'player-name';
-        nameSpan.textContent = player.name || (player.id.startsWith('ai-') ? `AI` : 'Player');
+        nameSpan.textContent = player.name;
         nameSpan.title = player.name || player.id;
 
         const scoreSpan = this.doc.createElement('span');
@@ -433,6 +456,7 @@ class Game {
         this.shouldDrawRespawnOverlay = true;
         this.isSpectator = false;
         this.gameEvents = [];
+        this.scores = [];
         this.gamepad = null;
         this.isGamepadActive = false;
         this.gamepadAim = { x: 1, y: 0 };
@@ -690,42 +714,36 @@ class Game {
         };
 
         this.ws.onmessage = (event) => {
-            let data = JSON.parse(event.data);
-            if (data.type === 'pong') {
-                this.latency = Date.now() - this.pingStartTime;
-                const latencyEl = document.getElementById('latency');
-                latencyEl.textContent = this.latency;
-                if (this.latency > 150) {
-                    latencyEl.style.color = GameColors.teams.team2.primary;
-                } else if (this.latency > 80) {
-                    latencyEl.style.color = GameColors.accent.gold;
-                } else {
-                    latencyEl.style.color = GameColors.text.primary;
-                }
-                return;
-            }
-
-            if (data.type === 'welcome') {
-                this.gameId = data.gameId;
-                this.obstacles = data.obstacles;
-                this.playerId = data.playerId;
-                this.playerTeam = data.team;
-                this.backgroundNeedsRedraw = true;
-                this.resetGameState();
-                this.uiManager.updateOnWelcome(data);
-                if (data.weaponOptions) {
-                    this.populateWeaponSelector(data.weaponOptions);
-                }
-            } else if (data.type === 'gameEvent') {
-                const event = data.event;
-                this.gameEvents.push(event);
-            } else {
-                // Use interpolation system for game state updates
-                this.updateInterpolation(data);
-                this.localPlayer = data.players.find(p => p.id === this.playerId);
-                this.isLocalPlayerDead = this.localPlayer && this.localPlayer.dead;
-                this.uiManager.update(this.gameState);
-            }
+            unzip(event.data)
+                .then((data) => {
+                    if (data.type === 'pong') {
+                        this.latency = Date.now() - this.pingStartTime;
+                        const latencyEl = document.getElementById('latency');
+                        latencyEl.textContent = this.latency;
+                    } else if (data.type === 'welcome') {
+                        this.gameId = data.gameId;
+                        this.obstacles = data.obstacles;
+                        this.playerId = data.playerId;
+                        this.playerTeam = data.team;
+                        this.backgroundNeedsRedraw = true;
+                        this.resetGameState();
+                        this.uiManager.updateOnWelcome(data);
+                        if (data.weaponOptions) {
+                            this.populateWeaponSelector(data.weaponOptions);
+                        }
+                    } else if (data.type === 'gameEvent') {
+                        const event = data.event;
+                        this.gameEvents.push(event);
+                    } else if (data.type == 'scores') {
+                        this.scores = data.scores;
+                    } else {
+                        // Use interpolation system for game state updates
+                        this.updateInterpolation(data);
+                        this.localPlayer = data.players.find(p => p.id === this.playerId);
+                        this.isLocalPlayerDead = this.localPlayer && this.localPlayer.dead;
+                        this.uiManager.update(this.gameState, this.scores);
+                    }
+                })
         };
 
         this.ws.onclose = () => {

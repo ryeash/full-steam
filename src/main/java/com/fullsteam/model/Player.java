@@ -28,7 +28,9 @@ public class Player implements HasId, HasLife, Targetable {
     protected double mouseY;
     protected boolean isDead;
     protected long respawnTime;
+    @JsonIgnore
     protected int kills;
+    @JsonIgnore
     protected int deaths;
     protected int ammoInMag;
     protected boolean isReloading;
