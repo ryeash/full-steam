@@ -3,7 +3,9 @@ package com.fullsteam.controller;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.LobbyInfo;
+import io.micronaut.context.annotation.Context;
 import io.micronaut.core.io.ResourceResolver;
+import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.annotation.Consumes;
@@ -13,6 +15,7 @@ import io.micronaut.http.annotation.Produces;
 import io.micronaut.http.server.types.files.StreamedFile;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,42 +50,37 @@ public class GameController {
         );
     }
 
-    @Get(produces = MediaType.TEXT_HTML)
-    public HttpResponse<StreamedFile> lobby() {
-        return serveStaticFile("lobby.html", MediaType.TEXT_HTML);
+    @Get(uris = {
+            "/",
+            "/lobby.html",
+            "/game.html",
+            "/color-palette.js",
+            "/game-engine.js",
+            "/unified.css",
+            "/favicon.ico",
+            "/robots.txt"
+    }, produces = MediaType.ALL)
+    public HttpResponse<StreamedFile> staticFiles(@Context HttpRequest<?> request) {
+        String path = request.getPath();
+        if (path.equals("/")) {
+            path = "lobby.html";
+        }
+        while (path.startsWith("/")) {
+            path = path.substring(1);
+        }
+        String extension = StringUtils.substringAfter(path, '.');
+        MediaType type = MediaType.forExtension(extension)
+                .orElse(MediaType.TEXT_HTML_TYPE);
+
+        return serveStaticFile(path, type);
     }
 
-    @Get(value = "/game.html", produces = MediaType.TEXT_HTML)
-    public HttpResponse<StreamedFile> game() {
-        return serveStaticFile("game.html", MediaType.TEXT_HTML);
-    }
-
-    @Get(value = "/color-palette.js", produces = MediaType.TEXT_JAVASCRIPT)
-    public HttpResponse<StreamedFile> colorPalette() {
-        return serveStaticFile("color-palette.js", MediaType.TEXT_JAVASCRIPT);
-    }
-
-    @Get(value = "/unified.css", produces = MediaType.TEXT_CSS)
-    public HttpResponse<StreamedFile> unifiedCss() {
-        return serveStaticFile("unified.css", MediaType.TEXT_CSS);
-    }
-
-    @Get(value = "/game-engine.js", produces = MediaType.TEXT_JAVASCRIPT)
-    public HttpResponse<StreamedFile> gameEngine() {
-        return serveStaticFile("game-engine.js", MediaType.TEXT_JAVASCRIPT);
-    }
-
-    @Get(value = "/favicon.ico", produces = MediaType.TEXT_HTML)
-    public HttpResponse<StreamedFile> favicon() {
-        return serveStaticFile("favicon.ico", MediaType.IMAGE_PNG);
-    }
-
-    private HttpResponse<StreamedFile> serveStaticFile(String path, String contentType) {
+    private HttpResponse<StreamedFile> serveStaticFile(String path, MediaType contentType) {
         try {
             Optional<URL> resource = resourceResolver.getResource("classpath:" + path);
             if (resource.isPresent()) {
                 InputStream inputStream = resource.get().openStream();
-                return HttpResponse.ok(new StreamedFile(inputStream, MediaType.of(contentType)));
+                return HttpResponse.ok(new StreamedFile(inputStream, contentType));
             } else {
                 log.warn("Resource not found: {}", path);
                 return HttpResponse.notFound();
