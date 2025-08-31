@@ -1,5 +1,6 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
@@ -8,6 +9,7 @@ import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.gamemodes.BuilderGameInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
+import io.micronaut.context.annotation.Prototype;
 
 import java.util.Collections;
 import java.util.LinkedList;
@@ -16,6 +18,7 @@ import java.util.Objects;
 
 import static com.fullsteam.Config.PLAYER_RADIUS;
 
+@Prototype
 public class BuilderManager extends AbstractFreeForAllManager {
 
     private static final double CRATE_SIZE = 30.0;
@@ -23,8 +26,8 @@ public class BuilderManager extends AbstractFreeForAllManager {
 
     private final List<Crate> crates = Collections.synchronizedList(new LinkedList<>());
 
-    public BuilderManager(GameLobby gameLobby) {
-        super(gameLobby);
+    public BuilderManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
     }
 
     @Override
@@ -66,7 +69,7 @@ public class BuilderManager extends AbstractFreeForAllManager {
             // Now the super method will handle collision with both permanent obstacles and crates.
             super.updatePlayers(delta);
 
-            for (Player player : entities.getPlayers().values()) {
+            for (Player player : entities.getPlayers()) {
                 PlayerInput input = entities.getPlayerInput(player.id());
                 if (input != null) {
                     if (input.isAction1()) {
@@ -133,7 +136,7 @@ public class BuilderManager extends AbstractFreeForAllManager {
     }
 
     private boolean isCollidingWithAnyPlayer(Crate newCrate) {
-        for (Player player : entities.getPlayers().values()) {
+        for (Player player : entities.getPlayers()) {
             if (CollisionUtils.checkCirclePolygonCollision(player.position(), PLAYER_RADIUS, newCrate.getVertices())) {
                 return true;
             }

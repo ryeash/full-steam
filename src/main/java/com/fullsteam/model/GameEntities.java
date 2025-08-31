@@ -1,16 +1,18 @@
 package com.fullsteam.model;
 
 import com.fullsteam.SpatialGrid;
-import io.netty.channel.Channel;
+import com.fullsteam.model.ai.AIPlayer;
+import io.micronaut.websocket.WebSocketSession;
 
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-
-import static com.fullsteam.Config.PLAYER_RADIUS;
-import static com.fullsteam.Config.PLAYER_SIZE;
+import java.util.stream.Stream;
 
 /**
  * Encapsulates all game entities and collections in a single container.
@@ -21,11 +23,8 @@ public class GameEntities {
     private final long gameId;
 
     // Player-related collections
-    private final Map<Long, Player> players = new ConcurrentHashMap<>(10, 1, 1);
-    private final Map<Long, Channel> playerChannels = new ConcurrentHashMap<>(10, 1, 1);
-    private final Map<Long, PlayerInput> playerInput = new ConcurrentHashMap<>(10, 1, 1);
-    private final Map<Long, Long> lastVehicleActionTime = new ConcurrentHashMap<>(10, 1, 1);
-    private final List<Channel> spectatorChannels = Collections.synchronizedList(new LinkedList<>());
+    private final Map<Long, PlayerSession> playerSessions = new ConcurrentHashMap<>(10, 1, 1);
+    private final List<WebSocketSession> spectatorChannels = Collections.synchronizedList(new LinkedList<>());
 
     // Game object collections
     private final List<Bullet> bullets = Collections.synchronizedList(new LinkedList<>());
@@ -48,24 +47,28 @@ public class GameEntities {
         return gameId;
     }
 
+    public Map<Long, PlayerSession> getPlayerSessions() {
+        return playerSessions;
+    }
+
+    public Collection<Player> getPlayers() {
+        return playerSessions.values()
+                .stream()
+                .map(PlayerSession::getPlayer)
+                .sorted(Comparator.comparing(Player::getKills).reversed())
+                .toList();
+    }
+
     // === Player-related getters ===
-    public Map<Long, Player> getPlayers() {
-        return players;
+
+    public Stream<WebSocketSession> getPlayerChannels() {
+        return playerSessions.values()
+                .stream()
+                .map(PlayerSession::getSession)
+                .filter(Objects::nonNull);
     }
 
-    public Map<Long, Channel> getPlayerChannels() {
-        return playerChannels;
-    }
-
-    public Map<Long, PlayerInput> getPlayerInput() {
-        return playerInput;
-    }
-
-    public Map<Long, Long> getLastVehicleActionTime() {
-        return lastVehicleActionTime;
-    }
-
-    public List<Channel> getSpectatorChannels() {
+    public List<WebSocketSession> getSpectatorChannels() {
         return spectatorChannels;
     }
 
@@ -102,25 +105,6 @@ public class GameEntities {
         return targetGrid;
     }
 
-    public void populateSpatialGrids() {
-        targetGrid.clear();
-        for (Player player : players.values()) {
-            if (player.getVehicleId() != null) {
-                continue;
-            }
-            targetGrid.insert(player, player.getX() - PLAYER_RADIUS, player.getY() - PLAYER_RADIUS, PLAYER_SIZE, PLAYER_SIZE);
-        }
-        for (Turret turret : turrets) {
-            double size = turret.getRadius() * 2;
-            targetGrid.insert(turret, turret.getX() - turret.getRadius(), turret.getY() - turret.getRadius(), size, size);
-        }
-        for (Vehicle vehicle : vehicles) {
-            if (!vehicle.isDestroyed()) {
-                targetGrid.insertPolygon(vehicle, vehicle.vertices());
-            }
-        }
-    }
-
     // === Convenience methods for common operations ===
 
     /**
@@ -135,48 +119,44 @@ public class GameEntities {
     }
 
     /**
-     * Clears all game objects for a complete reset
-     */
-    public void clearAll() {
-        clearTransientObjects();
-        players.clear();
-        playerChannels.clear();
-        playerInput.clear();
-        lastVehicleActionTime.clear();
-        spectatorChannels.clear();
-        vehicles.clear();
-        obstacles.clear();
-        targetGrid.clear();
-    }
-
-    /**
      * Gets a player by ID, returns null if not found
      */
     public Player getPlayer(Long playerId) {
-        return players.get(playerId);
+        PlayerSession playerSession = playerSessions.get(playerId);
+        if (playerSession != null) {
+            return playerSession.getPlayer();
+        }
+        return null;
     }
 
     /**
      * Gets a player channel by ID, returns null if not found
      */
-    public Channel getPlayerChannel(Long playerId) {
-        return playerChannels.get(playerId);
+    public WebSocketSession getPlayerChannel(Long playerId) {
+        PlayerSession playerSession = playerSessions.get(playerId);
+        if (playerSession != null) {
+            return playerSession.getSession();
+        }
+        return null;
     }
 
     /**
      * Gets player input by ID, returns null if not found
      */
     public PlayerInput getPlayerInput(Long playerId) {
-        return playerInput.get(playerId);
+        PlayerSession playerSession = playerSessions.get(playerId);
+        if (playerSession != null) {
+            return playerSession.getInput();
+        }
+        return null;
     }
 
     /**
      * Adds a player and their channel
      */
-    public void addPlayer(Player player, Channel channel) {
-        players.put(player.id(), player);
-        if (channel != null) {
-            playerChannels.put(player.id(), channel);
+    public void addPlayer(PlayerSession player) {
+        if (player != null) {
+            playerSessions.put(player.getPlayerId(), player);
         }
     }
 
@@ -184,46 +164,48 @@ public class GameEntities {
      * Removes a player and all associated data
      */
     public Player removePlayer(Long playerId) {
-        playerChannels.remove(playerId);
-        playerInput.remove(playerId);
-        lastVehicleActionTime.remove(playerId);
-        return players.remove(playerId);
-    }
-
-    /**
-     * Sets player input for a given player
-     */
-    public PlayerInput setPlayerInput(Long playerId, PlayerInput input) {
-        return playerInput.put(playerId, input);
+        PlayerSession remove = playerSessions.remove(playerId);
+        return remove != null ? remove.getPlayer() : null;
     }
 
     /**
      * Removes player input for a given player
      */
     public void removePlayerInput(Long playerId) {
-        playerInput.remove(playerId);
+        PlayerSession playerSession = playerSessions.get(playerId);
+        if (playerSession != null) {
+            playerSession.setInput(null);
+        }
     }
 
     /**
      * Gets the last vehicle action time for a player
      */
     public Long getLastVehicleActionTime(Long playerId) {
-        return lastVehicleActionTime.get(playerId);
+        PlayerSession playerSession = playerSessions.get(playerId);
+        if (playerSession != null) {
+            return playerSession.getLastVehicleActionTime();
+        }
+        return null;
     }
 
     /**
      * Sets the last vehicle action time for a player
      */
     public void setLastVehicleActionTime(Long playerId, Long time) {
-        lastVehicleActionTime.put(playerId, time);
+        PlayerSession playerSession = playerSessions.get(playerId);
+        if (playerSession != null) {
+            playerSession.setLastVehicleActionTime(time);
+        }
     }
 
     /**
      * Gets the count of human players (non-AI)
      */
     public int getHumanPlayerCount() {
-        return (int) players.values().stream()
-                .filter(p -> !(p instanceof com.fullsteam.model.ai.AIPlayer))
+        return (int) playerSessions.values()
+                .stream()
+                .filter(ps -> ps.getPlayer() != null && !(ps.getPlayer() instanceof AIPlayer))
                 .count();
     }
 
@@ -231,18 +213,9 @@ public class GameEntities {
      * Gets the count of players on a specific team
      */
     public long getTeamPlayerCount(int team) {
-        return players.values().stream()
-                .filter(p -> p.getTeam() == team)
-                .count();
-    }
-
-    /**
-     * Gets the count of human players on a specific team
-     */
-    public long getHumanTeamPlayerCount(int team) {
-        return players.values().stream()
-                .filter(p -> !(p instanceof com.fullsteam.model.ai.AIPlayer))
-                .filter(p -> p.getTeam() == team)
+        return (int) playerSessions.values()
+                .stream()
+                .filter(ps -> ps.getPlayer() != null && ps.getPlayer().getTeam() == team)
                 .count();
     }
 }

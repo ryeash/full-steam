@@ -300,7 +300,6 @@ public class CollisionUtils {
         return !(projectionA[1] < projectionB[0] || projectionB[1] < projectionA[0]);
     }
 
-
     public static double constrain(double value, double min, double max) {
         if (value < min) {
             return min;

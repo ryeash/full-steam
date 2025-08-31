@@ -6,8 +6,9 @@ import io.micronaut.core.annotation.Introspected;
 
 @Introspected
 public class ActiveGame {
-    String gameType;
-    @JsonIgnore AbstractGameStateManager game;
+    private final String gameType;
+    @JsonIgnore
+    private final AbstractGameStateManager game;
 
     public ActiveGame(String gameType, AbstractGameStateManager game) {
         this.gameType = gameType;
@@ -30,7 +31,12 @@ public class ActiveGame {
         return game.getMaxPlayers();
     }
 
+    public long getCreatedTime() {
+        return game.getCreatedTime();
+    }
+
     public AbstractGameStateManager getGame() {
         return game;
     }
+
 }

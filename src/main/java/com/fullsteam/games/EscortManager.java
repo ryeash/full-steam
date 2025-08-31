@@ -1,5 +1,6 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
@@ -10,17 +11,19 @@ import com.fullsteam.model.ai.EscortAIStrategy;
 import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.gamemodes.EscortGameInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
+import io.micronaut.context.annotation.Prototype;
 
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@Prototype
 public class EscortManager extends AbstractTeamBasedManager {
 
     private Obstacle payload;
 
-    public EscortManager(GameLobby gameLobby) {
-        super(gameLobby);
+    public EscortManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
         startNewRound();
     }
 
@@ -46,7 +49,7 @@ public class EscortManager extends AbstractTeamBasedManager {
         Vector2D payloadCenter = getPayloadCenter();
         double proximitySq = Config.ESCORT_PLAYER_PROXIMITY * Config.ESCORT_PLAYER_PROXIMITY;
 
-        Set<Integer> teamsNearPayload = entities.getPlayers().values()
+        Set<Integer> teamsNearPayload = entities.getPlayers()
                 .stream()
                 .filter(p -> !p.isDead())
                 .filter(p -> p.position().distanceSquared(payloadCenter) < proximitySq)

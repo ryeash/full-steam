@@ -1,6 +1,5 @@
 package com.fullsteam;
 
-import com.fullsteam.config.GameConfig;
 import com.fullsteam.games.AbstractGameStateManager;
 import com.fullsteam.games.ArmoredAssaultManager;
 import com.fullsteam.games.BaseDestructionManager;
@@ -17,8 +16,7 @@ import com.fullsteam.games.OddballManager;
 import com.fullsteam.games.TeamDeathmatchManager;
 import com.fullsteam.games.ZombieDefenseManager;
 import com.fullsteam.model.ActiveGame;
-import com.fullsteam.model.Player;
-import io.netty.channel.Channel;
+import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
@@ -32,45 +30,41 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-
-import static com.fullsteam.Config.GAME_STATE_MANAGER_KEY;
-import static com.fullsteam.Config.PLAYER_ID_KEY;
 
 @Singleton
 public class GameLobby {
     private static final Logger log = LoggerFactory.getLogger(GameLobby.class);
 
-    private final GameConfig gameConfig;
+    private final ApplicationContext ctx;
     private final Semaphore globalPlayerCountSemaphore;
     private final Map<Long, ActiveGame> activeGames = new ConcurrentHashMap<>();
-    private final Map<String, Supplier<AbstractGameStateManager>> gameMap = new LinkedHashMap<>();
+    private final Map<String, Class<? extends AbstractGameStateManager>> gameMap = new LinkedHashMap<>();
 
     @Inject
-    public GameLobby(GameConfig gameConfig) {
-        this.gameConfig = gameConfig;
-        this.globalPlayerCountSemaphore = new Semaphore(gameConfig.getMaxGlobalPlayers());
-        
-        Config.EXECUTOR.scheduleAtFixedRate(this::cleanupEmptyGames, 
-            gameConfig.getLobby().getCleanupIntervalSeconds(), 
-            gameConfig.getLobby().getCleanupIntervalSeconds(), 
-            TimeUnit.SECONDS);
-        log.info("Lobby maintenance task scheduled to run every {} seconds.", 
-            gameConfig.getLobby().getCleanupIntervalSeconds());
-        gameMap.put("Team Deathmatch", () -> new TeamDeathmatchManager(this));
-        gameMap.put("Capture The Flag", () -> new CaptureTheFlagManager(this));
-        gameMap.put("King Of The Hill", () -> new KingOfTheHillManager(this));
-        gameMap.put("Elimination", () -> new EliminationManager(this));
-        gameMap.put("Oddball", () -> new OddballManager(this));
-        gameMap.put("Gun Master", () -> new GunMasterManager(this));
-        gameMap.put("Juggernaut", () -> new JuggernautManager(this));
-        gameMap.put("Escort", () -> new EscortManager(this));
-        gameMap.put("Free For All", () -> new FreeForAllManager(this));
-        gameMap.put("Lone Wolf", () -> new LoneWolfManager(this));
-        gameMap.put("Builder", () -> new BuilderManager(this));
-        gameMap.put("Zombie Defense", () -> new ZombieDefenseManager(this));
-        gameMap.put("Base Destruction", () -> new BaseDestructionManager(this));
-        gameMap.put("Armored Assault", () -> new ArmoredAssaultManager(this));
+    public GameLobby(ApplicationContext ctx) {
+        this.ctx = ctx;
+        this.globalPlayerCountSemaphore = new Semaphore(Config.MAX_GLOBAL_PLAYERS);
+
+        Config.EXECUTOR.scheduleAtFixedRate(this::cleanupEmptyGames,
+                Config.CLEANUP_INTERVAL_SECONDS,
+                Config.CLEANUP_INTERVAL_SECONDS,
+                TimeUnit.SECONDS);
+        log.info("Lobby maintenance task scheduled to run every {} seconds.",
+                Config.CLEANUP_INTERVAL_SECONDS);
+        gameMap.put("Team Deathmatch", TeamDeathmatchManager.class);
+        gameMap.put("Capture The Flag", CaptureTheFlagManager.class);
+        gameMap.put("King Of The Hill", KingOfTheHillManager.class);
+        gameMap.put("Elimination", EliminationManager.class);
+        gameMap.put("Oddball", OddballManager.class);
+        gameMap.put("Gun Master", GunMasterManager.class);
+        gameMap.put("Juggernaut", JuggernautManager.class);
+        gameMap.put("Escort", EscortManager.class);
+        gameMap.put("Free For All", FreeForAllManager.class);
+        gameMap.put("Lone Wolf", LoneWolfManager.class);
+        gameMap.put("Builder", BuilderManager.class);
+        gameMap.put("Zombie Defense", ZombieDefenseManager.class);
+        gameMap.put("Base Destruction", BaseDestructionManager.class);
+        gameMap.put("Armored Assault", ArmoredAssaultManager.class);
     }
 
     public List<ActiveGame> getActiveGames() {
@@ -83,93 +77,6 @@ public class GameLobby {
                 .toList();
     }
 
-    /**
-     * This entire method is synchronized to prevent race conditions during matchmaking.
-     * This ensures that two players cannot simultaneously create a new game or overfill an existing one.
-     */
-    public synchronized void joinGame(Channel channel, String gameIdStr, String gameTypeStr) {
-        AbstractGameStateManager gameToJoin = null;
-
-        // 1. Try to join by specific game ID
-        if (gameIdStr != null && !gameIdStr.isEmpty() && !gameIdStr.equals("null")) {
-            try {
-                long gameId = Long.parseLong(gameIdStr);
-                ActiveGame activeGame = activeGames.get(gameId);
-                AbstractGameStateManager game = activeGame != null ? activeGame.getGame() : null;
-                if (game != null) {
-                    if (!game.isFull()) {
-                        log.info("Player {} joining specific game by ID: {}", Config.playerId(channel), gameId);
-                        joinGame(channel, game);
-                        return; // Player has joined, matchmaking is complete.
-                    } else {
-                        log.warn("Player {} attempted to join full game {}. Will try to find another game of the same type.", Config.playerId(channel), gameId);
-                        // If the requested game is full, we can try to find another of the same type.
-                        gameTypeStr = game.getClass().getSimpleName();
-                    }
-                } else {
-                    log.warn("Player {} attempted to join non-existent game {}. Will try to find a game by type if specified.", Config.playerId(channel), gameId);
-                }
-            } catch (NumberFormatException e) {
-                log.warn("Invalid gameId format provided: '{}'. Ignoring.", gameIdStr);
-            }
-        }
-
-        // 2. If no game found by ID, try to find/create by game type
-        if (gameTypeStr != null && !gameTypeStr.isEmpty() && !gameTypeStr.equals("null")) {
-            if (gameMap.containsKey(gameTypeStr)) {
-                log.info("Player {} looking for game of type: {}", Config.playerId(channel), gameTypeStr);
-                gameToJoin = findOrCreateGame(gameTypeStr);
-            } else {
-                log.warn("Unsupported game type requested: '{}'. Will find any available game.", gameTypeStr);
-            }
-        }
-
-        // 3. If still no game, find any available game (default behavior)
-        if (gameToJoin == null) {
-            log.info("No specific game requested or found, finding any available game for player {}.", Config.playerId(channel));
-            // Default to finding any game of the first type in rotation, which findOrCreateGame handles.
-            gameToJoin = findOrCreateGame(gameMap.keySet().iterator().next());
-        }
-
-        // 4. Join the determined game
-        joinGame(channel, gameToJoin);
-    }
-
-    public void spectateGame(Channel channel, String gameIdStr) {
-        long gameId = Long.parseLong(gameIdStr);
-        ActiveGame activeGame = activeGames.get(gameId);
-        AbstractGameStateManager game = activeGame != null ? activeGame.getGame() : null;
-
-        if (game != null) {
-            synchronized (game) {
-                if (!game.isSpectatorsFull()) {
-                    game.addSpectator(channel);
-                    // Associate the game and a spectator flag with the channel for cleanup on disconnect
-                    channel.attr(Config.GAME_STATE_MANAGER_KEY).set(game);
-                    channel.attr(Config.IS_SPECTATOR_KEY).set(true);
-                    log.info("Channel {} is now spectating game {}", channel.id().asShortText(), gameId);
-                } else {
-                    log.warn("Spectator failed to join game {}: spectator slots are full.", gameId);
-                    playerDisconnected(); // Decrement the count since the connection will be closed
-                    channel.close();
-                }
-            }
-        } else {
-            log.warn("Spectator tried to join non-existent game {}", gameId);
-            playerDisconnected(); // Decrement the count since the connection will be closed
-            channel.close();
-        }
-    }
-
-    public void joinGame(Channel ctx, AbstractGameStateManager game) {
-        // Add the player to that specific game instance
-        Long playerId = Config.playerId(ctx);
-        Player player = game.addPlayer(playerId, ctx);
-        // Associate the channel with its game and player ID for future lookups
-        ctx.attr(GAME_STATE_MANAGER_KEY).set(game);
-        ctx.attr(PLAYER_ID_KEY).set(playerId);
-    }
-
     // Finds an available game or creates a new one
     public AbstractGameStateManager findOrCreateGame(String gameType) {
         // First, try to find a game with an open slot
@@ -180,9 +87,9 @@ public class GameLobby {
             }
         }
 
-        Supplier<AbstractGameStateManager> gameBuilder = gameMap.get(gameType);
-        if (gameBuilder != null) {
-            AbstractGameStateManager newGame = gameBuilder.get();
+        Class<? extends AbstractGameStateManager> gameClass = gameMap.get(gameType);
+        if (gameClass != null) {
+            AbstractGameStateManager newGame = ctx.createBean(gameClass);
             log.info("No available games. Creating new game with ID: {}", newGame.getGameId());
             newGame.startGameLoop(); // Each game has its own loop
             activeGames.put(newGame.getGameId(), new ActiveGame(gameType, newGame));
@@ -230,9 +137,9 @@ public class GameLobby {
     }
 
     public int getGlobalPlayerCount() {
-        return gameConfig.getMaxGlobalPlayers() - globalPlayerCountSemaphore.availablePermits();
+        return Config.MAX_GLOBAL_PLAYERS - globalPlayerCountSemaphore.availablePermits();
     }
-    
+
     /**
      * Find a game by its ID
      */

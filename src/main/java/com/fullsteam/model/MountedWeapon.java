@@ -1,5 +1,6 @@
 package com.fullsteam.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.micronaut.core.annotation.Introspected;
 
 @Introspected
@@ -8,11 +9,17 @@ public final class MountedWeapon {
     private final Weapon weapon;
     private final double defaultAngle; // default direction relative to vehicle (0 = forward)
     private final double maximumRadian; // max traverse range in radians (e.g., Math.PI/2 = 90°)
+    private double currentAngle; // current weapon angle in world coordinates (sent to client)
     private Long controllerId;
+    @JsonIgnore
     private int currentAmmo;
+    @JsonIgnore
     private boolean reloading;
+    @JsonIgnore
     private long reloadCompleteTime;
+    @JsonIgnore
     private long nextShotTime;
+    @JsonIgnore
     private final double damageModification;
 
     public MountedWeapon(Vector2D position, Weapon weapon, double defaultAngle, double maximumRadian, double damageModification) {
@@ -20,6 +27,7 @@ public final class MountedWeapon {
         this.weapon = weapon;
         this.defaultAngle = defaultAngle;
         this.maximumRadian = maximumRadian;
+        this.currentAngle = defaultAngle; // Initialize to default direction
         this.damageModification = damageModification;
         this.controllerId = null;
         this.currentAmmo = weapon.getRoundsPerMagazine();
@@ -111,6 +119,61 @@ public final class MountedWeapon {
         return damageModification;
     }
 
+    public double getCurrentAngle() {
+        return currentAngle;
+    }
+
+    /**
+     * Updates the weapon's current angle based on player mouse input.
+     * This method should be called continuously when a player is controlling the weapon.
+     *
+     * @param mouseX The mouse X coordinate from player input
+     * @param mouseY The mouse Y coordinate from player input
+     * @param vehicleAngle The current angle of the vehicle
+     */
+    public void updateAngle(double mouseX, double mouseY, double vehicleAngle) {
+        if (controllerId == null) {
+            // No player controlling - use default angle relative to vehicle
+            this.currentAngle = vehicleAngle + defaultAngle;
+            // Normalize to [0, 2π] range
+            while (this.currentAngle < 0) {
+                this.currentAngle += 2 * Math.PI;
+            }
+            while (this.currentAngle >= 2 * Math.PI) {
+                this.currentAngle -= 2 * Math.PI;
+            }
+        } else {
+            // Player is controlling - calculate desired angle from weapon position to mouse
+            double dx = mouseX - position.x();
+            double dy = mouseY - position.y();
+            double desiredAngle = Math.atan2(dy, dx);
+            
+            // Apply traverse constraints
+            this.currentAngle = getConstrainedAngle(desiredAngle, vehicleAngle);
+        }
+    }
+
+    /**
+     * Updates the weapon's angle when the vehicle rotates.
+     * This ensures weapons maintain their relative orientation to the vehicle.
+     *
+     * @param vehicleAngle The current angle of the vehicle
+     */
+    public void updateAngleForVehicleRotation(double vehicleAngle) {
+        if (controllerId == null) {
+            // No player controlling - maintain default angle relative to vehicle
+            this.currentAngle = vehicleAngle + defaultAngle;
+            // Normalize to [0, 2π] range
+            while (this.currentAngle < 0) {
+                this.currentAngle += 2 * Math.PI;
+            }
+            while (this.currentAngle >= 2 * Math.PI) {
+                this.currentAngle -= 2 * Math.PI;
+            }
+        }
+        // If player is controlling, don't auto-update - let player input handle it
+    }
+
     /**
      * Calculates the constrained weapon angle based on traverse limits.
      *
@@ -146,6 +209,16 @@ public final class MountedWeapon {
             angleDiff = -halfTraverse;
         }
 
-        return weaponDefaultAngle + angleDiff;
+        double finalAngle = weaponDefaultAngle + angleDiff;
+        
+        // Normalize final angle to [0, 2π] range
+        while (finalAngle < 0) {
+            finalAngle += 2 * Math.PI;
+        }
+        while (finalAngle >= 2 * Math.PI) {
+            finalAngle -= 2 * Math.PI;
+        }
+        
+        return finalAngle;
     }
 }

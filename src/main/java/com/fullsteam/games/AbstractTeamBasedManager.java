@@ -1,5 +1,6 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.GameLobby;
 import com.fullsteam.TeamBalancer;
 import com.fullsteam.model.GameEvent;
@@ -22,8 +23,8 @@ public abstract class AbstractTeamBasedManager extends AbstractGameStateManager 
     protected long roundEndTime = 0;
     private boolean sent10SecondWarning = false;
 
-    public AbstractTeamBasedManager(GameLobby gameLobby) {
-        super(gameLobby);
+    public AbstractTeamBasedManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
         this.teamBalancer = new TeamBalancer(this);
     }
 

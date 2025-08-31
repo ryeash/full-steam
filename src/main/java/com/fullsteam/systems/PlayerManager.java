@@ -2,13 +2,15 @@ package com.fullsteam.systems;
 
 import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
+import com.fullsteam.games.AbstractGameStateManager;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
-import com.fullsteam.model.MountedWeapon;
+import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
+import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Vector2D;
@@ -19,14 +21,12 @@ import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
-import io.netty.channel.Channel;
+import io.micronaut.websocket.WebSocketSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
@@ -56,6 +56,7 @@ public class PlayerManager {
 
     private static final Logger log = LoggerFactory.getLogger(PlayerManager.class);
 
+    private final AbstractGameStateManager game;
     private final GameEntities entities;
     private final PhysicsEngine physicsEngine;
     private final WeaponSystem weaponSystem;
@@ -76,6 +77,7 @@ public class PlayerManager {
      * @param other The PlayerManager to clone.
      */
     public PlayerManager(PlayerManager other) {
+        this.game = other.game;
         this.entities = other.entities;
         this.physicsEngine = other.physicsEngine;
         this.weaponSystem = other.weaponSystem;
@@ -88,11 +90,12 @@ public class PlayerManager {
         this.turretSystem = other.turretSystem;
     }
 
-    public PlayerManager(GameEntities entities, PhysicsEngine physicsEngine, WeaponSystem weaponSystem,
+    public PlayerManager(AbstractGameStateManager game, GameEntities entities, PhysicsEngine physicsEngine, WeaponSystem weaponSystem,
                          VehicleManager vehicleManager, FieldEffectSystem fieldEffectSystem, TurretSystem turretSystem,
                          Consumer<GameEvent> gameEventSender, BiConsumer<Player, Player> killPlayerHandler,
                          Supplier<IAIStrategy> aiStrategyBuilder,
                          Consumer<Player> setValidSpawnPositionHandler) {
+        this.game = game;
         this.entities = entities;
         this.physicsEngine = physicsEngine;
         this.weaponSystem = weaponSystem;
@@ -108,8 +111,8 @@ public class PlayerManager {
     /**
      * Updates all players, handles movement, AI decisions, effects, and collisions
      */
-    public void updatePlayers(long delta) {
-        for (Player player : entities.getPlayers().values()) {
+    public void updatePlayers(long delta, GameInfo gameInfo) {
+        for (Player player : entities.getPlayers()) {
             double oldX = player.getX();
             double oldY = player.getY();
 
@@ -133,18 +136,14 @@ public class PlayerManager {
                 player.setDamageMultiplier(POWER_UP_DAMAGE_BOOST_MULTIPLIER);
             }
 
-            // Let the AI make its decisions first, then apply movement
-            if (player instanceof AIPlayer ai) {
-                updateAIPlayer(ai, delta);
-            } else {
-                // Apply velocity for human players
-                PlayerInput input = entities.getPlayerInput(player.getId());
-                if (input != null) {
-                    handlePlayerInput(player.getId(), input, delta);
-                }
-                fieldEffectSystem.updateGravityWellAffect(player);
-                player.update(delta);
-            }
+            // Handle player input and movement
+            PlayerInput input = player instanceof AIPlayer ai
+                    ? updateAIPlayer(ai, gameInfo, delta)
+                    : entities.getPlayerInput(player.getId());
+            handlePlayerInput(player.getId(), input, delta);
+            // Apply field effects and physics for AI players too
+            fieldEffectSystem.updateGravityWellAffect(player);
+            player.update(delta);
 
             // --- Collision Resolution with Obstacles ---
             physicsEngine.resolvePlayerObstacleCollisions(player, oldX, oldY);
@@ -157,59 +156,25 @@ public class PlayerManager {
     /**
      * Updates an AI player's decision making and actions
      */
-    private void updateAIPlayer(AIPlayer ai, long delta) {
-        GameState gameState = createPlayerGameState(ai, null, true);
-
+    private PlayerInput updateAIPlayer(AIPlayer ai, GameInfo gameInfo, long delta) {
+        GameState gameState = createPlayerGameState(ai, gameInfo, true);
         // Handle vehicle entry/exit decisions
-        // Check if AI should enter/exit vehicle
         if (ai.shouldExitVehicle(gameState)) {
             vehicleManager.handleVehicleEnterExit(ai);
         } else if (ai.shouldEnterVehicle()) {
             vehicleManager.handleVehicleEnterExit(ai);
         }
-        Vehicle aiVehicle = vehicleManager.getPlayerVehicle(ai.getId());
-        if (aiVehicle != null) {
-            ai.setVelocity(Vector2D.ZERO);
-            ai.setX(aiVehicle.position().x());
-            ai.setY(aiVehicle.position().y());
-        }
-
-        // Get AI decision (shooting or mounted weapon control)
-        Optional<AIPlayer.ShootAction> shootAction = ai.update(gameState, entities.getTargetGrid(), delta);
-
-        if (shootAction.isPresent()) {
-            // Check if AI is in a vehicle and controlling a mounted weapon
-            if (aiVehicle != null) {
-                // AI is in a vehicle - handle mounted weapon firing
-                MountedWeapon controlledWeapon = aiVehicle.getWeaponControlledBy(ai.getId());
-                if (controlledWeapon != null && controlledWeapon.canShoot()) {
-                    // Create a mock PlayerInput for vehicle weapon firing
-                    PlayerInput mockInput = new PlayerInput();
-                    mockInput.setMouseX(ai.getMouseX());
-                    mockInput.setMouseY(ai.getMouseY());
-                    mockInput.setFire(true);
-                    // Fire the mounted weapon
-                    weaponSystem.fireVehicleWeapon(aiVehicle, controlledWeapon, ai.getId(), mockInput);
-                }
-            } else {
-                // AI is on foot - normal weapon firing
-                if (ai.canShoot()) {
-                    AIPlayer.ShootAction action = shootAction.get();
-                    double baseAngle = Math.atan2(action.directionY(), action.directionX());
-                    weaponSystem.fireWeapon(ai, baseAngle);
-                }
-            }
-        } else if (ai.getAmmoInMag() <= 0 && !ai.isReloading() && ai.getVehicleId() == null) {
-            // Only reload personal weapon if not in a vehicle
-            ai.startReload();
-        }
-
+        // Generate AI input using the new unified system
+        return ai.generateInput(gameState, entities.getTargetGrid(), delta);
     }
 
     /**
      * Handles player input for movement, shooting, reloading
      */
     public void handlePlayerInput(Long playerId, PlayerInput input, long delta) {
+        if (input == null) {
+            return;
+        }
         Player player = entities.getPlayer(playerId);
         if (player == null || player.isDead()) {
             return;
@@ -294,14 +259,13 @@ public class PlayerManager {
      * Accepts and processes player input
      */
     public void acceptPlayerInput(Long playerId, PlayerInput input) {
-        Player player = entities.getPlayer(playerId);
-        if (player == null) {
-            return;
-        }
-        PlayerInput previousInput = entities.setPlayerInput(playerId, input);
-        if (!Objects.equals(previousInput, input)) {
-            player.setLastInputTime(System.currentTimeMillis());
-        }
+        entities.getPlayerSessions().compute(playerId, (id, session) -> {
+            if (session != null) {
+                session.setInput(input);
+                session.getPlayer().setLastInputTime(System.currentTimeMillis());
+            }
+            return session;
+        });
     }
 
     /**
@@ -352,21 +316,20 @@ public class PlayerManager {
         long currentTime = System.currentTimeMillis();
         List<Long> afkPlayerIds = new ArrayList<>();
 
-        for (Map.Entry<Long, Player> entry : entities.getPlayers().entrySet()) {
-            Player player = entry.getValue();
+        for (Player player : entities.getPlayers()) {
             // We don't want to kick AI players
             if (player instanceof AIPlayer) {
                 continue;
             }
 
             if (currentTime - player.getLastInputTime() > AFK_TIMEOUT_MS) {
-                afkPlayerIds.add(entry.getKey());
+                afkPlayerIds.add(player.id());
             }
         }
 
         for (Long playerId : afkPlayerIds) {
             log.info("Player {} is AFK. Removing from game.", playerId);
-            Channel channel = entities.getPlayerChannel(playerId);
+            WebSocketSession channel = entities.getPlayerChannel(playerId);
             if (channel != null) {
                 // Closing the channel will trigger the channelInactive event in the
                 // GameWebSocketHandler, which will then call removePlayer.
@@ -383,10 +346,10 @@ public class PlayerManager {
      */
     public void checkAndRespawnPlayers() {
         long currentTime = System.currentTimeMillis();
-        for (Player player : entities.getPlayers().values()) {
+        for (Player player : entities.getPlayers()) {
             if (player.isDead()
-                    && player.getRespawnTime() != -1 // indicates a player's respawn has been disabled
-                    && currentTime >= player.getRespawnTime()) {
+                && player.getRespawnTime() != -1 // indicates a player's respawn has been disabled
+                && currentTime >= player.getRespawnTime()) {
                 respawnPlayer(player);
             }
         }
@@ -406,7 +369,7 @@ public class PlayerManager {
     /**
      * Adds a new player to the game with balanced team assignment
      */
-    public Player addPlayer(long playerId, Channel channel) {
+    public PlayerSession addPlayer(AbstractGameStateManager game, long playerId, WebSocketSession channel) {
         // Assign player to the team with fewer players to keep things balanced.
         long team1Count = entities.getTeamPlayerCount(1);
         long team2Count = entities.getTeamPlayerCount(2);
@@ -416,32 +379,33 @@ public class PlayerManager {
         } else {
             team = (team2Count <= team1Count) ? 2 : 1;
         }
-        return addPlayer(playerId, channel, team);
+        return addPlayer(game, playerId, channel, team);
     }
 
     /**
      * Adds a new player to a specific team
      */
-    public Player addPlayer(long playerId, Channel channel, int team) {
+    public PlayerSession addPlayer(AbstractGameStateManager game, long playerId, WebSocketSession channel, int team) {
         Player player = new Player(playerId, 0, 0, team);
         player.applyArmorUp(POWER_UP_ARMOR_UP_DURATION);
         setValidSpawnPositionHandler.accept(player);
-        entities.addPlayer(player, channel);
+        PlayerSession playerSession = new PlayerSession(game, player, channel);
+        entities.addPlayer(playerSession);
 
         // Send welcome message
         WelcomeMessage welcomeMessage = new WelcomeMessage(player.getId(), player.getTeam(), entities.getGameId(), entities.getObstacles());
-        channel.writeAndFlush(welcomeMessage);
-        return player;
+        game.send(channel, welcomeMessage);
+        return playerSession;
     }
 
     /**
      * Adds an AI player to a specific team
      */
-    public AIPlayer addAIPlayer(int team) {
+    public AIPlayer addAIPlayer(AbstractGameStateManager game, int team) {
         long playerId = ID_COUNTER.incrementAndGet();
         AIPlayer player = new AIPlayer(playerId, 0, 0, team, aiStrategyBuilder.get(), AIArchetype.randomArchetype());
         setValidSpawnPositionHandler.accept(player);
-        entities.addPlayer(player, null);
+        entities.addPlayer(new PlayerSession(game, player, null));
         return player;
     }
 
@@ -451,7 +415,7 @@ public class PlayerManager {
     public void removePlayer(long playerId) {
         Player removed = entities.removePlayer(playerId);
         log.info("Player {} left the game", Optional.ofNullable(removed)
-                .map(Player::getPlayerName)
+                .map(Player::getName)
                 .orElse(String.valueOf(playerId)));
         Optional.ofNullable(removed)
                 .map(Player::id)
@@ -468,13 +432,13 @@ public class PlayerManager {
             return;
         }
 
-        if (request.getPlayerName() != null && !request.getPlayerName().isEmpty() && Config.ALLOW_NAME_CHANGE) {
-            player.setPlayerName(request.getPlayerName());
+        if (request.getName() != null && !request.getName().isEmpty() && Config.ALLOW_NAME_CHANGE) {
+            player.setName(request.getName());
         }
 
         if (request.getWeaponName() != null
-                && !request.getWeaponName().isEmpty()
-                && !request.getWeaponName().equals(player.getWeapon().getName())) {
+            && !request.getWeaponName().isEmpty()
+            && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
             turretSystem.removeAllTurretsOwnedBy(player.id());
@@ -483,7 +447,7 @@ public class PlayerManager {
         if (request.isRequestTeamChange()) {
             handleTeamChangeRequest(player);
         }
-        log.info("Player {} reconfigured: name={}, weapon={}", playerId, player.getPlayerName(), player.getWeapon().getName());
+        log.info("Player {} reconfigured: name={}, weapon={}", playerId, player.getName(), player.getWeapon().getName());
     }
 
     /**
@@ -494,7 +458,7 @@ public class PlayerManager {
         int otherTeam = (currentTeam == 1) ? 2 : 1;
 
         // Check if the other team is full (only count human players)
-        long otherTeamCount = entities.getPlayers().values()
+        long otherTeamCount = entities.getPlayers()
                 .stream()
                 .filter(p -> !(p instanceof AIPlayer))
                 .filter(p -> p.getTeam() == otherTeam)
@@ -505,7 +469,10 @@ public class PlayerManager {
             player.setTeam(otherTeam);
             // Kill the player to force a respawn on the new team's side
             killPlayerHandler.accept(player, null);
-            entities.getPlayerChannel(player.getId()).writeAndFlush(welcomeMessage);
+            WebSocketSession session = entities.getPlayerChannel(player.getId());
+            if (session != null) {
+                game.send(session, welcomeMessage);
+            }
             log.info("Player {} switched to team {}", player.getId(), otherTeam);
         } else {
 
@@ -530,73 +497,34 @@ public class PlayerManager {
     /**
      * Creates a game state for a specific player (for AI or other purposes)
      */
-    private GameState createPlayerGameState(Player player, GameInfo gameInfo, boolean includeAllObstacles) {
-        return new GameState(
-                entities.getPlayers().values().stream()
-                        .filter(p -> p.getInvisibilityEndTime() < System.currentTimeMillis() || Objects.equals(p.getId(), player.getId()))
-                        .toList(),
-                entities.getBullets(),
-                entities.getLaserBlasts(),
-                entities.getFieldEffects(),
-                entities.getTurrets(),
-                entities.getVehicles(),
-                includeAllObstacles ? entities.getObstacles() : entities.getObstacles().stream().filter(o -> o.isRendered()).toList(),
-                entities.getPowerUps(),
-                System.currentTimeMillis(),
-                gameInfo);
-    }
-
-    /**
-     * Gets all players (read-only access)
-     */
-    public Map<Long, Player> getPlayers() {
-        return java.util.Collections.unmodifiableMap(entities.getPlayers());
-    }
-
-    /**
-     * Gets a specific player by ID
-     */
-    public Player getPlayer(long playerId) {
-        return entities.getPlayer(playerId);
-    }
-
-    /**
-     * Gets the total number of human players
-     */
-    public int getHumanPlayerCount() {
-        return entities.getHumanPlayerCount();
-    }
-
-    /**
-     * Gets the number of players on a specific team
-     */
-    public long getTeamPlayerCount(int team) {
-        return entities.getTeamPlayerCount(team);
-    }
-
-    /**
-     * Checks if the maximum number of players has been reached
-     */
-    public boolean isPlayerLimitReached() {
-        return getHumanPlayerCount() >= MAX_PLAYERS_PER_TEAM * 2;
-    }
-
-    /**
-     * Gets all AI players
-     */
-    public List<AIPlayer> getAIPlayers() {
-        return entities.getPlayers().values().stream()
-                .filter(AIPlayer.class::isInstance)
-                .map(AIPlayer.class::cast)
-                .toList();
-    }
-
-    /**
-     * Gets all human players
-     */
-    public List<Player> getHumanPlayers() {
-        return entities.getPlayers().values().stream()
-                .filter(p -> !(p instanceof AIPlayer))
-                .toList();
+    public GameState createPlayerGameState(Player player, GameInfo gameInfo, boolean includeAllObstacles) {
+        if (player.isVisionObscured()) {
+            return new GameState(
+                    List.of(player),
+                    List.of(),
+                    List.of(),
+                    entities.getFieldEffects(),
+                    List.of(),
+                    List.of(),
+                    includeAllObstacles ? entities.getObstacles() : entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
+                    List.of(),
+                    System.currentTimeMillis(),
+                    gameInfo);
+        } else {
+            return new GameState(
+                    entities.getPlayers()
+                            .stream()
+                            .filter(p -> p.getId() == player.getId() || p.getInvisibilityEndTime() < System.currentTimeMillis())
+                            .toList(),
+                    entities.getBullets(),
+                    entities.getLaserBlasts(),
+                    entities.getFieldEffects(),
+                    entities.getTurrets(),
+                    entities.getVehicles(),
+                    includeAllObstacles ? entities.getObstacles() : entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
+                    entities.getPowerUps(),
+                    System.currentTimeMillis(),
+                    gameInfo);
+        }
     }
 }

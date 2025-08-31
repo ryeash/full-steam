@@ -1,13 +1,15 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
 import com.fullsteam.model.ai.DeathmatchAIStrategy;
-import io.netty.channel.Channel;
+import io.micronaut.websocket.WebSocketSession;
 
 import java.util.Comparator;
 import java.util.List;
@@ -28,8 +30,8 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
     protected long roundEndTime = 0;
     private long lastAIFillCheckTime = 0;
 
-    public AbstractFreeForAllManager(GameLobby gameLobby) {
-        super(gameLobby);
+    public AbstractFreeForAllManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
     }
 
     @Override
@@ -55,7 +57,7 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
             log.info("Too many players. Current players: {}, Max: {}. Removing {} AI.", entities.getPlayers().size(), MAX_PLAYERS, playersToRemove);
 
             // Get a list of AI player IDs to remove
-            List<Long> aiPlayerIdsToRemove = entities.getPlayers().values().stream()
+            List<Long> aiPlayerIdsToRemove = entities.getPlayers().stream()
                     .filter(p -> p instanceof AIPlayer)
                     .map(Player::getId)
                     .limit(playersToRemove)
@@ -71,10 +73,10 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
 
     @Override
     public AIPlayer addAIPlayer(int team) {
-        Long playerId = Config.ID_COUNTER.incrementAndGet();
+        long playerId = Config.ID_COUNTER.incrementAndGet();
         AIPlayer player = new AIPlayer(playerId, 0, 0, team, new DeathmatchAIStrategy(), AIArchetype.randomArchetype());
         setValidSpawnPosition(player);
-        entities.addPlayer(player, null);
+        entities.addPlayer(new PlayerSession(this, player, null));
         log.info("AI Player {} joined at position ({}, {})", playerId, player.getX(), player.getY());
         return player;
     }
@@ -97,16 +99,16 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
     }
 
     protected void sendVictoryMessage() {
-        entities.getPlayers().values().stream()
+        entities.getPlayers().stream()
                 .max(Comparator.comparingInt(Player::getKills))
-                .ifPresent(winner -> sendGameEvent(GameEvent.blue(winner.getPlayerName() + " wins!")));
+                .ifPresent(winner -> sendGameEvent(GameEvent.blue(winner.getName() + " wins!")));
     }
 
     @Override
-    public Player addPlayer(long playerId, Channel channel) {
+    public PlayerSession addPlayer(long playerId, WebSocketSession channel) {
         // If the game is at max capacity, try to remove an AI to make room.
         if (entities.getPlayers().size() >= MAX_PLAYERS) {
-            Optional<Player> aiToKick = entities.getPlayers().values().stream()
+            Optional<Player> aiToKick = entities.getPlayers().stream()
                     .filter(p -> p instanceof AIPlayer)
                     .findFirst();
 
@@ -142,7 +144,7 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
                 continue;
             }
 
-            for (Player other : entities.getPlayers().values()) {
+            for (Player other : entities.getPlayers()) {
                 if (!Objects.equals(player.getId(), other.getId()) && other.position().distanceSquared(player.position()) < PLAYER_BUFFER_SPAWN_DISTANCE) {
                     invalidPosition = true;
                     break;

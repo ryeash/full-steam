@@ -9,7 +9,7 @@ import org.apache.commons.lang3.StringUtils;
 @Introspected
 public class Player implements HasId, HasLife, Targetable {
     protected final long id;
-    protected String playerName;
+    protected String name;
     protected double x;
     protected double y;
     @JsonIgnore
@@ -26,14 +26,17 @@ public class Player implements HasId, HasLife, Targetable {
     protected double maxHp;
     protected double mouseX;
     protected double mouseY;
-    @JsonIgnore
-    protected transient long lastInputTime;
     protected boolean isDead;
     protected long respawnTime;
+    @JsonIgnore
     protected int kills;
+    @JsonIgnore
     protected int deaths;
     protected int ammoInMag;
     protected boolean isReloading;
+    protected Long vehicleId;
+    @JsonIgnore
+    protected transient long lastInputTime;
     @JsonIgnore
     protected long reloadCompleteTime;
     @JsonIgnore
@@ -50,7 +53,6 @@ public class Player implements HasId, HasLife, Targetable {
     public double damageMultiplier;
     @JsonIgnore
     public boolean visionObscured;
-    public Long vehicleId;
     @JsonIgnore
     public boolean shootDisabled;
 
@@ -58,9 +60,9 @@ public class Player implements HasId, HasLife, Targetable {
         this(id, RandomNames.randomName(), x, y, team, WeaponFactory.getDefaultWeapon());
     }
 
-    public Player(long id, String playerName, double x, double y, int team, Weapon weapon) {
+    public Player(long id, String name, double x, double y, int team, Weapon weapon) {
         this.id = id;
-        this.playerName = playerName;
+        this.name = name;
         this.x = x;
         this.y = y;
         this.team = team;
@@ -96,10 +98,10 @@ public class Player implements HasId, HasLife, Targetable {
 
     public boolean canShoot() {
         return !isDead()
-                && !shootDisabled
-                && !isReloading
-                && ammoInMag > 0
-                && System.currentTimeMillis() >= nextShotTime;
+               && !shootDisabled
+               && !isReloading
+               && ammoInMag > 0
+               && System.currentTimeMillis() >= nextShotTime;
     }
 
     /**
@@ -138,12 +140,12 @@ public class Player implements HasId, HasLife, Targetable {
         return id;
     }
 
-    public String getPlayerName() {
-        return playerName;
+    public String getName() {
+        return name;
     }
 
-    public void setPlayerName(String playerName) {
-        this.playerName = StringUtils.abbreviate(playerName, 25);
+    public void setName(String name) {
+        this.name = StringUtils.abbreviate(name, 25);
     }
 
     public double getX() {

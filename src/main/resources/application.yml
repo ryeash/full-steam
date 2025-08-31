@@ -3,10 +3,11 @@ micronaut:
     name: full-steam
   server:
     port: ${SERVER_PORT:8080}
+    max-request-size: 1KB
     netty:
       worker:
         threads: 8
-      max-header-size: 65536
+      max-header-size: 8192
   executors:
     scheduled:
       type: scheduled
@@ -14,79 +15,12 @@ micronaut:
   jackson:
     bean-introspection-module: true
   http:
+    client:
+      ws:
+        compression:
+          enabled: true
     services:
       default:
         ws:
           compression:
             enabled: true
-
-# Game configuration
-game:
-  width: ${GAME_WIDTH:1000}
-  height: ${GAME_HEIGHT:800}
-  tick-rate: ${GAME_TICK_RATE:24}
-  max-global-players: ${MAX_GLOBAL_PLAYERS:50}
-  max-spectators-per-game: ${MAX_SPECTATORS_PER_GAME:5}
-  obstacle-count: ${GAME_OBSTACLE_COUNT:6}
-  game-event-duration-ms: ${GAME_EVENT_DURATION_MS:6000}
-  next-round-delay-ms: ${GAME_NEXT_ROUND_DELAY_MS:6000}
-  respawn-delay-ms: ${GAME_RESPAWN_DELAY_MS:5000}
-  round-duration-seconds: ${GAME_ROUND_DURATION_S:180}
-  afk-timeout-ms: ${GAME_AFK_TIMEOUT_MS:190000}
-  allow-name-change: ${GAME_ALLOW_NAME_CHANGE:true}
-  
-  player:
-    size: ${GAME_PLAYER_SIZE:20.0}
-    health: ${GAME_DEFAULT_PLAYER_HEALTH:100.0}
-    speed: ${GAME_DEFAULT_PLAYER_SPEED:0.18}
-    
-  spawn:
-    horizontal-padding: ${GAME_SPAWN_PADDING_H:50.0}
-    vertical-padding: ${GAME_SPAWN_PADDING_V:50.0}
-    midfield-buffer: ${GAME_SPAWN_MIDFIELD_BUFFER:300.0}
-    
-  ai:
-    decision-cooldown-ms: ${AI_DECISION_COOLDOWN_MS:800}
-    vision-range: ${AI_VISION_RANGE:450.0}
-    wander-interval-ms: ${AI_WANDER_INTERVAL_MS:2000}
-    base-reaction-time-ms: ${AI_BASE_REACTION_MS:600}
-    base-aim-inaccuracy: ${AI_BASE_AIM_INACCURACY:0.4}
-    base-strafe-interval-ms: ${AI_BASE_STRAFE_INTERVAL_MS:1500}
-    max-force: ${AI_MAX_FORCE:0.5}
-    
-  lobby:
-    cleanup-interval-seconds: ${LOBBY_CLEANUP_INTERVAL_S:10}
-    
-  modes:
-    ctf:
-      score-to-win: ${GAME_CTF_SCORE_TO_WIN:3}
-      flag-pickup-radius: ${GAME_CTF_FLAG_PICKUP_RADIUS:30.0}
-      flag-return-timeout-ms: ${GAME_CTF_FLAG_RETURN_TIMEOUT_MS:15000}
-      base-area-padding: ${GAME_CTF_BASE_AREA_PADDING:100.0}
-      
-    koth:
-      score-to-win: ${GAME_KOTH_SCORE_TO_WIN:100.0}
-      points-per-second: ${GAME_KOTH_POINTS_PER_SECOND:1.0}
-      hill-radius: ${GAME_KOTH_HILL_RADIUS:75.0}
-      hill-keep-out-radius: ${GAME_KOTH_HILL_KEEP_OUT_RADIUS:125.0}
-      
-    elimination:
-      score-to-win: ${GAME_ELIMINATION_SCORE_TO_WIN:5}
-      
-    juggernaut:
-      score-to-win: ${GAME_JUGGERNAUT_SCORE_TO_WIN:3}
-      health: ${GAME_JUGGERNAUT_HEALTH:1000}
-      selection-delay-ms: ${GAME_JUGGERNAUT_SELECTION_DELAY_MS:7000}
-      
-    oddball:
-      score-to-win: ${GAME_ODDBALL_SCORE_TO_WIN:90.0}
-      points-per-second: ${GAME_ODDBALL_POINTS_PER_SECOND:1.0}
-      ball-pickup-radius: ${GAME_ODDBALL_BALL_PICKUP_RADIUS:30.0}
-      ball-reset-timeout-ms: ${GAME_ODDBALL_BALL_RESET_TIMEOUT_MS:15000}
-      keep-out-radius: ${GAME_ODDBALL_KEEP_OUT_RADIUS:150.0}
-
-logging:
-  level:
-    com.fullsteam: DEBUG
-    io.micronaut: INFO
-    io.netty: INFO

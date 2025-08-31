@@ -14,8 +14,6 @@ public class PlayerInput {
     private double mouseY;
     private boolean reload;
     public boolean action1; // e.g. placing a crate
-
-    // Vehicle controls
     private boolean action2; // e.g. enter and exit vehicle
 
     public PlayerInput() {

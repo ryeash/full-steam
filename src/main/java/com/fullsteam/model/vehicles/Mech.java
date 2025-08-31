@@ -34,16 +34,16 @@ public class Mech extends Vehicle {
                 Config.MECH_TURN_SPEED,  // Fast turning
                 List.of(new Seat(true, new MountedWeapon(
                                 new Vector2D(0, Config.MECH_HEIGHT / 2), // Driver controlled right arm
-                                WeaponFactory.getWeapon("Laser Minigun"),
-                                Math.PI / 8, // Default angle (forward)
-                                Math.PI - Math.PI / 8, // ±90° traverse range (front hemisphere)
+                                WeaponFactory.MECH_LAZ_CANNON,
+                                Math.PI / 8,
+                                Math.PI - Math.PI / 8,
                                 3.0
                         )),
                         new Seat(false, new MountedWeapon(
                                 new Vector2D(0, -Config.MECH_HEIGHT / 2), // Passenger controller left arm
-                                WeaponFactory.getWeapon("Laser Minigun"),
-                                -Math.PI / 8, // Default angle (rear)
-                                Math.PI - Math.PI / 8, // ±90° traverse range (rear hemisphere)
+                                WeaponFactory.MECH_LAZ_CANNON,
+                                -Math.PI / 8,
+                                Math.PI - Math.PI / 8,
                                 3.0
                         ))
                 ));

@@ -23,6 +23,7 @@ public class WeaponFactory {
     private static final Map<String, Weapon> weaponPresets = new HashMap<>();
     private static final List<String> weaponNames;
     private static final Weapon[] weaponArray;
+    private static final Weapon[] randomWeapons;
 
     static {
         addPreset(new Weapon(
@@ -195,9 +196,9 @@ public class WeaponFactory {
                 "SM",
                 8, // Fire Rate
                 0, // Damage (damage is from the cloud)
-                12,// Range
+                8,// Range
                 8, // Speed
-                0, // Speed Decay
+                4, // Speed Decay
                 0, // Accuracy
                 0, // Multi-shot
                 3, // Magazine Size
@@ -208,9 +209,9 @@ public class WeaponFactory {
         addPreset(new Weapon(
                 "Grenade (Gravity Well)",
                 "GW",
-                2, // Fire Rate
+                7, // Fire Rate
                 0, // Damage (effect is from the gravity well)
-                15,// Range
+                10,// Range
                 8, // Speed
                 3, // Speed Decay
                 0, // Accuracy
@@ -282,18 +283,18 @@ public class WeaponFactory {
         ));
 
         addPreset(new Weapon(
-                "Laser Minigun",
-                "LM",
+                "Laser Rifle",
+                "LR",
                 Weapon.Ordinance.LASER,
-                35,  // Fire Rate
-                5, // Damage
-                9,  // Range
+                9,  // Fire Rate
+                17, // Damage
+                18,  // Range
                 0, // Speed
                 0,  // Speed Decay
-                -10, // Accuracy
+                0, // Accuracy
                 0,  // Multi-shot
-                10,  // Magazine Size
-                1,  // Reload Speed
+                2,  // Magazine Size
+                4,  // Reload Speed
                 null
         ));
 
@@ -333,6 +334,19 @@ public class WeaponFactory {
         // Cache the weapon array for faster random access.
         weaponArray = weaponPresets.values()
                 .stream()
+                .sorted(Comparator.comparing(Weapon::getName))
+                .toArray(Weapon[]::new);
+
+        List<String> randomExceptions = List.of(
+                "Engineer Wrench",
+                "Grenade (Slow)",
+                "Grenade (Smoke)",
+                "Grenade (Gravity Well)",
+                "Mine Layer");
+
+        randomWeapons = weaponPresets.values()
+                .stream()
+                .filter(w -> !randomExceptions.contains(w.getName()))
                 .sorted(Comparator.comparing(Weapon::getName))
                 .toArray(Weapon[]::new);
     }
@@ -386,6 +400,22 @@ public class WeaponFactory {
             Explosion::shell
     );
 
+    public static final Weapon MECH_LAZ_CANNON = new Weapon(
+            "Laser Minigun",
+            "LM",
+            Weapon.Ordinance.LASER,
+            35,  // Fire Rate
+            5, // Damage
+            9,  // Range
+            0, // Speed
+            0,  // Speed Decay
+            -10, // Accuracy
+            0,  // Multi-shot
+            10,  // Magazine Size
+            1,  // Reload Speed
+            null
+    );
+
     public static void addPreset(Weapon weapon) {
         if (weaponPresets.containsKey(weapon.getName())) {
             throw new IllegalArgumentException("weapon already registered: " + weapon.getName());
@@ -416,18 +446,7 @@ public class WeaponFactory {
         return weaponArray[0];
     }
 
-    private static final List<String> RANDOM_EXCEPTIONS = List.of(
-            "Engineer Wrench",
-            "Grenade (Slow)",
-            "Grenade (Smoke)",
-            "Grenade (Gravity Well)",
-            "Mine Layer");
-
     public static Weapon getRandomWeapon() {
-        Weapon random = null;
-        while (random == null || RANDOM_EXCEPTIONS.contains(random.getName())) {
-            random = weaponArray[ThreadLocalRandom.current().nextInt(weaponArray.length)];
-        }
-        return random;
+        return randomWeapons[ThreadLocalRandom.current().nextInt(randomWeapons.length)];
     }
 }

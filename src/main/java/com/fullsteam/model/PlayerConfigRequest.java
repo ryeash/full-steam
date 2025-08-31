@@ -4,19 +4,19 @@ import io.micronaut.core.annotation.Introspected;
 
 @Introspected
 public class PlayerConfigRequest {
-    private String playerName;
+    private String name;
     private String weaponName;
     private boolean requestTeamChange;
 
     public PlayerConfigRequest() {
     }
 
-    public String getPlayerName() {
-        return playerName;
+    public String getName() {
+        return name;
     }
 
-    public void setPlayerName(String playerName) {
-        this.playerName = playerName;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getWeaponName() {

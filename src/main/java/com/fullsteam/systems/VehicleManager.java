@@ -131,12 +131,23 @@ public class VehicleManager {
         vehicle.update(delta);
 
         // Check collision with obstacles
-        // Simple collision response - stop the vehicle
+        // Simple collision response - stop the vehicle and restore position/rotation
         if (physicsEngine.isColliding(vehicle, entities.getObstacles()) || physicsEngine.isColliding(vehicle, entities.getVehicles())) {
             vehicle.setVelocityX(0);
             vehicle.setVelocityY(0);
-            vehicle.setPosition(startingPosition); // reset to starting position
-            // TODO: handle rotation back to original?
+            vehicle.setPosition(startingPosition); // Reset to starting position
+            
+            // Calculate angle difference before resetting the angle
+            double currentAngle = vehicle.getAngle();
+            double angleDifference = startingAngle - currentAngle;
+            
+            // Reset angle and update vehicle's polygon vertices to match
+            vehicle.setAngle(startingAngle);
+            
+            // If there was a rotation change, we need to rotate the vehicle's geometry back
+            if (Math.abs(angleDifference) > 0.001) { // Only rotate if there's a meaningful difference
+                vehicle.rotate(angleDifference);
+            }
         }
     }
 
@@ -152,6 +163,10 @@ public class VehicleManager {
         if (controlledWeapon.isReloading() && System.currentTimeMillis() >= controlledWeapon.getReloadCompleteTime()) {
             controlledWeapon.finishReload();
         }
+
+        // Update weapon angle continuously based on mouse input
+        // This ensures the weapon tracks the player's mouse even when not firing
+        controlledWeapon.updateAngle(input.getMouseX(), input.getMouseY(), vehicle.getAngle());
 
         // Handle weapon firing
         if (input.isFire()) {
@@ -227,11 +242,10 @@ public class VehicleManager {
      * Finds a vehicle near the player within interaction radius
      */
     public Vehicle findNearbyVehicle(Player player) {
-        double interactionRadius = Config.VEHICLE_INTERACTION_RADIUS;
         for (Vehicle vehicle : entities.getVehicles()) {
             if (!vehicle.isDestroyed()) {
                 double distance = player.position().distance(vehicle.position());
-                if (distance <= interactionRadius) {
+                if (distance <= vehicle.getRadius()) {
                     return vehicle;
                 }
             }

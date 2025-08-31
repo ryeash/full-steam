@@ -1,7 +1,7 @@
 package com.fullsteam.controller;
 
+import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
-import com.fullsteam.config.GameConfig;
 import com.fullsteam.model.LobbyInfo;
 import io.micronaut.core.io.ResourceResolver;
 import io.micronaut.http.HttpResponse;
@@ -27,13 +27,11 @@ public class GameController {
     private static final Logger log = LoggerFactory.getLogger(GameController.class);
 
     private final GameLobby gameLobby;
-    private final GameConfig gameConfig;
     private final ResourceResolver resourceResolver;
 
     @Inject
-    public GameController(GameLobby gameLobby, GameConfig gameConfig, ResourceResolver resourceResolver) {
+    public GameController(GameLobby gameLobby, ResourceResolver resourceResolver) {
         this.gameLobby = gameLobby;
-        this.gameConfig = gameConfig;
         this.resourceResolver = resourceResolver;
     }
 
@@ -43,14 +41,14 @@ public class GameController {
     public LobbyInfo getGames() {
         return new LobbyInfo(
                 gameLobby.getGlobalPlayerCount(),
-                gameConfig.getMaxGlobalPlayers(),
+                Config.MAX_GLOBAL_PLAYERS,
                 gameLobby.getGameTypes(),
                 gameLobby.getActiveGames()
         );
     }
 
     @Get(produces = MediaType.TEXT_HTML)
-    public HttpResponse<StreamedFile> index() {
+    public HttpResponse<StreamedFile> lobby() {
         return serveStaticFile("lobby.html", MediaType.TEXT_HTML);
     }
 
@@ -62,6 +60,16 @@ public class GameController {
     @Get(value = "/color-palette.js", produces = MediaType.TEXT_JAVASCRIPT)
     public HttpResponse<StreamedFile> colorPalette() {
         return serveStaticFile("color-palette.js", MediaType.TEXT_JAVASCRIPT);
+    }
+
+    @Get(value = "/unified.css", produces = MediaType.TEXT_CSS)
+    public HttpResponse<StreamedFile> unifiedCss() {
+        return serveStaticFile("unified.css", MediaType.TEXT_CSS);
+    }
+
+    @Get(value = "/game-engine.js", produces = MediaType.TEXT_JAVASCRIPT)
+    public HttpResponse<StreamedFile> gameEngine() {
+        return serveStaticFile("game-engine.js", MediaType.TEXT_JAVASCRIPT);
     }
 
     @Get(value = "/favicon.ico", produces = MediaType.TEXT_HTML)

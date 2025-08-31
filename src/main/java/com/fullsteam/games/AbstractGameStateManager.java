@@ -1,5 +1,6 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.WeaponFactory;
@@ -13,6 +14,8 @@ import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
+import com.fullsteam.model.PlayerScores;
+import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.PowerUpType;
 import com.fullsteam.model.Turret;
@@ -29,17 +32,22 @@ import com.fullsteam.systems.PlayerManager;
 import com.fullsteam.systems.TurretSystem;
 import com.fullsteam.systems.VehicleManager;
 import com.fullsteam.systems.WeaponSystem;
-import io.netty.channel.Channel;
+import io.micronaut.websocket.WebSocketSession;
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.channels.ClosedChannelException;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
+import java.util.zip.GZIPOutputStream;
 
 import static com.fullsteam.CollisionUtils.checkObstacleOverlap;
 import static com.fullsteam.Config.GAME_HEIGHT;
@@ -58,8 +66,10 @@ import static com.fullsteam.Config.TICK_RATE;
 public abstract class AbstractGameStateManager {
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
+    protected final ObjectMapper objectMapper;
     protected final GameLobby gameLobby;
     protected final Long gameId = ID_COUNTER.incrementAndGet();
+    private final long createdTime = System.currentTimeMillis();
     protected GameEntities entities;
     protected WeaponSystem weaponSystem;
     protected PhysicsEngine physicsEngine;
@@ -70,8 +80,11 @@ public abstract class AbstractGameStateManager {
     protected boolean isRoundOver = false;
     protected ScheduledFuture<?> gameLoopHook;
     protected long lastGameStateUpdate = System.currentTimeMillis();
+    protected long lastScoreUpdate = System.currentTimeMillis();
+    protected static final long SCORE_UPDATE_INTERVAL_MS = 2000; // Send scores every 2 seconds
 
-    public AbstractGameStateManager(GameLobby gameLobby) {
+    public AbstractGameStateManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        this.objectMapper = objectMapper;
         this.gameLobby = gameLobby;
         this.entities = new GameEntities(gameId, GAME_WIDTH, GAME_HEIGHT, 100, 100);
         this.weaponSystem = new WeaponSystem(entities, this::applyBulletEffect, this::killPlayer);
@@ -80,6 +93,7 @@ public abstract class AbstractGameStateManager {
         this.vehicleManager = new VehicleManager(entities, physicsEngine, weaponSystem, fieldEffectSystem, this::sendGameEvent);
         this.turretSystem = new TurretSystem(entities, weaponSystem, fieldEffectSystem, this::sendGameEvent);
         this.playerManager = new PlayerManager(
+                this,
                 entities,
                 physicsEngine,
                 weaponSystem,
@@ -96,6 +110,10 @@ public abstract class AbstractGameStateManager {
         return gameId;
     }
 
+    public long getCreatedTime() {
+        return createdTime;
+    }
+
     public void sendGameEvent(String message, GameEvent.EventType type) {
         sendGameEvent(new GameEvent(message, type, Config.GAME_EVENT_DURATION_MS, null));
     }
@@ -105,14 +123,12 @@ public abstract class AbstractGameStateManager {
                 "type", "gameEvent",
                 "event", gameEvent
         );
+        byte[] bytes = serializeAndCompress(message);
         if (gameEvent.playerId() != null) {
-            Channel channel = entities.getPlayerChannel(gameEvent.playerId());
-            if (channel != null && channel.isActive()) {
-                channel.writeAndFlush(message);
-            }
+            send(entities.getPlayerChannel(gameEvent.playerId()), bytes);
         } else {
-            entities.getPlayerChannels().values().forEach(ch -> ch.writeAndFlush(message));
-            entities.getSpectatorChannels().forEach(ch -> ch.writeAndFlush(message));
+            entities.getPlayerChannels().forEach(ch -> send(ch, message));
+            entities.getSpectatorChannels().forEach(ch -> send(ch, message));
         }
     }
 
@@ -121,7 +137,7 @@ public abstract class AbstractGameStateManager {
     }
 
     public boolean hasHumanPlayers() {
-        return !entities.getPlayers().values().stream().allMatch(p -> p instanceof AIPlayer);
+        return !entities.getPlayers().stream().allMatch(p -> p instanceof AIPlayer);
     }
 
     public boolean isSpectatorsFull() {
@@ -135,31 +151,35 @@ public abstract class AbstractGameStateManager {
     public void startGameLoop() {
         startNewRound();
         this.gameLoopHook = Config.EXECUTOR.scheduleAtFixedRate(() -> {
-            long delta = System.currentTimeMillis() - lastGameStateUpdate;
-            updateGame(delta);
-            lastGameStateUpdate = System.currentTimeMillis();
+            try {
+                long delta = System.currentTimeMillis() - lastGameStateUpdate;
+                updateGame(delta);
+                lastGameStateUpdate = System.currentTimeMillis();
+            } catch (Throwable t) {
+                log.error("catastrophic error", t);
+            }
         }, 0, 1000 / TICK_RATE, TimeUnit.MILLISECONDS);
         log.info("Game loop started at {} FPS", TICK_RATE);
     }
 
-    public Player addPlayer(long playerId, Channel channel) {
-        return playerManager.addPlayer(playerId, channel);
+    public PlayerSession addPlayer(long playerId, WebSocketSession channel) {
+        return playerManager.addPlayer(this, playerId, channel);
     }
 
-    protected Player addPlayer(long playerId, Channel channel, int team) {
-        return playerManager.addPlayer(playerId, channel, team);
+    protected PlayerSession addPlayer(long playerId, WebSocketSession channel, int team) {
+        return playerManager.addPlayer(this, playerId, channel, team);
     }
 
-    public void addSpectator(Channel channel) {
+    public void addSpectator(WebSocketSession channel) {
         entities.getSpectatorChannels().add(channel);
         // Send welcome message to spectator with current game state
-        channel.writeAndFlush(new WelcomeMessage(-1, 0, gameId, entities.getObstacles()));
-        log.info("Spectator {} joined game {}", channel.id().asShortText(), gameId);
+        send(channel, playerWelcomeMessage(null));
+        log.info("Spectator {} joined game {}", channel.getId(), gameId);
     }
 
-    public void removeSpectator(Channel channel) {
+    public void removeSpectator(WebSocketSession channel) {
         entities.getSpectatorChannels().remove(channel);
-        log.info("Spectator {} left game {}", channel.id().asShortText(), gameId);
+        log.info("Spectator {} left game {}", channel.getId(), gameId);
     }
 
     /**
@@ -168,7 +188,7 @@ public abstract class AbstractGameStateManager {
      * @param team The team ID to add the AI player to.
      */
     public AIPlayer addAIPlayer(int team) {
-        return playerManager.addAIPlayer(team);
+        return playerManager.addAIPlayer(this, team);
     }
 
     protected IAIStrategy buildAIStrategy() {
@@ -202,6 +222,13 @@ public abstract class AbstractGameStateManager {
             fieldEffectSystem.updateFieldEffects(delta);
             turretSystem.updateTurrets(delta);
             vehicleManager.updateVehicles(delta);
+
+            // Send scores less frequently to save bandwidth
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastScoreUpdate >= SCORE_UPDATE_INTERVAL_MS) {
+                sendPlayerScores();
+                lastScoreUpdate = currentTime;
+            }
             sendGameState();
         } catch (Throwable t) {
             log.error("error executing game loop", t);
@@ -226,7 +253,8 @@ public abstract class AbstractGameStateManager {
             generateObstacles();
 
             // Reset all players
-            for (Player player : entities.getPlayers().values()) {
+            for (Map.Entry<Long, PlayerSession> entry : entities.getPlayerSessions().entrySet()) {
+                Player player = entry.getValue().getPlayer();
                 player.resetStats();
                 player.resetHp();
                 player.finishReload();
@@ -235,23 +263,25 @@ public abstract class AbstractGameStateManager {
                 setValidSpawnPosition(player); // Move them to a spawn point
                 player.restoreSpeed();
                 player.setVisionObscured(false);
-                if (!(player instanceof AIPlayer)) {
-                    entities.getPlayerChannel(player.getId())
-                            .writeAndFlush(playerWelcomeMessage(player));
+                if (entry.getValue().getSession() != null) {
+                    send(entry.getValue(), playerWelcomeMessage(player));
                 }
             }
-            entities.getSpectatorChannels().forEach(channel ->
-                    channel.writeAndFlush(new WelcomeMessage(-1, 0, gameId, entities.getObstacles())));
+
+            byte[] spectatorWelcome = serializeAndCompress(playerWelcomeMessage(null));
+            entities.getSpectatorChannels().forEach(channel -> send(channel, spectatorWelcome));
 
             log.info("New round started! Round will end in {} seconds.", ROUND_DURATION_SECONDS);
             sendGameState(); // Send an immediate update to reflect the reset
+            sendPlayerScores(); // Send initial scores for the new round
+            lastScoreUpdate = System.currentTimeMillis(); // Reset score update timer
         } catch (Throwable t) {
             log.error("error resetting game state", t);
         }
     }
 
     protected void updatePlayers(long delta) {
-        playerManager.updatePlayers(delta);
+        playerManager.updatePlayers(delta, buildGameInfo());
     }
 
     protected void applyBulletEffect(BulletEffect bulletEffect) {
@@ -286,8 +316,8 @@ public abstract class AbstractGameStateManager {
                     .map(MountedWeapon::getWeapon)
                     .map(Weapon::getName)
                     .orElse(shooter.getWeapon().getName());
-            sendGameEvent(GameEvent.yellow("You were eliminated by %s (%s)".formatted(shooter.getPlayerName(), weaponUsed), victim.id()));
-            sendGameEvent(GameEvent.blue("You eliminated %s".formatted(victim.getPlayerName()), shooter.id()));
+            sendGameEvent(GameEvent.yellow("You were eliminated by %s - %s".formatted(shooter.getName(), weaponUsed), victim.id()));
+            sendGameEvent(GameEvent.blue("You eliminated %s".formatted(victim.getName()), shooter.id()));
         }
 
         // If an AI player's performance is unbalanced, give it a new random weapon.
@@ -300,7 +330,7 @@ public abstract class AbstractGameStateManager {
             if (deaths >= 3 && Math.abs(kills - deaths) > 5) {
                 Weapon oldWeapon = victim.getWeapon();
                 victim.setWeapon(WeaponFactory.getRandomWeapon());
-                log.info("{} performance (K/D: {}/{}) triggered a weapon change from {} to {}.", victim.getPlayerName(), kills, deaths, oldWeapon.getName(), victim.getWeapon().getName());
+                log.info("{} performance (K/D: {}/{}) triggered a weapon change from {} to {}.", victim.getName(), kills, deaths, oldWeapon.getName(), victim.getWeapon().getName());
             }
         }
         if (ThreadLocalRandom.current().nextDouble() < Config.POWERUP_DROP_RATE) {
@@ -322,33 +352,47 @@ public abstract class AbstractGameStateManager {
         GameInfo gameInfo = buildGameInfo();
 
         // Send state to all players
-        entities.getPlayerChannels().forEach((playerId, channel) -> {
-            if (channel.isActive() && channel.isOpen()) {
-                Player player = entities.getPlayer(playerId);
-                GameState gameState = playerGameState(player, gameInfo, false);
-                channel.writeAndFlush(gameState).addListener(future -> { // retainedDuplicate is crucial
-                    if (!future.isSuccess()) {
-                        log.error("Failed to send game state to player {}. Closing channel.", playerId, future.cause());
-                        channel.close();
-                    }
-                });
-            }
+        entities.getPlayerSessions().forEach((id, session) -> {
+            GameState gameState = playerManager.createPlayerGameState(session.getPlayer(), gameInfo, false);
+            send(session, gameState);
         });
 
         // Send to all spectators
         if (!entities.getSpectatorChannels().isEmpty()) {
-            GameState spectatorGameState = spectatorGameState();
-            for (Channel spectatorChannel : entities.getSpectatorChannels()) {
-                if (spectatorChannel.isActive() && spectatorChannel.isOpen()) {
-                    spectatorChannel.writeAndFlush(spectatorGameState).addListener(future -> {
-                        if (!future.isSuccess()) {
-                            log.error("Failed to send game state to spectator {}. Closing channel.", spectatorChannel.id().asShortText(), future.cause());
-                            spectatorChannel.close();
-                        }
-                    });
-                }
+            GameState gameState = spectatorGameState();
+            byte[] bytes = serializeAndCompress(gameState);
+            for (WebSocketSession spectatorChannel : entities.getSpectatorChannels()) {
+                send(spectatorChannel, bytes);
             }
         }
+    }
+
+    /**
+     * Sends player scores separately at lower frequency (every 2 seconds)
+     */
+    protected void sendPlayerScores() {
+        PlayerScores playerScores = createPlayerScores();
+        byte[] bytes = serializeAndCompress(playerScores);
+        entities.getPlayerChannels().forEach(channel -> send(channel, bytes));
+        entities.getSpectatorChannels().forEach(channel -> send(channel, bytes));
+    }
+
+    /**
+     * Creates PlayerScores object from current player data
+     */
+    protected PlayerScores createPlayerScores() {
+        return new PlayerScores("scores",
+                entities.getPlayers()
+                        .stream()
+                        .sorted(Comparator.comparing(Player::getKills).reversed())
+                        .map(player -> new PlayerScores.PlayerScore(
+                                player.getId(),
+                                player.getName(),
+                                player.getTeam(),
+                                player.getKills(),
+                                player.getDeaths()))
+                        .toList(),
+                System.currentTimeMillis());
     }
 
     protected void generateObstacles() {
@@ -436,14 +480,14 @@ public abstract class AbstractGameStateManager {
     }
 
     public void shutdown() {
-        entities.getPlayerChannels().values().forEach(Channel::close);
+        entities.getPlayerChannels().forEach(WebSocketSession::close);
         if (gameLoopHook != null) {
             gameLoopHook.cancel(true);
         }
     }
 
     public int getPlayerCount() {
-        return (int) entities.getPlayers().values().stream().filter(p -> !(p instanceof AIPlayer)).count();
+        return (int) entities.getPlayers().stream().filter(p -> !(p instanceof AIPlayer)).count();
     }
 
     public int getMaxPlayers() {
@@ -451,43 +495,17 @@ public abstract class AbstractGameStateManager {
     }
 
     protected WelcomeMessage playerWelcomeMessage(Player player) {
-        return new WelcomeMessage(player.getId(), player.getTeam(), gameId, entities.getObstacles());
-    }
-
-    protected GameState playerGameState(Player player, GameInfo gameInfo, boolean includeAllObstacles) {
-        if (player.isVisionObscured()) {
-            return new GameState(
-                    List.of(player),
-                    List.of(),
-                    List.of(),
-                    entities.getFieldEffects(),
-                    List.of(),
-                    List.of(),
-                    includeAllObstacles ? entities.getObstacles() : entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
-                    List.of(),
-                    System.currentTimeMillis(),
-                    gameInfo);
+        if (player != null) {
+            return new WelcomeMessage(player.getId(), player.getTeam(), gameId, entities.getObstacles());
         } else {
-            return new GameState(
-                    entities.getPlayers().values()
-                            .stream()
-                            .filter(p -> p.getId() == player.getId() || p.getInvisibilityEndTime() < System.currentTimeMillis())
-                            .toList(),
-                    entities.getBullets(),
-                    entities.getLaserBlasts(),
-                    entities.getFieldEffects(),
-                    entities.getTurrets(),
-                    entities.getVehicles(),
-                    includeAllObstacles ? entities.getObstacles() : entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
-                    entities.getPowerUps(),
-                    System.currentTimeMillis(),
-                    gameInfo);
+            // it's a spectator
+            return new WelcomeMessage(-1, 0, gameId, entities.getObstacles());
         }
     }
 
     protected GameState spectatorGameState() {
         return new GameState(
-                entities.getPlayers().values(),
+                entities.getPlayers(),
                 entities.getBullets(),
                 entities.getLaserBlasts(),
                 entities.getFieldEffects(),
@@ -497,5 +515,36 @@ public abstract class AbstractGameStateManager {
                 entities.getPowerUps(),
                 System.currentTimeMillis(),
                 buildGameInfo());
+    }
+
+    public void send(PlayerSession session, Object data) {
+        send(session.getSession(), data);
+    }
+
+    public void send(WebSocketSession channel, Object data) {
+        if (channel != null && channel.isWritable() && channel.isOpen()) {
+            byte[] bytes = data instanceof byte[] b ? b : serializeAndCompress(data);
+            channel.sendAsync(bytes)
+                    .whenComplete((msg, error) -> {
+                        if (error != null
+                            && !(error instanceof ClosedChannelException)
+                            && !(error.getCause() instanceof ClosedChannelException)) {
+                            log.error("Failed to send data to {}. Closing channel.", channel.getId(), error);
+                            channel.close();
+                        }
+                    });
+        }
+    }
+
+    public byte[] serializeAndCompress(Object data) {
+        try {
+            ByteArrayOutputStream os = new ByteArrayOutputStream(1025);
+            GZIPOutputStream gzipOs = new GZIPOutputStream(os);
+            objectMapper.writeValue(gzipOs, data);
+            gzipOs.close();
+            return os.toByteArray();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 }

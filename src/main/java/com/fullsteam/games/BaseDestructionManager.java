@@ -1,16 +1,20 @@
 package com.fullsteam.games;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.Base;
+import com.fullsteam.model.Explosion;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.gamemodes.BaseDestructionInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
-import io.netty.channel.Channel;
+import io.micronaut.context.annotation.Prototype;
+import io.micronaut.websocket.WebSocketSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +31,7 @@ import static com.fullsteam.Config.GAME_WIDTH;
  * Team 1 (Attackers) tries to destroy Team 2's (Defenders) base before time runs out.
  * If the base is destroyed, Team 1 wins. If time runs out with the base intact, Team 2 wins.
  */
+@Prototype
 public class BaseDestructionManager extends AbstractTeamBasedManager {
 
     private static final Logger log = LoggerFactory.getLogger(BaseDestructionManager.class);
@@ -35,17 +40,17 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
     private boolean baseDestroyed = false;
     private boolean sent10SecondWarning = false;
 
-    public BaseDestructionManager(GameLobby gameLobby) {
-        super(gameLobby);
+    public BaseDestructionManager(ObjectMapper objectMapper, GameLobby gameLobby) {
+        super(objectMapper, gameLobby);
         generateBasePosition();
     }
 
     @Override
-    public Player addPlayer(long playerId, Channel channel) {
+    public PlayerSession addPlayer(long playerId, WebSocketSession channel) {
         // In Base Destruction mode, Team 1 are attackers, Team 2 are defenders
         // Try to balance teams but prefer defenders (Team 2) if both teams are equal
-        long team1Count = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 1).count();
-        long team2Count = entities.getPlayers().values().stream().filter(p -> p.getTeam() == 2).count();
+        long team1Count = entities.getPlayers().stream().filter(p -> p.getTeam() == 1).count();
+        long team2Count = entities.getPlayers().stream().filter(p -> p.getTeam() == 2).count();
 
         int team;
         if (team1Count < Config.MAX_PLAYERS_PER_TEAM && team2Count < Config.MAX_PLAYERS_PER_TEAM) {
@@ -83,6 +88,14 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
 
     private void updateBase() {
         if (defendingBase != null && !baseDestroyed && defendingBase.isDestroyed()) {
+            fieldEffectSystem.addFieldEffect(new Explosion(
+                    defendingBase.getX(),
+                    defendingBase.getY(),
+                    0,
+                    0,
+                    defendingBase.getRadius(),
+                    1000,
+                    300));
             baseDestroyed = true;
         }
     }

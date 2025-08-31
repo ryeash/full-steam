@@ -11,6 +11,7 @@ import com.fullsteam.model.GameState;
 import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.PowerUpType;
 import com.fullsteam.model.RandomNames;
@@ -75,8 +76,6 @@ public class AIPlayer extends Player {
     private transient long lastStrafeTime;
     @JsonIgnore
     private transient boolean strafeRight = true;
-    @JsonIgnore
-    private transient long timeTargetAcquired;
 
     // --- Steering Behavior Fields ---
     @JsonIgnore
@@ -84,13 +83,17 @@ public class AIPlayer extends Player {
 
     // --- AI "Personality" Traits ---
     @JsonIgnore
-    private transient final long reactionTimeMs;
-    @JsonIgnore
     private transient final double aimInaccuracyRadians;
     @JsonIgnore
     private transient final long strafeInterval;
     @JsonIgnore
     private transient final double rangeSlew;
+
+    // --- Input Smoothing Fields ---
+    @JsonIgnore
+    private transient PlayerInput previousInput;
+    @JsonIgnore
+    private transient final double inputSmoothingFactor; // 0.0 = no smoothing, 1.0 = maximum smoothing
 
     /**
      * Represents a decision to fire the weapon in a specific direction.
@@ -104,11 +107,27 @@ public class AIPlayer extends Player {
         this.archetype = archetype;
 
         // Initialize personality traits with some randomness
-        this.reactionTimeMs = Config.BASE_REACTION_TIME_MS + (long) (ThreadLocalRandom.current().nextDouble() * 50);
         this.aimInaccuracyRadians = Math.max(0.01, BASE_AIM_INACCURACY_RADIANS + (ThreadLocalRandom.current().nextDouble() - 0.4) * 0.04);
         this.strafeInterval = BASE_STRAFE_INTERVAL_MS + (long) (ThreadLocalRandom.current().nextGaussian() * 300);
         this.rangeSlew = ThreadLocalRandom.current().nextGaussian() * 50;
         this.acceleration = Vector2D.ZERO;
+
+        // Initialize input smoothing - different archetypes have different smoothing levels
+        this.inputSmoothingFactor = calculateSmoothingFactor(archetype);
+        this.previousInput = new PlayerInput(); // Start with empty input
+    }
+
+    /**
+     * Calculates input smoothing factor based on AI archetype.
+     * More tactical archetypes get more smoothing, aggressive ones get less.
+     */
+    private double calculateSmoothingFactor(AIArchetype archetype) {
+        return switch (archetype) {
+            case WARRIOR -> 0.6; // Very responsive, minimal smoothing
+            case GUARDIAN -> 0.9; // More measured, smooth movements
+            case OBJECTIVE_HOUND -> 0.7; // Focused but responsive
+            case BALANCED -> 0.75; // Moderate smoothing
+        };
     }
 
     public AIArchetype archetype() {
@@ -121,27 +140,32 @@ public class AIPlayer extends Player {
      * 1. The AI's strategy determines its high-level goal (e.g., attack, defend).
      * 2. Various "steering forces" are calculated based on the environment (obstacles, hazards, power-ups).
      * 3. These forces are combined into a single acceleration vector.
-     * 4. The acceleration is used to update the AI's velocity.
-     * 5. The AI's position is updated based on its new velocity (handled by the parent Player class).
-     * 6. A decision to shoot is made independently of movement.
+     * 4. Movement input is calculated based on desired velocity.
+     * 5. Shooting, reloading, and action decisions are made independently.
      *
      * @param gameState  The current game mode's state information.
      * @param playerGrid The spatial grid for proximity queries.
-     * @return An Optional containing a {@link ShootAction} if the AI decides to shoot this frame.
+     * @param delta      Time delta for physics calculations.
+     * @return A PlayerInput object containing all AI decisions for this frame.
      */
-    public Optional<ShootAction> update(GameState gameState, SpatialGrid<Targetable> playerGrid, long delta) {
+    public PlayerInput generateInput(GameState gameState, SpatialGrid<Targetable> playerGrid, long delta) {
+        PlayerInput input = new PlayerInput();
+
         if (isDead()) {
-            setVelocity(Vector2D.ZERO);
-            super.update(delta); // Still need to call this to update position based on zero velocity
-            return Optional.empty();
+            return input; // Return empty input for dead AI
         }
 
         // Handle vehicle-related logic first
         handleVehicleLogic(gameState);
 
-        // If in a vehicle, handle mounted weapon firing
+        // If in a vehicle, generate vehicle-specific input
         if (getVehicleId() != null) {
-            return handleVehicleWeaponControl(gameState, playerGrid);
+            PlayerInput vehicleInput = generateVehicleInput(gameState, playerGrid, input);
+            // Apply smoothing to vehicle input as well
+            PlayerInput smoothedInput = applySmoothingToInput(vehicleInput);
+            // Store current input as previous for next frame
+            this.previousInput = copyInput(smoothedInput);
+            return smoothedInput;
         }
 
         // Standard ground-based AI logic
@@ -152,11 +176,19 @@ public class AIPlayer extends Player {
         // The order is crucial for realistic behavior.
         applySteeringForces(gameState);
 
-        // 3. Update physics based on the final accumulated acceleration.
-        updatePhysics(delta);
+        // 3. Calculate movement input based on desired velocity
+        generateMovementInput(input, delta);
 
-        // 4. Handle aiming and shooting logic, which is independent of movement.
-        return decideOnShooting(gameState, playerGrid);
+        // 4. Handle aiming, shooting, reloading, and action decisions
+        generateCombatInput(gameState, playerGrid, input);
+
+        // 5. Apply input smoothing to reduce jittery behavior
+        PlayerInput smoothedInput = applySmoothingToInput(input);
+
+        // Store current input as previous for next frame
+        this.previousInput = copyInput(smoothedInput);
+
+        return smoothedInput;
     }
 
     /**
@@ -190,53 +222,221 @@ public class AIPlayer extends Player {
         applyForce(objectiveForce, 1.0);
     }
 
-    /**
-     * Updates the AI's velocity based on the accumulated acceleration, then calls the parent
-     * method to update its position.
-     */
-    private void updatePhysics(long delta) {
-        double deltaSeconds = delta / 1000.0;
-        // Update velocity by adding acceleration (scaled by delta time), and cap it at the AI's max speed.
-        Vector2D newVelocity = getVelocity().add(this.acceleration.multiply(deltaSeconds)).limit(getSpeed());
-        setVelocity(newVelocity);
 
-        // Update position based on the new velocity.
-        super.update(delta);
+    /**
+     * Generates movement input based on the AI's calculated desired velocity.
+     */
+    private void generateMovementInput(PlayerInput input, long delta) {
+        // Calculate desired velocity based on steering forces
+        Vector2D desiredVelocity = getVelocity().add(this.acceleration);
+        if (desiredVelocity.magnitudeSq() > 0.01) {
+            Vector2D direction = desiredVelocity.normalize();
+            input.setMoveX(direction.x());
+            input.setMoveY(direction.y());
+        } else {
+            // If no movement desired, moveX and moveY remain 0 (default)
+            input.setMoveX(0);
+            input.setMoveY(0);
+        }
     }
 
-    private Optional<ShootAction> decideOnShooting(GameState gameState, SpatialGrid<Targetable> playerGrid) {
+    /**
+     * Generates combat-related input (shooting, reloading, aiming).
+     */
+    private void generateCombatInput(GameState gameState, SpatialGrid<Targetable> playerGrid, PlayerInput input) {
         Optional<Targetable> bestTargetInfo = findBestTarget(gameState, playerGrid);
 
         if (bestTargetInfo.isEmpty()) {
             // If no target, but we are moving, aim in the direction of movement.
             if (getVelocity().magnitudeSq() > 0.01) {
                 aimInDirection(getVelocity());
+                input.setMouseX(getMouseX());
+                input.setMouseY(getMouseY());
             }
-            return Optional.empty();
+
+            // Check if we need to reload when no targets
+            if (getAmmoInMag() <= 0 && !isReloading()) {
+                input.setReload(true);
+            }
+            return;
         }
 
         Targetable finalTarget = bestTargetInfo.get();
         Vector2D directionToTarget = finalTarget.position().subtract(position());
 
-        // Aim at the target.
-        aimInDirection(directionToTarget);
-
         // Check if we are able to fire (not reloading, cooldown is over, etc.).
         if (!canShoot()) {
-            return Optional.empty();
-        }
+            // Still aim perfectly at target when not shooting (tracking)
+            aimInDirection(directionToTarget);
+            input.setMouseX(getMouseX());
+            input.setMouseY(getMouseY());
 
-        // Respect the AI's reaction time, but adjust for target priority
-        if (finalTarget instanceof Player p && currentTarget == p) {
-            long reactionTimeNeeded = calculateReactionTimeForTarget(currentTarget);
-            if (System.currentTimeMillis() - timeTargetAcquired < reactionTimeNeeded) {
-                return Optional.empty(); // Still "reacting", don't shoot yet.
+            // Try to reload if we're out of ammo
+            if (getAmmoInMag() <= 0 && !isReloading()) {
+                input.setReload(true);
             }
+            return;
+        }
+        // All checks passed, fire with inaccuracy!
+        aimInDirectionWithInaccuracy(directionToTarget);
+        input.setMouseX(getMouseX());
+        input.setMouseY(getMouseY());
+
+        // different archetypes have different "aim" or "sustain fire" thresholds
+        double firingThreshold = switch (archetype) {
+            case BALANCED -> .65; // mostly fire when ready
+            case WARRIOR -> .9; // always ready to fire
+            case GUARDIAN -> .6; // conservative
+            case OBJECTIVE_HOUND -> .5; // focused on other tasks
+        };
+        input.setFire(ThreadLocalRandom.current().nextDouble() < firingThreshold);
+    }
+
+    /**
+     * Generates vehicle-specific input when the AI is in a vehicle.
+     */
+    private PlayerInput generateVehicleInput(GameState gameState, SpatialGrid<Targetable> playerGrid, PlayerInput input) {
+        Vehicle currentVehicle = getCurrentVehicle(gameState);
+        if (currentVehicle == null) {
+            return input;
         }
 
-        // All checks passed, create a shoot action with calculated inaccuracy.
-        return Optional.of(shootWithInaccuracy(directionToTarget));
+        // Update AI strategy even when in vehicles to maintain target tracking
+        if ((System.currentTimeMillis() - stateChangeTime) > AI_DECISION_COOLDOWN_MS) {
+            aiStrategy.updateAIState(this, gameState);
+        }
+
+        // Find the weapon this AI is controlling
+        MountedWeapon controlledWeapon = currentVehicle.getWeaponControlledBy(getId());
+
+        // Generate shooting input if we have a weapon
+        if (controlledWeapon != null) {
+            generateVehicleWeaponInput(gameState, playerGrid, controlledWeapon, currentVehicle, input);
+        }
+
+        return input;
     }
+
+    /**
+     * Generates weapon firing input for mounted weapons.
+     */
+    private void generateVehicleWeaponInput(GameState gameState, SpatialGrid<Targetable> playerGrid,
+                                            MountedWeapon weapon, Vehicle vehicle, PlayerInput input) {
+
+        // Handle weapon reloading if needed
+        if (!weapon.canShoot()) {
+            // If we can't shoot but have a current target, still aim at them
+            if (currentTarget != null && !currentTarget.isDead()) {
+                aimAtTargetWithMountedWeapon(weapon, currentTarget, vehicle);
+                input.setMouseX(getMouseX());
+                input.setMouseY(getMouseY());
+            }
+
+            // Try to reload if out of ammo
+            if (weapon.getCurrentAmmo() <= 0 && !weapon.isReloading()) {
+                input.setReload(true);
+            }
+            return;
+        }
+
+        // Find the best target for the mounted weapon
+        Optional<Targetable> bestTarget = findBestMountedWeaponTarget(gameState, playerGrid, weapon, vehicle);
+
+        if (bestTarget.isEmpty()) {
+            return;
+        }
+
+        Targetable target = bestTarget.get();
+
+        // Update current target for consistency with ground-based AI
+        if (target instanceof Player player && !player.isDead()) {
+            setCurrentTarget(player);
+        }
+
+        Vector2D directionToTarget = target.position().subtract(weapon.position());
+
+        // Calculate desired weapon angle
+        double desiredAngle = Math.atan2(directionToTarget.y(), directionToTarget.x());
+
+        // Check if target is within weapon traverse limits
+        double constrainedAngle = weapon.getConstrainedAngle(desiredAngle, vehicle.getAngle());
+        double angleDifference = Math.abs(desiredAngle - constrainedAngle);
+
+        // More lenient tolerance for aiming precision to reduce target loss
+        if (angleDifference < 0.2) { // ~11.5 degrees tolerance
+            // Apply inaccuracy when actually firing
+            aimAtTargetWithMountedWeaponInaccuracy(weapon, target, vehicle);
+            input.setMouseX(getMouseX());
+            input.setMouseY(getMouseY());
+            input.setFire(true);
+        } else {
+            // Just track the target without firing (perfect aim for tracking)
+            aimAtTargetWithMountedWeapon(weapon, target, vehicle);
+            input.setMouseX(getMouseX());
+            input.setMouseY(getMouseY());
+        }
+    }
+
+    /**
+     * Applies smoothing/interpolation to input to reduce jittery AI behavior.
+     * Uses exponential smoothing: newValue = (1-factor) * currentValue + factor * previousValue
+     */
+    private PlayerInput applySmoothingToInput(PlayerInput currentInput) {
+        if (previousInput == null || inputSmoothingFactor <= 0.0) {
+            return currentInput; // No smoothing if no previous input or factor is 0
+        }
+
+        PlayerInput smoothedInput = new PlayerInput();
+
+        // Smooth movement input (most important for reducing jittery movement)
+        double currentFactor = 1.0 - inputSmoothingFactor;
+        double previousFactor = inputSmoothingFactor;
+
+        smoothedInput.setMoveX(currentFactor * currentInput.getMoveX() + previousFactor * previousInput.getMoveX());
+        smoothedInput.setMoveY(currentFactor * currentInput.getMoveY() + previousFactor * previousInput.getMoveY());
+
+        // Mouse smoothing - reduced for vehicle weapons to maintain precision
+        double mouseSmoothingFactor;
+        if (getVehicleId() != null) {
+            // Minimal mouse smoothing for vehicle weapons - traverse constraints provide natural smoothing
+            mouseSmoothingFactor = inputSmoothingFactor * 0.1;
+        } else {
+            // Normal mouse smoothing for ground-based AI
+            mouseSmoothingFactor = inputSmoothingFactor * 0.3;
+        }
+
+        double mouseCurrentFactor = 1.0 - mouseSmoothingFactor;
+
+        smoothedInput.setMouseX(mouseCurrentFactor * currentInput.getMouseX() + mouseSmoothingFactor * previousInput.getMouseX());
+        smoothedInput.setMouseY(mouseCurrentFactor * currentInput.getMouseY() + mouseSmoothingFactor * previousInput.getMouseY());
+
+        // Don't smooth boolean actions - they should be immediate
+        smoothedInput.setFire(currentInput.isFire());
+        smoothedInput.setReload(currentInput.isReload());
+        smoothedInput.setAction1(currentInput.isAction1());
+        smoothedInput.setAction2(currentInput.isAction2());
+        smoothedInput.setAltFire(currentInput.isAltFire());
+
+        return smoothedInput;
+    }
+
+    /**
+     * Creates a deep copy of a PlayerInput object.
+     */
+    private PlayerInput copyInput(PlayerInput input) {
+        PlayerInput copy = new PlayerInput();
+        copy.setMoveX(input.getMoveX());
+        copy.setMoveY(input.getMoveY());
+        copy.setMouseX(input.getMouseX());
+        copy.setMouseY(input.getMouseY());
+        copy.setFire(input.isFire());
+        copy.setReload(input.isReload());
+        copy.setAction1(input.isAction1());
+        copy.setAction2(input.isAction2());
+        copy.setAltFire(input.isAltFire());
+        return copy;
+    }
+
 
     /**
      * Calculates the primary steering force based on the AI's current state.
@@ -365,14 +565,27 @@ public class AIPlayer extends Player {
     }
 
     /**
-     * Creates a {@link ShootAction} with randomized inaccuracy.
+     * Sets the player's mouse coordinates to aim in a specific direction with AI inaccuracy applied.
+     * This should be used when the AI is actually firing to simulate realistic aiming.
      */
-    private ShootAction shootWithInaccuracy(Vector2D perfectDirection) {
-        double perfectAngle = Math.atan2(perfectDirection.y(), perfectDirection.x());
+    protected void aimInDirectionWithInaccuracy(Vector2D direction) {
+        if (direction.magnitudeSq() == 0) {
+            return;
+        }
+
+        // Calculate perfect aim angle
+        double perfectAngle = Math.atan2(direction.y(), direction.x());
+
+        // Apply AI-specific inaccuracy
         double inaccuracy = (ThreadLocalRandom.current().nextDouble() - 0.5) * 2 * this.aimInaccuracyRadians;
         double finalAngle = perfectAngle + inaccuracy;
-        return new ShootAction(Math.cos(finalAngle), Math.sin(finalAngle));
+
+        // Convert back to mouse coordinates
+        Vector2D aimDirection = new Vector2D(Math.cos(finalAngle), Math.sin(finalAngle));
+        setMouseX(position().x() + aimDirection.x() * 100);
+        setMouseY(position().y() + aimDirection.y() * 100);
     }
+
 
     /**
      * Finds the best overall target, considering both players and turrets.
@@ -497,45 +710,6 @@ public class AIPlayer extends Player {
         }
 
         return baseScore;
-    }
-
-    /**
-     * Calculates the reaction time needed for a specific target.
-     * High-priority targets get faster reaction times.
-     */
-    private long calculateReactionTimeForTarget(Player target) {
-        long baseReactionTime = this.reactionTimeMs;
-
-        // High priority targets get much faster reactions
-        double healthRatio = target.getHp() / target.getMaxHp();
-        if (healthRatio < 0.3) {
-            baseReactionTime = (long) (baseReactionTime * 0.4); // 60% faster for low-health targets
-        }
-
-        // Powered-up enemies are dangerous, react faster
-        long currentTime = System.currentTimeMillis();
-        if (target.getDamageBoostEndTime() > currentTime) {
-            baseReactionTime = (long) (baseReactionTime * 0.5); // 50% faster for damage-boosted enemies
-        }
-
-        // Archetype-based reaction adjustments
-        switch (this.archetype) {
-            case WARRIOR:
-                baseReactionTime = (long) (baseReactionTime * 0.7); // Warriors are more aggressive
-                break;
-            case GUARDIAN:
-                baseReactionTime = (long) (baseReactionTime * 1.1); // Guardians are more cautious
-                break;
-            case OBJECTIVE_HOUND:
-                baseReactionTime = (long) (baseReactionTime * 0.9); // Slightly faster, focused
-                break;
-            case BALANCED:
-            default:
-                // BALANCED uses default timing (no modification)
-                break;
-        }
-
-        return Math.max(50, baseReactionTime); // Never go below 50ms
     }
 
     /**
@@ -732,9 +906,6 @@ public class AIPlayer extends Player {
     }
 
     public void setCurrentTarget(Player target) {
-        if (this.currentTarget != target) {
-            this.timeTargetAcquired = System.currentTimeMillis();
-        }
         this.currentTarget = target;
     }
 
@@ -940,51 +1111,48 @@ public class AIPlayer extends Player {
         return calculateSeekForce(targetVehicle.position(), obstacles);
     }
 
+
     /**
-     * Handles mounted weapon control when the AI is in a vehicle.
+     * Helper method to aim the mounted weapon at a target and update mouse position.
      */
-    private Optional<ShootAction> handleVehicleWeaponControl(GameState gameState, SpatialGrid<Targetable> playerGrid) {
-        Vehicle currentVehicle = getCurrentVehicle(gameState);
-        if (currentVehicle == null) {
-            return Optional.empty();
-        }
+    private void aimAtTargetWithMountedWeapon(MountedWeapon weapon, Targetable target, Vehicle vehicle) {
+        Vector2D directionToTarget = target.position().subtract(weapon.position());
+        double desiredAngle = Math.atan2(directionToTarget.y(), directionToTarget.x());
+        double constrainedAngle = weapon.getConstrainedAngle(desiredAngle, vehicle.getAngle());
 
-        // Find the weapon this AI is controlling
-        MountedWeapon controlledWeapon = currentVehicle.getWeaponControlledBy(getId());
-        if (controlledWeapon == null || !controlledWeapon.canShoot()) {
-            return Optional.empty();
-        }
+        Vector2D aimPoint = weapon.position().add(
+                new Vector2D(Math.cos(constrainedAngle), Math.sin(constrainedAngle)).multiply(100)
+        );
+        setMouseX(aimPoint.x());
+        setMouseY(aimPoint.y());
 
-        // Find the best target for the mounted weapon
-        Optional<Targetable> bestTarget = findBestMountedWeaponTarget(gameState, playerGrid, controlledWeapon, currentVehicle);
+        // Update the weapon's angle based on this mouse position
+        weapon.updateAngle(this.mouseX, this.mouseY, vehicle.getAngle());
+    }
 
-        if (bestTarget.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Targetable target = bestTarget.get();
-        Vector2D directionToTarget = target.position().subtract(controlledWeapon.position());
-
-        // Calculate desired weapon angle
+    /**
+     * Helper method to aim the mounted weapon at a target with inaccuracy applied.
+     * Applies inaccuracy BEFORE constraint to ensure the final angle stays within traverse limits.
+     */
+    private void aimAtTargetWithMountedWeaponInaccuracy(MountedWeapon weapon, Targetable target, Vehicle vehicle) {
+        Vector2D directionToTarget = target.position().subtract(weapon.position());
         double desiredAngle = Math.atan2(directionToTarget.y(), directionToTarget.x());
 
-        // Check if target is within weapon traverse limits
-        double constrainedAngle = controlledWeapon.getConstrainedAngle(desiredAngle, currentVehicle.getAngle());
-        double angleDifference = Math.abs(desiredAngle - constrainedAngle);
+        // Apply AI-specific inaccuracy to the desired angle BEFORE constraining
+        double inaccuracy = (ThreadLocalRandom.current().nextDouble() - 0.5) * 2 * this.aimInaccuracyRadians;
+        double inaccurateDesiredAngle = desiredAngle + inaccuracy;
 
-        // Only shoot if we can actually aim at the target (within traverse limits)
-        if (angleDifference < 0.1) { // Small tolerance for aiming precision
-            // Set mouse position for weapon aiming
-            Vector2D aimPoint = controlledWeapon.position().add(
-                    new Vector2D(Math.cos(constrainedAngle), Math.sin(constrainedAngle)).multiply(100)
-            );
-            setMouseX(aimPoint.x());
-            setMouseY(aimPoint.y());
+        // Then constrain the inaccurate angle to weapon limits
+        double finalAngle = weapon.getConstrainedAngle(inaccurateDesiredAngle, vehicle.getAngle());
 
-            return Optional.of(new ShootAction(Math.cos(constrainedAngle), Math.sin(constrainedAngle)));
-        }
+        Vector2D aimPoint = weapon.position().add(
+                new Vector2D(Math.cos(finalAngle), Math.sin(finalAngle)).multiply(100)
+        );
+        setMouseX(aimPoint.x());
+        setMouseY(aimPoint.y());
 
-        return Optional.empty();
+        // Update the weapon's angle based on this mouse position
+        weapon.updateAngle(this.mouseX, this.mouseY, vehicle.getAngle());
     }
 
     /**
@@ -997,6 +1165,23 @@ public class AIPlayer extends Player {
         Targetable bestTarget = null;
         double bestScore = Double.MAX_VALUE;
         double weaponRange = weapon.getWeapon().getBulletRange();
+
+        // First, check if our current target is still valid and in range
+        if (currentTarget != null && !currentTarget.isDead() && isValidMountedWeaponTarget(currentTarget)) {
+            double distanceSq = weapon.position().distanceSquared(currentTarget.position());
+            if (distanceSq <= weaponRange * weaponRange) {
+                Vector2D toTarget = currentTarget.position().subtract(weapon.position());
+                double targetAngle = Math.atan2(toTarget.y(), toTarget.x());
+                double constrainedAngle = weapon.getConstrainedAngle(targetAngle, vehicle.getAngle());
+                double angleDifference = Math.abs(targetAngle - constrainedAngle);
+
+                // Give significant preference to maintaining current target (target stickiness)
+                if (angleDifference < 0.3 && // More lenient angle check for current target
+                    findBlockingObstacle(weapon.position(), currentTarget.position(), gameState.obstacles()) == null) {
+                    return Optional.of(currentTarget);
+                }
+            }
+        }
 
         Set<Targetable> nearTargets = playerGrid.getNearby(weapon.position(), weapon.getWeapon().getBulletRange());
         for (Targetable potentialTarget : nearTargets) {
@@ -1012,19 +1197,35 @@ public class AIPlayer extends Player {
             double constrainedAngle = weapon.getConstrainedAngle(targetAngle, vehicle.getAngle());
             double angleDifference = Math.abs(targetAngle - constrainedAngle);
 
+            // Skip targets that are too far outside traverse limits
+            if (angleDifference > 0.4) {
+                continue;
+            }
+
             // Check line of sight
             if (findBlockingObstacle(weapon.position(), potentialTarget.position(), gameState.obstacles()) != null) {
                 continue;
             }
 
             // Calculate priority score
-            double score = Math.sqrt(distanceSq) + (angleDifference * 100); // Prefer closer targets and better angles
+            double score = Math.sqrt(distanceSq) + (angleDifference * 80); // Reduced angle penalty
 
             if (potentialTarget instanceof Player player) {
+                // High priority: Current primary target (maintain focus)
+                if (player == this.currentTarget) {
+                    score *= 0.3; // Very high priority for current target
+                }
+
                 // Prioritize low-health enemies
                 double healthRatio = player.getHp() / player.getMaxHp();
                 if (healthRatio < 0.3) {
                     score *= 0.7;
+                }
+
+                // Slightly prioritize powered-up enemies (threats)
+                long currentTime = System.currentTimeMillis();
+                if (player.getDamageBoostEndTime() > currentTime || player.getSpeedBoostEndTime() > currentTime) {
+                    score *= 0.8;
                 }
             }
 
