@@ -310,8 +310,8 @@ class GameUIManager {
 
                 // Show base health percentage and team labels
                 const baseHealthPercent = info.base ? Math.round(((info.base.hp || 0) / info.base.maxHp) * 100) : 0;
-                this.elements.team1Score.innerHTML = `Attackers`;
-                this.elements.team2Score.innerHTML = `Defenders<br><span style="font-size: 0.8em; color: ${baseHealthPercent > 50 ? GameColors.health.high : baseHealthPercent > 25 ? GameColors.health.medium : GameColors.health.low};">Base: ${baseHealthPercent}%</span>`;
+                this.elements.team1Score.innerHTML = ``;
+                this.elements.team2Score.innerHTML = `<span style="font-size: 0.8em; color: ${baseHealthPercent > 50 ? GameColors.health.high : baseHealthPercent > 25 ? GameColors.health.medium : GameColors.health.low};">Base: ${baseHealthPercent}%</span>`;
             },
             'Armored Assault': (info) => {
                 this.game.shouldDrawRespawnOverlay = true;

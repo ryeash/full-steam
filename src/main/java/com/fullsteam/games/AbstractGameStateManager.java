@@ -93,6 +93,7 @@ public abstract class AbstractGameStateManager {
         this.vehicleManager = new VehicleManager(entities, physicsEngine, weaponSystem, fieldEffectSystem, this::sendGameEvent);
         this.turretSystem = new TurretSystem(entities, weaponSystem, fieldEffectSystem, this::sendGameEvent);
         this.playerManager = new PlayerManager(
+                this,
                 entities,
                 physicsEngine,
                 weaponSystem,

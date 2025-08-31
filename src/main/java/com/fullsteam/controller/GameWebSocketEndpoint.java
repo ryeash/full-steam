@@ -63,7 +63,7 @@ public class GameWebSocketEndpoint {
 
             switch (type) {
                 case "ping":
-                    session.sendSync(objectMapper.writeValueAsString(Map.of("type", "pong")));
+                    game.send(session, Map.of("type", "pong"));
                     break;
                 case "configChange":
                     PlayerConfigRequest request = objectMapper.treeToValue(rootNode, PlayerConfigRequest.class);

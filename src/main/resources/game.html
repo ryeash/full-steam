@@ -28,12 +28,10 @@
     </div>
 
     <div id="scoreboard-container">
-        <h2>Scoreboard <span id="gameIdIndicator"
-                             style="font-size: 0.6em; color: var(--text-muted); font-weight: normal;"></span>
+        <h2 id="gameModeDisplay">
+            Loading...
         </h2>
-        <h4 id="gameModeDisplay"
-            style="text-align: center; margin-top: -5px; margin-bottom: 15px; color: var(--text-secondary); font-weight: normal;">
-            Loading...</h4>
+        <span id="gameIdIndicator" style="font-size: 0.6em; color: var(--text-muted); font-weight: normal;"></span>
 
         <div id="player-config">
             <div class="config-item">
@@ -213,61 +211,61 @@
 <script src="color-palette.js"></script>
 <script src="game-engine.js"></script>
 <script type="text/javascript">
-function initializeColorPalette() {
-    const root = document.documentElement;
+    function initializeColorPalette() {
+        const root = document.documentElement;
 
-    // Background colors
-    root.style.setProperty('--bg-primary', GameColors.background.primary);
-    root.style.setProperty('--bg-secondary', GameColors.background.secondary);
-    root.style.setProperty('--bg-panel', GameColors.background.panel);
-    root.style.setProperty('--bg-card', GameColors.background.card);
+        // Background colors
+        root.style.setProperty('--bg-primary', GameColors.background.primary);
+        root.style.setProperty('--bg-secondary', GameColors.background.secondary);
+        root.style.setProperty('--bg-panel', GameColors.background.panel);
+        root.style.setProperty('--bg-card', GameColors.background.card);
 
-    // Team colors
-    root.style.setProperty('--team1-primary', GameColors.teams.team1.primary);
-    root.style.setProperty('--team1-secondary', GameColors.teams.team1.secondary);
-    root.style.setProperty('--team1-dark', GameColors.teams.team1.dark);
-    root.style.setProperty('--team2-primary', GameColors.teams.team2.primary);
-    root.style.setProperty('--team2-secondary', GameColors.teams.team2.secondary);
-    root.style.setProperty('--team2-dark', GameColors.teams.team2.dark);
+        // Team colors
+        root.style.setProperty('--team1-primary', GameColors.teams.team1.primary);
+        root.style.setProperty('--team1-secondary', GameColors.teams.team1.secondary);
+        root.style.setProperty('--team1-dark', GameColors.teams.team1.dark);
+        root.style.setProperty('--team2-primary', GameColors.teams.team2.primary);
+        root.style.setProperty('--team2-secondary', GameColors.teams.team2.secondary);
+        root.style.setProperty('--team2-dark', GameColors.teams.team2.dark);
 
-    // Border colors
-    root.style.setProperty('--border-primary', GameColors.borders.primary);
-    root.style.setProperty('--border-secondary', GameColors.borders.secondary);
-    root.style.setProperty('--border-light', GameColors.borders.light);
-    root.style.setProperty('--border-lighter', GameColors.borders.lighter);
+        // Border colors
+        root.style.setProperty('--border-primary', GameColors.borders.primary);
+        root.style.setProperty('--border-secondary', GameColors.borders.secondary);
+        root.style.setProperty('--border-light', GameColors.borders.light);
+        root.style.setProperty('--border-lighter', GameColors.borders.lighter);
 
-    // Text colors
-    root.style.setProperty('--text-primary', GameColors.text.primary);
-    root.style.setProperty('--text-secondary', GameColors.text.secondary);
-    root.style.setProperty('--text-muted', GameColors.text.muted);
+        // Text colors
+        root.style.setProperty('--text-primary', GameColors.text.primary);
+        root.style.setProperty('--text-secondary', GameColors.text.secondary);
+        root.style.setProperty('--text-muted', GameColors.text.muted);
 
-    // Accent colors
-    root.style.setProperty('--accent-gold', GameColors.accent.gold);
-    root.style.setProperty('--accent-yellow', GameColors.accent.yellow);
-    root.style.setProperty('--accent-blue', GameColors.accent.blue);
+        // Accent colors
+        root.style.setProperty('--accent-gold', GameColors.accent.gold);
+        root.style.setProperty('--accent-yellow', GameColors.accent.yellow);
+        root.style.setProperty('--accent-blue', GameColors.accent.blue);
 
-    // Interactive elements
-    root.style.setProperty('--btn-primary', GameColors.interactive.button.primary);
-    root.style.setProperty('--btn-hover', GameColors.interactive.button.hover);
-    root.style.setProperty('--btn-border', GameColors.interactive.button.border);
-    root.style.setProperty('--input-bg', GameColors.interactive.input.background);
-    root.style.setProperty('--input-border', GameColors.interactive.input.border);
-    root.style.setProperty('--input-text', GameColors.interactive.input.text);
+        // Interactive elements
+        root.style.setProperty('--btn-primary', GameColors.interactive.button.primary);
+        root.style.setProperty('--btn-hover', GameColors.interactive.button.hover);
+        root.style.setProperty('--btn-border', GameColors.interactive.button.border);
+        root.style.setProperty('--input-bg', GameColors.interactive.input.background);
+        root.style.setProperty('--input-border', GameColors.interactive.input.border);
+        root.style.setProperty('--input-text', GameColors.interactive.input.text);
 
-    // Health colors
-    root.style.setProperty('--health-high', GameColors.health.high);
-    root.style.setProperty('--health-medium', GameColors.health.medium);
-    root.style.setProperty('--health-low', GameColors.health.low);
-    root.style.setProperty('--health-bg', GameColors.health.background);
-    root.style.setProperty('--health-border', GameColors.health.border);
-}
+        // Health colors
+        root.style.setProperty('--health-high', GameColors.health.high);
+        root.style.setProperty('--health-medium', GameColors.health.medium);
+        root.style.setProperty('--health-low', GameColors.health.low);
+        root.style.setProperty('--health-bg', GameColors.health.background);
+        root.style.setProperty('--health-border', GameColors.health.border);
+    }
 
-// Initialize colors when DOM is ready
-document.addEventListener('DOMContentLoaded', initializeColorPalette);
-window.addEventListener('load', () => {
-    window.gameInfoOverlay = new GameInfoOverlay();
-    new Game(document.getElementById('gameCanvas'));
-});
+    // Initialize colors when DOM is ready
+    document.addEventListener('DOMContentLoaded', initializeColorPalette);
+    window.addEventListener('load', () => {
+        window.gameInfoOverlay = new GameInfoOverlay();
+        new Game(document.getElementById('gameCanvas'));
+    });
 </script>
 </body>
 </html>

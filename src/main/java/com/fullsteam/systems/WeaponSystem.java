@@ -212,41 +212,33 @@ public class WeaponSystem {
                 switch (target) {
                     case Player player -> {
                         // Check for collision with an enemy player
-                        if (!player.isDead() && player.getTeam() != bullet.getTeam()) {
-                            Vector2D playerCenter = player.position();
-                            // For the purposes of player collisions, we use a slightly larger radius to account fo the bullet not being a point.
-                            if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, playerCenter, PLAYER_RADIUS + 2)) {
-                                Player shooter = entities.getPlayer(bullet.getShooterId());
+                        // For the purposes of player collisions, we use a slightly larger radius to account fo the bullet not being a point.
+                        if (!player.isDead() && player.getTeam() != bullet.getTeam()
+                            && CollisionUtils.checkLineCircleCollision(oldPos, newPos, player.position(), PLAYER_RADIUS + 2)) {
+                            Player shooter = entities.getPlayer(bullet.getShooterId());
 
-                                // Apply damage and check if it was a kill
-                                if (player.takeDamage(bullet.getDamage())) {
-                                    // Use callback to handle kill (AbstractGameStateManager will handle the actual kill logic)
-                                    killPlayerHandler.accept(player, shooter);
-                                }
-                                applyBulletDestructionEffect(bullet, player);
-                                return true; // Remove bullet on hit
+                            // Apply damage and check if it was a kill
+                            if (player.takeDamage(bullet.getDamage())) {
+                                // Use callback to handle kill (AbstractGameStateManager will handle the actual kill logic)
+                                killPlayerHandler.accept(player, shooter);
                             }
+                            applyBulletDestructionEffect(bullet, player);
+                            return true; // Remove bullet on hit
                         }
                     }
                     case Turret turret -> {
-                        if (turret.getTeam() != bullet.getTeam()) {
-                            Vector2D position = turret.position();
-                            if (CollisionUtils.checkLineCircleCollision(oldPos, newPos, position, turret.getRadius())) {
-                                // Apply damage and check if it was a kill
-                                turret.takeDamage(bullet.getDamage());
-                                applyBulletDestructionEffect(bullet, target);
-                                return true; // Remove bullet on hit
-                            }
+                        if (turret.getTeam() != bullet.getTeam() && CollisionUtils.checkLineCircleCollision(oldPos, newPos, turret.position(), turret.getRadius())) {
+                            // Apply damage and check if it was a kill
+                            turret.takeDamage(bullet.getDamage());
+                            applyBulletDestructionEffect(bullet, target);
+                            return true; // Remove bullet on hit
                         }
                     }
                     case Vehicle vehicle -> {
-                        if (vehicle.getTeam() != bullet.getTeam()) {
-                            if (CollisionUtils.checkLinePolygonCollision(oldPos, newPos, vehicle)) {
-                                // Apply damage and check if it was a kill
-                                vehicle.takeDamage(bullet.getDamage());
-                                applyBulletDestructionEffect(bullet, target);
-                                return true; // Remove bullet on hit
-                            }
+                        if (vehicle.getTeam() != bullet.getTeam() && CollisionUtils.checkLinePolygonCollision(oldPos, newPos, vehicle)) {
+                            vehicle.takeDamage(bullet.getDamage());
+                            applyBulletDestructionEffect(bullet, target);
+                            return true;
                         }
                     }
                     case Obstacle o -> {
@@ -256,7 +248,7 @@ public class WeaponSystem {
                             return true;
                         }
                     }
-                    case null, default -> throw new UnsupportedOperationException("fix for other targets");
+                    case null, default -> throw new UnsupportedOperationException();
                 }
             }
 

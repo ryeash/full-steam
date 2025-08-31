@@ -53,7 +53,7 @@ public class JuggernautManager extends AbstractTeamBasedManager {
 
     private void sendAwaitingJuggernautMessage(PlayerSession playerSession) {
         if (team1Juggernaut == null || team2Juggernaut == null) {
-            sendGameEvent(GameEvent.info("Awaiting juggernaut promotion", playerSession.getPlayerId()));
+            sendGameEvent(GameEvent.info("Waiting for juggernaut promotion", playerSession.getPlayerId()));
         }
     }
 

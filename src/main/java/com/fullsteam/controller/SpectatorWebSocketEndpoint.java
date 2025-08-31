@@ -12,6 +12,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import static com.fullsteam.controller.PlayerConnectionService.SESSION_KEY;
+
 @ServerWebSocket("/game/{gameId}/spectate")
 public class SpectatorWebSocketEndpoint {
 
@@ -39,7 +41,9 @@ public class SpectatorWebSocketEndpoint {
             Map<?, ?> map = objectMapper.readValue(message, Map.class);
             String type = (String) map.get("type");
             if (type.equals("ping")) {
-                session.sendSync(objectMapper.writeValueAsString(Map.of("type", "pong")));
+                session.get(SESSION_KEY, PlayerConnectionService.SpectatorSession.class)
+                        .map(PlayerConnectionService.SpectatorSession::getGame)
+                        .ifPresent(game -> game.send(session, Map.of("type", "pong")));
             } else {
                 log.debug("Received message of type '{}' from spectator {}, ignoring", type, session.getId());
             }

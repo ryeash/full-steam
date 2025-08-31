@@ -56,6 +56,7 @@ public class PlayerManager {
 
     private static final Logger log = LoggerFactory.getLogger(PlayerManager.class);
 
+    private final AbstractGameStateManager game;
     private final GameEntities entities;
     private final PhysicsEngine physicsEngine;
     private final WeaponSystem weaponSystem;
@@ -76,6 +77,7 @@ public class PlayerManager {
      * @param other The PlayerManager to clone.
      */
     public PlayerManager(PlayerManager other) {
+        this.game = other.game;
         this.entities = other.entities;
         this.physicsEngine = other.physicsEngine;
         this.weaponSystem = other.weaponSystem;
@@ -88,11 +90,12 @@ public class PlayerManager {
         this.turretSystem = other.turretSystem;
     }
 
-    public PlayerManager(GameEntities entities, PhysicsEngine physicsEngine, WeaponSystem weaponSystem,
+    public PlayerManager(AbstractGameStateManager game, GameEntities entities, PhysicsEngine physicsEngine, WeaponSystem weaponSystem,
                          VehicleManager vehicleManager, FieldEffectSystem fieldEffectSystem, TurretSystem turretSystem,
                          Consumer<GameEvent> gameEventSender, BiConsumer<Player, Player> killPlayerHandler,
                          Supplier<IAIStrategy> aiStrategyBuilder,
                          Consumer<Player> setValidSpawnPositionHandler) {
+        this.game = game;
         this.entities = entities;
         this.physicsEngine = physicsEngine;
         this.weaponSystem = weaponSystem;
@@ -468,7 +471,7 @@ public class PlayerManager {
             killPlayerHandler.accept(player, null);
             WebSocketSession session = entities.getPlayerChannel(player.getId());
             if (session != null) {
-                session.sendSync(welcomeMessage);
+                game.send(session, welcomeMessage);
             }
             log.info("Player {} switched to team {}", player.getId(), otherTeam);
         } else {

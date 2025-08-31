@@ -25,9 +25,11 @@ public class MiscTest {
     @Test
     public void jsonTest() throws JsonProcessingException {
         System.out.println(mapper.writeValueAsString(GameEvent.info("toast")));
-        System.out.println(mapper.writeValueAsString(new Player(
+        Player p = new Player(
                 1, "test", 123.3456, 653.22132, 1, WeaponFactory.getDefaultWeapon()
-        )));
+        );
+        p.takeDamage(105);
+        System.out.println(mapper.writeValueAsString(p));
     }
 
     @Test

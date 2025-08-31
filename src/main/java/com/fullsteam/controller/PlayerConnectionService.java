@@ -80,7 +80,9 @@ public class PlayerConnectionService {
                 if (!game.isSpectatorsFull()) {
                     // Create a bridge channel for spectator
                     game.addSpectator(session);
+                    SpectatorSession spectatorSession = new SpectatorSession(game, session);
                     spectatorSessions.put(sessionId, new SpectatorSession(game, session));
+                    session.put(SESSION_KEY, spectatorSession);
 
                     log.info("Spectator {} is now watching game {}", sessionId, gameIdLong);
                     return true;
