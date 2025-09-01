@@ -13,7 +13,6 @@
     --text-primary: #ffffff;
     --text-secondary: #cbd5e1;
     --text-muted: #94a3b8;
-    --shadow-glow: 0 0 20px rgba(100, 200, 255, 0.2);
 }
 
 /* === GLOBAL STYLES === */
@@ -93,7 +92,6 @@ h1 {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    text-shadow: 0 0 30px rgba(100, 200, 255, 0.5);
     letter-spacing: 2px;
 }
 
@@ -142,7 +140,6 @@ h2::after {
     border-radius: 15px;
     padding: 20px;
     margin-bottom: 30px;
-    box-shadow: var(--shadow-glow);
 }
 
 .stat-item {
@@ -192,7 +189,6 @@ h2::after {
 }
 
 .game-item:hover {
-    box-shadow: 0 10px 30px rgba(100, 200, 255, 0.3);
     border-color: var(--accent-blue);
 }
 
@@ -332,10 +328,6 @@ h2::after {
     background: linear-gradient(45deg, var(--accent-purple), #9333ea);
 }
 
-.spectate-button:hover {
-    box-shadow: 0 5px 15px rgba(168, 85, 247, 0.4);
-}
-
 .join-button:disabled {
     background: #6b7280;
     cursor: not-allowed;
@@ -383,7 +375,6 @@ h2::after {
     background: rgba(42, 42, 60, 0.95);
     border: 1px solid rgba(100, 200, 255, 0.3);
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     font-size: 0.9em;
     will-change: auto;
 }
@@ -447,7 +438,6 @@ h2::after {
 #nameInput:focus, #weaponSelector:focus {
     outline: none;
     border-color: rgba(100, 200, 255, 0.6);
-    box-shadow: 0 0 10px rgba(100, 200, 255, 0.3);
 }
 
 #nameInput {
@@ -461,7 +451,6 @@ h2::after {
     border: 1px solid rgba(100, 200, 255, 0.3);
     padding: 16px;
     border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     will-change: auto;
 }
 
@@ -635,26 +624,14 @@ h2::after {
     height: 300px;
 }
 
-#leaveGameBtn:hover, #switchTeamBtn:hover, #spectatorBtn:hover {
-    box-shadow: 0 5px 15px rgba(100, 200, 255, 0.4);
-}
-
 #leaveGameBtn {
     background: linear-gradient(45deg, #f44336, #d32f2f);
     border-color: rgba(244, 67, 54, 0.3);
 }
 
-#leaveGameBtn:hover {
-    box-shadow: 0 5px 15px rgba(244, 67, 54, 0.4);
-}
-
 #spectatorBtn {
     background: linear-gradient(45deg, #9c27b0, #7b1fa2);
     border-color: rgba(156, 39, 176, 0.3);
-}
-
-#spectatorBtn:hover {
-    box-shadow: 0 5px 15px rgba(156, 39, 176, 0.4);
 }
 
 /* === GAME INFO OVERLAY === */
@@ -678,7 +655,6 @@ h2::after {
     background: rgba(42, 42, 60, 0.95);
     border: 2px solid rgba(100, 200, 255, 0.4);
     border-radius: 20px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
     color: var(--text-primary);
     animation: contentSlideIn 0.4s ease-out;
 }
@@ -707,7 +683,6 @@ h2::after {
     font-family: 'Orbitron', monospace;
     font-size: 2.8em;
     font-weight: 900;
-    text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
     letter-spacing: 2px;
 }
 
@@ -768,13 +743,11 @@ h2::after {
 .team1-objective {
     background: rgba(76, 175, 80, 0.1);
     border: 1px solid var(--team1-primary);
-    box-shadow: 0 0 15px rgba(76, 175, 80, 0.2);
 }
 
 .team2-objective {
     background: rgba(244, 67, 54, 0.1);
     border: 1px solid var(--team2-primary);
-    box-shadow: 0 0 15px rgba(244, 67, 54, 0.2);
 }
 
 .controls-grid {
