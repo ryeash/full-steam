@@ -91,7 +91,7 @@ public abstract class AbstractGameStateManager {
         this.weaponSystem = new WeaponSystem(entities, this::applyBulletEffect, this::killPlayer);
         this.fieldEffectSystem = new FieldEffectSystem(weaponSystem, entities, this::killPlayer);
         this.vehicleManager = new VehicleManager(entities, physicsEngine, weaponSystem, fieldEffectSystem, this::sendGameEvent);
-        this.turretSystem = new TurretSystem(entities, weaponSystem, fieldEffectSystem, this::sendGameEvent);
+        this.turretSystem = new TurretSystem(entities, weaponSystem, fieldEffectSystem);
         this.playerManager = new PlayerManager(
                 this,
                 entities,

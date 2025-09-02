@@ -2,7 +2,6 @@ package com.fullsteam.systems;
 
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.model.GameEntities;
-import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.Turret;
 import org.slf4j.Logger;
@@ -10,7 +9,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.function.Consumer;
 
 import static com.fullsteam.Config.MAX_TURRETS_PER_PLAYER;
 import static com.fullsteam.Config.PLAYER_SIZE;
@@ -27,14 +25,13 @@ public class TurretSystem {
     private final GameEntities entities;
     private final WeaponSystem weaponSystem;
     private final FieldEffectSystem fieldEffectSystem;
-    private final Consumer<GameEvent> gameEventSender;
 
-    public TurretSystem(GameEntities entities, WeaponSystem weaponSystem,
-                        FieldEffectSystem fieldEffectSystem, Consumer<GameEvent> gameEventSender) {
+    public TurretSystem(GameEntities entities,
+                        WeaponSystem weaponSystem,
+                        FieldEffectSystem fieldEffectSystem) {
         this.entities = entities;
         this.weaponSystem = weaponSystem;
         this.fieldEffectSystem = fieldEffectSystem;
-        this.gameEventSender = gameEventSender;
     }
 
     /**
