@@ -5,6 +5,7 @@ import com.fullsteam.Config;
 import com.fullsteam.model.Explosion;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEntities;
+import com.fullsteam.model.GameState;
 import com.fullsteam.model.GravityWell;
 import com.fullsteam.model.GridPoint;
 import com.fullsteam.model.HasLife;
@@ -19,12 +20,17 @@ import com.fullsteam.model.Turret;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
 
+import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 
+import static com.fullsteam.Config.DEFENSE_GRID_LASER_MAX_PER_USER;
+import static com.fullsteam.Config.MAX_TURRETS_PER_PLAYER;
 import static com.fullsteam.Config.PLAYER_RADIUS;
+import static com.fullsteam.Config.PLAYER_SIZE;
 
 /**
  * Handles all field effects including explosions, poison clouds, mines, smoke fields,
@@ -54,6 +60,7 @@ public class FieldEffectSystem {
                 case SmokeCloud smokeCloud -> updateSmokeField(smokeCloud);
                 case Mine mine -> updateMineField(mine);
                 case GravityWell gravityWell -> updateGravityWell(gravityWell);
+                case Turret turret -> updateTurrets(turret, delta);
                 case GridPoint gridPoint -> updateGridPoint(gridPoint);
                 case null, default ->
                         throw new UnsupportedOperationException("unsupported field effect type: " + fieldEffect.getClass().getSimpleName());
@@ -138,6 +145,15 @@ public class FieldEffectSystem {
                         }
                         if (turret.position().distanceSquared(explosionCenter) < explosion.getRadiusSquared()) {
                             turret.takeDamage(explosion.getDamage());
+                        }
+                    }
+                    case GridPoint gridPoint -> {
+                        // Prevent friendly fire, but allow self-damage
+                        if (shooter != null && gridPoint.getTeam() == shooter.getTeam() && !Objects.equals(gridPoint.getId(), shooter.getId())) {
+                            continue;
+                        }
+                        if (gridPoint.position().distanceSquared(explosionCenter) < explosion.getRadiusSquared()) {
+                            gridPoint.takeDamage(explosion.getDamage());
                         }
                     }
                     case Vehicle vehicle -> {
@@ -344,14 +360,15 @@ public class FieldEffectSystem {
             return;
         }
 
-        // Find other grid points from the same owner and team
+        // Find other grid points from the same team
         List<GridPoint> sameOwnerGridPoints = entities.getFieldEffects().stream()
                 .filter(fe -> fe instanceof GridPoint)
                 .map(fe -> (GridPoint) fe)
-                .filter(gp -> gp.getOwnerId() == gridPoint.getOwnerId()
-                              && gp.getTeam() == gridPoint.getTeam()
+                .filter(gp -> gp.getTeam() == gridPoint.getTeam()
                               && gp.id() != gridPoint.id()
                               && gridPoint.readyToFire())
+                .sorted(Comparator.comparingDouble(a -> gridPoint.position().distanceSquared(a.position())))
+                .limit(2)
                 .toList();
 
         // Generate lasers to nearby grid points within range
@@ -385,5 +402,88 @@ public class FieldEffectSystem {
                 targetPoint.setLastLaserTime(currentTime);
             }
         }
+    }
+
+    public void placeGridPoint(GridPoint gridPoint) {
+        List<GridPoint> owned = new LinkedList<>();
+        for (FieldEffect fe : entities.getFieldEffects()) {
+            if (fe instanceof GridPoint gp && gp.getOwnerId() == gridPoint.getOwnerId()) {
+                owned.add(gp);
+            }
+        }
+        while (owned.size() >= DEFENSE_GRID_LASER_MAX_PER_USER) {
+            entities.getFieldEffects().remove(owned.removeFirst());
+        }
+        entities.getFieldEffects().add(gridPoint);
+    }
+
+    /**
+     * Updates all turrets, handles AI decisions, firing, and removal of destroyed turrets
+     */
+    public void updateTurrets(Turret turret, long delta) {
+        // Create a game state snapshot for turret AI
+        GameState gameState = new GameState(
+                entities.getPlayers().stream()
+                        .filter(p -> p.getInvisibilityEndTime() < System.currentTimeMillis())
+                        .toList(),
+                entities.getBullets(),
+                entities.getLaserBlasts(),
+                entities.getFieldEffects(),
+                entities.getVehicles(),
+                entities.getObstacles(),
+                entities.getPowerUps(),
+                System.currentTimeMillis(),
+                null // GameInfo is not needed for turret AI
+        );
+
+        // Remove destroyed or invalid turrets
+        // Check if turret is inside an obstacle
+        boolean inObstacle = entities.getObstacles().stream()
+                .anyMatch(obstacle -> CollisionUtils.checkCirclePolygonCollision(
+                        turret.position(), turret.getRadius(), obstacle.vertices()));
+        if (inObstacle) {
+            entities.getFieldEffects().remove(turret);
+            return;
+        }
+
+        // Check if turret is destroyed
+        if (turret.getHp() <= 0) {
+            // Create explosion when turret is destroyed
+            createExplosion(
+                    turret.getX(),
+                    turret.getY(),
+                    turret.getOwnerId(),
+                    turret.getTeam(),
+                    PLAYER_SIZE, // explosion radius
+                    0, // no damage from explosion effect itself
+                    300); // duration
+            entities.getFieldEffects().remove(turret);
+            return;
+        }
+        turret.update(gameState, entities.getTargetGrid())
+                .ifPresent(action -> {
+                    double aimAngle = Math.atan2(action.directionY(), action.directionX());
+                    weaponSystem.fireTurretWeapon(turret, aimAngle);
+                });
+    }
+
+    public void placeTurret(Turret turret) {
+        List<Turret> owned = new LinkedList<>();
+        for (FieldEffect fe : entities.getFieldEffects()) {
+            if (fe instanceof Turret t && t.getOwnerId() == turret.getOwnerId()) {
+                owned.add(t);
+            }
+        }
+        while (owned.size() >= MAX_TURRETS_PER_PLAYER) {
+            entities.getFieldEffects().remove(owned.removeFirst());
+        }
+        entities.getFieldEffects().add(turret);
+    }
+
+    /**
+     * Removes all turrets owned by a specific player
+     */
+    public void removeAllTurretsOwnedBy(long playerId) {
+        entities.getFieldEffects().removeIf(fe -> fe instanceof Turret turret && turret.getOwnerId() == playerId);
     }
 }

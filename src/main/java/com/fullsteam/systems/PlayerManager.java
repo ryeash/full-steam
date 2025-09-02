@@ -62,7 +62,6 @@ public class PlayerManager {
     private final WeaponSystem weaponSystem;
     private final VehicleManager vehicleManager;
     private final FieldEffectSystem fieldEffectSystem;
-    private final TurretSystem turretSystem;
     private final Consumer<GameEvent> gameEventSender;
     private final BiConsumer<Player, Player> killPlayerHandler;
     private final Supplier<IAIStrategy> aiStrategyBuilder;
@@ -87,11 +86,10 @@ public class PlayerManager {
         this.killPlayerHandler = other.killPlayerHandler;
         this.aiStrategyBuilder = other.aiStrategyBuilder;
         this.setValidSpawnPositionHandler = other.setValidSpawnPositionHandler;
-        this.turretSystem = other.turretSystem;
     }
 
     public PlayerManager(AbstractGameStateManager game, GameEntities entities, PhysicsEngine physicsEngine, WeaponSystem weaponSystem,
-                         VehicleManager vehicleManager, FieldEffectSystem fieldEffectSystem, TurretSystem turretSystem,
+                         VehicleManager vehicleManager, FieldEffectSystem fieldEffectSystem,
                          Consumer<GameEvent> gameEventSender, BiConsumer<Player, Player> killPlayerHandler,
                          Supplier<IAIStrategy> aiStrategyBuilder,
                          Consumer<Player> setValidSpawnPositionHandler) {
@@ -101,7 +99,6 @@ public class PlayerManager {
         this.weaponSystem = weaponSystem;
         this.vehicleManager = vehicleManager;
         this.fieldEffectSystem = fieldEffectSystem;
-        this.turretSystem = turretSystem;
         this.gameEventSender = gameEventSender;
         this.killPlayerHandler = killPlayerHandler;
         this.aiStrategyBuilder = aiStrategyBuilder;
@@ -441,7 +438,6 @@ public class PlayerManager {
             && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
-            turretSystem.removeAllTurretsOwnedBy(player.id());
         }
 
         if (request.isRequestTeamChange()) {
@@ -505,7 +501,6 @@ public class PlayerManager {
                     List.of(),
                     entities.getFieldEffects(),
                     List.of(),
-                    List.of(),
                     includeAllObstacles ? entities.getObstacles() : entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
                     List.of(),
                     System.currentTimeMillis(),
@@ -519,7 +514,6 @@ public class PlayerManager {
                     entities.getBullets(),
                     entities.getLaserBlasts(),
                     entities.getFieldEffects(),
-                    entities.getTurrets(),
                     entities.getVehicles(),
                     includeAllObstacles ? entities.getObstacles() : entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
                     entities.getPowerUps(),

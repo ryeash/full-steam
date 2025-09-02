@@ -10,6 +10,7 @@ public interface FieldEffect extends HasId {
         SMOKE,
         MINE,
         GRAVITY_WELL,
+        TURRET,
         GRID_POINT
     }
 

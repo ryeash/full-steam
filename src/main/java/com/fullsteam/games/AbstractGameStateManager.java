@@ -9,6 +9,7 @@ import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
+import com.fullsteam.model.GridPoint;
 import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
@@ -29,7 +30,6 @@ import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.systems.FieldEffectSystem;
 import com.fullsteam.systems.PhysicsEngine;
 import com.fullsteam.systems.PlayerManager;
-import com.fullsteam.systems.TurretSystem;
 import com.fullsteam.systems.VehicleManager;
 import com.fullsteam.systems.WeaponSystem;
 import io.micronaut.websocket.WebSocketSession;
@@ -75,7 +75,6 @@ public abstract class AbstractGameStateManager {
     protected PhysicsEngine physicsEngine;
     protected VehicleManager vehicleManager;
     protected FieldEffectSystem fieldEffectSystem;
-    protected TurretSystem turretSystem;
     protected PlayerManager playerManager;
     protected boolean isRoundOver = false;
     protected ScheduledFuture<?> gameLoopHook;
@@ -91,7 +90,6 @@ public abstract class AbstractGameStateManager {
         this.weaponSystem = new WeaponSystem(entities, this::applyBulletEffect, this::killPlayer);
         this.fieldEffectSystem = new FieldEffectSystem(weaponSystem, entities, this::killPlayer);
         this.vehicleManager = new VehicleManager(entities, physicsEngine, weaponSystem, fieldEffectSystem, this::sendGameEvent);
-        this.turretSystem = new TurretSystem(entities, weaponSystem, fieldEffectSystem);
         this.playerManager = new PlayerManager(
                 this,
                 entities,
@@ -99,7 +97,6 @@ public abstract class AbstractGameStateManager {
                 weaponSystem,
                 vehicleManager,
                 fieldEffectSystem,
-                turretSystem,
                 this::sendGameEvent,
                 this::killPlayer,
                 this::buildAIStrategy,
@@ -219,7 +216,6 @@ public abstract class AbstractGameStateManager {
             updatePlayers(delta);
             weaponSystem.updateOrdinance(delta);
             fieldEffectSystem.updateFieldEffects(delta);
-            turretSystem.updateTurrets(delta);
             vehicleManager.updateVehicles(delta);
 
             // Send scores less frequently to save bandwidth
@@ -284,12 +280,10 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void applyBulletEffect(BulletEffect bulletEffect) {
-        if (bulletEffect instanceof FieldEffect fe) {
-            fieldEffectSystem.addFieldEffect(fe);
-            return;
-        }
         switch (bulletEffect) {
-            case Turret turret -> turretSystem.placeTurret(turret);
+            case Turret turret -> fieldEffectSystem.placeTurret(turret);
+            case GridPoint gridPoint -> fieldEffectSystem.placeGridPoint(gridPoint);
+            case FieldEffect fieldEffect -> entities.getFieldEffects().add(fieldEffect);
             case null, default -> throw new UnsupportedOperationException("unknown effect: " + bulletEffect);
         }
     }
@@ -307,7 +301,6 @@ public abstract class AbstractGameStateManager {
         victim.setVelocityY(0);
         victim.setInvisibilityEndTime(0);
         victim.setDamageMultiplier(1.0);
-        removePlayerTurrets(victim);
 
         if (shooter != null) {
             shooter.incrementKills();
@@ -474,10 +467,6 @@ public abstract class AbstractGameStateManager {
         playerManager.handlePlayerConfigChange(playerId, request);
     }
 
-    protected void removePlayerTurrets(Player player) {
-        entities.getTurrets().removeIf(t -> t.getOwnerId() == player.id());
-    }
-
     public void shutdown() {
         entities.getPlayerChannels().forEach(WebSocketSession::close);
         if (gameLoopHook != null) {
@@ -508,7 +497,6 @@ public abstract class AbstractGameStateManager {
                 entities.getBullets(),
                 entities.getLaserBlasts(),
                 entities.getFieldEffects(),
-                entities.getTurrets(),
                 entities.getVehicles(),
                 entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
                 entities.getPowerUps(),

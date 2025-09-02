@@ -8,6 +8,7 @@ import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.Base;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameState;
+import com.fullsteam.model.GridPoint;
 import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
@@ -629,17 +630,28 @@ public class AIPlayer extends Player {
                     }
                 }
                 case Turret turret -> {
-                    if (turret.getTeam() == this.getTeam()) {
-                        continue; // Don't shoot friendly turrets
+                    if (turret.getTeam() != this.getTeam()) {
+                        Vector2D turretCenter = turret.position();
+                        double turretScore = Math.sqrt(position().distanceSquared(turretCenter));
+                        if (turretScore < bestScore) {
+                            if (findBlockingObstacle(this.position(), turretCenter, obstacles) == null) {
+                                // Simple distance-based priority for now.
+                                bestScore = turretScore;
+                                bestTarget = potentialTarget;
+                            }
+                        }
                     }
-
-                    Vector2D turretCenter = turret.position();
-                    double turretScore = Math.sqrt(position().distanceSquared(turretCenter));
-                    if (turretScore < bestScore) {
-                        if (findBlockingObstacle(this.position(), turretCenter, obstacles) == null) {
-                            // Simple distance-based priority for now.
-                            bestScore = turretScore;
-                            bestTarget = potentialTarget;
+                }
+                case GridPoint gridPoint -> {
+                    if (gridPoint.getTeam() != this.getTeam()) {
+                        Vector2D turretCenter = gridPoint.position();
+                        double turretScore = Math.sqrt(position().distanceSquared(turretCenter));
+                        if (turretScore < bestScore) {
+                            if (findBlockingObstacle(this.position(), turretCenter, obstacles) == null) {
+                                // Simple distance-based priority for now.
+                                bestScore = turretScore;
+                                bestTarget = potentialTarget;
+                            }
                         }
                     }
                 }

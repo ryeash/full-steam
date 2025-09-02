@@ -11,7 +11,7 @@ import java.util.Optional;
 import java.util.Set;
 
 @Introspected
-public class Turret implements HasId, BulletEffect, HasLife, Targetable {
+public class Turret extends AbstractFieldEffect implements HasId, BulletEffect, HasLife, Targetable {
     private final long id;
     @JsonIgnore
     private final long ownerId;
@@ -40,6 +40,7 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
     }
 
     public Turret(long id, long ownerId, int team, double x, double y, double radius, Weapon weapon, double angle) {
+        super(Type.TURRET, id, x, y, radius, team, 0);
         this.id = id;
         this.ownerId = ownerId;
         this.team = team;
@@ -47,7 +48,7 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
         this.radius = radius;
         this.weapon = weapon;
         this.angle = angle;
-        this.hp = Config.DEFAULT_PLAYER_HEALTH / 2;
+        this.hp = Config.TURRET_HEALTH;
         this.maxHp = this.hp;
         this.nextShotTime = 0;
         this.reloading = false;
@@ -122,6 +123,11 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
         return this.hp <= 0;
     }
 
+    @Override
+    public boolean isExpired() {
+        return hp <= 0;
+    }
+
     @JsonIgnore
     public boolean isReloading() {
         return reloading;
@@ -150,8 +156,8 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
 
     public boolean canShoot() {
         return !reloading
-                && ammoInMag > 0
-                && System.currentTimeMillis() >= nextShotTime;
+               && ammoInMag > 0
+               && System.currentTimeMillis() >= nextShotTime;
     }
 
     public void shoot() {
@@ -200,12 +206,12 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
         for (Targetable p : nearbyPlayers) {
             double distanceSq;
             if (p instanceof Player player
-                    && !player.isDead()
-                    && player.getTeam() != getTeam()
-                    && player.getInvisibilityEndTime() < System.currentTimeMillis()) {
+                && !player.isDead()
+                && player.getTeam() != getTeam()
+                && player.getInvisibilityEndTime() < System.currentTimeMillis()) {
                 distanceSq = position().distanceSquared(p.position());
             } else if (p instanceof Turret turret
-                    && turret.getTeam() != getTeam()) {
+                       && turret.getTeam() != getTeam()) {
                 distanceSq = position().distanceSquared(p.position());
             } else {
                 continue; // Skip if not a valid target

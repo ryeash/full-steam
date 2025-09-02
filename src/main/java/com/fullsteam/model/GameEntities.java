@@ -30,7 +30,6 @@ public class GameEntities {
     private final List<Bullet> bullets = Collections.synchronizedList(new LinkedList<>());
     private final List<LaserBlast> laserBlasts = Collections.synchronizedList(new LinkedList<>());
     private final List<FieldEffect> fieldEffects = Collections.synchronizedList(new LinkedList<>());
-    private final List<Turret> turrets = Collections.synchronizedList(new LinkedList<>());
     private final List<Vehicle> vehicles = Collections.synchronizedList(new LinkedList<>());
     private final List<Obstacle> obstacles = Collections.synchronizedList(new LinkedList<>());
     private final List<PowerUp> powerUps = Collections.synchronizedList(new LinkedList<>());
@@ -85,10 +84,6 @@ public class GameEntities {
         return fieldEffects;
     }
 
-    public List<Turret> getTurrets() {
-        return turrets;
-    }
-
     public List<Vehicle> getVehicles() {
         return vehicles;
     }
@@ -113,7 +108,6 @@ public class GameEntities {
     public void clearTransientObjects() {
         bullets.clear();
         fieldEffects.clear();
-        turrets.clear();
         powerUps.clear();
         laserBlasts.clear();
     }

@@ -47,14 +47,13 @@ public class PhysicsEngine {
             }
             targetGrid.insert(player, player.getX() - PLAYER_RADIUS, player.getY() - PLAYER_RADIUS, PLAYER_SIZE, PLAYER_SIZE);
         }
-        for (Turret turret : entities.getTurrets()) {
-            double size = turret.getRadius() * 2;
-            targetGrid.insert(turret, turret.getX() - turret.getRadius(), turret.getY() - turret.getRadius(), size, size);
-        }
         for (FieldEffect fieldEffect : entities.getFieldEffects()) {
             if (fieldEffect instanceof GridPoint gridPoint) {
                 double size = gridPoint.getRadius() * 2;
                 targetGrid.insert(gridPoint, gridPoint.getX() - gridPoint.getRadius(), gridPoint.getY() - gridPoint.getRadius(), size, size);
+            } else if (fieldEffect instanceof Turret turret) {
+                double size = turret.getRadius() * 2;
+                targetGrid.insert(turret, turret.getX() - turret.getRadius(), turret.getY() - turret.getRadius(), size, size);
             }
         }
         for (Vehicle vehicle : entities.getVehicles()) {

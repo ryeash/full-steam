@@ -78,7 +78,7 @@ public final class GridPoint extends AbstractFieldEffect implements BulletEffect
                 Config.PLAYER_RADIUS / 2, // Small radius
                 System.currentTimeMillis() + 30000, // 30 second duration
                 bullet.getShooterId(),
-                50.0 // Low health - easy to destroy
+                Config.DEFENSE_GRID_HEALTH // Low health - easy to destroy
         );
     }
 }

@@ -494,7 +494,7 @@ class Game {
     }
 
     resetGameState() {
-        this.gameState = { players: [], bullets: [], laserBlasts: [], fieldEffects: [], obstacles: [], powerUps: [], turrets: [], vehicles: [], info: null, serverTime: 0 };
+        this.gameState = { players: [], bullets: [], laserBlasts: [], fieldEffects: [], obstacles: [], powerUps: [], vehicles: [], info: null, serverTime: 0 };
         this.gameEvents = [];
         this.previousGameState = null;
         this.lastUpdateTime = 0;
@@ -1078,7 +1078,6 @@ class Game {
         this.drawCratePreview();
         this.drawBase();
         this.drawFieldEffects();
-        this.drawTurrets();
 
         // Get interpolated positions for smooth rendering
         const interpolated = this.getInterpolatedPositions(currentTime);
@@ -1239,6 +1238,8 @@ class Game {
                 this.drawMine(effect);
             } else if (effect.type == 'GRAVITY_WELL') {
                 this.drawGravityWell(effect);
+            } else if (effect.type == 'TURRET') {
+                this.drawTurret(effect);
             } else if (effect.type == 'GRID_POINT') {
                 this.drawGridPoint(effect);
             }
@@ -1501,6 +1502,66 @@ class Game {
         this.ctx.restore();
     }
 
+    drawTurret(turret) {
+        this.ctx.save();
+        const turretX = turret.x;
+        const turretY = turret.y;
+        const turretRadius = turret.radius;
+
+        this.ctx.save();
+        this.ctx.translate(turretX, turretY);
+
+        // Draw tripod legs
+        this.ctx.strokeStyle = GameColors.special.turrets.legs;
+        this.ctx.lineWidth = 4;
+        for (let i = 0; i < 3; i++) {
+            const legAngle = (i * 2 * Math.PI / 3) + Math.PI / 2;
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, 0);
+            this.ctx.lineTo(Math.cos(legAngle) * turretRadius, Math.sin(legAngle) * turretRadius);
+            this.ctx.stroke();
+        }
+
+        // Draw base with team color
+        const teamColor = turret.team === 1 ? GameColors.teams.team1.primary : GameColors.teams.team2.primary;
+        const darkTeamColor = turret.team === 1 ? GameColors.teams.team1.dark : GameColors.teams.team2.dark;
+        this.ctx.fillStyle = teamColor;
+        this.ctx.strokeStyle = darkTeamColor;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, turretRadius * 0.6, 0, 2 * Math.PI);
+        this.ctx.fill();
+        this.ctx.stroke();
+
+        // Draw rotating barrel
+        this.ctx.rotate(turret.angle);
+        this.ctx.fillStyle = GameColors.special.turrets.barrel;
+        this.ctx.strokeStyle = GameColors.special.turrets.barrelStroke;
+        this.ctx.lineWidth = 1;
+        this.ctx.fillRect(0, -4, turretRadius * 1.2, 8);
+        this.ctx.strokeRect(0, -4, turretRadius * 1.2, 8);
+
+        this.ctx.restore(); // Restore from translate/rotate
+
+        // Draw health bar
+        if (turret.hp < turret.maxHp) {
+            const healthPercentage = Math.max(0, turret.hp / turret.maxHp);
+            const barWidth = turretRadius * 2;
+            const barHeight = 5;
+            const barX = turretX - turretRadius;
+            const barY = turretY - turretRadius - 15;
+
+            this.ctx.fillStyle = GameColors.health.background;
+            this.ctx.fillRect(barX, barY, barWidth, barHeight);
+            this.ctx.fillStyle = healthPercentage > 0.5 ? GameColors.health.high : (healthPercentage > 0.2 ? GameColors.health.medium : GameColors.health.low);
+            this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
+            this.ctx.strokeStyle = GameColors.health.border;
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+        }
+        this.ctx.restore();
+    }
+
     drawGridPoint(gridPoint) {
         this.ctx.save();
         const now = this.gameState.serverTime;
@@ -1564,70 +1625,6 @@ class Game {
         this.ctx.arc(baseX, baseY, gridPoint.radius || 12, 0, Math.PI * 2);
         this.ctx.stroke();
 
-        this.ctx.restore();
-    }
-
-    drawTurrets() {
-        if (!this.gameState.turrets) return;
-
-        this.ctx.save();
-        this.gameState.turrets.forEach(turret => {
-            const turretX = turret.x;
-            const turretY = turret.y;
-            const turretRadius = turret.radius;
-
-            this.ctx.save();
-            this.ctx.translate(turretX, turretY);
-
-            // Draw tripod legs
-            this.ctx.strokeStyle = GameColors.special.turrets.legs;
-            this.ctx.lineWidth = 4;
-            for (let i = 0; i < 3; i++) {
-                const legAngle = (i * 2 * Math.PI / 3) + Math.PI / 2;
-                this.ctx.beginPath();
-                this.ctx.moveTo(0, 0);
-                this.ctx.lineTo(Math.cos(legAngle) * turretRadius, Math.sin(legAngle) * turretRadius);
-                this.ctx.stroke();
-            }
-
-            // Draw base with team color
-            const teamColor = turret.team === 1 ? GameColors.teams.team1.primary : GameColors.teams.team2.primary;
-            const darkTeamColor = turret.team === 1 ? GameColors.teams.team1.dark : GameColors.teams.team2.dark;
-            this.ctx.fillStyle = teamColor;
-            this.ctx.strokeStyle = darkTeamColor;
-            this.ctx.lineWidth = 2;
-            this.ctx.beginPath();
-            this.ctx.arc(0, 0, turretRadius * 0.6, 0, 2 * Math.PI);
-            this.ctx.fill();
-            this.ctx.stroke();
-
-            // Draw rotating barrel
-            this.ctx.rotate(turret.angle);
-            this.ctx.fillStyle = GameColors.special.turrets.barrel;
-            this.ctx.strokeStyle = GameColors.special.turrets.barrelStroke;
-            this.ctx.lineWidth = 1;
-            this.ctx.fillRect(0, -4, turretRadius * 1.2, 8);
-            this.ctx.strokeRect(0, -4, turretRadius * 1.2, 8);
-
-            this.ctx.restore(); // Restore from translate/rotate
-
-            // Draw health bar
-            if (turret.hp < turret.maxHp) {
-                const healthPercentage = Math.max(0, turret.hp / turret.maxHp);
-                const barWidth = turretRadius * 2;
-                const barHeight = 5;
-                const barX = turretX - turretRadius;
-                const barY = turretY - turretRadius - 15;
-
-                this.ctx.fillStyle = GameColors.health.background;
-                this.ctx.fillRect(barX, barY, barWidth, barHeight);
-                this.ctx.fillStyle = healthPercentage > 0.5 ? GameColors.health.high : (healthPercentage > 0.2 ? GameColors.health.medium : GameColors.health.low);
-                this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
-                this.ctx.strokeStyle = GameColors.health.border;
-                this.ctx.lineWidth = 1;
-                this.ctx.strokeRect(barX, barY, barWidth, barHeight);
-            }
-        });
         this.ctx.restore();
     }
 
