@@ -7,10 +7,10 @@ public interface FieldEffect extends HasId {
     enum Type {
         EXPLOSION,
         POISON,
-        SLOW,
         SMOKE,
         MINE,
-        GRAVITY_WELL
+        GRAVITY_WELL,
+        GRID_POINT
     }
 
     Type getType();

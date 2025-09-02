@@ -4,6 +4,7 @@ import com.fullsteam.CollisionUtils;
 import com.fullsteam.model.Bullet;
 import com.fullsteam.model.BulletEffect;
 import com.fullsteam.model.GameEntities;
+import com.fullsteam.model.GridPoint;
 import com.fullsteam.model.HasLife;
 import com.fullsteam.model.LaserBlast;
 import com.fullsteam.model.MountedWeapon;
@@ -23,6 +24,7 @@ import java.util.function.Consumer;
 
 import static com.fullsteam.Config.GAME_HEIGHT;
 import static com.fullsteam.Config.GAME_WIDTH;
+import static com.fullsteam.Config.LASER_SHOT_DURATION;
 import static com.fullsteam.Config.PLAYER_RADIUS;
 import static com.fullsteam.Config.TURRET_INACCURACY;
 
@@ -76,14 +78,15 @@ public class WeaponSystem {
                 // laser blasts are hit-scan/instantaneous, so no speed or range decay
                 Vector2D start = new Vector2D(finalX, finalY);
                 Vector2D end = start.add(new Vector2D(Math.cos(finalAngle), Math.sin(finalAngle)).multiply(weapon.getBulletRange()));
+                double laserDamageOverTimeMod = (double) 1000 / LASER_SHOT_DURATION;
                 LaserBlast laserBlast = new LaserBlast(
                         start,
                         end,
                         player.getId(),
                         player.getTeam(),
-                        weapon.getBulletDamage() * player.getDamageMultiplier(),
-                        System.currentTimeMillis() + 100);
-                applyLaser(laserBlast);
+                        (weapon.getBulletDamage() * laserDamageOverTimeMod) * player.getDamageMultiplier(),
+                        System.currentTimeMillis() + LASER_SHOT_DURATION);
+                calculateTerminus(laserBlast);
                 entities.getLaserBlasts().add(laserBlast);
             } else {
                 Bullet bullet = new Bullet(
@@ -165,14 +168,15 @@ public class WeaponSystem {
                 // Create laser blast
                 Vector2D start = mountedWeapon.position();
                 Vector2D end = start.add(new Vector2D(Math.cos(finalAngle), Math.sin(finalAngle)).multiply(weapon.getBulletRange()));
+                double laserDamageOverTimeMod = (double) 1000 / LASER_SHOT_DURATION;
                 LaserBlast laserBlast = new LaserBlast(
                         start,
                         end,
                         playerId,
                         controller.getTeam(),
-                        weapon.getBulletDamage() * mountedWeapon.getDamageModification(),
-                        System.currentTimeMillis() + 100);
-                applyLaser(laserBlast);
+                        weapon.getBulletDamage() * laserDamageOverTimeMod * mountedWeapon.getDamageModification(),
+                        System.currentTimeMillis() + LASER_SHOT_DURATION);
+                calculateTerminus(laserBlast);
                 entities.getLaserBlasts().add(laserBlast);
             } else {
                 // Create bullet
@@ -193,6 +197,12 @@ public class WeaponSystem {
         }
 
         mountedWeapon.shoot();
+    }
+
+    public void updateOrdinance(long delta) {
+        updateBullets(delta);
+        updateLaserBlasts(delta);
+        entities.getLaserBlasts().removeIf(LaserBlast::isExpired);
     }
 
     /**
@@ -230,6 +240,14 @@ public class WeaponSystem {
                         if (turret.getTeam() != bullet.getTeam() && CollisionUtils.checkLineCircleCollision(oldPos, newPos, turret.position(), turret.getRadius())) {
                             // Apply damage and check if it was a kill
                             turret.takeDamage(bullet.getDamage());
+                            applyBulletDestructionEffect(bullet, target);
+                            return true; // Remove bullet on hit
+                        }
+                    }
+                    case GridPoint gridPoint -> {
+                        if (gridPoint.getTeam() != bullet.getTeam() && CollisionUtils.checkLineCircleCollision(oldPos, newPos, gridPoint.position(), gridPoint.getRadius())) {
+                            // Apply damage and check if it was a kill
+                            gridPoint.takeDamage(bullet.getDamage());
                             applyBulletDestructionEffect(bullet, target);
                             return true; // Remove bullet on hit
                         }
@@ -273,17 +291,69 @@ public class WeaponSystem {
         });
     }
 
-    /**
-     * Updates laser blasts (removes expired ones)
-     */
-    public void updateLaserBlasts(long delta) {
-        entities.getLaserBlasts().removeIf(LaserBlast::isExpired);
+    private void updateLaserBlasts(long delta) {
+        for (LaserBlast laserBlast : entities.getLaserBlasts()) {
+            // laser blasts do damage-per-second
+            double damageForDelta = laserBlast.getDamage() * ((double) delta / 1000);
+
+            // Check collisions using spatial grid
+            Set<Targetable> nearby = entities.getTargetGrid().getNearby(laserBlast.getStart(), laserBlast.getEnd());
+            for (Targetable target : nearby) {
+                switch (target) {
+                    case Player player -> {
+                        // Check for collision with an enemy player
+                        if (!player.isDead() && player.getTeam() != laserBlast.getTeam()) {
+                            Vector2D playerCenter = player.position();
+                            if (CollisionUtils.checkLineCircleCollision(laserBlast.getStart(), laserBlast.getEnd(), playerCenter, PLAYER_RADIUS)) {
+                                Player shooter = entities.getPlayer(laserBlast.getShooterId());
+
+                                // Apply damage and check if it was a kill
+                                if (player.takeDamage(damageForDelta)) {
+                                    killPlayerHandler.accept(player, shooter);
+                                }
+                            }
+                        }
+                    }
+                    case Turret turret -> {
+                        if (turret.getTeam() != laserBlast.getTeam()) {
+                            Vector2D position = turret.position();
+                            if (CollisionUtils.checkLineCircleCollision(laserBlast.getStart(), laserBlast.getEnd(), position, turret.getRadius())) {
+                                turret.takeDamage(damageForDelta);
+                            }
+                        }
+                    }
+                    case GridPoint gridPoint -> {
+                        if (gridPoint.getTeam() != laserBlast.getTeam()) {
+                            Vector2D position = gridPoint.position();
+                            if (CollisionUtils.checkLineCircleCollision(laserBlast.getStart(), laserBlast.getEnd(), position, gridPoint.getRadius())) {
+                                gridPoint.takeDamage(damageForDelta);
+                            }
+                        }
+                    }
+                    case Vehicle vehicle -> {
+                        if (vehicle.getTeam() != laserBlast.getTeam()) {
+                            if (CollisionUtils.checkLinePolygonCollision(laserBlast.getStart(), laserBlast.getEnd(), vehicle)) {
+                                vehicle.takeDamage(damageForDelta);
+                            }
+                        }
+                    }
+                    case Obstacle o -> {
+                        if (o instanceof HasLife hasLife && CollisionUtils.checkLinePolygonCollision(laserBlast.getStart(), laserBlast.getEnd(), o)) {
+                            hasLife.takeDamage(damageForDelta);
+                        }
+                    }
+                    case null, default -> {
+                        // Ignore other types
+                    }
+                }
+            }
+        }
     }
 
     /**
      * Applies laser damage to targets
      */
-    private void applyLaser(LaserBlast laserBlast) {
+    public void calculateTerminus(LaserBlast laserBlast) {
         // Check obstacle collisions using the line segment
         for (Obstacle obstacle : entities.getObstacles()) {
             Vector2D collision = CollisionUtils.findLineObstacleCollision(laserBlast.getStart(), laserBlast.getEnd(), obstacle);
@@ -292,53 +362,6 @@ public class WeaponSystem {
                 if (laserBlast.getStart().distanceSquared(collision) < currentDistanceSq) {
                     // If the collision point is closer than the end point, shorten the laser blast
                     laserBlast.setEnd(collision);
-                }
-            }
-        }
-
-        // Check collisions using spatial grid
-        Set<Targetable> nearby = entities.getTargetGrid().getNearby(laserBlast.getStart(), laserBlast.getEnd());
-
-        for (Targetable target : nearby) {
-            switch (target) {
-                case Player player -> {
-                    // Check for collision with an enemy player
-                    if (!player.isDead() && player.getTeam() != laserBlast.getTeam()) {
-                        Vector2D playerCenter = player.position();
-                        if (CollisionUtils.checkLineCircleCollision(laserBlast.getStart(), laserBlast.getEnd(), playerCenter, PLAYER_RADIUS)) {
-                            Player shooter = entities.getPlayer(laserBlast.getShooterId());
-
-                            // Apply damage and check if it was a kill
-                            if (player.takeDamage(laserBlast.getDamage())) {
-                                killPlayerHandler.accept(player, shooter);
-                            }
-                        }
-                    }
-                }
-                case Turret turret -> {
-                    if (turret.getTeam() != laserBlast.getTeam()) {
-                        Vector2D position = turret.position();
-                        if (CollisionUtils.checkLineCircleCollision(laserBlast.getStart(), laserBlast.getEnd(), position, turret.getRadius())) {
-                            // Apply damage
-                            turret.takeDamage(laserBlast.getDamage());
-                        }
-                    }
-                }
-                case Vehicle vehicle -> {
-                    if (vehicle.getTeam() != laserBlast.getTeam()) {
-                        if (CollisionUtils.checkLinePolygonCollision(laserBlast.getStart(), laserBlast.getEnd(), vehicle)) {
-                            // Apply damage
-                            vehicle.takeDamage(laserBlast.getDamage());
-                        }
-                    }
-                }
-                case Obstacle o -> {
-                    if (o instanceof HasLife hasLife && CollisionUtils.checkLinePolygonCollision(laserBlast.getStart(), laserBlast.getEnd(), o)) {
-                        hasLife.takeDamage(laserBlast.getDamage());
-                    }
-                }
-                case null, default -> {
-                    // Ignore other types
                 }
             }
         }

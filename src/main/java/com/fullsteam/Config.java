@@ -83,6 +83,11 @@ public class Config {
     public static final int MAX_TURRETS_PER_PLAYER = getInt("game.max_turrets_per_player", 2);
     public static final double TURRET_INACCURACY = getDouble("game.turret_inaccuracy", .2);
     public static final long MINE_DURATION_SECONDS = getLong("game.mine_duration", 15000);
+    public static final long LASER_SHOT_DURATION = getLong("game.laser_shot_duration", 100);
+    public static final double DEFENSE_GRID_LASER_RANGE = getDouble("game.defense_grid.laser_range", 200.0);
+    public static final double DEFENSE_GRID_LASER_DAMAGE = getDouble("game.defense_grid.laser_damage", 75.0);
+    public static final long DEFENSE_GRID_LASER_COOLDOWN = getLong("game.defense_grid.laser_cooldown", 1250);
+    public static final long DEFENSE_GRID_LASER_DURATION = getLong("game.defense_grid.laser_duration", 1000);
 
     // --- Power Ups ---
     public static final double POWERUP_DROP_RATE = getDouble("game.powerup.drop_rate", 0.25D);

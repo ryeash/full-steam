@@ -2,7 +2,9 @@ package com.fullsteam.systems;
 
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.SpatialGrid;
+import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEntities;
+import com.fullsteam.model.GridPoint;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerSession;
@@ -48,6 +50,12 @@ public class PhysicsEngine {
         for (Turret turret : entities.getTurrets()) {
             double size = turret.getRadius() * 2;
             targetGrid.insert(turret, turret.getX() - turret.getRadius(), turret.getY() - turret.getRadius(), size, size);
+        }
+        for (FieldEffect fieldEffect : entities.getFieldEffects()) {
+            if (fieldEffect instanceof GridPoint gridPoint) {
+                double size = gridPoint.getRadius() * 2;
+                targetGrid.insert(gridPoint, gridPoint.getX() - gridPoint.getRadius(), gridPoint.getY() - gridPoint.getRadius(), size, size);
+            }
         }
         for (Vehicle vehicle : entities.getVehicles()) {
             if (!vehicle.isDestroyed()) {

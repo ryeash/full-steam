@@ -1,11 +1,14 @@
 package com.fullsteam.systems;
 
 import com.fullsteam.CollisionUtils;
+import com.fullsteam.Config;
 import com.fullsteam.model.Explosion;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GravityWell;
+import com.fullsteam.model.GridPoint;
 import com.fullsteam.model.HasLife;
+import com.fullsteam.model.LaserBlast;
 import com.fullsteam.model.Mine;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
@@ -30,10 +33,12 @@ import static com.fullsteam.Config.PLAYER_RADIUS;
  */
 public class FieldEffectSystem {
 
+    private final WeaponSystem weaponSystem;
     private final GameEntities entities;
     private final BiConsumer<Player, Player> killPlayerHandler;
 
-    public FieldEffectSystem(GameEntities entities, BiConsumer<Player, Player> killPlayerHandler) {
+    public FieldEffectSystem(WeaponSystem weaponSystem, GameEntities entities, BiConsumer<Player, Player> killPlayerHandler) {
+        this.weaponSystem = weaponSystem;
         this.entities = entities;
         this.killPlayerHandler = killPlayerHandler;
     }
@@ -49,6 +54,7 @@ public class FieldEffectSystem {
                 case SmokeCloud smokeCloud -> updateSmokeField(smokeCloud);
                 case Mine mine -> updateMineField(mine);
                 case GravityWell gravityWell -> updateGravityWell(gravityWell);
+                case GridPoint gridPoint -> updateGridPoint(gridPoint);
                 case null, default ->
                         throw new UnsupportedOperationException("unsupported field effect type: " + fieldEffect.getClass().getSimpleName());
             }
@@ -312,6 +318,71 @@ public class FieldEffectSystem {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Handles defense grid points that generate lasers between connected points
+     */
+    private void updateGridPoint(GridPoint gridPoint) {
+        long currentTime = System.currentTimeMillis();
+        if (gridPoint.getHp() <= 0) {
+            entities.getFieldEffects().remove(gridPoint);
+        }
+
+        boolean inObstacle = entities.getObstacles().stream()
+                .anyMatch(obstacle -> CollisionUtils.checkCirclePolygonCollision(
+                        gridPoint.position(), gridPoint.getRadius(), obstacle.vertices()));
+        if (inObstacle) {
+            entities.getFieldEffects().remove(gridPoint);
+            return;
+        }
+
+        // Check if enough time has passed since last laser generation
+        if (!gridPoint.readyToFire()) {
+            return;
+        }
+
+        // Find other grid points from the same owner and team
+        List<GridPoint> sameOwnerGridPoints = entities.getFieldEffects().stream()
+                .filter(fe -> fe instanceof GridPoint)
+                .map(fe -> (GridPoint) fe)
+                .filter(gp -> gp.getOwnerId() == gridPoint.getOwnerId()
+                              && gp.getTeam() == gridPoint.getTeam()
+                              && gp.id() != gridPoint.id()
+                              && gridPoint.readyToFire())
+                .toList();
+
+        // Generate lasers to nearby grid points within range
+        double maxLaserRange = Config.DEFENSE_GRID_LASER_RANGE;
+        double laserDamage = Config.DEFENSE_GRID_LASER_DAMAGE;
+        long laserDuration = Config.DEFENSE_GRID_LASER_DURATION;
+        double laserDamageOverTimeMod = (double) 1000 / Config.DEFENSE_GRID_LASER_DURATION;
+
+        for (GridPoint targetPoint : sameOwnerGridPoints) {
+            double distance = gridPoint.position().distance(targetPoint.position());
+            // only grid points within line-of-sight will work
+            if (CollisionUtils.checkAnyLinePolygonCollision(gridPoint.position(), targetPoint.position(), entities.getObstacles())) {
+                continue;
+            }
+
+            if (distance <= maxLaserRange) {
+                // Create laser blast between the two grid points
+                LaserBlast laser = new LaserBlast(
+                        gridPoint.position(),
+                        targetPoint.position(),
+                        gridPoint.getOwnerId(),
+                        gridPoint.getTeam(),
+                        laserDamage * laserDamageOverTimeMod,
+                        currentTime + laserDuration
+                );
+                weaponSystem.calculateTerminus(laser);
+                entities.getLaserBlasts().add(laser);
+
+                // Update last laser time for both points to prevent spam
+                gridPoint.setLastLaserTime(currentTime);
+                targetPoint.setLastLaserTime(currentTime);
             }
         }
     }

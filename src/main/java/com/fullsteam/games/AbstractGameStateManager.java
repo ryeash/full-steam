@@ -87,9 +87,9 @@ public abstract class AbstractGameStateManager {
         this.objectMapper = objectMapper;
         this.gameLobby = gameLobby;
         this.entities = new GameEntities(gameId, GAME_WIDTH, GAME_HEIGHT, 100, 100);
-        this.weaponSystem = new WeaponSystem(entities, this::applyBulletEffect, this::killPlayer);
         this.physicsEngine = new PhysicsEngine(entities);
-        this.fieldEffectSystem = new FieldEffectSystem(entities, this::killPlayer);
+        this.weaponSystem = new WeaponSystem(entities, this::applyBulletEffect, this::killPlayer);
+        this.fieldEffectSystem = new FieldEffectSystem(weaponSystem, entities, this::killPlayer);
         this.vehicleManager = new VehicleManager(entities, physicsEngine, weaponSystem, fieldEffectSystem, this::sendGameEvent);
         this.turretSystem = new TurretSystem(entities, weaponSystem, fieldEffectSystem, this::sendGameEvent);
         this.playerManager = new PlayerManager(
@@ -217,8 +217,7 @@ public abstract class AbstractGameStateManager {
             playerManager.checkAndRespawnPlayers();
             playerManager.updatePowerUps();
             updatePlayers(delta);
-            weaponSystem.updateBullets(delta);
-            weaponSystem.updateLaserBlasts(delta);
+            weaponSystem.updateOrdinance(delta);
             fieldEffectSystem.updateFieldEffects(delta);
             turretSystem.updateTurrets(delta);
             vehicleManager.updateVehicles(delta);

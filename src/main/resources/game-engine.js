@@ -1239,6 +1239,8 @@ class Game {
                 this.drawMine(effect);
             } else if (effect.type == 'GRAVITY_WELL') {
                 this.drawGravityWell(effect);
+            } else if (effect.type == 'GRID_POINT') {
+                this.drawGridPoint(effect);
             }
         });
     }
@@ -1496,6 +1498,72 @@ class Game {
         this.ctx.beginPath();
         this.ctx.arc(gravityWell.x, gravityWell.y, 8 + Math.sin(pulsePhase * Math.PI * 2) * 3, 0, Math.PI * 2);
         this.ctx.fill();
+        this.ctx.restore();
+    }
+
+    drawGridPoint(gridPoint) {
+        this.ctx.save();
+        const now = this.gameState.serverTime;
+        if (!now) return;
+
+        // Set colors based on team
+        const teamColors = {
+            1: { primary: GameColors.teams.team1.primary, secondary: GameColors.teams.team1.secondary },
+            2: { primary: GameColors.teams.team2.primary, secondary: GameColors.teams.team2.secondary }
+        };
+        const colors = teamColors[gridPoint.team] || { primary: '#888888', secondary: '#666666' };
+
+        const baseX = gridPoint.x;
+        const baseY = gridPoint.y;
+        const height = 15; // Height of the lightning rod
+        const baseWidth = 8; // Width of the base
+        const topWidth = 3; // Width of the tip
+
+        // Draw the main rod body (trapezoid shape)
+        this.ctx.fillStyle = colors.primary;
+        this.ctx.beginPath();
+        this.ctx.moveTo(baseX - baseWidth/2, baseY + height/2);  // Bottom left
+        this.ctx.lineTo(baseX + baseWidth/2, baseY + height/2);  // Bottom right
+        this.ctx.lineTo(baseX + topWidth/2, baseY - height/2);   // Top right
+        this.ctx.lineTo(baseX - topWidth/2, baseY - height/2);   // Top left
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Draw the base platform
+        this.ctx.fillStyle = colors.secondary;
+        this.ctx.fillRect(baseX - baseWidth/2 - 2, baseY + height/2, baseWidth + 4, 3);
+
+        // Draw the pointed tip
+        this.ctx.fillStyle = '#FFFF88'; // Bright yellow tip
+        this.ctx.beginPath();
+        this.ctx.moveTo(baseX - topWidth/2, baseY - height/2);
+        this.ctx.lineTo(baseX + topWidth/2, baseY - height/2);
+        this.ctx.lineTo(baseX, baseY - height/2 - 4);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Add energy crackling effect around the tip
+        const time = now / 100; // Faster animation
+        const crackleRadius = 8;
+        
+        for (let i = 0; i < 3; i++) {
+            const angle = (time + i * Math.PI * 2 / 3) % (Math.PI * 2);
+            const crackleX = baseX + Math.cos(angle) * crackleRadius;
+            const crackleY = baseY - height/2 - 2 + Math.sin(angle) * 3;
+            
+            this.ctx.fillStyle = `rgba(255, 255, 136, ${0.3 + Math.sin(time + i) * 0.2})`;
+            this.ctx.beginPath();
+            this.ctx.arc(crackleX, crackleY, 1.5, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+
+        // Draw team indicator ring around the base
+        this.ctx.strokeStyle = colors.primary;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.arc(baseX, baseY, gridPoint.radius || 12, 0, Math.PI * 2);
+        this.ctx.stroke();
+
         this.ctx.restore();
     }
 
