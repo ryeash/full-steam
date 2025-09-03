@@ -11,7 +11,8 @@ public interface FieldEffect extends HasId {
         MINE,
         GRAVITY_WELL,
         TURRET,
-        GRID_POINT
+        GRID_POINT,
+        PORTAL
     }
 
     Type getType();
@@ -66,6 +67,11 @@ public interface FieldEffect extends HasId {
      * @return The expiration time.
      */
     long getExpiration();
+
+    /**
+     * Get the creation timestamp of the effect.
+     */
+    long timestamp();
 
     /**
      * Checks if the effect has expired based on the current system time.

@@ -47,7 +47,7 @@ public class PhysicsEngine {
             }
             targetGrid.insert(player, player.getX() - PLAYER_RADIUS, player.getY() - PLAYER_RADIUS, PLAYER_SIZE, PLAYER_SIZE);
         }
-        for (FieldEffect fieldEffect : entities.getFieldEffects()) {
+        for (FieldEffect fieldEffect : entities.getFieldEffects().values()) {
             if (fieldEffect instanceof GridPoint gridPoint) {
                 double size = gridPoint.getRadius() * 2;
                 targetGrid.insert(gridPoint, gridPoint.getX() - gridPoint.getRadius(), gridPoint.getY() - gridPoint.getRadius(), size, size);

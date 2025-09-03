@@ -5,6 +5,7 @@ import com.fullsteam.model.GravityWell;
 import com.fullsteam.model.GridPoint;
 import com.fullsteam.model.Mine;
 import com.fullsteam.model.PoisonCloud;
+import com.fullsteam.model.Portal;
 import com.fullsteam.model.SmokeCloud;
 import com.fullsteam.model.Turret;
 import com.fullsteam.model.Weapon;
@@ -344,6 +345,21 @@ public class WeaponFactory {
                 GridPoint::create
         ));
 
+//        addPreset(new Weapon(
+//                "Portal Gun",
+//                "PG",
+//                8,   // Fire Rate
+//                0, // Damage (portals don't do direct damage)
+//                8,   // Range
+//                15, // Speed
+//                8,   // Speed Decay
+//                0, // Accuracy
+//                0,   // Multi-shot
+//                2,   // Magazine Size (2 portals max)
+//                12,  // Reload Speed
+//                Portal::create
+//        ));
+
         // Pre-sort the weapon names for faster access.
         weaponNames = weaponPresets.keySet().stream().sorted().toList();
 
@@ -359,7 +375,8 @@ public class WeaponFactory {
                 "Grenade (Smoke)",
                 "Grenade (Gravity Well)",
                 "Mine Layer",
-                "Defense Grid");
+                "Defense Grid",
+                "Portal Gun");
 
         randomWeapons = weaponPresets.values()
                 .stream()

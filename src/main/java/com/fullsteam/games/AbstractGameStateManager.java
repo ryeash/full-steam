@@ -17,6 +17,7 @@ import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.PlayerScores;
 import com.fullsteam.model.PlayerSession;
+import com.fullsteam.model.Portal;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.PowerUpType;
 import com.fullsteam.model.Turret;
@@ -283,7 +284,8 @@ public abstract class AbstractGameStateManager {
         switch (bulletEffect) {
             case Turret turret -> fieldEffectSystem.placeTurret(turret);
             case GridPoint gridPoint -> fieldEffectSystem.placeGridPoint(gridPoint);
-            case FieldEffect fieldEffect -> entities.getFieldEffects().add(fieldEffect);
+            case Portal portal -> fieldEffectSystem.placePortal(portal);
+            case FieldEffect fieldEffect -> entities.getFieldEffects().put(fieldEffect.id(), fieldEffect);
             case null, default -> throw new UnsupportedOperationException("unknown effect: " + bulletEffect);
         }
     }
@@ -496,7 +498,7 @@ public abstract class AbstractGameStateManager {
                 entities.getPlayers(),
                 entities.getBullets(),
                 entities.getLaserBlasts(),
-                entities.getFieldEffects(),
+                entities.getFieldEffects().values(),
                 entities.getVehicles(),
                 entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
                 entities.getPowerUps(),

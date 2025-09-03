@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Stream;
 
 /**
@@ -29,7 +30,7 @@ public class GameEntities {
     // Game object collections
     private final List<Bullet> bullets = Collections.synchronizedList(new LinkedList<>());
     private final List<LaserBlast> laserBlasts = Collections.synchronizedList(new LinkedList<>());
-    private final List<FieldEffect> fieldEffects = Collections.synchronizedList(new LinkedList<>());
+    private final Map<Long, FieldEffect> fieldEffects = new ConcurrentSkipListMap<>();
     private final List<Vehicle> vehicles = Collections.synchronizedList(new LinkedList<>());
     private final List<Obstacle> obstacles = Collections.synchronizedList(new LinkedList<>());
     private final List<PowerUp> powerUps = Collections.synchronizedList(new LinkedList<>());
@@ -80,7 +81,7 @@ public class GameEntities {
         return laserBlasts;
     }
 
-    public List<FieldEffect> getFieldEffects() {
+    public Map<Long, FieldEffect> getFieldEffects() {
         return fieldEffects;
     }
 

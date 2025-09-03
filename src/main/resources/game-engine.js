@@ -1242,6 +1242,8 @@ class Game {
                 this.drawTurret(effect);
             } else if (effect.type == 'GRID_POINT') {
                 this.drawGridPoint(effect);
+            } else if (effect.type == 'PORTAL') {
+                this.drawPortal(effect);
             }
         });
     }
@@ -1624,6 +1626,127 @@ class Game {
         this.ctx.beginPath();
         this.ctx.arc(baseX, baseY, gridPoint.radius || 12, 0, Math.PI * 2);
         this.ctx.stroke();
+
+        this.ctx.restore();
+    }
+
+    drawPortal(portal) {
+        this.ctx.save();
+        const now = this.gameState.serverTime;
+        if (!now) return;
+
+        // Set colors based on team
+        const teamColors = {
+            1: { primary: GameColors.teams.team1.primary, secondary: GameColors.teams.team1.secondary },
+            2: { primary: GameColors.teams.team2.primary, secondary: GameColors.teams.team2.secondary }
+        };
+        const colors = teamColors[portal.team] || { primary: '#888888', secondary: '#666666' };
+
+        const centerX = portal.x;
+        const centerY = portal.y;
+        const radius = portal.radius || 15;
+        const time = now / 1000; // Convert to seconds for smoother animation
+
+        // Draw the outer portal ring with pulsing effect
+        const pulsePhase = (time * 2) % (Math.PI * 2);
+        const pulseRadius = radius + Math.sin(pulsePhase) * 3;
+        
+        this.ctx.strokeStyle = colors.primary;
+        this.ctx.lineWidth = 4;
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, pulseRadius, 0, Math.PI * 2);
+        this.ctx.stroke();
+
+        // Draw the inner portal ring
+        this.ctx.strokeStyle = colors.secondary;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, radius * 0.7, 0, Math.PI * 2);
+        this.ctx.stroke();
+
+        // Draw swirling portal effect
+        const spiralCount = 8;
+        const spiralTime = time * 3; // Faster rotation
+        
+        this.ctx.strokeStyle = `${colors.primary}80`; // Semi-transparent
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([4, 4]);
+
+        for (let i = 0; i < spiralCount; i++) {
+            const spiralAngle = (i / spiralCount) * Math.PI * 2 + spiralTime;
+            const spiralRadius = radius * 0.8;
+            
+            this.ctx.beginPath();
+            let lastX = null, lastY = null;
+            
+            for (let t = 0; t <= Math.PI; t += 0.3) {
+                const currentRadius = spiralRadius * (1 - t / Math.PI) * 0.8;
+                const angle = spiralAngle + t * 2;
+                const x = centerX + Math.cos(angle) * currentRadius;
+                const y = centerY + Math.sin(angle) * currentRadius;
+                
+                if (lastX !== null) {
+                    this.ctx.moveTo(lastX, lastY);
+                    this.ctx.lineTo(x, y);
+                }
+                lastX = x;
+                lastY = y;
+            }
+            this.ctx.stroke();
+        }
+
+        // Draw the portal center with energy effect
+        const energyAlpha = 0.3 + Math.sin(time * 4) * 0.2;
+        const gradient = this.ctx.createRadialGradient(
+            centerX, centerY, 0,
+            centerX, centerY, radius * 0.5
+        );
+        gradient.addColorStop(0, `${colors.primary}${Math.floor(energyAlpha * 255).toString(16).padStart(2, '0')}`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        this.ctx.setLineDash([]);
+        this.ctx.fillStyle = gradient;
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, radius * 0.5, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Draw connection line to linked portal if active
+        if (portal.linkedPortalId && portal.linkedPortalId !== -1) {
+            // Find the linked portal in the field effects
+            const linkedPortal = this.gameState.fieldEffects.find(
+                effect => effect.type === 'PORTAL' && effect.id === portal.linkedPortalId
+            );
+            
+            if (linkedPortal) {
+                // Draw a faint connection line
+                this.ctx.strokeStyle = `${colors.primary}40`; // Very transparent
+                this.ctx.lineWidth = 1;
+                this.ctx.setLineDash([8, 8]);
+                this.ctx.beginPath();
+                this.ctx.moveTo(centerX, centerY);
+                this.ctx.lineTo(linkedPortal.x, linkedPortal.y);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+            }
+        }
+
+        // Draw health bar if damaged
+        if (portal.hp < portal.maxHp) {
+            const healthPercentage = Math.max(0, portal.hp / portal.maxHp);
+            const barWidth = radius * 2;
+            const barHeight = 4;
+            const barX = centerX - radius;
+            const barY = centerY - radius - 12;
+
+            this.ctx.fillStyle = GameColors.health.background;
+            this.ctx.fillRect(barX, barY, barWidth, barHeight);
+            this.ctx.fillStyle = healthPercentage > 0.5 ? GameColors.health.high : 
+                               (healthPercentage > 0.2 ? GameColors.health.medium : GameColors.health.low);
+            this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
+            this.ctx.strokeStyle = GameColors.health.border;
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+        }
 
         this.ctx.restore();
     }

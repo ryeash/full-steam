@@ -11,7 +11,7 @@ import java.util.List;
 public record GameState(Collection<Player> players,
                         List<Bullet> bullets,
                         List<LaserBlast> laserBlasts,
-                        List<FieldEffect> fieldEffects,
+                        Collection<FieldEffect> fieldEffects,
                         List<Vehicle> vehicles,
                         @JsonIgnore List<Obstacle> obstacles,
                         List<PowerUp> powerUps,

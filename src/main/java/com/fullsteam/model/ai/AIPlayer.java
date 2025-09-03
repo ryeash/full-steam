@@ -21,6 +21,7 @@ import com.fullsteam.model.Turret;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -810,7 +811,7 @@ public class AIPlayer extends Player {
     /**
      * Calculates a steering force to flee from dangerous hazards.
      */
-    private Vector2D calculateHazardAvoidanceForce(List<FieldEffect> fieldEffects) {
+    private Vector2D calculateHazardAvoidanceForce(Collection<FieldEffect> fieldEffects) {
         Vector2D totalAvoidanceForce = Vector2D.ZERO;
         if (fieldEffects == null) {
             return totalAvoidanceForce;
