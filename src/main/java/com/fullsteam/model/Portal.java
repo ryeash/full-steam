@@ -1,7 +1,6 @@
 package com.fullsteam.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fullsteam.Config;
 import io.micronaut.core.annotation.Introspected;
 
 @Introspected
@@ -27,21 +26,21 @@ public final class Portal extends AbstractFieldEffect implements BulletEffect {
     /**
      * Creates a new portal from a bullet impact
      */
-    public static Portal create(Bullet bullet, Object destructionSource) {
-        return new Portal(
-                Config.ID_COUNTER.incrementAndGet(),
-                bullet.getTeam(),
-                bullet.getX(),
-                bullet.getY(),
-                Config.PLAYER_RADIUS * 1.5, // Slightly bigger than player
-                System.currentTimeMillis() + Config.PORTAL_DURATION_MS,
-                bullet.getShooterId()
-        );
-    }
+//    public static Portal create(Bullet bullet, Object destructionSource) {
+//        return new Portal(
+//                Config.ID_COUNTER.incrementAndGet(),
+//                bullet.getTeam(),
+//                bullet.getX(),
+//                bullet.getY(),
+//                Config.PLAYER_RADIUS * 3.0, // bigger than player
+//                System.currentTimeMillis() + Config.PORTAL_DURATION_MS,
+//                bullet.getShooterId()
+//        );
+//    }
 
     /**
      * Calculates the exit position for a bullet teleporting through this portal
-     * The bullet should exit from the linked portal in the same relative direction
+     * The bullet exits from the linked portal in a mirrored position (left becomes right, etc.)
      */
     public Vector2D calculateExitPosition(Vector2D entryPosition, Portal linkedPortal) {
         if (linkedPortal == null) {
@@ -49,8 +48,10 @@ public final class Portal extends AbstractFieldEffect implements BulletEffect {
         }
         // Calculate the offset from this portal's center to the entry position
         Vector2D offset = entryPosition.subtract(this.position());
-        // Apply the same offset to the linked portal's position
-        return linkedPortal.position().add(offset);
+        // Mirror the offset (multiply by -1 to flip to opposite side)
+        Vector2D mirroredOffset = offset.multiply(-1);
+        // Apply the mirrored offset to the linked portal's position
+        return linkedPortal.position().add(mirroredOffset);
     }
 
     /**

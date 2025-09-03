@@ -65,7 +65,7 @@ public class FieldEffectSystem {
                 case GravityWell gravityWell -> updateGravityWell(gravityWell);
                 case Turret turret -> updateTurrets(turret, delta);
                 case GridPoint gridPoint -> updateGridPoint(gridPoint);
-                case Portal portal -> updatePortal(portal);
+                case Portal portal -> updatePortal(portal, delta);
                 case null, default ->
                         throw new UnsupportedOperationException("unsupported field effect type: " + fieldEffect.getClass().getSimpleName());
             }
@@ -472,7 +472,7 @@ public class FieldEffectSystem {
     /**
      * Handles portal lifecycle and bullet teleportation
      */
-    private void updatePortal(Portal portal) {
+    private void updatePortal(Portal portal, long delta) {
         // Remove if inside an obstacle
         boolean inObstacle = entities.getObstacles().stream()
                 .anyMatch(obstacle -> CollisionUtils.checkCirclePolygonCollision(
@@ -481,13 +481,13 @@ public class FieldEffectSystem {
             entities.getFieldEffects().remove(portal.id());
             return;
         }
-        handleBulletTeleportation(portal);
+        handleBulletTeleportation(portal, delta);
     }
 
     /**
      * Handles teleporting bullets through portals
      */
-    private void handleBulletTeleportation(Portal portal) {
+    private void handleBulletTeleportation(Portal portal, long delta) {
         Portal linkedPortal = (Portal) entities.getFieldEffects()
                 .values()
                 .stream()
@@ -497,10 +497,33 @@ public class FieldEffectSystem {
                 .findFirst()
                 .orElse(null);
 
-        // Check all bullets for teleportation
+        // Check all bullets for teleportation (check trajectory intersection to catch fast bullets)
         List<Bullet> bulletsToTeleport = entities.getBullets()
                 .stream()
-                .filter(bullet -> portal.isWithinTeleportRadius(bullet.position()))
+                .filter(bullet -> {
+                    Vector2D bulletPosition = bullet.position();
+                    Vector2D bulletDirection = bullet.direction().normalize();
+
+                    // given the same delta, will the bullet intersect the portal in the next cycle?
+                    double deltaSeconds = (double) delta / 1000.0;
+                    Vector2D nextPosition = bulletPosition.add(bulletDirection.multiply(deltaSeconds * bullet.getSpeed()));
+
+                    // Check if bullet trajectory intersects with portal
+                    Vector2D portalCenter = portal.position();
+                    double portalRadius = portal.getRadius();
+
+                    // Use line-circle intersection to detect if bullet path crosses portal
+                    boolean intersects = CollisionUtils.checkLineCircleCollision(bulletPosition, nextPosition, portalCenter, portalRadius);
+
+                    if (!intersects) {
+                        return false;
+                    }
+
+                    // Check if bullet is moving toward the portal center
+                    Vector2D toPortalCenter = portalCenter.subtract(bulletPosition).normalize();
+                    double dotProduct = bulletDirection.dot(toPortalCenter);
+                    return dotProduct > 0;
+                })
                 .toList();
 
         for (Bullet bullet : bulletsToTeleport) {
@@ -517,8 +540,8 @@ public class FieldEffectSystem {
                     bullet.getTeam(),
                     bullet.getDamage(),
                     bullet.getSpeed(),
-                    0, // Reset range so it doesn't expire immediately
-                    1.0, // Reset speed decay
+                    bullet.getMaxRange() - bullet.getDistanceTraveled(),
+                    bullet.getBulletSpeedDecay(),
                     bullet.getOnDestructionAction().orElse(null)
             );
 
@@ -532,7 +555,7 @@ public class FieldEffectSystem {
      * Places a portal, managing the maximum limit per player
      */
     public void placePortal(Portal portal) {
-        placeLimitedEffect(portal, MAX_PORTALS_PER_PLAYER, fe -> fe instanceof Turret t && t.getOwnerId() == portal.getOwnerId());
+        placeLimitedEffect(portal, MAX_PORTALS_PER_PLAYER, fe -> fe instanceof Portal p && p.getOwnerId() == portal.getOwnerId());
     }
 
     private void placeLimitedEffect(FieldEffect fieldEffect, int max, Predicate<FieldEffect> matchOwner) {

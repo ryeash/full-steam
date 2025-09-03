@@ -201,6 +201,10 @@ public abstract class AbstractGameStateManager {
         playerManager.acceptPlayerInput(playerId, input);
     }
 
+    public void additionalPlayerInput(Player player, PlayerInput playerInput) {
+        // no-op
+    }
+
     protected void updateGame(long delta) {
         try {
             populateSpatialGrids();

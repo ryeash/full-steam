@@ -91,6 +91,13 @@ const GAME_MODE_INFO = {
         teamBased: true,
         team1Objective: 'Survive as the Lone Wolf',
         team2Objective: 'Hunt down the Lone Wolf'
+    },
+    'Portal': {
+        subtitle: 'Tactical portal warfare',
+        objective: 'Use your alt-fire to launch portals and redirect bullet trajectories. Eliminate enemy players to score points for your team.',
+        teamBased: true,
+        team1Objective: 'Eliminate Team 2 players using portal tactics',
+        team2Objective: 'Eliminate Team 1 players using portal tactics'
     }
 };
 
@@ -1644,7 +1651,7 @@ class Game {
 
         const centerX = portal.x;
         const centerY = portal.y;
-        const radius = portal.radius || 15;
+        const radius = portal.radius;
         const time = now / 1000; // Convert to seconds for smoother animation
 
         // Draw the outer portal ring with pulsing effect
@@ -1709,44 +1716,6 @@ class Game {
         this.ctx.beginPath();
         this.ctx.arc(centerX, centerY, radius * 0.5, 0, Math.PI * 2);
         this.ctx.fill();
-
-        // Draw connection line to linked portal if active
-        if (portal.linkedPortalId && portal.linkedPortalId !== -1) {
-            // Find the linked portal in the field effects
-            const linkedPortal = this.gameState.fieldEffects.find(
-                effect => effect.type === 'PORTAL' && effect.id === portal.linkedPortalId
-            );
-            
-            if (linkedPortal) {
-                // Draw a faint connection line
-                this.ctx.strokeStyle = `${colors.primary}40`; // Very transparent
-                this.ctx.lineWidth = 1;
-                this.ctx.setLineDash([8, 8]);
-                this.ctx.beginPath();
-                this.ctx.moveTo(centerX, centerY);
-                this.ctx.lineTo(linkedPortal.x, linkedPortal.y);
-                this.ctx.stroke();
-                this.ctx.setLineDash([]);
-            }
-        }
-
-        // Draw health bar if damaged
-        if (portal.hp < portal.maxHp) {
-            const healthPercentage = Math.max(0, portal.hp / portal.maxHp);
-            const barWidth = radius * 2;
-            const barHeight = 4;
-            const barX = centerX - radius;
-            const barY = centerY - radius - 12;
-
-            this.ctx.fillStyle = GameColors.health.background;
-            this.ctx.fillRect(barX, barY, barWidth, barHeight);
-            this.ctx.fillStyle = healthPercentage > 0.5 ? GameColors.health.high : 
-                               (healthPercentage > 0.2 ? GameColors.health.medium : GameColors.health.low);
-            this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
-            this.ctx.strokeStyle = GameColors.health.border;
-            this.ctx.lineWidth = 1;
-            this.ctx.strokeRect(barX, barY, barWidth, barHeight);
-        }
 
         this.ctx.restore();
     }

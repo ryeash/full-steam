@@ -13,6 +13,7 @@ import com.fullsteam.games.JuggernautManager;
 import com.fullsteam.games.KingOfTheHillManager;
 import com.fullsteam.games.LoneWolfManager;
 import com.fullsteam.games.OddballManager;
+import com.fullsteam.games.PortalManager;
 import com.fullsteam.games.TeamDeathmatchManager;
 import com.fullsteam.games.ZombieDefenseManager;
 import com.fullsteam.model.ActiveGame;
@@ -65,6 +66,7 @@ public class GameLobby {
         gameMap.put("Zombie Defense", ZombieDefenseManager.class);
         gameMap.put("Base Destruction", BaseDestructionManager.class);
         gameMap.put("Armored Assault", ArmoredAssaultManager.class);
+        gameMap.put("Portal", PortalManager.class);
     }
 
     public List<ActiveGame> getActiveGames() {

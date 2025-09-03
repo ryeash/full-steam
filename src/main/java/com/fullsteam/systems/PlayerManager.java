@@ -186,6 +186,7 @@ public class PlayerManager {
         if (vehicle == null) {
             handlePlayerMovement(player, input);
             handlePlayerShooting(player, input);
+            game.additionalPlayerInput(player, input);
         } else {
             // Player is in a vehicle - delegate to VehicleManager
             vehicleManager.handlePlayerVehicleInput(playerId, input, delta);

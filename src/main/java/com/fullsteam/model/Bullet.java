@@ -105,4 +105,16 @@ public class Bullet implements HasId {
     public double getSpeed() {
         return speed;
     }
+
+    public double getBulletSpeedDecay() {
+        return bulletSpeedDecay;
+    }
+
+    public double getMaxRange() {
+        return maxRange;
+    }
+
+    public double getDistanceTraveled() {
+        return distanceTraveled;
+    }
 }
