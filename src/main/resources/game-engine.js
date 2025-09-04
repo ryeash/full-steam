@@ -1639,14 +1639,14 @@ class Game {
             const barWidth = baseWidth + 4; // Match the base platform width
             const barHeight = 4;
             const barX = baseX - barWidth / 2;
-            const barY = baseY - height/2 - 15; // Position above the grid point
+            const barY = baseY - height / 2 - 15; // Position above the grid point
 
             // Background of health bar
             this.ctx.fillStyle = GameColors.health.background;
             this.ctx.fillRect(barX, barY, barWidth, barHeight);
 
             // Foreground of health bar
-            this.ctx.fillStyle = healthPercentage > 0.5 ? GameColors.health.high : 
+            this.ctx.fillStyle = healthPercentage > 0.5 ? GameColors.health.high :
                                (healthPercentage > 0.2 ? GameColors.health.medium : GameColors.health.low);
             this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
 

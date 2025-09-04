@@ -349,6 +349,14 @@ public class FieldEffectSystem {
     private void updateGridPoint(GridPoint gridPoint) {
         long currentTime = System.currentTimeMillis();
         if (gridPoint.getHp() <= 0) {
+            createExplosion(
+                    gridPoint.getX(),
+                    gridPoint.getY(),
+                    gridPoint.getOwnerId(),
+                    gridPoint.getTeam(),
+                    PLAYER_SIZE, // explosion radius
+                    0, // no damage from explosion effect itself
+                    300); // duration
             entities.getFieldEffects().remove(gridPoint.id());
         }
 
