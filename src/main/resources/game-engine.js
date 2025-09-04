@@ -1633,6 +1633,29 @@ class Game {
         this.ctx.arc(baseX, baseY, gridPoint.radius || 12, 0, Math.PI * 2);
         this.ctx.stroke();
 
+        // Draw health bar if damaged
+        if (gridPoint.hp && gridPoint.maxHp && gridPoint.hp < gridPoint.maxHp) {
+            const healthPercentage = Math.max(0, gridPoint.hp / gridPoint.maxHp);
+            const barWidth = baseWidth + 4; // Match the base platform width
+            const barHeight = 4;
+            const barX = baseX - barWidth / 2;
+            const barY = baseY - height/2 - 15; // Position above the grid point
+
+            // Background of health bar
+            this.ctx.fillStyle = GameColors.health.background;
+            this.ctx.fillRect(barX, barY, barWidth, barHeight);
+
+            // Foreground of health bar
+            this.ctx.fillStyle = healthPercentage > 0.5 ? GameColors.health.high : 
+                               (healthPercentage > 0.2 ? GameColors.health.medium : GameColors.health.low);
+            this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
+
+            // Border for the health bar
+            this.ctx.strokeStyle = GameColors.health.border;
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+        }
+
         this.ctx.restore();
     }
 
