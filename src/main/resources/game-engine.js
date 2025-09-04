@@ -562,8 +562,8 @@ class Game {
             this.gameState.bullets.forEach(bullet => {
                 if (!this.interpolatedBullets.has(bullet.id)) {
                     this.interpolatedBullets.set(bullet.id, {
-                        x: bullet.x,
-                        y: bullet.y
+                        x: bullet.x || 0,
+                        y: bullet.y || 0
                     });
                 }
             });
@@ -1059,9 +1059,9 @@ class Game {
                 bCtx.strokeStyle = GameColors.entities.gameObjects.obstacles;
 
                 bCtx.beginPath();
-                bCtx.moveTo(obstacle.vertices[0].x, obstacle.vertices[0].y);
+                bCtx.moveTo(obstacle.vertices[0].x || 0, obstacle.vertices[0].y || 0);
                 for (let i = 1; i < obstacle.vertices.length; i++) {
-                    bCtx.lineTo(obstacle.vertices[i].x, obstacle.vertices[i].y);
+                    bCtx.lineTo(obstacle.vertices[i].x || 0, obstacle.vertices[i].y || 0);
                 }
                 bCtx.closePath();
                 bCtx.stroke();
@@ -1145,27 +1145,26 @@ class Game {
     }
 
     drawCrates() {
-        if (!this.gameState.info || this.gameState.info.type !== 'Builder' || !this.gameState.info.crates) {
+        if (!this.gameState.info || !this.gameState.info.crates) {
             return;
         }
 
         this.ctx.save();
         this.gameState.info.crates.forEach(crate => {
             // Draw crate body
-            this.ctx.fillStyle = GameColors.entities.gameObjects.crates.body; // SaddleBrown
-            this.ctx.strokeStyle = GameColors.entities.gameObjects.crates.border; // Darker brown for border
+            this.ctx.fillStyle = GameColors.entities.gameObjects.crates.body;
+            this.ctx.strokeStyle = GameColors.entities.gameObjects.crates.border;
             this.ctx.lineWidth = 2;
-            this.ctx.fillRect(crate.x, crate.y, crate.size, crate.size);
-            this.ctx.strokeRect(crate.x, crate.y, crate.size, crate.size);
-        });
-        this.gameState.info.crates.forEach(crate => {
+            this.ctx.fillRect(crate.x || 0, crate.y || 0, crate.size, crate.size);
+            this.ctx.strokeRect(crate.x || 0, crate.y || 0, crate.size, crate.size);
+
             // Draw health bar if damaged
             if (crate.hp < crate.maxHp) {
                 const healthPercentage = Math.max(0, crate.hp / crate.maxHp);
                 const barWidth = crate.size;
                 const barHeight = 5;
-                const barX = crate.x;
-                const barY = crate.y - 10;
+                const barX = crate.x || 0;
+                const barY = (crate.y || 0) - 10;
 
                 // Background of health bar
                 this.ctx.fillStyle = GameColors.health.background;
