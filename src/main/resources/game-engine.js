@@ -1654,16 +1654,6 @@ class Game {
         const radius = portal.radius;
         const time = now / 1000; // Convert to seconds for smoother animation
 
-        // Draw the outer portal ring with pulsing effect
-        const pulsePhase = (time * 2) % (Math.PI * 2);
-        const pulseRadius = radius + Math.sin(pulsePhase) * 3;
-        
-        this.ctx.strokeStyle = colors.primary;
-        this.ctx.lineWidth = 4;
-        this.ctx.beginPath();
-        this.ctx.arc(centerX, centerY, pulseRadius, 0, Math.PI * 2);
-        this.ctx.stroke();
-
         // Draw the inner portal ring
         this.ctx.strokeStyle = colors.secondary;
         this.ctx.lineWidth = 2;

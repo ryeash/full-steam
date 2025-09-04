@@ -13,6 +13,8 @@ public class Bullet implements HasId {
     private final long id = ID_COUNTER.incrementAndGet();
     private Vector2D position;
     @JsonIgnore
+    private Vector2D previousPosition;
+    @JsonIgnore
     private final Vector2D direction;
     private final int team;
 
@@ -33,6 +35,7 @@ public class Bullet implements HasId {
 
     public Bullet(double x, double y, double velocityX, double velocityY, long shooterId, int team, double damage, double speed, double range, double bulletSpeedDecay, BiFunction<Bullet, Object, BulletEffect> onDestructionAction) {
         this.position = new Vector2D(x, y);
+        this.previousPosition = this.position;
         this.direction = new Vector2D(velocityX, velocityY).normalize();
         this.shooterId = shooterId;
         this.team = team;
@@ -47,11 +50,11 @@ public class Bullet implements HasId {
     public void update(long delta) {
         double deltaSeconds = (double) delta / 1000.0;
         // Update position
-        Vector2D start = position;
+        this.previousPosition = position;
         this.position = position.add(direction.multiply(deltaSeconds * speed));
         // Apply speed decay
         speed *= Math.pow(bulletSpeedDecay, deltaSeconds);
-        distanceTraveled += Math.sqrt(start.distanceSquared(position));
+        distanceTraveled += Math.sqrt(previousPosition.distanceSquared(position));
     }
 
     /**
@@ -84,6 +87,10 @@ public class Bullet implements HasId {
 
     public Vector2D position() {
         return position;
+    }
+
+    public Vector2D previousPosition() {
+        return previousPosition;
     }
 
     public Vector2D direction() {

@@ -482,6 +482,7 @@ public class FieldEffectSystem {
             return;
         }
         handleBulletTeleportation(portal, delta);
+        handlePlayerTeleportation(portal, delta);
     }
 
     /**
@@ -500,28 +501,12 @@ public class FieldEffectSystem {
         // Check all bullets for teleportation (check trajectory intersection to catch fast bullets)
         List<Bullet> bulletsToTeleport = entities.getBullets()
                 .stream()
+                // Use line-circle intersection to detect if bullet path crosses portal
+                .filter(bullet -> CollisionUtils.checkLineCircleCollision(bullet.previousPosition(), bullet.position(), portal.position(), portal.getRadius()))
+                // Check if bullet is moving toward the portal center
                 .filter(bullet -> {
-                    Vector2D bulletPosition = bullet.position();
-                    Vector2D bulletDirection = bullet.direction().normalize();
-
-                    // given the same delta, will the bullet intersect the portal in the next cycle?
-                    double deltaSeconds = (double) delta / 1000.0;
-                    Vector2D nextPosition = bulletPosition.add(bulletDirection.multiply(deltaSeconds * bullet.getSpeed()));
-
-                    // Check if bullet trajectory intersects with portal
-                    Vector2D portalCenter = portal.position();
-                    double portalRadius = portal.getRadius();
-
-                    // Use line-circle intersection to detect if bullet path crosses portal
-                    boolean intersects = CollisionUtils.checkLineCircleCollision(bulletPosition, nextPosition, portalCenter, portalRadius);
-
-                    if (!intersects) {
-                        return false;
-                    }
-
-                    // Check if bullet is moving toward the portal center
-                    Vector2D toPortalCenter = portalCenter.subtract(bulletPosition).normalize();
-                    double dotProduct = bulletDirection.dot(toPortalCenter);
+                    Vector2D toPortalCenter = portal.position().subtract(bullet.position()).normalize();
+                    double dotProduct = bullet.direction().normalize().dot(toPortalCenter);
                     return dotProduct > 0;
                 })
                 .toList();
@@ -552,10 +537,75 @@ public class FieldEffectSystem {
     }
 
     /**
+     * Handles teleporting players through portals
+     */
+    private void handlePlayerTeleportation(Portal portal, long delta) {
+        Portal linkedPortal = (Portal) entities.getFieldEffects()
+                .values()
+                .stream()
+                .filter(fe -> fe instanceof Portal p
+                              && p.id() != portal.id()
+                              && p.getOwnerId() == portal.getOwnerId())
+                .findFirst()
+                .orElse(null);
+
+        if (linkedPortal == null) {
+            return; // No linked portal to teleport to
+        }
+
+        // Check all players for teleportation
+        List<Player> playersToTeleport = entities.getPlayers()
+                .stream()
+                .filter(player -> !player.isDead())
+                .filter(player -> {
+                    // Check if player is within portal radius
+                    double distanceToPortal = player.position().distance(portal.position());
+                    return distanceToPortal <= portal.getRadius();
+                })
+                .filter(player -> {
+                    // Check if player is moving toward the portal center (to prevent infinite loops)
+                    Vector2D playerVelocity = player.getVelocity();
+                    if (playerVelocity.magnitude() < 0.1) {
+                        return true; // Allow teleportation for stationary players
+                    }
+
+                    Vector2D toPortalCenter = portal.position().subtract(player.position()).normalize();
+                    double dotProduct = playerVelocity.normalize().dot(toPortalCenter);
+                    return dotProduct > 0.1; // Small threshold to avoid jitter
+                })
+                .toList();
+
+        for (Player player : playersToTeleport) {
+            // Calculate exit position maintaining relative offset
+            Vector2D exitPosition = portal.calculateExitPosition(player.position(), linkedPortal);
+
+            // Make sure exit position doesn't put player inside obstacles
+            boolean exitInObstacle = entities.getObstacles().stream()
+                    .anyMatch(obstacle -> CollisionUtils.checkCirclePolygonCollision(
+                            exitPosition, PLAYER_RADIUS, obstacle.vertices()));
+
+            if (exitInObstacle) {
+                continue; // Skip teleportation if exit would be inside obstacle
+            }
+
+            // Teleport the player
+            player.setX(exitPosition.x());
+            player.setY(exitPosition.y());
+
+            // Preserve player velocity (maintain momentum through portal)
+            // Optionally, we could mirror the velocity direction as well
+        }
+    }
+
+    /**
      * Places a portal, managing the maximum limit per player
      */
     public void placePortal(Portal portal) {
         placeLimitedEffect(portal, MAX_PORTALS_PER_PLAYER, fe -> fe instanceof Portal p && p.getOwnerId() == portal.getOwnerId());
+    }
+
+    public void removePlayerPortal(Player player) {
+        entities.getFieldEffects().values().removeIf(fe -> fe instanceof Portal p && p.getOwnerId() == player.id());
     }
 
     private void placeLimitedEffect(FieldEffect fieldEffect, int max, Predicate<FieldEffect> matchOwner) {

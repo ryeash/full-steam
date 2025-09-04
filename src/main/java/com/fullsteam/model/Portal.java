@@ -9,8 +9,8 @@ public final class Portal extends AbstractFieldEffect implements BulletEffect {
     @JsonIgnore
     private final long ownerId;
 
-    public Portal(long id, int team, double x, double y, double radius, long expiration, long ownerId) {
-        super(Type.PORTAL, id, x, y, radius, team, expiration);
+    public Portal(long id, int team, double x, double y, double radius, long ownerId) {
+        super(Type.PORTAL, id, x, y, radius, team, 0L);
         this.ownerId = ownerId;
     }
 

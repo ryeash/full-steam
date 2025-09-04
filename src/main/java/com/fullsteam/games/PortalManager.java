@@ -27,6 +27,7 @@ public class PortalManager extends AbstractTeamBasedManager {
 
     @Override
     protected void killPlayer(Player victim, Player shooter) {
+        fieldEffectSystem.removePlayerPortal(victim);
         super.killPlayer(victim, shooter);
         if (shooter != null) {
             if (shooter.getTeam() == 1) {
@@ -65,10 +66,7 @@ public class PortalManager extends AbstractTeamBasedManager {
         }
     }
 
-    /**
-     * Launches a portal for the specified player using altFire input
-     */
-    public void launchPortal(Player player, double targetX, double targetY) {
+    protected void launchPortal(Player player, double targetX, double targetY) {
         if (player.isDead()) {
             return;
         }
@@ -87,7 +85,6 @@ public class PortalManager extends AbstractTeamBasedManager {
                     portalX,
                     portalY,
                     PORTAL_RADIUS,
-                    System.currentTimeMillis() + Config.PORTAL_DURATION_MS,
                     player.getId()
             );
             fieldEffectSystem.placePortal(portal);
