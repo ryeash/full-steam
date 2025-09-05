@@ -309,7 +309,10 @@ public abstract class AbstractGameStateManager {
         victim.setDamageMultiplier(1.0);
 
         if (shooter != null) {
-            shooter.incrementKills();
+            // don't score a kill for self-kill
+            if (shooter.id() != victim.id()) {
+                shooter.incrementKills();
+            }
             String weaponUsed = Optional.ofNullable(vehicleManager.getPlayerMountedWeapon(shooter.id()))
                     .map(MountedWeapon::getWeapon)
                     .map(Weapon::getName)

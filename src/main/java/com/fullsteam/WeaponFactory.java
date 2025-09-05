@@ -1,11 +1,11 @@
 package com.fullsteam;
 
+import com.fullsteam.model.BulletScatter;
 import com.fullsteam.model.Explosion;
 import com.fullsteam.model.GravityWell;
 import com.fullsteam.model.GridPoint;
 import com.fullsteam.model.Mine;
 import com.fullsteam.model.PoisonCloud;
-import com.fullsteam.model.Portal;
 import com.fullsteam.model.SmokeCloud;
 import com.fullsteam.model.Turret;
 import com.fullsteam.model.Weapon;
@@ -197,7 +197,7 @@ public class WeaponFactory {
                 "Grenade (Smoke)",
                 "SM",
                 8, // Fire Rate
-                0, // Damage (damage is from the cloud)
+                0, // non-lethal
                 8,// Range
                 8, // Speed
                 4, // Speed Decay
@@ -212,7 +212,7 @@ public class WeaponFactory {
                 "Grenade (Gravity Well)",
                 "GW",
                 7, // Fire Rate
-                0, // Damage (effect is from the gravity well)
+                0, // non-lethal
                 10,// Range
                 8, // Speed
                 3, // Speed Decay
@@ -221,6 +221,21 @@ public class WeaponFactory {
                 2, // Magazine Size
                 10, // Reload Speed
                 GravityWell::create
+        ));
+
+        addPreset(new Weapon(
+                "Grenade (Scatterblast)",
+                "SB",
+                6, // Fire Rate
+                0, // Damage (damage comes from scattered bullets)
+                9, // Range
+                9, // Speed
+                4, // Speed Decay
+                0, // Accuracy
+                0, // Multi-shot
+                3, // Magazine Size
+                9, // Reload Speed
+                BulletScatter::create
         ));
 
         addPreset(new Weapon(

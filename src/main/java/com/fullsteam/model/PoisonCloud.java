@@ -13,15 +13,12 @@ public class PoisonCloud extends AbstractFieldEffect implements BulletEffect {
     @JsonIgnore
     private final long shooterId;
     @JsonIgnore
-    private final double damagePerTick;
-    @JsonIgnore
-    private transient long lastDamageTickTime;
+    private final double damagePerSecond;
 
-    public PoisonCloud(double x, double y, long shooterId, int team, double radius, double damagePerTick, long duration) {
+    public PoisonCloud(double x, double y, long shooterId, int team, double radius, double damagePerSecond, long duration) {
         super(Type.POISON, Config.ID_COUNTER.incrementAndGet(), x, y, radius, team, System.currentTimeMillis() + duration);
         this.shooterId = shooterId;
-        this.damagePerTick = damagePerTick;
-        this.lastDamageTickTime = System.currentTimeMillis(); // Start ticking immediately
+        this.damagePerSecond = damagePerSecond;
     }
 
     /**
@@ -34,7 +31,7 @@ public class PoisonCloud extends AbstractFieldEffect implements BulletEffect {
                 bullet.getShooterId(),
                 bullet.getTeam(),
                 80,    // radius
-                8,     // damage per tick
+                16.0,  // damage per second (8 damage per tick * 2 ticks per second = 16 DPS)
                 5000); // 5 seconds duration
     }
 
@@ -42,21 +39,16 @@ public class PoisonCloud extends AbstractFieldEffect implements BulletEffect {
         return shooterId;
     }
 
-    public double getDamagePerTick() {
-        return damagePerTick;
-    }
-
-    @JsonIgnore
-    public long getLastDamageTickTime() {
-        return lastDamageTickTime;
+    public double getDamagePerSecond() {
+        return damagePerSecond;
     }
 
     /**
-     * Updates the last time damage was applied by this cloud.
-     * This is called by the server to manage the damage-over-time interval.
+     * Calculates the damage to apply based on the time delta.
+     * @param delta Time elapsed in milliseconds
+     * @return Damage to apply for this time period
      */
-    @JsonIgnore
-    public void setLastDamageTickTime(long time) {
-        this.lastDamageTickTime = time;
+    public double getDamage(long delta) {
+        return damagePerSecond * (delta / 1000.0);
     }
 }

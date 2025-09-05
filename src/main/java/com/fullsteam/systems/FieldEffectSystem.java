@@ -3,6 +3,7 @@ package com.fullsteam.systems;
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
 import com.fullsteam.model.Bullet;
+import com.fullsteam.model.BulletScatter;
 import com.fullsteam.model.Explosion;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEntities;
@@ -59,13 +60,14 @@ public class FieldEffectSystem {
         for (FieldEffect fieldEffect : List.copyOf(entities.getFieldEffects().values())) {
             switch (fieldEffect) {
                 case Explosion explosion -> updateExplosion(explosion);
-                case PoisonCloud poisonCloud -> updatePoisonClouds(poisonCloud);
+                case PoisonCloud poisonCloud -> updatePoisonClouds(poisonCloud, delta);
                 case SmokeCloud smokeCloud -> updateSmokeField(smokeCloud);
                 case Mine mine -> updateMineField(mine);
                 case GravityWell gravityWell -> updateGravityWell(gravityWell);
                 case Turret turret -> updateTurrets(turret, delta);
                 case GridPoint gridPoint -> updateGridPoint(gridPoint);
                 case Portal portal -> updatePortal(portal, delta);
+                case BulletScatter bulletScatter -> updateBulletScatter(bulletScatter);
                 case null, default ->
                         throw new UnsupportedOperationException("unsupported field effect type: " + fieldEffect.getClass().getSimpleName());
             }
@@ -189,46 +191,50 @@ public class FieldEffectSystem {
     /**
      * Handles the lifecycle of poison clouds, applying damage over time and removing them when expired.
      */
-    private void updatePoisonClouds(PoisonCloud cloud) {
-        long currentTime = System.currentTimeMillis();
-        // Damage players inside the cloud, ticking every 500ms
-        if (currentTime > cloud.getLastDamageTickTime() + 500) {
-            Vector2D cloudCenter = cloud.position();
-            double radiusSq = cloud.getRadiusSquared();
-            Player shooter = entities.getPlayer(cloud.getShooterId());
+    private void updatePoisonClouds(PoisonCloud cloud, long delta) {
+        Vector2D cloudCenter = cloud.position();
+        double radiusSq = cloud.getRadiusSquared();
+        Player shooter = entities.getPlayer(cloud.getShooterId());
+        double damageToApply = cloud.getDamage(delta);
 
-            Set<Targetable> nearbyTargets = entities.getTargetGrid().getNearby(cloud.position(), cloud.getRadius());
-            for (Targetable target : nearbyTargets) {
-                switch (target) {
-                    case Player player -> {
-                        if (player.isDead()) {
-                            continue;
-                        }
-                        // Prevent friendly fire, but allow self-damage
-                        if (shooter != null && player.getTeam() == shooter.getTeam() && !Objects.equals(player.getId(), shooter.getId())) {
-                            continue;
-                        }
+        Set<Targetable> nearbyTargets = entities.getTargetGrid().getNearby(cloud.position(), cloud.getRadius());
+        for (Targetable target : nearbyTargets) {
+            switch (target) {
+                case Player player -> {
+                    if (player.isDead()) {
+                        continue;
+                    }
+                    // Prevent friendly fire, but allow self-damage
+                    if (shooter != null && player.getTeam() == shooter.getTeam() && !Objects.equals(player.getId(), shooter.getId())) {
+                        continue;
+                    }
 
-                        if (player.position().distanceSquared(cloudCenter) < radiusSq) {
-                            if (player.takeDamage(cloud.getDamagePerTick())) {
-                                killPlayerHandler.accept(player, shooter);
-                            }
+                    if (player.position().distanceSquared(cloudCenter) < radiusSq) {
+                        if (player.takeDamage(damageToApply)) {
+                            killPlayerHandler.accept(player, shooter);
                         }
-                    }
-                    case Turret turret -> {
-                        if (shooter != null && turret.getTeam() == shooter.getTeam() && !Objects.equals(turret.getId(), shooter.getId())) {
-                            continue;
-                        }
-                        if (turret.position().distanceSquared(cloudCenter) < radiusSq) {
-                            turret.takeDamage(cloud.getDamagePerTick());
-                        }
-                    }
-                    case null, default -> {
-                        // poison doesn't apply to other target types
                     }
                 }
+                case Turret turret -> {
+                    if (shooter != null && turret.getTeam() == shooter.getTeam() && !Objects.equals(turret.getId(), shooter.getId())) {
+                        continue;
+                    }
+                    if (turret.position().distanceSquared(cloudCenter) < radiusSq) {
+                        turret.takeDamage(damageToApply);
+                    }
+                }
+                case GridPoint gridPoint -> {
+                    if (shooter != null && gridPoint.getTeam() == shooter.getTeam() && !Objects.equals(gridPoint.getId(), shooter.getId())) {
+                        continue;
+                    }
+                    if (gridPoint.position().distanceSquared(cloudCenter) < radiusSq) {
+                        gridPoint.takeDamage(damageToApply);
+                    }
+                }
+                case null, default -> {
+                    // poison doesn't apply to other target types
+                }
             }
-            cloud.setLastDamageTickTime(currentTime);
         }
     }
 
@@ -614,6 +620,42 @@ public class FieldEffectSystem {
 
     public void removePlayerPortal(Player player) {
         entities.getFieldEffects().values().removeIf(fe -> fe instanceof Portal p && p.getOwnerId() == player.id());
+    }
+
+    /**
+     * Handles bullet scatter effects that spawn multiple bullets in random directions
+     */
+    private void updateBulletScatter(BulletScatter bulletScatter) {
+        if (!bulletScatter.hasScattered()) {
+            // Create scattered bullets
+            for (int i = 0; i < bulletScatter.getBulletCount(); i++) {
+                // Random angle for each bullet
+                double angle = Math.random() * 2 * Math.PI;
+                
+                // Calculate velocity components
+                double vx = Math.cos(angle) * bulletScatter.getBulletSpeed();
+                double vy = Math.sin(angle) * bulletScatter.getBulletSpeed();
+                
+                // Create scattered bullet
+                Bullet scatteredBullet = new Bullet(
+                        bulletScatter.getX(),
+                        bulletScatter.getY(),
+                        vx,
+                        vy,
+                        bulletScatter.getShooterId(),
+                        bulletScatter.getTeam(),
+                        bulletScatter.getBulletDamage(),
+                        bulletScatter.getBulletSpeed(),
+                        bulletScatter.getBulletRange(),
+                        0.8, // Moderate speed decay
+                        null // No special destruction effect for scattered bullets
+                );
+                
+                entities.getBullets().add(scatteredBullet);
+            }
+            
+            bulletScatter.markScattered();
+        }
     }
 
     private void placeLimitedEffect(FieldEffect fieldEffect, int max, Predicate<FieldEffect> matchOwner) {
