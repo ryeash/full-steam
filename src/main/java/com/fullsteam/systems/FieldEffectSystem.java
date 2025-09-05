@@ -10,6 +10,7 @@ import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.GravityWell;
 import com.fullsteam.model.GridPoint;
+import com.fullsteam.model.HasId;
 import com.fullsteam.model.HasLife;
 import com.fullsteam.model.LaserBlast;
 import com.fullsteam.model.Mine;
@@ -495,6 +496,17 @@ public class FieldEffectSystem {
             entities.getFieldEffects().remove(portal.id());
             return;
         }
+        if (portal.getLinkedTo() < 0 || entities.getFieldEffects().get(portal.getLinkedTo()) == null) {
+            entities.getFieldEffects()
+                    .values()
+                    .stream()
+                    .filter(fe -> fe instanceof Portal p
+                                  && p.id() != portal.id()
+                                  && p.getOwnerId() == portal.getOwnerId())
+                    .findFirst()
+                    .map(HasId::id)
+                    .ifPresent(portal::setLinkedTo);
+        }
         handleBulletTeleportation(portal, delta);
         handlePlayerTeleportation(portal, delta);
     }
@@ -503,14 +515,10 @@ public class FieldEffectSystem {
      * Handles teleporting bullets through portals
      */
     private void handleBulletTeleportation(Portal portal, long delta) {
-        Portal linkedPortal = (Portal) entities.getFieldEffects()
-                .values()
-                .stream()
-                .filter(fe -> fe instanceof Portal p
-                              && p.id() != portal.id()
-                              && p.getOwnerId() == portal.getOwnerId())
-                .findFirst()
-                .orElse(null);
+        Portal linkedPortal = (Portal) entities.getFieldEffects().get(portal.getLinkedTo());
+        if (linkedPortal == null) {
+            return;
+        }
 
         // Check all bullets for teleportation (check trajectory intersection to catch fast bullets)
         List<Bullet> bulletsToTeleport = entities.getBullets()
@@ -554,17 +562,9 @@ public class FieldEffectSystem {
      * Handles teleporting players through portals
      */
     private void handlePlayerTeleportation(Portal portal, long delta) {
-        Portal linkedPortal = (Portal) entities.getFieldEffects()
-                .values()
-                .stream()
-                .filter(fe -> fe instanceof Portal p
-                              && p.id() != portal.id()
-                              && p.getOwnerId() == portal.getOwnerId())
-                .findFirst()
-                .orElse(null);
-
+        Portal linkedPortal = (Portal) entities.getFieldEffects().get(portal.getLinkedTo());
         if (linkedPortal == null) {
-            return; // No linked portal to teleport to
+            return;
         }
 
         // Check all players for teleportation
@@ -626,35 +626,32 @@ public class FieldEffectSystem {
      * Handles bullet scatter effects that spawn multiple bullets in random directions
      */
     private void updateBulletScatter(BulletScatter bulletScatter) {
-        if (!bulletScatter.hasScattered()) {
-            // Create scattered bullets
-            for (int i = 0; i < bulletScatter.getBulletCount(); i++) {
-                // Random angle for each bullet
-                double angle = Math.random() * 2 * Math.PI;
-                
-                // Calculate velocity components
-                double vx = Math.cos(angle) * bulletScatter.getBulletSpeed();
-                double vy = Math.sin(angle) * bulletScatter.getBulletSpeed();
-                
-                // Create scattered bullet
-                Bullet scatteredBullet = new Bullet(
-                        bulletScatter.getX(),
-                        bulletScatter.getY(),
-                        vx,
-                        vy,
-                        bulletScatter.getShooterId(),
-                        bulletScatter.getTeam(),
-                        bulletScatter.getBulletDamage(),
-                        bulletScatter.getBulletSpeed(),
-                        bulletScatter.getBulletRange(),
-                        0.8, // Moderate speed decay
-                        null // No special destruction effect for scattered bullets
-                );
-                
-                entities.getBullets().add(scatteredBullet);
-            }
-            
-            bulletScatter.markScattered();
+        entities.getFieldEffects().remove(bulletScatter.id());
+        // Create scattered bullets
+        for (int i = 0; i < bulletScatter.getBulletCount(); i++) {
+            // Random angle for each bullet
+            double angle = Math.random() * 2 * Math.PI;
+
+            // Calculate velocity components
+            double vx = Math.cos(angle) * bulletScatter.getBulletSpeed();
+            double vy = Math.sin(angle) * bulletScatter.getBulletSpeed();
+
+            // Create scattered bullet
+            Bullet scatteredBullet = new Bullet(
+                    bulletScatter.getX(),
+                    bulletScatter.getY(),
+                    vx,
+                    vy,
+                    bulletScatter.getShooterId(),
+                    bulletScatter.getTeam(),
+                    bulletScatter.getBulletDamage(),
+                    bulletScatter.getBulletSpeed(),
+                    bulletScatter.getBulletRange(),
+                    0.8, // Moderate speed decay
+                    null // No special destruction effect for scattered bullets
+            );
+
+            entities.getBullets().add(scatteredBullet);
         }
     }
 

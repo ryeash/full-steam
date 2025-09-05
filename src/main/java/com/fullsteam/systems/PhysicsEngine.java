@@ -169,32 +169,6 @@ public class PhysicsEngine {
     }
 
     /**
-     * Checks if a position is out of bounds
-     *
-     * @param position The position to check
-     * @return true if the position is outside game boundaries
-     */
-    public boolean isOutOfBounds(Vector2D position) {
-        return position.x() < 0
-               || position.x() > GAME_WIDTH
-               || position.y() < 0
-               || position.y() > GAME_HEIGHT;
-    }
-
-    /**
-     * Checks if a point is within game bounds with a given radius
-     *
-     * @param x      The x coordinate
-     * @param y      The y coordinate
-     * @param radius The radius to check
-     * @return true if the point (including radius) is within bounds
-     */
-    public boolean isWithinBounds(double x, double y, double radius) {
-        return x >= radius && x <= GAME_WIDTH - radius &&
-               y >= radius && y <= GAME_HEIGHT - radius;
-    }
-
-    /**
      * Validates if a vehicle can be placed at a specific position without colliding with obstacles
      *
      * @param vehicle     The vehicle to check
@@ -226,14 +200,5 @@ public class PhysicsEngine {
         // Restore original position
         vehicle.setPosition(originalPosition);
         return isValid;
-    }
-
-    /**
-     * Gets the spatial grid for advanced collision queries
-     *
-     * @return The spatial grid containing all targetable entities
-     */
-    public com.fullsteam.SpatialGrid<com.fullsteam.model.Targetable> getSpatialGrid() {
-        return entities.getTargetGrid();
     }
 }

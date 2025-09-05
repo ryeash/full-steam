@@ -8,10 +8,13 @@ public final class Portal extends AbstractFieldEffect implements BulletEffect {
 
     @JsonIgnore
     private final long ownerId;
+    @JsonIgnore
+    private long linkedTo;
 
     public Portal(long id, int team, double x, double y, double radius, long ownerId) {
         super(Type.PORTAL, id, x, y, radius, team, 0L);
         this.ownerId = ownerId;
+        this.linkedTo = -1;
     }
 
     public long getOwnerId() {
@@ -64,5 +67,13 @@ public final class Portal extends AbstractFieldEffect implements BulletEffect {
     @Override
     public Vector2D position() {
         return new Vector2D(getX(), getY());
+    }
+
+    public long getLinkedTo() {
+        return linkedTo;
+    }
+
+    public void setLinkedTo(long linkedTo) {
+        this.linkedTo = linkedTo;
     }
 }

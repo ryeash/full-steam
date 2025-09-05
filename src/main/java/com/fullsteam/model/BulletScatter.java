@@ -17,7 +17,6 @@ public final class BulletScatter extends AbstractFieldEffect implements BulletEf
     private final double bulletSpeed;
     private final double bulletRange;
     private final int bulletCount;
-    private boolean hasScattered;
 
     public BulletScatter(long id, int team, double x, double y, double radius, long expiration,
                          long shooterId, double bulletDamage, double bulletSpeed, double bulletRange, int bulletCount) {
@@ -27,7 +26,6 @@ public final class BulletScatter extends AbstractFieldEffect implements BulletEf
         this.bulletSpeed = bulletSpeed;
         this.bulletRange = bulletRange;
         this.bulletCount = bulletCount;
-        this.hasScattered = false;
     }
 
     public long getShooterId() {
@@ -48,19 +46,6 @@ public final class BulletScatter extends AbstractFieldEffect implements BulletEf
 
     public int getBulletCount() {
         return bulletCount;
-    }
-
-    public boolean hasScattered() {
-        return hasScattered;
-    }
-
-    public void markScattered() {
-        this.hasScattered = true;
-    }
-
-    @Override
-    public boolean isExpired() {
-        return hasScattered;
     }
 
     /**
