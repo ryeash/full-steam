@@ -7,7 +7,10 @@ import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.TeamDeathmatchInfo;
 import io.micronaut.context.annotation.Prototype;
 
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Prototype
 public class TeamDeathmatchManager extends AbstractTeamBasedManager {
@@ -19,13 +22,7 @@ public class TeamDeathmatchManager extends AbstractTeamBasedManager {
     @Override
     protected void killPlayer(Player victim, Player shooter) {
         super.killPlayer(victim, shooter);
-        if (shooter != null) {
-            if (shooter.getTeam() == 1) {
-                team1Score++;
-            } else {
-                team2Score++;
-            }
-        }
+        applyDeathmatchScoring();
     }
 
     @Override

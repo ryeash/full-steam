@@ -27,15 +27,8 @@ public class PortalManager extends AbstractTeamBasedManager {
 
     @Override
     protected void killPlayer(Player victim, Player shooter) {
-        fieldEffectSystem.removePlayerPortal(victim);
         super.killPlayer(victim, shooter);
-        if (shooter != null) {
-            if (shooter.getTeam() == 1) {
-                team1Score++;
-            } else {
-                team2Score++;
-            }
-        }
+        applyDeathmatchScoring();
     }
 
     @Override

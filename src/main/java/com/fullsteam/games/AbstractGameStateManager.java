@@ -299,6 +299,7 @@ public abstract class AbstractGameStateManager {
             return; // Prevent scoring on an already dead player
         }
 
+        fieldEffectSystem.removePlayerPortal(victim);
         entities.removePlayerInput(victim.getId());
         victim.setDead(true);
         victim.incrementDeaths();
