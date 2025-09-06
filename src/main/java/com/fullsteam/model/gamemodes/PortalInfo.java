@@ -3,7 +3,7 @@ package com.fullsteam.model.gamemodes;
 import io.micronaut.core.annotation.Introspected;
 
 @Introspected
-public class PortalInfo extends GameInfo {
+public final class PortalInfo extends GameInfo {
     private final double team1Score;
     private final double team2Score;
     private final long timeLeft;
