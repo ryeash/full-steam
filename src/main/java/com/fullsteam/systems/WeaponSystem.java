@@ -10,7 +10,6 @@ import com.fullsteam.model.LaserBlast;
 import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
-import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Turret;
 import com.fullsteam.model.Vector2D;
@@ -26,7 +25,6 @@ import static com.fullsteam.Config.GAME_HEIGHT;
 import static com.fullsteam.Config.GAME_WIDTH;
 import static com.fullsteam.Config.LASER_SHOT_DURATION;
 import static com.fullsteam.Config.PLAYER_RADIUS;
-import static com.fullsteam.Config.TURRET_INACCURACY;
 
 /**
  * Handles all weapon-related game logic including firing, bullet updates, and laser blasts.
@@ -52,8 +50,45 @@ public class WeaponSystem {
             return;
         }
         Weapon weapon = player.getWeapon();
-        double bulletX = player.getX();
-        double bulletY = player.getY();
+        fireWeaponCommon(player, player.position(), weapon, aimAngle);
+        player.shoot();
+    }
+
+    /**
+     * Fires a turret weapon at the specified angle
+     */
+    public void fireTurretWeapon(Turret turret, double aimAngle) {
+        Weapon weapon = turret.getWeapon();
+        Player owner = entities.getPlayer(turret.getOwnerId());
+        if (owner == null) {
+            return;
+        }
+        fireWeaponCommon(owner, turret.position(), weapon, aimAngle);
+        turret.shoot();
+    }
+
+    /**
+     * Fires a vehicle-mounted weapon
+     */
+    public void fireVehicleWeapon(Vehicle vehicle, MountedWeapon mountedWeapon, Long playerId) {
+        if (!mountedWeapon.canShoot()) {
+            return;
+        }
+        Weapon weapon = mountedWeapon.getWeapon();
+        Player controller = entities.getPlayer(playerId);
+        if (controller == null) {
+            return;
+        }
+        // Use the current weapon angle that has already been updated by VehicleManager
+        // This ensures consistency between aiming and firing
+        double weaponAngle = mountedWeapon.getCurrentAngle();
+        fireWeaponCommon(controller, mountedWeapon.position(), weapon, weaponAngle);
+        mountedWeapon.shoot();
+    }
+
+    private void fireWeaponCommon(Player player, Vector2D position, Weapon weapon, double aimAngle) {
+        double bulletX = position.x();
+        double bulletY = position.y();
 
         // Fire all bullets for this shot (or whatever is left in the magazine)
         int bulletsToFire = Math.min(weapon.getBulletsPerShot(), player.getAmmoInMag());
@@ -67,7 +102,7 @@ public class WeaponSystem {
             // so they don't all originate from the exact same pixel. This creates a more natural "spread".
             double finalX = bulletX;
             double finalY = bulletY;
-            if (weapon.getBulletsPerShot() > 1) {
+            if (i > 1) {
                 double staggerRadius = 4.0; // Max offset in pixels
                 finalX += (ThreadLocalRandom.current().nextDouble() - 0.5) * 2 * staggerRadius;
                 finalY += (ThreadLocalRandom.current().nextDouble() - 0.5) * 2 * staggerRadius;
@@ -104,115 +139,6 @@ public class WeaponSystem {
                 entities.getBullets().add(bullet);
             }
         }
-        player.shoot();
-    }
-
-    /**
-     * Fires a turret weapon at the specified angle
-     */
-    public void fireTurretWeapon(Turret turret, double aimAngle) {
-        Weapon weapon = turret.getWeapon();
-        Player owner = entities.getPlayer(turret.getOwnerId());
-        if (owner == null) {
-            return;
-        }
-
-        for (int i = 0; i < weapon.getBulletsPerShot(); i++) {
-            double spread = ThreadLocalRandom.current().nextGaussian() * (weapon.getBulletSpread() / 6.0);
-            double inaccuracy = (ThreadLocalRandom.current().nextDouble() - 0.5) * 2 * TURRET_INACCURACY;
-            double finalAngle = aimAngle + spread + inaccuracy;
-
-            if (weapon.getOrdinance() == Weapon.Ordinance.LASER) {
-                // For laser weapons, create a laser blast instead of a bullet
-                Vector2D start = new Vector2D(turret.getX(), turret.getY());
-                Vector2D end = start.add(new Vector2D(Math.cos(finalAngle), Math.sin(finalAngle)).multiply(weapon.getBulletRange()));
-                double laserDamageOverTimeMod = (double) 1000 / LASER_SHOT_DURATION;
-                LaserBlast laserBlast = new LaserBlast(
-                        start,
-                        end,
-                        turret.getOwnerId(),
-                        owner.getTeam(),
-                        weapon.getBulletDamage() * laserDamageOverTimeMod,
-                        System.currentTimeMillis() + LASER_SHOT_DURATION);
-                calculateTerminus(laserBlast);
-                entities.getLaserBlasts().add(laserBlast);
-            } else {
-                Bullet bullet = new Bullet(
-                        turret.getX(),
-                        turret.getY(),
-                        Math.cos(finalAngle),
-                        Math.sin(finalAngle),
-                        turret.getOwnerId(),
-                        owner.getTeam(),
-                        weapon.getBulletDamage(),
-                        weapon.getBulletSpeed(),
-                        weapon.getBulletRange(),
-                        weapon.getBulletSpeedDecay(),
-                        weapon.getOnBulletDestruction());
-                entities.getBullets().add(bullet);
-            }
-        }
-        turret.shoot();
-    }
-
-    /**
-     * Fires a vehicle-mounted weapon
-     */
-    public void fireVehicleWeapon(Vehicle vehicle, MountedWeapon mountedWeapon, Long playerId, PlayerInput input) {
-        if (!mountedWeapon.canShoot()) {
-            return;
-        }
-
-        Weapon weapon = mountedWeapon.getWeapon();
-        Player controller = entities.getPlayer(playerId);
-        if (controller == null) {
-            return;
-        }
-
-        // Use the current weapon angle that has already been updated by VehicleManager
-        // This ensures consistency between aiming and firing
-        double weaponAngle = mountedWeapon.getCurrentAngle();
-
-        // Fire weapon
-        int bulletsToFire = Math.min(weapon.getBulletsPerShot(), mountedWeapon.getCurrentAmmo());
-
-        for (int i = 0; i < bulletsToFire; i++) {
-            double spread = ThreadLocalRandom.current().nextGaussian() * (weapon.getBulletSpread() / 6.0);
-            double finalAngle = weaponAngle + spread;
-
-            if (weapon.getOrdinance() == Weapon.Ordinance.LASER) {
-                // Create laser blast
-                Vector2D start = mountedWeapon.position();
-                Vector2D end = start.add(new Vector2D(Math.cos(finalAngle), Math.sin(finalAngle)).multiply(weapon.getBulletRange()));
-                double laserDamageOverTimeMod = (double) 1000 / LASER_SHOT_DURATION;
-                LaserBlast laserBlast = new LaserBlast(
-                        start,
-                        end,
-                        playerId,
-                        controller.getTeam(),
-                        weapon.getBulletDamage() * laserDamageOverTimeMod * mountedWeapon.getDamageModification(),
-                        System.currentTimeMillis() + LASER_SHOT_DURATION);
-                calculateTerminus(laserBlast);
-                entities.getLaserBlasts().add(laserBlast);
-            } else {
-                // Create bullet
-                Bullet bullet = new Bullet(
-                        mountedWeapon.position().x(),
-                        mountedWeapon.position().y(),
-                        Math.cos(finalAngle),
-                        Math.sin(finalAngle),
-                        playerId,
-                        controller.getTeam(),
-                        weapon.getBulletDamage() * mountedWeapon.getDamageModification(),
-                        weapon.getBulletSpeed(),
-                        weapon.getBulletRange(),
-                        weapon.getBulletSpeedDecay(),
-                        weapon.getOnBulletDestruction());
-                entities.getBullets().add(bullet);
-            }
-        }
-
-        mountedWeapon.shoot();
     }
 
     public void updateOrdinance(long delta) {

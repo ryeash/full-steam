@@ -174,7 +174,7 @@ public class VehicleManager {
                 controlledWeapon.startReload();
             }
             if (controlledWeapon.canShoot()) {
-                weaponSystem.fireVehicleWeapon(vehicle, controlledWeapon, playerId, input);
+                weaponSystem.fireVehicleWeapon(vehicle, controlledWeapon, playerId);
             }
         }
 
