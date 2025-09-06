@@ -50,7 +50,7 @@ public class WeaponSystem {
             return;
         }
         Weapon weapon = player.getWeapon();
-        fireWeaponCommon(player, player.position(), weapon, aimAngle);
+        fireWeaponCommon(player, player.position(), weapon, player.getDamageMultiplier(), aimAngle);
         player.shoot();
     }
 
@@ -63,7 +63,7 @@ public class WeaponSystem {
         if (owner == null) {
             return;
         }
-        fireWeaponCommon(owner, turret.position(), weapon, aimAngle);
+        fireWeaponCommon(owner, turret.position(), weapon, 1.0, aimAngle);
         turret.shoot();
     }
 
@@ -82,11 +82,11 @@ public class WeaponSystem {
         // Use the current weapon angle that has already been updated by VehicleManager
         // This ensures consistency between aiming and firing
         double weaponAngle = mountedWeapon.getCurrentAngle();
-        fireWeaponCommon(controller, mountedWeapon.position(), weapon, weaponAngle);
+        fireWeaponCommon(controller, mountedWeapon.position(), weapon, mountedWeapon.getDamageModification(), weaponAngle);
         mountedWeapon.shoot();
     }
 
-    private void fireWeaponCommon(Player player, Vector2D position, Weapon weapon, double aimAngle) {
+    private void fireWeaponCommon(Player player, Vector2D position, Weapon weapon, double damageModifier, double aimAngle) {
         double bulletX = position.x();
         double bulletY = position.y();
 
@@ -119,7 +119,7 @@ public class WeaponSystem {
                         end,
                         player.getId(),
                         player.getTeam(),
-                        (weapon.getBulletDamage() * laserDamageOverTimeMod) * player.getDamageMultiplier(),
+                        (weapon.getBulletDamage() * laserDamageOverTimeMod) * damageModifier,
                         System.currentTimeMillis() + LASER_SHOT_DURATION);
                 calculateTerminus(laserBlast);
                 entities.getLaserBlasts().add(laserBlast);
@@ -131,7 +131,7 @@ public class WeaponSystem {
                         Math.sin(finalAngle),
                         player.getId(),
                         player.getTeam(),
-                        weapon.getBulletDamage() * player.getDamageMultiplier(),
+                        weapon.getBulletDamage() * damageModifier,
                         weapon.getBulletSpeed(),
                         weapon.getBulletRange(),
                         weapon.getBulletSpeedDecay(),
@@ -166,7 +166,7 @@ public class WeaponSystem {
                         // Check for collision with an enemy player
                         // For the purposes of player collisions, we use a slightly larger radius to account fo the bullet not being a point.
                         if (!player.isDead() && player.getTeam() != bullet.getTeam()
-                            && CollisionUtils.checkLineCircleCollision(oldPos, newPos, player.position(), PLAYER_RADIUS + 2)) {
+                                && CollisionUtils.checkLineCircleCollision(oldPos, newPos, player.position(), PLAYER_RADIUS + 2)) {
                             Player shooter = entities.getPlayer(bullet.getShooterId());
 
                             // Apply damage and check if it was a kill
@@ -227,9 +227,9 @@ public class WeaponSystem {
 
             // Last check: Remove bullets that will move out of bounds
             return newPos.x() < 0
-                   || newPos.x() > GAME_WIDTH
-                   || newPos.y() < 0
-                   || newPos.y() > GAME_HEIGHT;
+                    || newPos.x() > GAME_WIDTH
+                    || newPos.y() < 0
+                    || newPos.y() > GAME_HEIGHT;
         });
     }
 
