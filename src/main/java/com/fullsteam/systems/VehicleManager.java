@@ -100,9 +100,9 @@ public class VehicleManager {
         // Handle seat cycling (Action1)
         if (input.isAction1()) {
             long currentTime = System.currentTimeMillis();
-            Long lastActionTime = entities.getLastVehicleActionTime(playerId);
+            Long lastActionTime = entities.getLastAltActionTime(playerId);
             if (lastActionTime == null || currentTime - lastActionTime >= VEHICLE_ACTION_DEBOUNCE_MS) {
-                entities.setLastVehicleActionTime(playerId, currentTime);
+                entities.setLastAltActionTime(playerId, currentTime);
                 vehicle.cycleSeats(player);
             }
         }

@@ -667,4 +667,33 @@ public class FieldEffectSystem {
                 .forEach(entities.getFieldEffects()::remove);
         addFieldEffect(fieldEffect);
     }
+
+    /**
+     * Cycles weapons on all turrets owned by the specified player.
+     * @param ownerId The ID of the player whose turrets should cycle weapons
+     * @return The number of turrets that had their weapons changed
+     */
+    public int cycleTurretWeapons(long ownerId) {
+        int cycledCount = 0;
+        for (FieldEffect fieldEffect : entities.getFieldEffects().values()) {
+            if (fieldEffect instanceof Turret turret && turret.getOwnerId() == ownerId) {
+                turret.cycleWeapon();
+                cycledCount++;
+            }
+        }
+        return cycledCount;
+    }
+
+    /**
+     * Gets the names of weapons equipped on all turrets owned by the specified player.
+     * @param ownerId The ID of the player whose turret weapons to get
+     * @return List of weapon names from the player's turrets
+     */
+    public java.util.List<String> getTurretWeaponNames(long ownerId) {
+        return entities.getFieldEffects().values()
+                .stream()
+                .filter(fe -> fe instanceof Turret turret && turret.getOwnerId() == ownerId)
+                .map(fe -> ((Turret) fe).getWeapon().getName())
+                .toList();
+    }
 }

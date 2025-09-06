@@ -195,9 +195,9 @@ public class PlayerManager {
         // Handle vehicle enter/exit with debounce
         if (input.isAction2()) {
             long currentTime = System.currentTimeMillis();
-            Long lastActionTime = entities.getLastVehicleActionTime(playerId);
+            Long lastActionTime = entities.getLastAltActionTime(playerId);
             if (lastActionTime == null || currentTime - lastActionTime >= Config.VEHICLE_ACTION_DEBOUNCE_MS) {
-                entities.setLastVehicleActionTime(playerId, currentTime);
+                entities.setLastAltActionTime(playerId, currentTime);
                 vehicleManager.handleVehicleEnterExit(player);
             }
         }
@@ -249,6 +249,29 @@ public class PlayerManager {
                 }
             } else if (player.getAmmoInMag() <= 0 && !player.isReloading()) {
                 player.startReload();
+            }
+        }
+        if (input.isAltFire()) {
+            handleTurretWeaponCycling(player);
+        }
+    }
+
+    /**
+     * Handles cycling weapons on the player's turrets when altFire is pressed
+     */
+    private void handleTurretWeaponCycling(Player player) {
+        if (entities.getLastAltActionTime(player.id()) + 500 < System.currentTimeMillis()) {
+            int cycledCount = fieldEffectSystem.cycleTurretWeapons(player.getId());
+            if (cycledCount > 0) {
+                entities.setLastAltActionTime(player.id(), System.currentTimeMillis());
+                List<String> weaponNames = fieldEffectSystem.getTurretWeaponNames(player.getId());
+                String message;
+                if (cycledCount == 1) {
+                    message = "Turret weapon changed to: " + String.join(", ", weaponNames);
+                } else {
+                    message = "Turret weapons changed to: " + String.join(", ", weaponNames);
+                }
+                gameEventSender.accept(GameEvent.blue(message, player.getId()));
             }
         }
     }

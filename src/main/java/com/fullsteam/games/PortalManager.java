@@ -69,7 +69,7 @@ public class PortalManager extends AbstractTeamBasedManager {
         if (distance > 0) {
             directionX /= distance;
             directionY /= distance;
-            double portalRange = Math.min(Config.PLAYER_RADIUS * 2, distance);
+            double portalRange = Math.min(Config.PLAYER_RADIUS * 3, distance);
             double portalX = player.getX() + directionX * portalRange;
             double portalY = player.getY() + directionY * portalRange;
             Portal portal = new Portal(

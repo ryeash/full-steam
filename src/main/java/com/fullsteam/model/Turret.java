@@ -11,7 +11,7 @@ import java.util.Optional;
 import java.util.Set;
 
 @Introspected
-public class Turret extends AbstractFieldEffect implements HasId, BulletEffect, HasLife, Targetable {
+public class Turret extends AbstractFieldEffect implements BulletEffect, HasLife, Targetable {
     private final long id;
     @JsonIgnore
     private final long ownerId;
@@ -20,7 +20,7 @@ public class Turret extends AbstractFieldEffect implements HasId, BulletEffect, 
     private final Vector2D position;
     private final double radius;
     @JsonIgnore
-    private final Weapon weapon;
+    private Weapon weapon;
     private double angle;
     private double hp;
     private final double maxHp;
@@ -166,6 +166,30 @@ public class Turret extends AbstractFieldEffect implements HasId, BulletEffect, 
         }
         this.nextShotTime = System.currentTimeMillis() + weapon.getFireRateCooldown();
         this.ammoInMag -= weapon.getBulletsPerShot();
+    }
+
+    /**
+     * Cycles to the next available weapon for this turret.
+     */
+    public void cycleWeapon() {
+        int i = WeaponFactory.TURRET_WEAPONS.indexOf(weapon) + 1;
+        if (i >= WeaponFactory.TURRET_WEAPONS.size()) {
+            i = 0;
+        }
+        setWeapon(WeaponFactory.TURRET_WEAPONS.get(i));
+    }
+
+    /**
+     * Sets a new weapon for this turret and resets ammo/reload state.
+     *
+     * @param newWeapon The weapon to equip
+     */
+    public void setWeapon(Weapon newWeapon) {
+        this.ammoInMag = (int) (((double) ammoInMag / weapon.getRoundsPerMagazine()) * newWeapon.getRoundsPerMagazine());
+        this.weapon = newWeapon;
+        this.reloading = false;
+        this.nextShotTime = 0;
+        this.reloadCompleteTime = 0;
     }
 
     /**

@@ -122,19 +122,35 @@ public class WeaponSystem {
             double inaccuracy = (ThreadLocalRandom.current().nextDouble() - 0.5) * 2 * TURRET_INACCURACY;
             double finalAngle = aimAngle + spread + inaccuracy;
 
-            Bullet bullet = new Bullet(
-                    turret.getX(),
-                    turret.getY(),
-                    Math.cos(finalAngle),
-                    Math.sin(finalAngle),
-                    turret.getOwnerId(),
-                    owner.getTeam(),
-                    weapon.getBulletDamage(),
-                    weapon.getBulletSpeed(),
-                    weapon.getBulletRange(),
-                    weapon.getBulletSpeedDecay(),
-                    weapon.getOnBulletDestruction());
-            entities.getBullets().add(bullet);
+            if (weapon.getOrdinance() == Weapon.Ordinance.LASER) {
+                // For laser weapons, create a laser blast instead of a bullet
+                Vector2D start = new Vector2D(turret.getX(), turret.getY());
+                Vector2D end = start.add(new Vector2D(Math.cos(finalAngle), Math.sin(finalAngle)).multiply(weapon.getBulletRange()));
+                double laserDamageOverTimeMod = (double) 1000 / LASER_SHOT_DURATION;
+                LaserBlast laserBlast = new LaserBlast(
+                        start,
+                        end,
+                        turret.getOwnerId(),
+                        owner.getTeam(),
+                        weapon.getBulletDamage() * laserDamageOverTimeMod,
+                        System.currentTimeMillis() + LASER_SHOT_DURATION);
+                calculateTerminus(laserBlast);
+                entities.getLaserBlasts().add(laserBlast);
+            } else {
+                Bullet bullet = new Bullet(
+                        turret.getX(),
+                        turret.getY(),
+                        Math.cos(finalAngle),
+                        Math.sin(finalAngle),
+                        turret.getOwnerId(),
+                        owner.getTeam(),
+                        weapon.getBulletDamage(),
+                        weapon.getBulletSpeed(),
+                        weapon.getBulletRange(),
+                        weapon.getBulletSpeedDecay(),
+                        weapon.getOnBulletDestruction());
+                entities.getBullets().add(bullet);
+            }
         }
         turret.shoot();
     }

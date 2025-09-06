@@ -11,7 +11,7 @@ public final class PlayerSession {
     private final WebSocketSession session;
     private final Player player;
     private PlayerInput input;
-    private Long lastVehicleActionTime;
+    private Long lastAltActionTime;
 
     public PlayerSession(AbstractGameStateManager game, Player player, WebSocketSession session) {
         this.game = game;
@@ -44,11 +44,11 @@ public final class PlayerSession {
         return this;
     }
 
-    public Long getLastVehicleActionTime() {
-        return lastVehicleActionTime;
+    public Long getLastAltActionTime() {
+        return lastAltActionTime;
     }
 
-    public void setLastVehicleActionTime(Long lastVehicleActionTime) {
-        this.lastVehicleActionTime = lastVehicleActionTime;
+    public void setLastAltActionTime(Long lastAltActionTime) {
+        this.lastAltActionTime = lastAltActionTime;
     }
 }

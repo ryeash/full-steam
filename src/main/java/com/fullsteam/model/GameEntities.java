@@ -11,6 +11,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Stream;
@@ -176,21 +177,19 @@ public class GameEntities {
     /**
      * Gets the last vehicle action time for a player
      */
-    public Long getLastVehicleActionTime(Long playerId) {
-        PlayerSession playerSession = playerSessions.get(playerId);
-        if (playerSession != null) {
-            return playerSession.getLastVehicleActionTime();
-        }
-        return null;
+    public Long getLastAltActionTime(Long playerId) {
+        return Optional.ofNullable(playerSessions.get(playerId))
+                .map(PlayerSession::getLastAltActionTime)
+                .orElse(0L);
     }
 
     /**
      * Sets the last vehicle action time for a player
      */
-    public void setLastVehicleActionTime(Long playerId, Long time) {
+    public void setLastAltActionTime(Long playerId, Long time) {
         PlayerSession playerSession = playerSessions.get(playerId);
         if (playerSession != null) {
-            playerSession.setLastVehicleActionTime(time);
+            playerSession.setLastAltActionTime(time);
         }
     }
 
