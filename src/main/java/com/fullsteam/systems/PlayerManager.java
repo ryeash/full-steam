@@ -3,6 +3,7 @@ package com.fullsteam.systems;
 import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.games.AbstractGameStateManager;
+import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
@@ -13,6 +14,7 @@ import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.Targetable;
+import com.fullsteam.model.Turret;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
 import com.fullsteam.model.Weapon;
@@ -26,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -260,19 +263,18 @@ public class PlayerManager {
      * Handles cycling weapons on the player's turrets when altFire is pressed
      */
     private void handleTurretWeaponCycling(Player player) {
-        if (entities.getLastAltActionTime(player.id()) + 500 < System.currentTimeMillis()) {
-            int cycledCount = fieldEffectSystem.cycleTurretWeapons(player.getId());
-            if (cycledCount > 0) {
-                entities.setLastAltActionTime(player.id(), System.currentTimeMillis());
-                List<String> weaponNames = fieldEffectSystem.getTurretWeaponNames(player.getId());
-                String message;
-                if (cycledCount == 1) {
-                    message = "Turret weapon changed to: " + String.join(", ", weaponNames);
-                } else {
-                    message = "Turret weapons changed to: " + String.join(", ", weaponNames);
+        PlayerSession playerSession = entities.getPlayerSessions().get(player.id());
+        if (playerSession != null
+                && player.getWeapon().getName().equals(WeaponFactory.ENGINEER_WRENCH.getName())
+                && entities.getLastAltActionTime(player.id()) + 500 < System.currentTimeMillis()) {
+            entities.setLastAltActionTime(player.id(), System.currentTimeMillis());
+            Weapon weapon = playerSession.cycleTurretWeapons();
+            for (FieldEffect fieldEffect : entities.getFieldEffects().values()) {
+                if (fieldEffect instanceof Turret turret && turret.getOwnerId() == player.id()) {
+                    turret.setWeapon(weapon);
                 }
-                gameEventSender.accept(GameEvent.blue(message, player.getId()));
             }
+            gameEventSender.accept(GameEvent.blue("Turret weapons set to [%s]".formatted(weapon.getName()), player.id()));
         }
     }
 
@@ -369,8 +371,8 @@ public class PlayerManager {
         long currentTime = System.currentTimeMillis();
         for (Player player : entities.getPlayers()) {
             if (player.isDead()
-                && player.getRespawnTime() != -1 // indicates a player's respawn has been disabled
-                && currentTime >= player.getRespawnTime()) {
+                    && player.getRespawnTime() != -1 // indicates a player's respawn has been disabled
+                    && currentTime >= player.getRespawnTime()) {
                 respawnPlayer(player);
             }
         }
@@ -458,8 +460,8 @@ public class PlayerManager {
         }
 
         if (request.getWeaponName() != null
-            && !request.getWeaponName().isEmpty()
-            && !request.getWeaponName().equals(player.getWeapon().getName())) {
+                && !request.getWeaponName().isEmpty()
+                && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
         }

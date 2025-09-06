@@ -9,6 +9,7 @@ import io.micronaut.core.annotation.Introspected;
 
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Introspected
 public class Turret extends AbstractFieldEffect implements BulletEffect, HasLife, Targetable {
@@ -156,8 +157,8 @@ public class Turret extends AbstractFieldEffect implements BulletEffect, HasLife
 
     public boolean canShoot() {
         return !reloading
-               && ammoInMag > 0
-               && System.currentTimeMillis() >= nextShotTime;
+                && ammoInMag > 0
+                && System.currentTimeMillis() >= nextShotTime;
     }
 
     public void shoot() {
@@ -166,17 +167,6 @@ public class Turret extends AbstractFieldEffect implements BulletEffect, HasLife
         }
         this.nextShotTime = System.currentTimeMillis() + weapon.getFireRateCooldown();
         this.ammoInMag -= weapon.getBulletsPerShot();
-    }
-
-    /**
-     * Cycles to the next available weapon for this turret.
-     */
-    public void cycleWeapon() {
-        int i = WeaponFactory.TURRET_WEAPONS.indexOf(weapon) + 1;
-        if (i >= WeaponFactory.TURRET_WEAPONS.size()) {
-            i = 0;
-        }
-        setWeapon(WeaponFactory.TURRET_WEAPONS.get(i));
     }
 
     /**
@@ -215,7 +205,10 @@ public class Turret extends AbstractFieldEffect implements BulletEffect, HasLife
             return findBestTarget(gameState, nearby)
                     .map(finalTarget -> {
                         Vector2D directionToTarget = finalTarget.position().subtract(position());
-                        setAngle(Math.atan2(directionToTarget.y(), directionToTarget.x()));
+                        double perfectAngle = Math.atan2(directionToTarget.y(), directionToTarget.x());
+                        double inaccuracy = (ThreadLocalRandom.current().nextDouble() - 0.5) * 2 * Config.TURRET_INACCURACY;
+                        double finalAngle = perfectAngle + inaccuracy;
+                        setAngle(finalAngle);
                         return new ShootAction(directionToTarget.x(), directionToTarget.y());
                     });
         }
@@ -230,12 +223,12 @@ public class Turret extends AbstractFieldEffect implements BulletEffect, HasLife
         for (Targetable p : nearbyPlayers) {
             double distanceSq;
             if (p instanceof Player player
-                && !player.isDead()
-                && player.getTeam() != getTeam()
-                && player.getInvisibilityEndTime() < System.currentTimeMillis()) {
+                    && !player.isDead()
+                    && player.getTeam() != getTeam()
+                    && player.getInvisibilityEndTime() < System.currentTimeMillis()) {
                 distanceSq = position().distanceSquared(p.position());
             } else if (p instanceof Turret turret
-                       && turret.getTeam() != getTeam()) {
+                    && turret.getTeam() != getTeam()) {
                 distanceSq = position().distanceSquared(p.position());
             } else {
                 continue; // Skip if not a valid target

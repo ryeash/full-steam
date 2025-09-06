@@ -286,7 +286,12 @@ public abstract class AbstractGameStateManager {
 
     protected void applyBulletEffect(BulletEffect bulletEffect) {
         switch (bulletEffect) {
-            case Turret turret -> fieldEffectSystem.placeTurret(turret);
+            case Turret turret -> {
+                // use the turret weapon from the player session
+                Weapon turretWeapons = entities.getPlayerSessions().get(turret.getOwnerId()).getTurretWeapons();
+                turret.setWeapon(turretWeapons);
+                fieldEffectSystem.placeTurret(turret);
+            }
             case GridPoint gridPoint -> fieldEffectSystem.placeGridPoint(gridPoint);
             case Portal portal -> fieldEffectSystem.placePortal(portal);
             case FieldEffect fieldEffect -> entities.getFieldEffects().put(fieldEffect.id(), fieldEffect);
@@ -524,8 +529,8 @@ public abstract class AbstractGameStateManager {
             channel.sendAsync(bytes)
                     .whenComplete((msg, error) -> {
                         if (error != null
-                            && !(error instanceof ClosedChannelException)
-                            && !(error.getCause() instanceof ClosedChannelException)) {
+                                && !(error instanceof ClosedChannelException)
+                                && !(error.getCause() instanceof ClosedChannelException)) {
                             log.error("Failed to send data to {}. Closing channel.", channel.getId(), error);
                             channel.close();
                         }

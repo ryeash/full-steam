@@ -91,9 +91,7 @@ public class Config {
     public static final double DEFENSE_GRID_LASER_DAMAGE = getDouble("game.defense_grid.laser_damage", 200.0);
     public static final long DEFENSE_GRID_LASER_COOLDOWN = getLong("game.defense_grid.laser_cooldown", 1000);
     public static final long DEFENSE_GRID_LASER_DURATION = getLong("game.defense_grid.laser_duration", 1000);
-    public static final long PORTAL_DURATION_MS = getLong("game.portal.duration_ms", 45000); // 45 seconds
     public static final int MAX_PORTALS_PER_PLAYER = getInt("game.portal.max_per_player", 2);
-    public static final double PORTAL_TELEPORT_RADIUS = getDouble("game.portal.teleport_radius", PLAYER_RADIUS * 1.2);
 
     // --- Power Ups ---
     public static final double POWERUP_DROP_RATE = getDouble("game.powerup.drop_rate", 0.25D);

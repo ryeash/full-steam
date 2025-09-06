@@ -16,6 +16,7 @@ import com.fullsteam.model.LaserBlast;
 import com.fullsteam.model.Mine;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.PoisonCloud;
 import com.fullsteam.model.Portal;
 import com.fullsteam.model.SmokeCloud;
@@ -25,6 +26,7 @@ import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
 
 import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -387,8 +389,8 @@ public class FieldEffectSystem {
                 .filter(fe -> fe instanceof GridPoint)
                 .map(fe -> (GridPoint) fe)
                 .filter(gp -> gp.getTeam() == gridPoint.getTeam()
-                              && gp.id() != gridPoint.id()
-                              && gridPoint.readyToFire())
+                        && gp.id() != gridPoint.id()
+                        && gridPoint.readyToFire())
                 .sorted(Comparator.comparingDouble(a -> gridPoint.position().distanceSquared(a.position())))
                 .limit(2)
                 .toList();
@@ -501,8 +503,8 @@ public class FieldEffectSystem {
                     .values()
                     .stream()
                     .filter(fe -> fe instanceof Portal p
-                                  && p.id() != portal.id()
-                                  && p.getOwnerId() == portal.getOwnerId())
+                            && p.id() != portal.id()
+                            && p.getOwnerId() == portal.getOwnerId())
                     .findFirst()
                     .map(HasId::id)
                     .ifPresent(portal::setLinkedTo);
@@ -666,34 +668,5 @@ public class FieldEffectSystem {
                 .toList()
                 .forEach(entities.getFieldEffects()::remove);
         addFieldEffect(fieldEffect);
-    }
-
-    /**
-     * Cycles weapons on all turrets owned by the specified player.
-     * @param ownerId The ID of the player whose turrets should cycle weapons
-     * @return The number of turrets that had their weapons changed
-     */
-    public int cycleTurretWeapons(long ownerId) {
-        int cycledCount = 0;
-        for (FieldEffect fieldEffect : entities.getFieldEffects().values()) {
-            if (fieldEffect instanceof Turret turret && turret.getOwnerId() == ownerId) {
-                turret.cycleWeapon();
-                cycledCount++;
-            }
-        }
-        return cycledCount;
-    }
-
-    /**
-     * Gets the names of weapons equipped on all turrets owned by the specified player.
-     * @param ownerId The ID of the player whose turret weapons to get
-     * @return List of weapon names from the player's turrets
-     */
-    public java.util.List<String> getTurretWeaponNames(long ownerId) {
-        return entities.getFieldEffects().values()
-                .stream()
-                .filter(fe -> fe instanceof Turret turret && turret.getOwnerId() == ownerId)
-                .map(fe -> ((Turret) fe).getWeapon().getName())
-                .toList();
     }
 }

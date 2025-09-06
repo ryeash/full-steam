@@ -1,5 +1,6 @@
 package com.fullsteam.model;
 
+import com.fullsteam.WeaponFactory;
 import com.fullsteam.games.AbstractGameStateManager;
 import io.micronaut.websocket.WebSocketSession;
 
@@ -12,6 +13,7 @@ public final class PlayerSession {
     private final Player player;
     private PlayerInput input;
     private Long lastAltActionTime;
+    private Weapon turretWeapons = WeaponFactory.TURRET_WEAPONS.getFirst();
 
     public PlayerSession(AbstractGameStateManager game, Player player, WebSocketSession session) {
         this.game = game;
@@ -50,5 +52,22 @@ public final class PlayerSession {
 
     public void setLastAltActionTime(Long lastAltActionTime) {
         this.lastAltActionTime = lastAltActionTime;
+    }
+
+    public Weapon getTurretWeapons() {
+        return turretWeapons;
+    }
+
+    public Weapon cycleTurretWeapons() {
+        int i = WeaponFactory.TURRET_WEAPONS.indexOf(turretWeapons) + 1;
+        if (i >= WeaponFactory.TURRET_WEAPONS.size()) {
+            i = 0;
+        }
+        setTurretWeapons(WeaponFactory.TURRET_WEAPONS.get(i));
+        return getTurretWeapons();
+    }
+
+    public void setTurretWeapons(Weapon turretWeapons) {
+        this.turretWeapons = turretWeapons;
     }
 }
