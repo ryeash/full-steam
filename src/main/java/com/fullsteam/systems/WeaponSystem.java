@@ -70,7 +70,7 @@ public class WeaponSystem {
     /**
      * Fires a vehicle-mounted weapon
      */
-    public void fireVehicleWeapon(Vehicle vehicle, MountedWeapon mountedWeapon, Long playerId) {
+    public void fireVehicleWeapon(MountedWeapon mountedWeapon, Long playerId) {
         if (!mountedWeapon.canShoot()) {
             return;
         }
