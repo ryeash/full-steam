@@ -16,7 +16,6 @@ import com.fullsteam.model.LaserBlast;
 import com.fullsteam.model.Mine;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
-import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.PoisonCloud;
 import com.fullsteam.model.Portal;
 import com.fullsteam.model.SmokeCloud;
@@ -30,6 +29,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
@@ -72,7 +72,7 @@ public class FieldEffectSystem {
                 case Portal portal -> updatePortal(portal, delta);
                 case BulletScatter bulletScatter -> updateBulletScatter(bulletScatter);
                 case null, default ->
-                        throw new UnsupportedOperationException("unsupported field effect type: " + fieldEffect.getClass().getSimpleName());
+                        throw new UnsupportedOperationException("unsupported field effect type: " + (fieldEffect != null ? fieldEffect.getClass().getSimpleName() : null));
             }
         }
         // Next, remove any effects that have exceeded their duration.
@@ -624,24 +624,50 @@ public class FieldEffectSystem {
         entities.getFieldEffects().values().removeIf(fe -> fe instanceof Portal p && p.getOwnerId() == player.id());
     }
 
+    // Constants for properly handling the BulletScatter effect
+    private static final double SPAWN_CHECK_RADIUS = 2.0; // small collision radius for spawn test
+    private static final double INITIAL_OFFSET = 6.0;     // start a bit away from the effect center
+    private static final double STEP = 3.0;               // step outward if inside obstacle
+    private static final double MAX_DISTANCE = 80.0;      // give up after this distance
+
     /**
      * Handles bullet scatter effects that spawn multiple bullets in random directions
      */
     private void updateBulletScatter(BulletScatter bulletScatter) {
         entities.getFieldEffects().remove(bulletScatter.id());
-        // Create scattered bullets
         for (int i = 0; i < bulletScatter.getBulletCount(); i++) {
-            // Random angle for each bullet
-            double angle = Math.random() * 2 * Math.PI;
+            double angle = ThreadLocalRandom.current().nextDouble(0, 2 * Math.PI);
+            double dirX = Math.cos(angle);
+            double dirY = Math.sin(angle);
 
-            // Calculate velocity components
-            double vx = Math.cos(angle) * bulletScatter.getBulletSpeed();
-            double vy = Math.sin(angle) * bulletScatter.getBulletSpeed();
+            Vector2D spawnPos = bulletScatter.position().add(new Vector2D(dirX * INITIAL_OFFSET, dirY * INITIAL_OFFSET));
 
-            // Create scattered bullet
+            // Try to find a spawn position that isn't inside any obstacle
+            boolean inside;
+            double traveled = 0.0;
+            do {
+                Vector2D finalSpawn = spawnPos; // effectively final for lambda
+                inside = entities.getObstacles().stream()
+                        .anyMatch(obstacle -> CollisionUtils.checkCirclePolygonCollision(finalSpawn, SPAWN_CHECK_RADIUS, obstacle.vertices()));
+
+                if (inside) {
+                    // move outward along direction
+                    spawnPos = spawnPos.add(new Vector2D(dirX * STEP, dirY * STEP));
+                    traveled += STEP;
+                }
+            } while (inside && traveled < MAX_DISTANCE);
+
+            if (inside) {
+                // couldn't find a free spot; skip this scattered bullet
+                continue;
+            }
+
+            double vx = dirX * bulletScatter.getBulletSpeed();
+            double vy = dirY * bulletScatter.getBulletSpeed();
+
             Bullet scatteredBullet = new Bullet(
-                    bulletScatter.getX(),
-                    bulletScatter.getY(),
+                    spawnPos.x(),
+                    spawnPos.y(),
                     vx,
                     vy,
                     bulletScatter.getShooterId(),
@@ -649,8 +675,8 @@ public class FieldEffectSystem {
                     bulletScatter.getBulletDamage(),
                     bulletScatter.getBulletSpeed(),
                     bulletScatter.getBulletRange(),
-                    0.8, // Moderate speed decay
-                    null // No special destruction effect for scattered bullets
+                    0.8,
+                    null
             );
 
             entities.getBullets().add(scatteredBullet);

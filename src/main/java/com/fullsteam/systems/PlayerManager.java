@@ -146,7 +146,7 @@ public class PlayerManager {
             player.update(delta);
 
             // --- Collision Resolution with Obstacles ---
-            physicsEngine.resolvePlayerObstacleCollisions(player, oldX, oldY);
+            physicsEngine.resolvePlayerObstacleCollisions(player, entities.getObstacles());
 
             // Keep players within game bounds
             physicsEngine.constrainPlayerToBounds(player);

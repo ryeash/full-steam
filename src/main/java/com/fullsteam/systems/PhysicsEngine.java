@@ -28,6 +28,9 @@ import static com.fullsteam.Config.PLAYER_SIZE;
  */
 public class PhysicsEngine {
 
+    // smallest double that we consider non-zero
+    private static final double EPS = 1e-3;
+
     private final GameEntities entities;
 
     public PhysicsEngine(GameEntities entities) {
@@ -66,28 +69,92 @@ public class PhysicsEngine {
     /**
      * Applies collision resolution for a player against obstacles with sliding mechanics
      *
-     * @param player The player to check collisions for
-     * @param oldX   The player's previous X position
-     * @param oldY   The player's previous Y position
+     * @param player    The player to check collisions for
+     * @param obstacles the obstacles in the field
      */
-    public void resolvePlayerObstacleCollisions(Player player, double oldX, double oldY) {
-        if (!isColliding(player, entities.getObstacles())) {
+    // java
+    public static void resolvePlayerObstacleCollisions(Player player, List<Obstacle> obstacles) {
+        if (player == null || obstacles == null || obstacles.isEmpty()) {
             return;
         }
 
-        // Player's new position is invalid. Attempt to slide along the obstacle.
-        // This is done by testing movement on each axis independently.
+        Vector2D pos = player.position();
+        Vector2D vel = player.getVelocity();
+        double radius = PLAYER_RADIUS;
 
-        // First, try moving only on the Y axis.
-        player.setX(oldX);
-        if (isColliding(player, entities.getObstacles())) {
-            // That didn't work, so the Y-move was the problem.
-            // Revert Y and try moving only on the X axis.
-            player.setY(oldY);
-            player.setX(oldX + player.getVelocityX());
-            if (isColliding(player, entities.getObstacles())) {
-                // Still colliding, can't move on X either. Revert both.
-                player.setX(oldX);
+        for (Obstacle obstacle : obstacles) {
+            if (!CollisionUtils.checkLineCircleCollision(pos, pos, obstacle.getCenter(), obstacle.getBoundingRadius() + radius)) {
+                continue;
+            }
+
+            List<Vector2D> verts = obstacle.getVertices();
+            // Find closest point on polygon edges to the circle center
+            double bestDistSq = Double.POSITIVE_INFINITY;
+            double closestX = 0, closestY = 0;
+            for (int i = 0; i < verts.size(); i++) {
+                Vector2D a = verts.get(i);
+                Vector2D b = verts.get((i + 1) % verts.size());
+
+                // Project pos onto segment a-b
+                double ax = a.x(), ay = a.y();
+                double bx = b.x(), by = b.y();
+                double lx = bx - ax, ly = by - ay;
+                double l2 = lx * lx + ly * ly;
+                double t = 0;
+                if (l2 != 0) {
+                    t = ((pos.x() - ax) * lx + (pos.y() - ay) * ly) / l2;
+                    t = Math.max(0, Math.min(1, t));
+                }
+                double projX = ax + t * lx;
+                double projY = ay + t * ly;
+                double dx = pos.x() - projX;
+                double dy = pos.y() - projY;
+                double distSq = dx * dx + dy * dy;
+                if (distSq < bestDistSq) {
+                    bestDistSq = distSq;
+                    closestX = projX;
+                    closestY = projY;
+                }
+            }
+
+            double dist = Math.sqrt(bestDistSq);
+            double penetration = radius - dist;
+            if (penetration > 0) {
+                // Compute collision normal (from obstacle toward player)
+                double nx = pos.x() - closestX;
+                double ny = pos.y() - closestY;
+                double nLen = Math.sqrt(nx * nx + ny * ny);
+                if (nLen < 1e-6) {
+                    // Degenerate case: fallback to vector from obstacle center
+                    nx = pos.x() - obstacle.getCenter().x();
+                    ny = pos.y() - obstacle.getCenter().y();
+                    nLen = Math.sqrt(nx * nx + ny * ny);
+                    if (nLen < 1e-6) {
+                        nx = 0;
+                        ny = 1;
+                        nLen = 1;
+                    }
+                }
+                nx /= nLen;
+                ny /= nLen;
+
+                // Push the player out along the normal by penetration + small epsilon
+                double moveX = (penetration + EPS) * nx;
+                double moveY = (penetration + EPS) * ny;
+                player.setX(pos.x() + moveX);
+                player.setY(pos.y() + moveY);
+                // Update pos for subsequent obstacles
+                pos = player.position();
+
+                // Remove only the velocity component along the normal (keep tangential component => sliding)
+                double vnx = vel.x() * nx + vel.y() * ny; // dot(vel, normal)
+                if (vnx < 0) {
+                    // Only remove incoming component (when pointing into the obstacle)
+                    double newVelX = vel.x() - vnx * nx;
+                    double newVelY = vel.y() - vnx * ny;
+                    vel = new Vector2D(newVelX, newVelY);
+                    player.setVelocity(vel);
+                }
             }
         }
     }
