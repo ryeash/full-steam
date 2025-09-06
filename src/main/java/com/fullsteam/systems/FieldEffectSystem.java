@@ -1,27 +1,43 @@
 package com.fullsteam.systems;
 
 import com.fullsteam.CollisionUtils;
+import com.fullsteam.Config;
+import com.fullsteam.model.Bullet;
+import com.fullsteam.model.BulletScatter;
 import com.fullsteam.model.Explosion;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEntities;
+import com.fullsteam.model.GameState;
 import com.fullsteam.model.GravityWell;
+import com.fullsteam.model.GridPoint;
+import com.fullsteam.model.HasId;
 import com.fullsteam.model.HasLife;
+import com.fullsteam.model.LaserBlast;
 import com.fullsteam.model.Mine;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.PoisonCloud;
+import com.fullsteam.model.Portal;
 import com.fullsteam.model.SmokeCloud;
 import com.fullsteam.model.Targetable;
 import com.fullsteam.model.Turret;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
 
+import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 
+import static com.fullsteam.Config.DEFENSE_GRID_LASER_MAX_PER_USER;
+import static com.fullsteam.Config.MAX_PORTALS_PER_PLAYER;
+import static com.fullsteam.Config.MAX_TURRETS_PER_PLAYER;
 import static com.fullsteam.Config.PLAYER_RADIUS;
+import static com.fullsteam.Config.PLAYER_SIZE;
 
 /**
  * Handles all field effects including explosions, poison clouds, mines, smoke fields,
@@ -30,10 +46,12 @@ import static com.fullsteam.Config.PLAYER_RADIUS;
  */
 public class FieldEffectSystem {
 
+    private final WeaponSystem weaponSystem;
     private final GameEntities entities;
     private final BiConsumer<Player, Player> killPlayerHandler;
 
-    public FieldEffectSystem(GameEntities entities, BiConsumer<Player, Player> killPlayerHandler) {
+    public FieldEffectSystem(WeaponSystem weaponSystem, GameEntities entities, BiConsumer<Player, Player> killPlayerHandler) {
+        this.weaponSystem = weaponSystem;
         this.entities = entities;
         this.killPlayerHandler = killPlayerHandler;
     }
@@ -42,23 +60,27 @@ public class FieldEffectSystem {
      * Updates all field effects, applies their effects, and removes expired ones
      */
     public void updateFieldEffects(long delta) {
-        for (FieldEffect fieldEffect : List.copyOf(entities.getFieldEffects())) {
+        for (FieldEffect fieldEffect : List.copyOf(entities.getFieldEffects().values())) {
             switch (fieldEffect) {
                 case Explosion explosion -> updateExplosion(explosion);
-                case PoisonCloud poisonCloud -> updatePoisonClouds(poisonCloud);
+                case PoisonCloud poisonCloud -> updatePoisonClouds(poisonCloud, delta);
                 case SmokeCloud smokeCloud -> updateSmokeField(smokeCloud);
                 case Mine mine -> updateMineField(mine);
                 case GravityWell gravityWell -> updateGravityWell(gravityWell);
+                case Turret turret -> updateTurrets(turret, delta);
+                case GridPoint gridPoint -> updateGridPoint(gridPoint);
+                case Portal portal -> updatePortal(portal, delta);
+                case BulletScatter bulletScatter -> updateBulletScatter(bulletScatter);
                 case null, default ->
                         throw new UnsupportedOperationException("unsupported field effect type: " + fieldEffect.getClass().getSimpleName());
             }
         }
         // Next, remove any effects that have exceeded their duration.
-        entities.getFieldEffects().removeIf(FieldEffect::isExpired);
+        entities.getFieldEffects().values().removeIf(FieldEffect::isExpired);
     }
 
     public void updateGravityWellAffect(Player player) {
-        for (FieldEffect fieldEffect : List.copyOf(entities.getFieldEffects())) {
+        for (FieldEffect fieldEffect : List.copyOf(entities.getFieldEffects().values())) {
             if (fieldEffect instanceof GravityWell gravityWell) {
                 updateGravityWell(gravityWell, player);
             }
@@ -103,6 +125,7 @@ public class FieldEffectSystem {
     private void updateExplosion(Explosion explosion) {
         // apply damage for any new explosions that haven't dealt it yet.
         if (!explosion.hasDamageBeenApplied()) {
+            explosion.markDamageApplied(); // Mark it so damage isn't applied again.
             Vector2D explosionCenter = new Vector2D(explosion.getX(), explosion.getY());
             Player shooter = entities.getPlayer(explosion.getShooterId());
 
@@ -134,6 +157,16 @@ public class FieldEffectSystem {
                             turret.takeDamage(explosion.getDamage());
                         }
                     }
+                    case GridPoint gridPoint -> {
+                        // Prevent friendly fire, but allow self-damage
+                        if (shooter != null && gridPoint.getTeam() == shooter.getTeam() && !Objects.equals(gridPoint.getId(), shooter.getId())) {
+                            continue;
+                        }
+                        if (gridPoint.position().distanceSquared(explosionCenter) < explosion.getRadiusSquared()) {
+                            gridPoint.takeDamage(explosion.getDamage());
+                        }
+                    }
+
                     case Vehicle vehicle -> {
                         if (vehicle.getDriverId() == null || shooter != null && vehicle.getTeam() == shooter.getTeam() && !Objects.equals(vehicle.getId(), shooter.getId())) {
                             continue;
@@ -155,53 +188,56 @@ public class FieldEffectSystem {
                             throw new UnsupportedOperationException("unsupported explosion target type: " + target);
                 }
             }
-            explosion.markDamageApplied(); // Mark it so damage isn't applied again.
         }
     }
 
     /**
      * Handles the lifecycle of poison clouds, applying damage over time and removing them when expired.
      */
-    private void updatePoisonClouds(PoisonCloud cloud) {
-        long currentTime = System.currentTimeMillis();
-        // Damage players inside the cloud, ticking every 500ms
-        if (currentTime > cloud.getLastDamageTickTime() + 500) {
-            Vector2D cloudCenter = cloud.position();
-            double radiusSq = cloud.getRadiusSquared();
-            Player shooter = entities.getPlayer(cloud.getShooterId());
+    private void updatePoisonClouds(PoisonCloud cloud, long delta) {
+        Vector2D cloudCenter = cloud.position();
+        double radiusSq = cloud.getRadiusSquared();
+        Player shooter = entities.getPlayer(cloud.getShooterId());
+        double damageToApply = cloud.getDamage(delta);
 
-            Set<Targetable> nearbyTargets = entities.getTargetGrid().getNearby(cloud.position(), cloud.getRadius());
-            for (Targetable target : nearbyTargets) {
-                switch (target) {
-                    case Player player -> {
-                        if (player.isDead()) {
-                            continue;
-                        }
-                        // Prevent friendly fire, but allow self-damage
-                        if (shooter != null && player.getTeam() == shooter.getTeam() && !Objects.equals(player.getId(), shooter.getId())) {
-                            continue;
-                        }
+        Set<Targetable> nearbyTargets = entities.getTargetGrid().getNearby(cloud.position(), cloud.getRadius());
+        for (Targetable target : nearbyTargets) {
+            switch (target) {
+                case Player player -> {
+                    if (player.isDead()) {
+                        continue;
+                    }
+                    // Prevent friendly fire, but allow self-damage
+                    if (shooter != null && player.getTeam() == shooter.getTeam() && !Objects.equals(player.getId(), shooter.getId())) {
+                        continue;
+                    }
 
-                        if (player.position().distanceSquared(cloudCenter) < radiusSq) {
-                            if (player.takeDamage(cloud.getDamagePerTick())) {
-                                killPlayerHandler.accept(player, shooter);
-                            }
+                    if (player.position().distanceSquared(cloudCenter) < radiusSq) {
+                        if (player.takeDamage(damageToApply)) {
+                            killPlayerHandler.accept(player, shooter);
                         }
-                    }
-                    case Turret turret -> {
-                        if (shooter != null && turret.getTeam() == shooter.getTeam() && !Objects.equals(turret.getId(), shooter.getId())) {
-                            continue;
-                        }
-                        if (turret.position().distanceSquared(cloudCenter) < radiusSq) {
-                            turret.takeDamage(cloud.getDamagePerTick());
-                        }
-                    }
-                    case null, default -> {
-                        // poison doesn't apply to other target types
                     }
                 }
+                case Turret turret -> {
+                    if (shooter != null && turret.getTeam() == shooter.getTeam() && !Objects.equals(turret.getId(), shooter.getId())) {
+                        continue;
+                    }
+                    if (turret.position().distanceSquared(cloudCenter) < radiusSq) {
+                        turret.takeDamage(damageToApply);
+                    }
+                }
+                case GridPoint gridPoint -> {
+                    if (shooter != null && gridPoint.getTeam() == shooter.getTeam() && !Objects.equals(gridPoint.getId(), shooter.getId())) {
+                        continue;
+                    }
+                    if (gridPoint.position().distanceSquared(cloudCenter) < radiusSq) {
+                        gridPoint.takeDamage(damageToApply);
+                    }
+                }
+                case null, default -> {
+                    // poison doesn't apply to other target types
+                }
             }
-            cloud.setLastDamageTickTime(currentTime);
         }
     }
 
@@ -229,12 +265,12 @@ public class FieldEffectSystem {
                 // If the player is within the mine's radius, trigger the explosion
                 if (player.position().distanceSquared(mine.position()) < Math.pow(mine.getRadius() + PLAYER_RADIUS, 2)) {
                     // Trigger the explosion effect
-                    entities.getFieldEffects().add(Mine.mineExplosion(mine));
+                    addFieldEffect(Mine.mineExplosion(mine));
                     mine.markTriggered();
                 }
             } else if (target instanceof Vehicle vehicle && !vehicle.isDestroyed() && vehicle.getTeam() != mine.getTeam()) {
                 if (CollisionUtils.checkCirclePolygonCollision(mine.position(), mine.getRadius(), vehicle.getVertices())) {
-                    entities.getFieldEffects().add(Mine.mineExplosion(mine));
+                    addFieldEffect(Mine.mineExplosion(mine));
                     mine.markTriggered();
                 }
             }
@@ -245,7 +281,7 @@ public class FieldEffectSystem {
      * Adds a field effect to the game
      */
     public void addFieldEffect(FieldEffect fieldEffect) {
-        entities.getFieldEffects().add(fieldEffect);
+        entities.getFieldEffects().put(fieldEffect.id(), fieldEffect);
     }
 
     /**
@@ -314,5 +350,323 @@ public class FieldEffectSystem {
                 }
             }
         }
+    }
+
+    /**
+     * Handles defense grid points that generate lasers between connected points
+     */
+    private void updateGridPoint(GridPoint gridPoint) {
+        long currentTime = System.currentTimeMillis();
+        if (gridPoint.getHp() <= 0) {
+            createExplosion(
+                    gridPoint.getX(),
+                    gridPoint.getY(),
+                    gridPoint.getOwnerId(),
+                    gridPoint.getTeam(),
+                    PLAYER_SIZE, // explosion radius
+                    0, // no damage from explosion effect itself
+                    300); // duration
+            entities.getFieldEffects().remove(gridPoint.id());
+        }
+
+        boolean inObstacle = entities.getObstacles().stream()
+                .anyMatch(obstacle -> CollisionUtils.checkCirclePolygonCollision(
+                        gridPoint.position(), gridPoint.getRadius(), obstacle.vertices()));
+        if (inObstacle) {
+            entities.getFieldEffects().remove(gridPoint.id());
+            return;
+        }
+
+        // Check if enough time has passed since last laser generation
+        if (!gridPoint.readyToFire()) {
+            return;
+        }
+
+        // Find other grid points from the same team
+        List<GridPoint> sameOwnerGridPoints = entities.getFieldEffects()
+                .values()
+                .stream()
+                .filter(fe -> fe instanceof GridPoint)
+                .map(fe -> (GridPoint) fe)
+                .filter(gp -> gp.getTeam() == gridPoint.getTeam()
+                        && gp.id() != gridPoint.id()
+                        && gridPoint.readyToFire())
+                .sorted(Comparator.comparingDouble(a -> gridPoint.position().distanceSquared(a.position())))
+                .limit(2)
+                .toList();
+
+        // Generate lasers to nearby grid points within range
+        double maxLaserRange = Config.DEFENSE_GRID_LASER_RANGE;
+        double laserDamage = Config.DEFENSE_GRID_LASER_DAMAGE;
+        long laserDuration = Config.DEFENSE_GRID_LASER_DURATION;
+        double laserDamageOverTimeMod = (double) 1000 / Config.DEFENSE_GRID_LASER_DURATION;
+
+        for (GridPoint targetPoint : sameOwnerGridPoints) {
+            double distance = gridPoint.position().distance(targetPoint.position());
+            // only grid points within line-of-sight will work
+            if (CollisionUtils.checkAnyLinePolygonCollision(gridPoint.position(), targetPoint.position(), entities.getObstacles())) {
+                continue;
+            }
+
+            if (distance <= maxLaserRange) {
+                // Create laser blast between the two grid points
+                LaserBlast laser = new LaserBlast(
+                        gridPoint.position(),
+                        targetPoint.position(),
+                        gridPoint.getOwnerId(),
+                        gridPoint.getTeam(),
+                        laserDamage * laserDamageOverTimeMod,
+                        currentTime + laserDuration
+                );
+                weaponSystem.calculateTerminus(laser);
+                entities.getLaserBlasts().add(laser);
+
+                // Update last laser time for both points to prevent spam
+                gridPoint.setLastLaserTime(currentTime);
+                targetPoint.setLastLaserTime(currentTime);
+            }
+        }
+    }
+
+    public void placeGridPoint(GridPoint gridPoint) {
+        placeLimitedEffect(gridPoint, DEFENSE_GRID_LASER_MAX_PER_USER, fe -> fe instanceof GridPoint t && t.getOwnerId() == gridPoint.getOwnerId());
+    }
+
+    /**
+     * Updates all turrets, handles AI decisions, firing, and removal of destroyed turrets
+     */
+    public void updateTurrets(Turret turret, long delta) {
+        // Create a game state snapshot for turret AI
+        GameState gameState = new GameState(
+                entities.getPlayers().stream()
+                        .filter(p -> p.getInvisibilityEndTime() < System.currentTimeMillis())
+                        .toList(),
+                entities.getBullets(),
+                entities.getLaserBlasts(),
+                entities.getFieldEffects().values(),
+                entities.getVehicles(),
+                entities.getObstacles(),
+                entities.getPowerUps(),
+                System.currentTimeMillis(),
+                null // GameInfo is not needed for turret AI
+        );
+
+        // Remove destroyed or invalid turrets
+        // Check if turret is inside an obstacle
+        boolean inObstacle = entities.getObstacles().stream()
+                .anyMatch(obstacle -> CollisionUtils.checkCirclePolygonCollision(
+                        turret.position(), turret.getRadius(), obstacle.vertices()));
+        if (inObstacle) {
+            entities.getFieldEffects().remove(turret.id());
+            return;
+        }
+
+        // Check if turret is destroyed
+        if (turret.getHp() <= 0) {
+            // Create explosion when turret is destroyed
+            createExplosion(
+                    turret.getX(),
+                    turret.getY(),
+                    turret.getOwnerId(),
+                    turret.getTeam(),
+                    PLAYER_SIZE, // explosion radius
+                    0, // no damage from explosion effect itself
+                    300); // duration
+            entities.getFieldEffects().remove(turret.id());
+            return;
+        }
+        turret.update(gameState, entities.getTargetGrid())
+                .ifPresent(action -> {
+                    double aimAngle = Math.atan2(action.directionY(), action.directionX());
+                    weaponSystem.fireTurretWeapon(turret, aimAngle);
+                });
+    }
+
+    public void placeTurret(Turret turret) {
+        placeLimitedEffect(turret, MAX_TURRETS_PER_PLAYER, fe -> fe instanceof Turret t && t.getOwnerId() == turret.getOwnerId());
+    }
+
+    /**
+     * Handles portal lifecycle and bullet teleportation
+     */
+    private void updatePortal(Portal portal, long delta) {
+        // Remove if inside an obstacle
+        boolean inObstacle = entities.getObstacles().stream()
+                .anyMatch(obstacle -> CollisionUtils.checkCirclePolygonCollision(
+                        portal.position(), portal.getRadius(), obstacle.vertices()));
+        if (inObstacle) {
+            entities.getFieldEffects().remove(portal.id());
+            return;
+        }
+        if (portal.getLinkedTo() < 0 || entities.getFieldEffects().get(portal.getLinkedTo()) == null) {
+            entities.getFieldEffects()
+                    .values()
+                    .stream()
+                    .filter(fe -> fe instanceof Portal p
+                            && p.id() != portal.id()
+                            && p.getOwnerId() == portal.getOwnerId())
+                    .findFirst()
+                    .map(HasId::id)
+                    .ifPresent(portal::setLinkedTo);
+        }
+        handleBulletTeleportation(portal, delta);
+        handlePlayerTeleportation(portal, delta);
+    }
+
+    /**
+     * Handles teleporting bullets through portals
+     */
+    private void handleBulletTeleportation(Portal portal, long delta) {
+        Portal linkedPortal = (Portal) entities.getFieldEffects().get(portal.getLinkedTo());
+        if (linkedPortal == null) {
+            return;
+        }
+
+        // Check all bullets for teleportation (check trajectory intersection to catch fast bullets)
+        List<Bullet> bulletsToTeleport = entities.getBullets()
+                .stream()
+                // Use line-circle intersection to detect if bullet path crosses portal
+                .filter(bullet -> CollisionUtils.checkLineCircleCollision(bullet.previousPosition(), bullet.position(), portal.position(), portal.getRadius()))
+                // Check if bullet is moving toward the portal center
+                .filter(bullet -> {
+                    Vector2D toPortalCenter = portal.position().subtract(bullet.position()).normalize();
+                    double dotProduct = bullet.direction().normalize().dot(toPortalCenter);
+                    return dotProduct > 0;
+                })
+                .toList();
+
+        for (Bullet bullet : bulletsToTeleport) {
+            // Calculate exit position maintaining relative offset
+            Vector2D exitPosition = portal.calculateExitPosition(bullet.position(), linkedPortal);
+
+            // Create a new bullet at the exit position with same properties
+            Bullet teleportedBullet = new Bullet(
+                    exitPosition.x(),
+                    exitPosition.y(),
+                    bullet.direction().x() * bullet.getSpeed(),
+                    bullet.direction().y() * bullet.getSpeed(),
+                    bullet.getShooterId(),
+                    bullet.getTeam(),
+                    bullet.getDamage(),
+                    bullet.getSpeed(),
+                    bullet.getMaxRange() - bullet.getDistanceTraveled(),
+                    bullet.getBulletSpeedDecay(),
+                    bullet.getOnDestructionAction().orElse(null)
+            );
+
+            // Remove the original bullet and add the teleported one
+            entities.getBullets().remove(bullet);
+            entities.getBullets().add(teleportedBullet);
+        }
+    }
+
+    /**
+     * Handles teleporting players through portals
+     */
+    private void handlePlayerTeleportation(Portal portal, long delta) {
+        Portal linkedPortal = (Portal) entities.getFieldEffects().get(portal.getLinkedTo());
+        if (linkedPortal == null) {
+            return;
+        }
+
+        // Check all players for teleportation
+        List<Player> playersToTeleport = entities.getPlayers()
+                .stream()
+                .filter(player -> !player.isDead())
+                .filter(player -> {
+                    // Check if player is within portal radius
+                    double distanceToPortal = player.position().distance(portal.position());
+                    return distanceToPortal <= portal.getRadius();
+                })
+                .filter(player -> {
+                    // Check if player is moving toward the portal center (to prevent infinite loops)
+                    Vector2D playerVelocity = player.getVelocity();
+                    if (playerVelocity.magnitude() < 0.1) {
+                        return true; // Allow teleportation for stationary players
+                    }
+
+                    Vector2D toPortalCenter = portal.position().subtract(player.position()).normalize();
+                    double dotProduct = playerVelocity.normalize().dot(toPortalCenter);
+                    return dotProduct > 0.1; // Small threshold to avoid jitter
+                })
+                .toList();
+
+        for (Player player : playersToTeleport) {
+            // Calculate exit position maintaining relative offset
+            Vector2D exitPosition = portal.calculateExitPosition(player.position(), linkedPortal);
+
+            // Make sure exit position doesn't put player inside obstacles
+            boolean exitInObstacle = entities.getObstacles().stream()
+                    .anyMatch(obstacle -> CollisionUtils.checkCirclePolygonCollision(
+                            exitPosition, PLAYER_RADIUS, obstacle.vertices()));
+
+            if (exitInObstacle) {
+                continue; // Skip teleportation if exit would be inside obstacle
+            }
+
+            // Teleport the player
+            player.setX(exitPosition.x());
+            player.setY(exitPosition.y());
+
+            // Preserve player velocity (maintain momentum through portal)
+            // Optionally, we could mirror the velocity direction as well
+        }
+    }
+
+    /**
+     * Places a portal, managing the maximum limit per player
+     */
+    public void placePortal(Portal portal) {
+        placeLimitedEffect(portal, MAX_PORTALS_PER_PLAYER, fe -> fe instanceof Portal p && p.getOwnerId() == portal.getOwnerId());
+    }
+
+    public void removePlayerPortal(Player player) {
+        entities.getFieldEffects().values().removeIf(fe -> fe instanceof Portal p && p.getOwnerId() == player.id());
+    }
+
+    /**
+     * Handles bullet scatter effects that spawn multiple bullets in random directions
+     */
+    private void updateBulletScatter(BulletScatter bulletScatter) {
+        entities.getFieldEffects().remove(bulletScatter.id());
+        // Create scattered bullets
+        for (int i = 0; i < bulletScatter.getBulletCount(); i++) {
+            // Random angle for each bullet
+            double angle = Math.random() * 2 * Math.PI;
+
+            // Calculate velocity components
+            double vx = Math.cos(angle) * bulletScatter.getBulletSpeed();
+            double vy = Math.sin(angle) * bulletScatter.getBulletSpeed();
+
+            // Create scattered bullet
+            Bullet scatteredBullet = new Bullet(
+                    bulletScatter.getX(),
+                    bulletScatter.getY(),
+                    vx,
+                    vy,
+                    bulletScatter.getShooterId(),
+                    bulletScatter.getTeam(),
+                    bulletScatter.getBulletDamage(),
+                    bulletScatter.getBulletSpeed(),
+                    bulletScatter.getBulletRange(),
+                    0.8, // Moderate speed decay
+                    null // No special destruction effect for scattered bullets
+            );
+
+            entities.getBullets().add(scatteredBullet);
+        }
+    }
+
+    private void placeLimitedEffect(FieldEffect fieldEffect, int max, Predicate<FieldEffect> matchOwner) {
+        entities.getFieldEffects()
+                .values()
+                .stream()
+                .filter(matchOwner)
+                .sorted(Comparator.comparing(FieldEffect::timestamp).reversed())
+                .map(FieldEffect::id)
+                .skip(max - 1)
+                .toList()
+                .forEach(entities.getFieldEffects()::remove);
+        addFieldEffect(fieldEffect);
     }
 }

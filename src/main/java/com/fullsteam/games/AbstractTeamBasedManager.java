@@ -4,6 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fullsteam.GameLobby;
 import com.fullsteam.TeamBalancer;
 import com.fullsteam.model.GameEvent;
+import com.fullsteam.model.Player;
+
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static com.fullsteam.Config.ROUND_DURATION_SECONDS;
 
@@ -82,5 +87,18 @@ public abstract class AbstractTeamBasedManager extends AbstractGameStateManager 
             }
         }
         super.updateGame(delta);
+    }
+
+
+    /**
+     * Apply standard deathmatch scoring, i.e. kill count total per team.
+     */
+    protected void applyDeathmatchScoring() {
+        Map<Integer, Integer> collect = entities.getPlayers()
+                .stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(Player::getTeam, Player::getKills, Integer::sum));
+        team1Score = collect.getOrDefault(1, 0);
+        team2Score = collect.getOrDefault(2, 0);
     }
 }

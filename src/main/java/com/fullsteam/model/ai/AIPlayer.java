@@ -8,6 +8,7 @@ import com.fullsteam.WeaponFactory;
 import com.fullsteam.model.Base;
 import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameState;
+import com.fullsteam.model.GridPoint;
 import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
@@ -20,6 +21,7 @@ import com.fullsteam.model.Turret;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -629,17 +631,28 @@ public class AIPlayer extends Player {
                     }
                 }
                 case Turret turret -> {
-                    if (turret.getTeam() == this.getTeam()) {
-                        continue; // Don't shoot friendly turrets
+                    if (turret.getTeam() != this.getTeam()) {
+                        Vector2D turretCenter = turret.position();
+                        double turretScore = Math.sqrt(position().distanceSquared(turretCenter));
+                        if (turretScore < bestScore) {
+                            if (findBlockingObstacle(this.position(), turretCenter, obstacles) == null) {
+                                // Simple distance-based priority for now.
+                                bestScore = turretScore;
+                                bestTarget = potentialTarget;
+                            }
+                        }
                     }
-
-                    Vector2D turretCenter = turret.position();
-                    double turretScore = Math.sqrt(position().distanceSquared(turretCenter));
-                    if (turretScore < bestScore) {
-                        if (findBlockingObstacle(this.position(), turretCenter, obstacles) == null) {
-                            // Simple distance-based priority for now.
-                            bestScore = turretScore;
-                            bestTarget = potentialTarget;
+                }
+                case GridPoint gridPoint -> {
+                    if (gridPoint.getTeam() != this.getTeam()) {
+                        Vector2D turretCenter = gridPoint.position();
+                        double turretScore = Math.sqrt(position().distanceSquared(turretCenter));
+                        if (turretScore < bestScore) {
+                            if (findBlockingObstacle(this.position(), turretCenter, obstacles) == null) {
+                                // Simple distance-based priority for now.
+                                bestScore = turretScore;
+                                bestTarget = potentialTarget;
+                            }
                         }
                     }
                 }
@@ -798,7 +811,7 @@ public class AIPlayer extends Player {
     /**
      * Calculates a steering force to flee from dangerous hazards.
      */
-    private Vector2D calculateHazardAvoidanceForce(List<FieldEffect> fieldEffects) {
+    private Vector2D calculateHazardAvoidanceForce(Collection<FieldEffect> fieldEffects) {
         Vector2D totalAvoidanceForce = Vector2D.ZERO;
         if (fieldEffects == null) {
             return totalAvoidanceForce;
@@ -812,7 +825,8 @@ public class AIPlayer extends Player {
                 double weight = switch (fieldEffect.getType()) {
                     case MINE -> 0.3;
                     case POISON -> 0.25;
-                    case GRAVITY_WELL -> 0.4; // AI should avoid gravity wells more strongly
+                    case GRAVITY_WELL -> 0.4;
+                    case PORTAL -> 0; // safe to travel
                     default -> 0.1;
                 };
                 totalAvoidanceForce = totalAvoidanceForce.add(fleeDirection.normalize().multiply(weight));

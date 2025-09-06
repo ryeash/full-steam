@@ -91,6 +91,13 @@ const GAME_MODE_INFO = {
         teamBased: true,
         team1Objective: 'Survive as the Lone Wolf',
         team2Objective: 'Hunt down the Lone Wolf'
+    },
+    'Portal': {
+        subtitle: 'Tactical portal warfare',
+        objective: 'Use your alt-fire to launch portals and redirect bullet trajectories. Eliminate enemy players to score points for your team.',
+        teamBased: true,
+        team1Objective: 'Eliminate Team 2 players using portal tactics',
+        team2Objective: 'Eliminate Team 1 players using portal tactics'
     }
 };
 
@@ -494,7 +501,7 @@ class Game {
     }
 
     resetGameState() {
-        this.gameState = { players: [], bullets: [], laserBlasts: [], fieldEffects: [], obstacles: [], powerUps: [], turrets: [], vehicles: [], info: null, serverTime: 0 };
+        this.gameState = { players: [], bullets: [], laserBlasts: [], fieldEffects: [], obstacles: [], powerUps: [], vehicles: [], info: null, serverTime: 0 };
         this.gameEvents = [];
         this.previousGameState = null;
         this.lastUpdateTime = 0;
@@ -555,8 +562,8 @@ class Game {
             this.gameState.bullets.forEach(bullet => {
                 if (!this.interpolatedBullets.has(bullet.id)) {
                     this.interpolatedBullets.set(bullet.id, {
-                        x: bullet.x,
-                        y: bullet.y
+                        x: bullet.x || 0,
+                        y: bullet.y || 0
                     });
                 }
             });
@@ -1052,9 +1059,9 @@ class Game {
                 bCtx.strokeStyle = GameColors.entities.gameObjects.obstacles;
 
                 bCtx.beginPath();
-                bCtx.moveTo(obstacle.vertices[0].x, obstacle.vertices[0].y);
+                bCtx.moveTo(obstacle.vertices[0].x || 0, obstacle.vertices[0].y || 0);
                 for (let i = 1; i < obstacle.vertices.length; i++) {
-                    bCtx.lineTo(obstacle.vertices[i].x, obstacle.vertices[i].y);
+                    bCtx.lineTo(obstacle.vertices[i].x || 0, obstacle.vertices[i].y || 0);
                 }
                 bCtx.closePath();
                 bCtx.stroke();
@@ -1078,7 +1085,6 @@ class Game {
         this.drawCratePreview();
         this.drawBase();
         this.drawFieldEffects();
-        this.drawTurrets();
 
         // Get interpolated positions for smooth rendering
         const interpolated = this.getInterpolatedPositions(currentTime);
@@ -1139,27 +1145,26 @@ class Game {
     }
 
     drawCrates() {
-        if (!this.gameState.info || this.gameState.info.type !== 'Builder' || !this.gameState.info.crates) {
+        if (!this.gameState.info || !this.gameState.info.crates) {
             return;
         }
 
         this.ctx.save();
         this.gameState.info.crates.forEach(crate => {
             // Draw crate body
-            this.ctx.fillStyle = GameColors.entities.gameObjects.crates.body; // SaddleBrown
-            this.ctx.strokeStyle = GameColors.entities.gameObjects.crates.border; // Darker brown for border
+            this.ctx.fillStyle = GameColors.entities.gameObjects.crates.body;
+            this.ctx.strokeStyle = GameColors.entities.gameObjects.crates.border;
             this.ctx.lineWidth = 2;
-            this.ctx.fillRect(crate.x, crate.y, crate.size, crate.size);
-            this.ctx.strokeRect(crate.x, crate.y, crate.size, crate.size);
-        });
-        this.gameState.info.crates.forEach(crate => {
+            this.ctx.fillRect(crate.x || 0, crate.y || 0, crate.size, crate.size);
+            this.ctx.strokeRect(crate.x || 0, crate.y || 0, crate.size, crate.size);
+
             // Draw health bar if damaged
             if (crate.hp < crate.maxHp) {
                 const healthPercentage = Math.max(0, crate.hp / crate.maxHp);
                 const barWidth = crate.size;
                 const barHeight = 5;
-                const barX = crate.x;
-                const barY = crate.y - 10;
+                const barX = crate.x || 0;
+                const barY = (crate.y || 0) - 10;
 
                 // Background of health bar
                 this.ctx.fillStyle = GameColors.health.background;
@@ -1239,6 +1244,12 @@ class Game {
                 this.drawMine(effect);
             } else if (effect.type == 'GRAVITY_WELL') {
                 this.drawGravityWell(effect);
+            } else if (effect.type == 'TURRET') {
+                this.drawTurret(effect);
+            } else if (effect.type == 'GRID_POINT') {
+                this.drawGridPoint(effect);
+            } else if (effect.type == 'PORTAL') {
+                this.drawPortal(effect);
             }
         });
     }
@@ -1499,67 +1510,225 @@ class Game {
         this.ctx.restore();
     }
 
-    drawTurrets() {
-        if (!this.gameState.turrets) return;
+    drawTurret(turret) {
+        this.ctx.save();
+        const turretX = turret.x;
+        const turretY = turret.y;
+        const turretRadius = turret.radius;
 
         this.ctx.save();
-        this.gameState.turrets.forEach(turret => {
-            const turretX = turret.x;
-            const turretY = turret.y;
-            const turretRadius = turret.radius;
+        this.ctx.translate(turretX, turretY);
 
-            this.ctx.save();
-            this.ctx.translate(turretX, turretY);
-
-            // Draw tripod legs
-            this.ctx.strokeStyle = GameColors.special.turrets.legs;
-            this.ctx.lineWidth = 4;
-            for (let i = 0; i < 3; i++) {
-                const legAngle = (i * 2 * Math.PI / 3) + Math.PI / 2;
-                this.ctx.beginPath();
-                this.ctx.moveTo(0, 0);
-                this.ctx.lineTo(Math.cos(legAngle) * turretRadius, Math.sin(legAngle) * turretRadius);
-                this.ctx.stroke();
-            }
-
-            // Draw base with team color
-            const teamColor = turret.team === 1 ? GameColors.teams.team1.primary : GameColors.teams.team2.primary;
-            const darkTeamColor = turret.team === 1 ? GameColors.teams.team1.dark : GameColors.teams.team2.dark;
-            this.ctx.fillStyle = teamColor;
-            this.ctx.strokeStyle = darkTeamColor;
-            this.ctx.lineWidth = 2;
+        // Draw tripod legs
+        this.ctx.strokeStyle = GameColors.special.turrets.legs;
+        this.ctx.lineWidth = 4;
+        for (let i = 0; i < 3; i++) {
+            const legAngle = (i * 2 * Math.PI / 3) + Math.PI / 2;
             this.ctx.beginPath();
-            this.ctx.arc(0, 0, turretRadius * 0.6, 0, 2 * Math.PI);
-            this.ctx.fill();
+            this.ctx.moveTo(0, 0);
+            this.ctx.lineTo(Math.cos(legAngle) * turretRadius, Math.sin(legAngle) * turretRadius);
             this.ctx.stroke();
+        }
 
-            // Draw rotating barrel
-            this.ctx.rotate(turret.angle);
-            this.ctx.fillStyle = GameColors.special.turrets.barrel;
-            this.ctx.strokeStyle = GameColors.special.turrets.barrelStroke;
+        // Draw base with team color
+        const teamColor = turret.team === 1 ? GameColors.teams.team1.primary : GameColors.teams.team2.primary;
+        const darkTeamColor = turret.team === 1 ? GameColors.teams.team1.dark : GameColors.teams.team2.dark;
+        this.ctx.fillStyle = teamColor;
+        this.ctx.strokeStyle = darkTeamColor;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, turretRadius * 0.6, 0, 2 * Math.PI);
+        this.ctx.fill();
+        this.ctx.stroke();
+
+        // Draw rotating barrel
+        this.ctx.rotate(turret.angle);
+        this.ctx.fillStyle = GameColors.special.turrets.barrel;
+        this.ctx.strokeStyle = GameColors.special.turrets.barrelStroke;
+        this.ctx.lineWidth = 1;
+        this.ctx.fillRect(0, -4, turretRadius * 1.2, 8);
+        this.ctx.strokeRect(0, -4, turretRadius * 1.2, 8);
+
+        this.ctx.restore(); // Restore from translate/rotate
+
+        // Draw health bar
+        if (turret.hp < turret.maxHp) {
+            const healthPercentage = Math.max(0, turret.hp / turret.maxHp);
+            const barWidth = turretRadius * 2;
+            const barHeight = 5;
+            const barX = turretX - turretRadius;
+            const barY = turretY - turretRadius - 15;
+
+            this.ctx.fillStyle = GameColors.health.background;
+            this.ctx.fillRect(barX, barY, barWidth, barHeight);
+            this.ctx.fillStyle = healthPercentage > 0.5 ? GameColors.health.high : (healthPercentage > 0.2 ? GameColors.health.medium : GameColors.health.low);
+            this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
+            this.ctx.strokeStyle = GameColors.health.border;
             this.ctx.lineWidth = 1;
-            this.ctx.fillRect(0, -4, turretRadius * 1.2, 8);
-            this.ctx.strokeRect(0, -4, turretRadius * 1.2, 8);
+            this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+        }
+        this.ctx.restore();
+    }
 
-            this.ctx.restore(); // Restore from translate/rotate
+    drawGridPoint(gridPoint) {
+        this.ctx.save();
+        const now = this.gameState.serverTime;
+        if (!now) return;
 
-            // Draw health bar
-            if (turret.hp < turret.maxHp) {
-                const healthPercentage = Math.max(0, turret.hp / turret.maxHp);
-                const barWidth = turretRadius * 2;
-                const barHeight = 5;
-                const barX = turretX - turretRadius;
-                const barY = turretY - turretRadius - 15;
+        // Set colors based on team
+        const teamColors = {
+            1: { primary: GameColors.teams.team1.primary, secondary: GameColors.teams.team1.secondary },
+            2: { primary: GameColors.teams.team2.primary, secondary: GameColors.teams.team2.secondary }
+        };
+        const colors = teamColors[gridPoint.team] || { primary: '#888888', secondary: '#666666' };
 
-                this.ctx.fillStyle = GameColors.health.background;
-                this.ctx.fillRect(barX, barY, barWidth, barHeight);
-                this.ctx.fillStyle = healthPercentage > 0.5 ? GameColors.health.high : (healthPercentage > 0.2 ? GameColors.health.medium : GameColors.health.low);
-                this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
-                this.ctx.strokeStyle = GameColors.health.border;
-                this.ctx.lineWidth = 1;
-                this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+        const baseX = gridPoint.x;
+        const baseY = gridPoint.y;
+        const height = 15; // Height of the lightning rod
+        const baseWidth = 8; // Width of the base
+        const topWidth = 3; // Width of the tip
+
+        // Draw the main rod body (trapezoid shape)
+        this.ctx.fillStyle = colors.primary;
+        this.ctx.beginPath();
+        this.ctx.moveTo(baseX - baseWidth/2, baseY + height/2);  // Bottom left
+        this.ctx.lineTo(baseX + baseWidth/2, baseY + height/2);  // Bottom right
+        this.ctx.lineTo(baseX + topWidth/2, baseY - height/2);   // Top right
+        this.ctx.lineTo(baseX - topWidth/2, baseY - height/2);   // Top left
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Draw the base platform
+        this.ctx.fillStyle = colors.secondary;
+        this.ctx.fillRect(baseX - baseWidth/2 - 2, baseY + height/2, baseWidth + 4, 3);
+
+        // Draw the pointed tip
+        this.ctx.fillStyle = '#FFFF88'; // Bright yellow tip
+        this.ctx.beginPath();
+        this.ctx.moveTo(baseX - topWidth/2, baseY - height/2);
+        this.ctx.lineTo(baseX + topWidth/2, baseY - height/2);
+        this.ctx.lineTo(baseX, baseY - height/2 - 4);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Add energy crackling effect around the tip
+        const time = now / 100; // Faster animation
+        const crackleRadius = 8;
+        
+        for (let i = 0; i < 3; i++) {
+            const angle = (time + i * Math.PI * 2 / 3) % (Math.PI * 2);
+            const crackleX = baseX + Math.cos(angle) * crackleRadius;
+            const crackleY = baseY - height/2 - 2 + Math.sin(angle) * 3;
+            
+            this.ctx.fillStyle = `rgba(255, 255, 136, ${0.3 + Math.sin(time + i) * 0.2})`;
+            this.ctx.beginPath();
+            this.ctx.arc(crackleX, crackleY, 1.5, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+
+        // Draw team indicator ring around the base
+        this.ctx.strokeStyle = colors.primary;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.arc(baseX, baseY, gridPoint.radius || 12, 0, Math.PI * 2);
+        this.ctx.stroke();
+
+        // Draw health bar if damaged
+        if (gridPoint.hp && gridPoint.maxHp && gridPoint.hp < gridPoint.maxHp) {
+            const healthPercentage = Math.max(0, gridPoint.hp / gridPoint.maxHp);
+            const barWidth = baseWidth + 4; // Match the base platform width
+            const barHeight = 4;
+            const barX = baseX - barWidth / 2;
+            const barY = baseY - height / 2 - 15; // Position above the grid point
+
+            // Background of health bar
+            this.ctx.fillStyle = GameColors.health.background;
+            this.ctx.fillRect(barX, barY, barWidth, barHeight);
+
+            // Foreground of health bar
+            this.ctx.fillStyle = healthPercentage > 0.5 ? GameColors.health.high :
+                               (healthPercentage > 0.2 ? GameColors.health.medium : GameColors.health.low);
+            this.ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
+
+            // Border for the health bar
+            this.ctx.strokeStyle = GameColors.health.border;
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+        }
+
+        this.ctx.restore();
+    }
+
+    drawPortal(portal) {
+        this.ctx.save();
+        const now = this.gameState.serverTime;
+        if (!now) return;
+
+        // Set colors based on team
+        const teamColors = {
+            1: { primary: GameColors.teams.team1.primary, secondary: GameColors.teams.team1.secondary },
+            2: { primary: GameColors.teams.team2.primary, secondary: GameColors.teams.team2.secondary }
+        };
+        const colors = teamColors[portal.team] || { primary: '#888888', secondary: '#666666' };
+
+        const centerX = portal.x;
+        const centerY = portal.y;
+        const radius = portal.radius;
+        const time = now / 1000; // Convert to seconds for smoother animation
+
+        // Draw the inner portal ring
+        this.ctx.strokeStyle = colors.secondary;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, radius * 0.7, 0, Math.PI * 2);
+        this.ctx.stroke();
+
+        // Draw swirling portal effect
+        const spiralCount = 8;
+        const spiralTime = time * 3; // Faster rotation
+        
+        this.ctx.strokeStyle = `${colors.primary}80`; // Semi-transparent
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([4, 4]);
+
+        for (let i = 0; i < spiralCount; i++) {
+            const spiralAngle = (i / spiralCount) * Math.PI * 2 + spiralTime;
+            const spiralRadius = radius * 0.8;
+            
+            this.ctx.beginPath();
+            let lastX = null, lastY = null;
+            
+            for (let t = 0; t <= Math.PI; t += 0.3) {
+                const currentRadius = spiralRadius * (1 - t / Math.PI) * 0.8;
+                const angle = spiralAngle + t * 2;
+                const x = centerX + Math.cos(angle) * currentRadius;
+                const y = centerY + Math.sin(angle) * currentRadius;
+                
+                if (lastX !== null) {
+                    this.ctx.moveTo(lastX, lastY);
+                    this.ctx.lineTo(x, y);
+                }
+                lastX = x;
+                lastY = y;
             }
-        });
+            this.ctx.stroke();
+        }
+
+        // Draw the portal center with energy effect
+        const energyAlpha = 0.3 + Math.sin(time * 4) * 0.2;
+        const gradient = this.ctx.createRadialGradient(
+            centerX, centerY, 0,
+            centerX, centerY, radius * 0.5
+        );
+        gradient.addColorStop(0, `${colors.primary}${Math.floor(energyAlpha * 255).toString(16).padStart(2, '0')}`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        this.ctx.setLineDash([]);
+        this.ctx.fillStyle = gradient;
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, radius * 0.5, 0, Math.PI * 2);
+        this.ctx.fill();
+
         this.ctx.restore();
     }
 

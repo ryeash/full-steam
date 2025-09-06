@@ -13,7 +13,6 @@ public class LaserBlast implements HasId {
     private final long shooterId;
     private final double damage;
     private final long expires;
-//    private final BiFunction<LaserBlast, Object, BulletEffect> onDestructionAction; TODO: maybe
 
     public LaserBlast(Vector2D start, Vector2D end, long shooterId, int team, double damage, long expires) {
         this.start = start;

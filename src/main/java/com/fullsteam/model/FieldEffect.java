@@ -7,10 +7,13 @@ public interface FieldEffect extends HasId {
     enum Type {
         EXPLOSION,
         POISON,
-        SLOW,
         SMOKE,
         MINE,
-        GRAVITY_WELL
+        GRAVITY_WELL,
+        TURRET,
+        GRID_POINT,
+        PORTAL,
+        BULLET_SCATTER
     }
 
     Type getType();
@@ -65,6 +68,11 @@ public interface FieldEffect extends HasId {
      * @return The expiration time.
      */
     long getExpiration();
+
+    /**
+     * Get the creation timestamp of the effect.
+     */
+    long timestamp();
 
     /**
      * Checks if the effect has expired based on the current system time.

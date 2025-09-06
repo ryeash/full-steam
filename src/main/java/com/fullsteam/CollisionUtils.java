@@ -23,7 +23,7 @@ public class CollisionUtils {
             Vector2D p2 = polygon.get(j);
 
             if (((p1.y() > point.y()) != (p2.y() > point.y())) &&
-                    (point.x() < (p2.x() - p1.x()) * (point.y() - p1.y()) / (p2.y() - p1.y()) + p1.x())) {
+                (point.x() < (p2.x() - p1.x()) * (point.y() - p1.y()) / (p2.y() - p1.y()) + p1.x())) {
                 isInside = !isInside;
             }
         }
@@ -85,7 +85,7 @@ public class CollisionUtils {
         // Project point onto the line by finding parameter t
         double t = Math.max(0, Math.min(1,
                 ((point.x() - segmentStart.x()) * (segmentEnd.x() - segmentStart.x()) +
-                        (point.y() - segmentStart.y()) * (segmentEnd.y() - segmentStart.y())) / lengthSquared));
+                 (point.y() - segmentStart.y()) * (segmentEnd.y() - segmentStart.y())) / lengthSquared));
 
         // Find the projection point
         double projX = segmentStart.x() + t * (segmentEnd.x() - segmentStart.x());
@@ -114,9 +114,18 @@ public class CollisionUtils {
         return false;
     }
 
+    public static boolean checkAnyLinePolygonCollision(Vector2D p1, Vector2D p2, List<Obstacle> obstacles) {
+        for (Obstacle obstacle : obstacles) {
+            if (checkLinePolygonCollision(p1, p2, obstacle)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static boolean checkLinePolygonCollision(Vector2D p1, Vector2D p2, Obstacle obstacle) {
         return checkLineCircleCollision(p1, p2, obstacle.getCenter(), obstacle.getBoundingRadius())
-                && checkLinePolygonCollision(p1, p2, obstacle.getVertices());
+               && checkLinePolygonCollision(p1, p2, obstacle.getVertices());
     }
 
     /**
@@ -130,9 +139,9 @@ public class CollisionUtils {
      */
     public static Vector2D findLineObstacleCollision(Vector2D start, Vector2D end, Obstacle obstacle) {
         if (obstacle == null
-                || obstacle.getVertices() == null
-                || obstacle.getVertices().size() < 3
-                || !checkLineCircleCollision(start, end, obstacle.getCenter(), obstacle.getBoundingRadius())) {
+            || obstacle.getVertices() == null
+            || obstacle.getVertices().size() < 3
+            || !checkLineCircleCollision(start, end, obstacle.getCenter(), obstacle.getBoundingRadius())) {
             return null;
         }
 

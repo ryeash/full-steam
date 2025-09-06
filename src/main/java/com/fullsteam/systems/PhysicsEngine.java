@@ -2,7 +2,9 @@ package com.fullsteam.systems;
 
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.SpatialGrid;
+import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEntities;
+import com.fullsteam.model.GridPoint;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerSession;
@@ -45,9 +47,14 @@ public class PhysicsEngine {
             }
             targetGrid.insert(player, player.getX() - PLAYER_RADIUS, player.getY() - PLAYER_RADIUS, PLAYER_SIZE, PLAYER_SIZE);
         }
-        for (Turret turret : entities.getTurrets()) {
-            double size = turret.getRadius() * 2;
-            targetGrid.insert(turret, turret.getX() - turret.getRadius(), turret.getY() - turret.getRadius(), size, size);
+        for (FieldEffect fieldEffect : entities.getFieldEffects().values()) {
+            if (fieldEffect instanceof GridPoint gridPoint) {
+                double size = gridPoint.getRadius() * 2;
+                targetGrid.insert(gridPoint, gridPoint.getX() - gridPoint.getRadius(), gridPoint.getY() - gridPoint.getRadius(), size, size);
+            } else if (fieldEffect instanceof Turret turret) {
+                double size = turret.getRadius() * 2;
+                targetGrid.insert(turret, turret.getX() - turret.getRadius(), turret.getY() - turret.getRadius(), size, size);
+            }
         }
         for (Vehicle vehicle : entities.getVehicles()) {
             if (!vehicle.isDestroyed()) {
@@ -162,32 +169,6 @@ public class PhysicsEngine {
     }
 
     /**
-     * Checks if a position is out of bounds
-     *
-     * @param position The position to check
-     * @return true if the position is outside game boundaries
-     */
-    public boolean isOutOfBounds(Vector2D position) {
-        return position.x() < 0
-               || position.x() > GAME_WIDTH
-               || position.y() < 0
-               || position.y() > GAME_HEIGHT;
-    }
-
-    /**
-     * Checks if a point is within game bounds with a given radius
-     *
-     * @param x      The x coordinate
-     * @param y      The y coordinate
-     * @param radius The radius to check
-     * @return true if the point (including radius) is within bounds
-     */
-    public boolean isWithinBounds(double x, double y, double radius) {
-        return x >= radius && x <= GAME_WIDTH - radius &&
-               y >= radius && y <= GAME_HEIGHT - radius;
-    }
-
-    /**
      * Validates if a vehicle can be placed at a specific position without colliding with obstacles
      *
      * @param vehicle     The vehicle to check
@@ -219,14 +200,5 @@ public class PhysicsEngine {
         // Restore original position
         vehicle.setPosition(originalPosition);
         return isValid;
-    }
-
-    /**
-     * Gets the spatial grid for advanced collision queries
-     *
-     * @return The spatial grid containing all targetable entities
-     */
-    public com.fullsteam.SpatialGrid<com.fullsteam.model.Targetable> getSpatialGrid() {
-        return entities.getTargetGrid();
     }
 }

@@ -9,9 +9,10 @@ import io.micronaut.core.annotation.Introspected;
 
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Introspected
-public class Turret implements HasId, BulletEffect, HasLife, Targetable {
+public class Turret extends AbstractFieldEffect implements BulletEffect, HasLife, Targetable {
     private final long id;
     @JsonIgnore
     private final long ownerId;
@@ -20,7 +21,7 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
     private final Vector2D position;
     private final double radius;
     @JsonIgnore
-    private final Weapon weapon;
+    private Weapon weapon;
     private double angle;
     private double hp;
     private final double maxHp;
@@ -40,6 +41,7 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
     }
 
     public Turret(long id, long ownerId, int team, double x, double y, double radius, Weapon weapon, double angle) {
+        super(Type.TURRET, id, x, y, radius, team, 0);
         this.id = id;
         this.ownerId = ownerId;
         this.team = team;
@@ -47,7 +49,7 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
         this.radius = radius;
         this.weapon = weapon;
         this.angle = angle;
-        this.hp = Config.DEFAULT_PLAYER_HEALTH / 2;
+        this.hp = Config.TURRET_HEALTH;
         this.maxHp = this.hp;
         this.nextShotTime = 0;
         this.reloading = false;
@@ -122,6 +124,11 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
         return this.hp <= 0;
     }
 
+    @Override
+    public boolean isExpired() {
+        return hp <= 0;
+    }
+
     @JsonIgnore
     public boolean isReloading() {
         return reloading;
@@ -163,6 +170,19 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
     }
 
     /**
+     * Sets a new weapon for this turret and resets ammo/reload state.
+     *
+     * @param newWeapon The weapon to equip
+     */
+    public void setWeapon(Weapon newWeapon) {
+        this.ammoInMag = (int) (((double) ammoInMag / weapon.getRoundsPerMagazine()) * newWeapon.getRoundsPerMagazine());
+        this.weapon = newWeapon;
+        this.reloading = false;
+        this.nextShotTime = 0;
+        this.reloadCompleteTime = 0;
+    }
+
+    /**
      * The main update loop for the turret's AI.
      * It finds a target, aims, and decides whether to shoot or reload.
      *
@@ -185,7 +205,10 @@ public class Turret implements HasId, BulletEffect, HasLife, Targetable {
             return findBestTarget(gameState, nearby)
                     .map(finalTarget -> {
                         Vector2D directionToTarget = finalTarget.position().subtract(position());
-                        setAngle(Math.atan2(directionToTarget.y(), directionToTarget.x()));
+                        double perfectAngle = Math.atan2(directionToTarget.y(), directionToTarget.x());
+                        double inaccuracy = (ThreadLocalRandom.current().nextDouble() - 0.5) * 2 * Config.TURRET_INACCURACY;
+                        double finalAngle = perfectAngle + inaccuracy;
+                        setAngle(finalAngle);
                         return new ShootAction(directionToTarget.x(), directionToTarget.y());
                     });
         }

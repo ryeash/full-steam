@@ -3,6 +3,7 @@ package com.fullsteam.systems;
 import com.fullsteam.Config;
 import com.fullsteam.WeaponFactory;
 import com.fullsteam.games.AbstractGameStateManager;
+import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
@@ -13,6 +14,7 @@ import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.Targetable;
+import com.fullsteam.model.Turret;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
 import com.fullsteam.model.Weapon;
@@ -26,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -62,7 +65,6 @@ public class PlayerManager {
     private final WeaponSystem weaponSystem;
     private final VehicleManager vehicleManager;
     private final FieldEffectSystem fieldEffectSystem;
-    private final TurretSystem turretSystem;
     private final Consumer<GameEvent> gameEventSender;
     private final BiConsumer<Player, Player> killPlayerHandler;
     private final Supplier<IAIStrategy> aiStrategyBuilder;
@@ -87,11 +89,10 @@ public class PlayerManager {
         this.killPlayerHandler = other.killPlayerHandler;
         this.aiStrategyBuilder = other.aiStrategyBuilder;
         this.setValidSpawnPositionHandler = other.setValidSpawnPositionHandler;
-        this.turretSystem = other.turretSystem;
     }
 
     public PlayerManager(AbstractGameStateManager game, GameEntities entities, PhysicsEngine physicsEngine, WeaponSystem weaponSystem,
-                         VehicleManager vehicleManager, FieldEffectSystem fieldEffectSystem, TurretSystem turretSystem,
+                         VehicleManager vehicleManager, FieldEffectSystem fieldEffectSystem,
                          Consumer<GameEvent> gameEventSender, BiConsumer<Player, Player> killPlayerHandler,
                          Supplier<IAIStrategy> aiStrategyBuilder,
                          Consumer<Player> setValidSpawnPositionHandler) {
@@ -101,7 +102,6 @@ public class PlayerManager {
         this.weaponSystem = weaponSystem;
         this.vehicleManager = vehicleManager;
         this.fieldEffectSystem = fieldEffectSystem;
-        this.turretSystem = turretSystem;
         this.gameEventSender = gameEventSender;
         this.killPlayerHandler = killPlayerHandler;
         this.aiStrategyBuilder = aiStrategyBuilder;
@@ -189,6 +189,7 @@ public class PlayerManager {
         if (vehicle == null) {
             handlePlayerMovement(player, input);
             handlePlayerShooting(player, input);
+            game.additionalPlayerInput(player, input);
         } else {
             // Player is in a vehicle - delegate to VehicleManager
             vehicleManager.handlePlayerVehicleInput(playerId, input, delta);
@@ -197,9 +198,9 @@ public class PlayerManager {
         // Handle vehicle enter/exit with debounce
         if (input.isAction2()) {
             long currentTime = System.currentTimeMillis();
-            Long lastActionTime = entities.getLastVehicleActionTime(playerId);
+            Long lastActionTime = entities.getLastAltActionTime(playerId);
             if (lastActionTime == null || currentTime - lastActionTime >= Config.VEHICLE_ACTION_DEBOUNCE_MS) {
-                entities.setLastVehicleActionTime(playerId, currentTime);
+                entities.setLastAltActionTime(playerId, currentTime);
                 vehicleManager.handleVehicleEnterExit(player);
             }
         }
@@ -252,6 +253,28 @@ public class PlayerManager {
             } else if (player.getAmmoInMag() <= 0 && !player.isReloading()) {
                 player.startReload();
             }
+        }
+        if (input.isAltFire()) {
+            handleTurretWeaponCycling(player);
+        }
+    }
+
+    /**
+     * Handles cycling weapons on the player's turrets when altFire is pressed
+     */
+    private void handleTurretWeaponCycling(Player player) {
+        PlayerSession playerSession = entities.getPlayerSessions().get(player.id());
+        if (playerSession != null
+                && player.getWeapon().getName().equals(WeaponFactory.ENGINEER_WRENCH.getName())
+                && entities.getLastAltActionTime(player.id()) + 500 < System.currentTimeMillis()) {
+            entities.setLastAltActionTime(player.id(), System.currentTimeMillis());
+            Weapon weapon = playerSession.cycleTurretWeapons();
+            for (FieldEffect fieldEffect : entities.getFieldEffects().values()) {
+                if (fieldEffect instanceof Turret turret && turret.getOwnerId() == player.id()) {
+                    turret.setWeapon(weapon);
+                }
+            }
+            gameEventSender.accept(GameEvent.blue("Turret weapons set to [%s]".formatted(weapon.getName()), player.id()));
         }
     }
 
@@ -348,8 +371,8 @@ public class PlayerManager {
         long currentTime = System.currentTimeMillis();
         for (Player player : entities.getPlayers()) {
             if (player.isDead()
-                && player.getRespawnTime() != -1 // indicates a player's respawn has been disabled
-                && currentTime >= player.getRespawnTime()) {
+                    && player.getRespawnTime() != -1 // indicates a player's respawn has been disabled
+                    && currentTime >= player.getRespawnTime()) {
                 respawnPlayer(player);
             }
         }
@@ -437,11 +460,10 @@ public class PlayerManager {
         }
 
         if (request.getWeaponName() != null
-            && !request.getWeaponName().isEmpty()
-            && !request.getWeaponName().equals(player.getWeapon().getName())) {
+                && !request.getWeaponName().isEmpty()
+                && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
-            turretSystem.removeAllTurretsOwnedBy(player.id());
         }
 
         if (request.isRequestTeamChange()) {
@@ -503,8 +525,7 @@ public class PlayerManager {
                     List.of(player),
                     List.of(),
                     List.of(),
-                    entities.getFieldEffects(),
-                    List.of(),
+                    entities.getFieldEffects().values(),
                     List.of(),
                     includeAllObstacles ? entities.getObstacles() : entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
                     List.of(),
@@ -518,8 +539,7 @@ public class PlayerManager {
                             .toList(),
                     entities.getBullets(),
                     entities.getLaserBlasts(),
-                    entities.getFieldEffects(),
-                    entities.getTurrets(),
+                    entities.getFieldEffects().values(),
                     entities.getVehicles(),
                     includeAllObstacles ? entities.getObstacles() : entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
                     entities.getPowerUps(),

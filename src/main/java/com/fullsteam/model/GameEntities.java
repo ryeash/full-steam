@@ -11,7 +11,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Stream;
 
 /**
@@ -29,8 +31,7 @@ public class GameEntities {
     // Game object collections
     private final List<Bullet> bullets = Collections.synchronizedList(new LinkedList<>());
     private final List<LaserBlast> laserBlasts = Collections.synchronizedList(new LinkedList<>());
-    private final List<FieldEffect> fieldEffects = Collections.synchronizedList(new LinkedList<>());
-    private final List<Turret> turrets = Collections.synchronizedList(new LinkedList<>());
+    private final Map<Long, FieldEffect> fieldEffects = new ConcurrentSkipListMap<>();
     private final List<Vehicle> vehicles = Collections.synchronizedList(new LinkedList<>());
     private final List<Obstacle> obstacles = Collections.synchronizedList(new LinkedList<>());
     private final List<PowerUp> powerUps = Collections.synchronizedList(new LinkedList<>());
@@ -81,12 +82,8 @@ public class GameEntities {
         return laserBlasts;
     }
 
-    public List<FieldEffect> getFieldEffects() {
+    public Map<Long, FieldEffect> getFieldEffects() {
         return fieldEffects;
-    }
-
-    public List<Turret> getTurrets() {
-        return turrets;
     }
 
     public List<Vehicle> getVehicles() {
@@ -113,7 +110,6 @@ public class GameEntities {
     public void clearTransientObjects() {
         bullets.clear();
         fieldEffects.clear();
-        turrets.clear();
         powerUps.clear();
         laserBlasts.clear();
     }
@@ -181,21 +177,19 @@ public class GameEntities {
     /**
      * Gets the last vehicle action time for a player
      */
-    public Long getLastVehicleActionTime(Long playerId) {
-        PlayerSession playerSession = playerSessions.get(playerId);
-        if (playerSession != null) {
-            return playerSession.getLastVehicleActionTime();
-        }
-        return null;
+    public Long getLastAltActionTime(Long playerId) {
+        return Optional.ofNullable(playerSessions.get(playerId))
+                .map(PlayerSession::getLastAltActionTime)
+                .orElse(0L);
     }
 
     /**
      * Sets the last vehicle action time for a player
      */
-    public void setLastVehicleActionTime(Long playerId, Long time) {
+    public void setLastAltActionTime(Long playerId, Long time) {
         PlayerSession playerSession = playerSessions.get(playerId);
         if (playerSession != null) {
-            playerSession.setLastVehicleActionTime(time);
+            playerSession.setLastAltActionTime(time);
         }
     }
 

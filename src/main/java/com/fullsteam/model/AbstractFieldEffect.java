@@ -12,6 +12,7 @@ public abstract class AbstractFieldEffect implements FieldEffect {
     private final double radiusSquared;
     private final int team;
     private final long expiration;
+    private final long timestamp = System.currentTimeMillis();
 
     public AbstractFieldEffect(Type type, long id, double x, double y, double radius, int team, long expiration) {
         this.type = type;
@@ -62,5 +63,10 @@ public abstract class AbstractFieldEffect implements FieldEffect {
     @Override
     public long getExpiration() {
         return expiration;
+    }
+
+    @Override
+    public long timestamp() {
+        return timestamp;
     }
 }

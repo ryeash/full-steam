@@ -9,6 +9,7 @@ import com.fullsteam.model.FieldEffect;
 import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
+import com.fullsteam.model.GridPoint;
 import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
@@ -16,6 +17,7 @@ import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.PlayerScores;
 import com.fullsteam.model.PlayerSession;
+import com.fullsteam.model.Portal;
 import com.fullsteam.model.PowerUp;
 import com.fullsteam.model.PowerUpType;
 import com.fullsteam.model.Turret;
@@ -29,7 +31,6 @@ import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.systems.FieldEffectSystem;
 import com.fullsteam.systems.PhysicsEngine;
 import com.fullsteam.systems.PlayerManager;
-import com.fullsteam.systems.TurretSystem;
 import com.fullsteam.systems.VehicleManager;
 import com.fullsteam.systems.WeaponSystem;
 import io.micronaut.websocket.WebSocketSession;
@@ -75,7 +76,6 @@ public abstract class AbstractGameStateManager {
     protected PhysicsEngine physicsEngine;
     protected VehicleManager vehicleManager;
     protected FieldEffectSystem fieldEffectSystem;
-    protected TurretSystem turretSystem;
     protected PlayerManager playerManager;
     protected boolean isRoundOver = false;
     protected ScheduledFuture<?> gameLoopHook;
@@ -87,11 +87,10 @@ public abstract class AbstractGameStateManager {
         this.objectMapper = objectMapper;
         this.gameLobby = gameLobby;
         this.entities = new GameEntities(gameId, GAME_WIDTH, GAME_HEIGHT, 100, 100);
-        this.weaponSystem = new WeaponSystem(entities, this::applyBulletEffect, this::killPlayer);
         this.physicsEngine = new PhysicsEngine(entities);
-        this.fieldEffectSystem = new FieldEffectSystem(entities, this::killPlayer);
+        this.weaponSystem = new WeaponSystem(entities, this::applyBulletEffect, this::killPlayer);
+        this.fieldEffectSystem = new FieldEffectSystem(weaponSystem, entities, this::killPlayer);
         this.vehicleManager = new VehicleManager(entities, physicsEngine, weaponSystem, fieldEffectSystem, this::sendGameEvent);
-        this.turretSystem = new TurretSystem(entities, weaponSystem, fieldEffectSystem, this::sendGameEvent);
         this.playerManager = new PlayerManager(
                 this,
                 entities,
@@ -99,7 +98,6 @@ public abstract class AbstractGameStateManager {
                 weaponSystem,
                 vehicleManager,
                 fieldEffectSystem,
-                turretSystem,
                 this::sendGameEvent,
                 this::killPlayer,
                 this::buildAIStrategy,
@@ -203,6 +201,10 @@ public abstract class AbstractGameStateManager {
         playerManager.acceptPlayerInput(playerId, input);
     }
 
+    public void additionalPlayerInput(Player player, PlayerInput playerInput) {
+        // no-op
+    }
+
     protected void updateGame(long delta) {
         try {
             populateSpatialGrids();
@@ -217,10 +219,8 @@ public abstract class AbstractGameStateManager {
             playerManager.checkAndRespawnPlayers();
             playerManager.updatePowerUps();
             updatePlayers(delta);
-            weaponSystem.updateBullets(delta);
-            weaponSystem.updateLaserBlasts(delta);
+            weaponSystem.updateOrdinance(delta);
             fieldEffectSystem.updateFieldEffects(delta);
-            turretSystem.updateTurrets(delta);
             vehicleManager.updateVehicles(delta);
 
             // Send scores less frequently to save bandwidth
@@ -285,12 +285,16 @@ public abstract class AbstractGameStateManager {
     }
 
     protected void applyBulletEffect(BulletEffect bulletEffect) {
-        if (bulletEffect instanceof FieldEffect fe) {
-            fieldEffectSystem.addFieldEffect(fe);
-            return;
-        }
         switch (bulletEffect) {
-            case Turret turret -> turretSystem.placeTurret(turret);
+            case Turret turret -> {
+                // use the turret weapon from the player session
+                Weapon turretWeapons = entities.getPlayerSessions().get(turret.getOwnerId()).getTurretWeapons();
+                turret.setWeapon(turretWeapons);
+                fieldEffectSystem.placeTurret(turret);
+            }
+            case GridPoint gridPoint -> fieldEffectSystem.placeGridPoint(gridPoint);
+            case Portal portal -> fieldEffectSystem.placePortal(portal);
+            case FieldEffect fieldEffect -> entities.getFieldEffects().put(fieldEffect.id(), fieldEffect);
             case null, default -> throw new UnsupportedOperationException("unknown effect: " + bulletEffect);
         }
     }
@@ -300,6 +304,7 @@ public abstract class AbstractGameStateManager {
             return; // Prevent scoring on an already dead player
         }
 
+        fieldEffectSystem.removePlayerPortal(victim);
         entities.removePlayerInput(victim.getId());
         victim.setDead(true);
         victim.incrementDeaths();
@@ -308,10 +313,12 @@ public abstract class AbstractGameStateManager {
         victim.setVelocityY(0);
         victim.setInvisibilityEndTime(0);
         victim.setDamageMultiplier(1.0);
-        removePlayerTurrets(victim);
 
         if (shooter != null) {
-            shooter.incrementKills();
+            // don't score a kill for self-kill
+            if (shooter.id() != victim.id()) {
+                shooter.incrementKills();
+            }
             String weaponUsed = Optional.ofNullable(vehicleManager.getPlayerMountedWeapon(shooter.id()))
                     .map(MountedWeapon::getWeapon)
                     .map(Weapon::getName)
@@ -475,10 +482,6 @@ public abstract class AbstractGameStateManager {
         playerManager.handlePlayerConfigChange(playerId, request);
     }
 
-    protected void removePlayerTurrets(Player player) {
-        entities.getTurrets().removeIf(t -> t.getOwnerId() == player.id());
-    }
-
     public void shutdown() {
         entities.getPlayerChannels().forEach(WebSocketSession::close);
         if (gameLoopHook != null) {
@@ -508,8 +511,7 @@ public abstract class AbstractGameStateManager {
                 entities.getPlayers(),
                 entities.getBullets(),
                 entities.getLaserBlasts(),
-                entities.getFieldEffects(),
-                entities.getTurrets(),
+                entities.getFieldEffects().values(),
                 entities.getVehicles(),
                 entities.getObstacles().stream().filter(Obstacle::isRendered).toList(),
                 entities.getPowerUps(),
@@ -527,8 +529,8 @@ public abstract class AbstractGameStateManager {
             channel.sendAsync(bytes)
                     .whenComplete((msg, error) -> {
                         if (error != null
-                            && !(error instanceof ClosedChannelException)
-                            && !(error.getCause() instanceof ClosedChannelException)) {
+                                && !(error instanceof ClosedChannelException)
+                                && !(error.getCause() instanceof ClosedChannelException)) {
                             log.error("Failed to send data to {}. Closing channel.", channel.getId(), error);
                             channel.close();
                         }

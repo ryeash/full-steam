@@ -81,8 +81,17 @@ public class Config {
     public static final int MAX_PLAYERS_PER_TEAM = getInt("game.max_players_per_team", 5);
     public static final long RESPAWN_IMMUNITY_DURATION = getLong("game.respawn_immunity_duration", 2000);
     public static final int MAX_TURRETS_PER_PLAYER = getInt("game.max_turrets_per_player", 2);
+    public static final double TURRET_HEALTH = getDouble("game.turret_health", 50.0);
     public static final double TURRET_INACCURACY = getDouble("game.turret_inaccuracy", .2);
     public static final long MINE_DURATION_SECONDS = getLong("game.mine_duration", 15000);
+    public static final long LASER_SHOT_DURATION = getLong("game.laser_shot_duration", 100);
+    public static final int DEFENSE_GRID_LASER_MAX_PER_USER = getInt("game.defense_grid.max_per_user", 4);
+    public static final double DEFENSE_GRID_HEALTH = getDouble("game.defense_grid.health", 75.0);
+    public static final double DEFENSE_GRID_LASER_RANGE = getDouble("game.defense_grid.laser_range", 250.0);
+    public static final double DEFENSE_GRID_LASER_DAMAGE = getDouble("game.defense_grid.laser_damage", 200.0);
+    public static final long DEFENSE_GRID_LASER_COOLDOWN = getLong("game.defense_grid.laser_cooldown", 1000);
+    public static final long DEFENSE_GRID_LASER_DURATION = getLong("game.defense_grid.laser_duration", 1000);
+    public static final int MAX_PORTALS_PER_PLAYER = getInt("game.portal.max_per_player", 2);
 
     // --- Power Ups ---
     public static final double POWERUP_DROP_RATE = getDouble("game.powerup.drop_rate", 0.25D);
