@@ -628,7 +628,7 @@ public class FieldEffectSystem {
     private static final double SPAWN_CHECK_RADIUS = 2.0; // small collision radius for spawn test
     private static final double INITIAL_OFFSET = 6.0;     // start a bit away from the effect center
     private static final double STEP = 3.0;               // step outward if inside obstacle
-    private static final double MAX_DISTANCE = 80.0;      // give up after this distance
+    private static final double MAX_DISTANCE = 24.0;      // give up after this distance
 
     /**
      * Handles bullet scatter effects that spawn multiple bullets in random directions

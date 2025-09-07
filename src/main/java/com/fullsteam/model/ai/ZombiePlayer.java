@@ -26,7 +26,7 @@ public class ZombiePlayer extends AIPlayer {
     public ZombiePlayer(long id, double x, double y, int team, double baseSpeed) {
         // Zombies always use melee weapons and have randomized speed
         super(id, x, y, team, new ZombieStrategy(), AIArchetype.WARRIOR);
-        this.zombieSpeed = baseSpeed + ThreadLocalRandom.current().nextDouble(-ZOMBIE_SPEED_VARIATION, ZOMBIE_SPEED_VARIATION);
+        this.zombieSpeed = Math.max(baseSpeed + ThreadLocalRandom.current().nextDouble(-ZOMBIE_SPEED_VARIATION, ZOMBIE_SPEED_VARIATION), .03);
         setWeapon(WeaponFactory.ZOMBIE_CLAW);
         setSpeed(zombieSpeed);
     }

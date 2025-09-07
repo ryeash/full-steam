@@ -442,6 +442,7 @@ public class WeaponFactory {
             ASSAULT,
             SMG,
             SNIPER_RIFLE,
+            FLAMEFLOWER,
             MINIGUN,
             SHOTGUN,
             STREET_SWEEPER,

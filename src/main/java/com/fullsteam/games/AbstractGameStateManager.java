@@ -10,6 +10,7 @@ import com.fullsteam.model.GameEntities;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.GameState;
 import com.fullsteam.model.GridPoint;
+import com.fullsteam.model.Mine;
 import com.fullsteam.model.MountedWeapon;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
@@ -195,6 +196,14 @@ public abstract class AbstractGameStateManager {
 
     public void removePlayer(long playerId) {
         playerManager.removePlayer(playerId);
+        fieldEffectSystem.removePlayerPortal(entities.getPlayer(playerId));
+        entities.getFieldEffects().values().removeIf(fe ->
+                switch (fe) {
+                    case Turret t -> t.getOwnerId() == playerId;
+                    case GridPoint gp -> gp.getOwnerId() == playerId;
+                    case Mine m -> m.getOwnerId() == playerId;
+                    case null, default -> false;
+                });
     }
 
     public void acceptPlayerInput(Long playerId, PlayerInput input) {
