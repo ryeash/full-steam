@@ -75,8 +75,8 @@ public class DualBaseDestructionManager extends AbstractTeamBasedManager {
     private void initializeMotorPools() {
         motorPools = new ArrayList<>();
 
-        // Team 1 motor pool (left side, near their base)
-        Vector2D team1PoolPosition = new Vector2D(GAME_WIDTH * 0.25, GAME_HEIGHT / 2.0);
+        // Team 1 motor pool (top-right corner, opposite from their base)
+        Vector2D team1PoolPosition = new Vector2D(GAME_WIDTH * 0.8, GAME_HEIGHT * 0.2);
         MotorPool team1Pool = new MotorPool(
                 team1PoolPosition,
                 MOTOR_POOL_RADIUS,
@@ -88,8 +88,8 @@ public class DualBaseDestructionManager extends AbstractTeamBasedManager {
                 1
         );
 
-        // Team 2 motor pool (right side, near their base)
-        Vector2D team2PoolPosition = new Vector2D(GAME_WIDTH * 0.75, GAME_HEIGHT / 2.0);
+        // Team 2 motor pool (bottom-left corner, opposite from their base)
+        Vector2D team2PoolPosition = new Vector2D(GAME_WIDTH * 0.2, GAME_HEIGHT * 0.8);
         MotorPool team2Pool = new MotorPool(
                 team2PoolPosition,
                 MOTOR_POOL_RADIUS,
@@ -146,15 +146,8 @@ public class DualBaseDestructionManager extends AbstractTeamBasedManager {
 
         generateBasePositions();
 
-        // Give each team one fixed cannon near their motor pool
-        for (int i = 0; i < motorPools.size(); i++) {
-            MotorPool motorPool = motorPools.get(i);
-            Vector2D position = motorPool.position();
-            Vehicle fixedCannon = vehicleManager.spawnVehicle(Vehicle.VehicleType.FIXED_CANNON);
-            // Position fixed cannons slightly forward from motor pools
-            double cannonX = i == 0 ? position.x() + 100 : position.x() - 100;
-            fixedCannon.setPosition(new Vector2D(cannonX, position.y()));
-        }
+        // Spawn fixed cannons in the defensive line gaps (after vehicle clearing)
+        spawnDefensiveCannons();
 
         // Send role announcements
         sendGameEvent(GameEvent.team(1, "Destroy Team 2's base while defending your own!"));
@@ -404,92 +397,103 @@ public class DualBaseDestructionManager extends AbstractTeamBasedManager {
     @Override
     protected void generateObstacles() {
         entities.getObstacles().clear();
+        generateDefensiveLines();
+    }
 
-        // Create symmetric defensive structures
-        generateSymmetricDefenses();
+    private void generateDefensiveLines() {
+        generateStaticDefensiveWall(1);
+        generateStaticDefensiveWall(2);
+    }
+
+    private void generateStaticDefensiveWall(int team) {
+        // Create a simple static wall with exactly 2 gaps for cannons
+        double wallThickness = 50;
+        double gapSize = 100; // Size of gaps for cannons
+        double wallLength = GAME_HEIGHT * 0.6; // Total wall length
         
-        // Add some cover obstacles in the middle area
-        generateMiddleCover();
+        double wallX, wallStartY;
+        if (team == 1) {
+            // Team 1 wall - vertical wall protecting left side
+            wallX = GAME_WIDTH * 0.35;
+            wallStartY = GAME_HEIGHT * 0.2;
+        } else {
+            // Team 2 wall - vertical wall protecting right side
+            wallX = GAME_WIDTH * 0.65;
+            wallStartY = GAME_HEIGHT * 0.2;
+        }
+        
+        // Create wall segments with gaps
+        double segmentHeight = (wallLength - (2 * gapSize)) / 3; // 3 segments, 2 gaps
+        
+        // Wall segment 1 (top)
+        Obstacle topWall = Obstacle.createRectangle(
+                wallX - wallThickness/2,
+                wallStartY,
+                wallThickness,
+                segmentHeight
+        );
+        entities.getObstacles().add(topWall);
+        
+        // Wall segment 2 (middle)
+        double middleWallY = wallStartY + segmentHeight + gapSize;
+        Obstacle middleWall = Obstacle.createRectangle(
+                wallX - wallThickness/2,
+                middleWallY,
+                wallThickness,
+                segmentHeight
+        );
+        entities.getObstacles().add(middleWall);
+        
+        // Wall segment 3 (bottom)
+        double bottomWallY = middleWallY + segmentHeight + gapSize;
+        Obstacle bottomWall = Obstacle.createRectangle(
+                wallX - wallThickness/2,
+                bottomWallY,
+                wallThickness,
+                segmentHeight
+        );
+        entities.getObstacles().add(bottomWall);
     }
 
-    private void generateSymmetricDefenses() {
-        // Create defensive walls for each team
-        double wallThickness = 40;
-        double gapSize = 80;
-
-        // Team 1 defensive wall (left side)
+    private void spawnDefensiveCannons() {
+        // Spawn fixed cannons in the gaps of the defensive walls
+        // This matches the gap positions calculated in generateStaticDefensiveWall()
+        
+        double gapSize = 100;
+        double wallLength = GAME_HEIGHT * 0.6;
+        double segmentHeight = (wallLength - (2 * gapSize)) / 3;
+        
+        // Team 1 cannons
         double team1WallX = GAME_WIDTH * 0.35;
-        generateDefensiveWallForTeam(team1WallX, wallThickness, gapSize);
-
-        // Team 2 defensive wall (right side, mirrored)
+        double team1WallStartY = GAME_HEIGHT * 0.2;
+        
+        double team1Cannon1Y = team1WallStartY + segmentHeight + (gapSize / 2);
+        Vehicle team1Cannon1 = vehicleManager.spawnVehicle(Vehicle.VehicleType.FIXED_CANNON);
+        team1Cannon1.setPosition(new Vector2D(team1WallX, team1Cannon1Y));
+        
+        double team1MiddleWallY = team1WallStartY + segmentHeight + gapSize;
+        double team1Cannon2Y = team1MiddleWallY + segmentHeight + (gapSize / 2);
+        Vehicle team1Cannon2 = vehicleManager.spawnVehicle(Vehicle.VehicleType.FIXED_CANNON);
+        team1Cannon2.setPosition(new Vector2D(team1WallX, team1Cannon2Y));
+        
+        // Team 2 cannons
         double team2WallX = GAME_WIDTH * 0.65;
-        generateDefensiveWallForTeam(team2WallX, wallThickness, gapSize);
-    }
-
-    private void generateDefensiveWallForTeam(double wallX, double wallThickness, double gapSize) {
-        // Calculate positions for three wall segments with two gaps
-        double totalWallArea = GAME_HEIGHT - (2 * Config.SPAWN_VERTICAL_PADDING);
-        double segmentHeight = (totalWallArea - (2 * gapSize)) / 3;
-
-        double startY = Config.SPAWN_VERTICAL_PADDING;
-
-        // Create three wall segments
-        for (int i = 0; i < 3; i++) {
-            double segmentY = startY + i * (segmentHeight + gapSize);
-            Obstacle wallSegment = Obstacle.createRectangle(
-                    wallX - wallThickness / 2,
-                    segmentY,
-                    wallThickness,
-                    segmentHeight
-            );
-            entities.getObstacles().add(wallSegment);
-        }
-    }
-
-    private void generateMiddleCover() {
-        // Add some cover obstacles in the middle area between the two defensive lines
-        int coverCount = 4 + ThreadLocalRandom.current().nextInt(3); // 4-6 cover obstacles
-        int maxRetries = 20;
-
-        for (int i = 0; i < coverCount; i++) {
-            int retries = 0;
-            while (retries < maxRetries) {
-                // Generate obstacles in the middle area
-                double minX = GAME_WIDTH * 0.4;
-                double maxX = GAME_WIDTH * 0.6;
-                double x = minX + ThreadLocalRandom.current().nextDouble(maxX - minX);
-                double y = Config.SPAWN_VERTICAL_PADDING +
-                           ThreadLocalRandom.current().nextDouble(GAME_HEIGHT - Config.SPAWN_VERTICAL_PADDING * 2);
-
-                // Create a medium-sized cover obstacle
-                double width = 50 + ThreadLocalRandom.current().nextDouble(30); // 50-80 width
-                double height = 50 + ThreadLocalRandom.current().nextDouble(30); // 50-80 height
-
-                Obstacle coverObstacle = Obstacle.createRectangle(x, y, width, height);
-
-                // Check if it overlaps with existing obstacles or is too close to motor pools
-                boolean overlaps = entities.getObstacles().stream().anyMatch(existing ->
-                        CollisionUtils.checkObstacleOverlap(coverObstacle, existing, 30));
-
-                // Check distance from motor pools
-                boolean tooCloseToMotorPools = motorPools.stream().anyMatch(pool -> {
-                    Vector2D obstacleCenter = new Vector2D(x + width/2, y + height/2);
-                    return pool.position().distance(obstacleCenter) < MOTOR_POOL_RADIUS + 50;
-                });
-
-                if (!overlaps && !tooCloseToMotorPools) {
-                    entities.getObstacles().add(coverObstacle);
-                    break;
-                }
-                retries++;
-            }
-        }
+        double team2WallStartY = GAME_HEIGHT * 0.2;
+        
+        double team2Cannon1Y = team2WallStartY + segmentHeight + (gapSize / 2);
+        Vehicle team2Cannon1 = vehicleManager.spawnVehicle(Vehicle.VehicleType.FIXED_CANNON);
+        team2Cannon1.setPosition(new Vector2D(team2WallX, team2Cannon1Y));
+        
+        double team2MiddleWallY = team2WallStartY + segmentHeight + gapSize;
+        double team2Cannon2Y = team2MiddleWallY + segmentHeight + (gapSize / 2);
+        Vehicle team2Cannon2 = vehicleManager.spawnVehicle(Vehicle.VehicleType.FIXED_CANNON);
+        team2Cannon2.setPosition(new Vector2D(team2WallX, team2Cannon2Y));
     }
 
     private void generateBasePositions() {
-        // Team 1 base (left side)
-        double team1BaseX = GAME_WIDTH * 0.15; // 15% across the map
-        double team1BaseY = GAME_HEIGHT / 2.0; // Centered vertically
+        // Team 1 base (top-left corner)
+        double team1BaseX = GAME_WIDTH * 0.2; // 20% across the map
+        double team1BaseY = GAME_HEIGHT * 0.2; // 20% down the map
 
         Vector2D team1BasePosition = new Vector2D(team1BaseX, team1BaseY);
         this.team1Base = new Base(
@@ -500,9 +504,9 @@ public class DualBaseDestructionManager extends AbstractTeamBasedManager {
                 1 // Team 1
         );
 
-        // Team 2 base (right side)
-        double team2BaseX = GAME_WIDTH * 0.85; // 85% across the map
-        double team2BaseY = GAME_HEIGHT / 2.0; // Centered vertically
+        // Team 2 base (bottom-right corner)
+        double team2BaseX = GAME_WIDTH * 0.8; // 80% across the map
+        double team2BaseY = GAME_HEIGHT * 0.8; // 80% down the map
 
         Vector2D team2BasePosition = new Vector2D(team2BaseX, team2BaseY);
         this.team2Base = new Base(
