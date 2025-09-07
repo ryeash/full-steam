@@ -98,6 +98,13 @@ const GAME_MODE_INFO = {
         teamBased: true,
         team1Objective: 'Eliminate Team 2 players using portal tactics',
         team2Objective: 'Eliminate Team 1 players using portal tactics'
+    },
+    'Dual Base Destruction': {
+        subtitle: 'Symmetric base warfare with vehicles',
+        objective: 'Both teams have a base to defend and must destroy the enemy base while protecting their own. Capture motor pools to spawn vehicles for attack and defense.',
+        teamBased: true,
+        team1Objective: 'Destroy Team 2\'s base while defending your own',
+        team2Objective: 'Destroy Team 1\'s base while defending your own'
     }
 };
 
@@ -328,6 +335,23 @@ class GameUIManager {
                 this.elements.team2Score.style.display = 'inline';
                 this.elements.team1Score.innerHTML = `${Math.floor(info.team1Score || 0)}`;
                 this.elements.team2Score.innerHTML = `${Math.floor(info.team2Score || 0)}`;
+            },
+            'Dual Base Destruction': (info) => {
+                this.game.shouldDrawRespawnOverlay = true;
+                this.elements.yourTeam.style.display = 'inline';
+                this.elements.switchTeamBtn.style.display = 'block';
+                this.elements.team1Score.style.display = 'inline';
+                this.elements.team2Score.style.display = 'inline';
+
+                // Show base health percentages and team scores
+                const team1BaseHealthPercent = info.team1Base ? Math.round(((info.team1Base.hp || 0) / info.team1Base.maxHp) * 100) : 0;
+                const team2BaseHealthPercent = info.team2Base ? Math.round(((info.team2Base.hp || 0) / info.team2Base.maxHp) * 100) : 0;
+                
+                const team1Color = team1BaseHealthPercent > 50 ? GameColors.health.high : team1BaseHealthPercent > 25 ? GameColors.health.medium : GameColors.health.low;
+                const team2Color = team2BaseHealthPercent > 50 ? GameColors.health.high : team2BaseHealthPercent > 25 ? GameColors.health.medium : GameColors.health.low;
+                
+                this.elements.team1Score.innerHTML = `${Math.floor(info.team1Score || 0)} <span style="font-size: 0.8em; color: ${team1Color};">Base: ${team1BaseHealthPercent}%</span>`;
+                this.elements.team2Score.innerHTML = `${Math.floor(info.team2Score || 0)} <span style="font-size: 0.8em; color: ${team2Color};">Base: ${team2BaseHealthPercent}%</span>`;
             },
             'default': (info) => {
                 this.game.shouldDrawRespawnOverlay = true;
@@ -1832,7 +1856,8 @@ class Game {
 
     drawMotorPools() {
         const gameInfo = this.gameState.info;
-        if (!gameInfo || gameInfo.type !== 'Armored Assault' || !gameInfo.motorPools) {
+        if (!gameInfo || (!gameInfo.motorPools || 
+            (gameInfo.type !== 'Armored Assault' && gameInfo.type !== 'Dual Base Destruction'))) {
             return;
         }
 
@@ -2103,7 +2128,9 @@ class Game {
             this.ctx.fillText(`${vehicle.vehicleName} (${passengerCount}/${maxPassengers})`, vehicleX, vehicleY - vehicleRadius - 25);
 
             // Draw repair indicator if vehicle is being repaired
-            if (this.gameState.info && this.gameState.info.type === 'Armored Assault' && this.gameState.info.motorPools) {
+            if (this.gameState.info && 
+                (this.gameState.info.type === 'Armored Assault' || this.gameState.info.type === 'Dual Base Destruction') && 
+                this.gameState.info.motorPools) {
                 const teamPool = this.gameState.info.motorPools.find(pool => pool.team === vehicle.team);
                 if (teamPool) {
                     const distanceToPool = Math.sqrt(
@@ -2749,22 +2776,50 @@ class Game {
 
     drawBase() {
         const gameInfo = this.gameState.info;
-        if (!gameInfo || gameInfo.type !== 'Base Destruction' || !gameInfo.base) {
-            return;
+        
+        // Handle single base (Base Destruction mode)
+        if (gameInfo && gameInfo.type === 'Base Destruction' && gameInfo.base) {
+            const base = gameInfo.base;
+            if (!base.destroyed) {
+                this.drawSingleBase(base);
+            }
         }
-
-        const base = gameInfo.base;
-        if (base.destroyed) {
-            return; // Don't draw destroyed base
+        
+        // Handle dual bases (Dual Base Destruction mode)
+        if (gameInfo && gameInfo.type === 'Dual Base Destruction') {
+            if (gameInfo.team1Base && !gameInfo.team1BaseDestroyed) {
+                this.drawSingleBase(gameInfo.team1Base, 1);
+            }
+            if (gameInfo.team2Base && !gameInfo.team2BaseDestroyed) {
+                this.drawSingleBase(gameInfo.team2Base, 2);
+            }
         }
+    }
 
+    drawSingleBase(base, team = null) {
         this.ctx.save();
 
         // Draw base structure using vertices (octagonal shape)
         if (base.vertices && base.vertices.length >= 3) {
+            // Choose colors based on team (if specified) or use neutral colors
+            let baseColor, strokeColor, accentColor;
+            if (team === 1) {
+                baseColor = '#2E7D32';   // Dark green for Team 1
+                strokeColor = '#1B5E20'; // Darker green
+                accentColor = '#4CAF50'; // Bright green accent
+            } else if (team === 2) {
+                baseColor = '#C62828';   // Dark red for Team 2
+                strokeColor = '#B71C1C'; // Darker red
+                accentColor = '#F44336'; // Bright red accent
+            } else {
+                baseColor = '#607D8B';   // Blue Grey for neutral/single base
+                strokeColor = '#37474F'; // Darker blue grey
+                accentColor = '#78909C'; // Light blue grey accent
+            }
+            
             // Main base body
-            this.ctx.fillStyle = '#607D8B'; // Blue Grey for defensive structure
-            this.ctx.strokeStyle = '#37474F'; // Darker blue grey for outline
+            this.ctx.fillStyle = baseColor;
+            this.ctx.strokeStyle = strokeColor;
             this.ctx.lineWidth = 4;
             this.ctx.lineJoin = 'round';
 
@@ -2778,7 +2833,7 @@ class Game {
             this.ctx.stroke();
 
             // Add structural details - inner octagon
-            this.ctx.strokeStyle = '#455A64';
+            this.ctx.strokeStyle = accentColor;
             this.ctx.lineWidth = 2;
             this.ctx.beginPath();
             const innerRadius = base.radius * 0.7;
@@ -2796,16 +2851,16 @@ class Game {
             this.ctx.stroke();
 
             // Add center core
-            this.ctx.fillStyle = '#546E7A';
+            this.ctx.fillStyle = accentColor;
             this.ctx.beginPath();
             this.ctx.arc(base.x, base.y, base.radius * 0.3, 0, Math.PI * 2);
             this.ctx.fill();
-            this.ctx.strokeStyle = '#37474F';
+            this.ctx.strokeStyle = strokeColor;
             this.ctx.lineWidth = 2;
             this.ctx.stroke();
 
             // Add defensive spikes/details around the perimeter
-            this.ctx.strokeStyle = '#78909C';
+            this.ctx.strokeStyle = accentColor;
             this.ctx.lineWidth = 3;
             for (let i = 0; i < 8; i++) {
                 const angle = (i * Math.PI * 2) / 8;
