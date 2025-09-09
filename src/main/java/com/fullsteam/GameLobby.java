@@ -1,9 +1,9 @@
 package com.fullsteam;
 
 import com.fullsteam.games.AbstractGameStateManager;
+import com.fullsteam.games.BaseDestructionManager;
 import com.fullsteam.games.BuilderManager;
 import com.fullsteam.games.CaptureTheFlagManager;
-import com.fullsteam.games.BaseDestructionManager;
 import com.fullsteam.games.EliminationManager;
 import com.fullsteam.games.EscortManager;
 import com.fullsteam.games.FreeForAllManager;
@@ -13,6 +13,7 @@ import com.fullsteam.games.KingOfTheHillManager;
 import com.fullsteam.games.LoneWolfManager;
 import com.fullsteam.games.OddballManager;
 import com.fullsteam.games.PortalManager;
+import com.fullsteam.games.ProgressionManager;
 import com.fullsteam.games.TeamDeathmatchManager;
 import com.fullsteam.games.ZombieDefenseManager;
 import com.fullsteam.model.ActiveGame;
@@ -65,6 +66,7 @@ public class GameLobby {
         gameMap.put("Zombie Defense", ZombieDefenseManager.class);
         gameMap.put("Base Destruction", BaseDestructionManager.class);
         gameMap.put("Portal", PortalManager.class);
+        gameMap.put("Progression", ProgressionManager.class);
     }
 
     public List<ActiveGame> getActiveGames() {

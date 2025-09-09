@@ -5,6 +5,7 @@ import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
+import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
@@ -151,5 +152,15 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
                 }
             }
         } while (invalidPosition);
+    }
+
+    @Override
+    public void handlePlayerConfigChange(Long playerId, PlayerConfigRequest request) {
+        // Disallow team changes
+        if (request.isRequestTeamChange()) {
+            sendGameEvent(GameEvent.yellow("There are no teams in %s!".formatted(buildGameInfo().getType()), playerId));
+            request.setRequestTeamChange(false);
+        }
+        super.handlePlayerConfigChange(playerId, request);
     }
 }

@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -113,8 +112,6 @@ public class PlayerManager {
      */
     public void updatePlayers(long delta, GameInfo gameInfo) {
         for (Player player : entities.getPlayers()) {
-            double oldX = player.getX();
-            double oldY = player.getY();
 
             // Check for reload completion before any other action
             if (player.isReloading() && System.currentTimeMillis() >= player.getReloadCompleteTime()) {
@@ -143,10 +140,10 @@ public class PlayerManager {
             handlePlayerInput(player.getId(), input, delta);
             // Apply field effects and physics for AI players too
             fieldEffectSystem.updateGravityWellAffect(player);
-            player.update(delta);
-
-            // --- Collision Resolution with Obstacles ---
-            physicsEngine.resolvePlayerObstacleCollisions(player, entities.getObstacles());
+            
+            // --- Predictive Collision Resolution BEFORE Movement ---
+            // This prevents high-speed tunneling by checking the intended movement path
+            PhysicsEngine.resolvePlayerObstacleCollisions(player, entities.getObstacles(), delta);
 
             // Keep players within game bounds
             physicsEngine.constrainPlayerToBounds(player);

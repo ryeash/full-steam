@@ -281,7 +281,7 @@ public class WeaponFactory {
             null
     ));
 
-    public static final Weapon LASER_PISTON = (new Weapon(
+    public static final Weapon LASER_PISTOL = (new Weapon(
             "Laser Pistol",
             "LAZ",
             Weapon.Ordinance.LASER,
@@ -454,7 +454,7 @@ public class WeaponFactory {
             MARKSMAN_RIFLE,
             TACTICAL_RIFLE,
             HAND_CANNON,
-            LASER_PISTON,
+            LASER_PISTOL,
             LASER_RIFLE
     );
 
@@ -469,7 +469,7 @@ public class WeaponFactory {
     public static final List<Weapon> TURRET_WEAPONS = List.of(
             ASSAULT,
             FLAMEFLOWER,
-            LASER_PISTON,
+            LASER_PISTOL,
             MARKSMAN_RIFLE,
             GRENADE_SMOKE
     );
