@@ -158,7 +158,6 @@ public abstract class AbstractGameStateManager {
                 log.error("catastrophic error", t);
             }
         }, 0, 1000 / TICK_RATE, TimeUnit.MILLISECONDS);
-        log.info("Game loop started at {} FPS", TICK_RATE);
     }
 
     public PlayerSession addPlayer(long playerId, WebSocketSession channel) {

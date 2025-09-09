@@ -123,9 +123,22 @@ public class Obstacle implements HasId {
 
     public static Obstacle createRandomPolygonObstacle() {
         int vertexCount = 3 + ThreadLocalRandom.current().nextInt(6); // Polygons with 3 to 7 vertices
-        double centerX = 100 + ThreadLocalRandom.current().nextInt(Config.GAME_WIDTH - 200);
-        double centerY = 100 + ThreadLocalRandom.current().nextInt(Config.GAME_HEIGHT - 200);
         double avgRadius = 45 + ThreadLocalRandom.current().nextInt(100);
+        
+        // Calculate safe bounds: ensure center is far enough from edges so that
+        // even the furthest vertex (with irregularity) won't be too close to map edges
+        double maxPossibleRadius = avgRadius * 1.2; // Account for irregularity (0.8 + 0.4 = 1.2 max)
+        double edgeBuffer = 50; // Minimum distance from map edge
+        double safeMargin = maxPossibleRadius + edgeBuffer;
+        
+        // Ensure we have enough space to place obstacles
+        if (safeMargin * 2 >= Config.GAME_WIDTH || safeMargin * 2 >= Config.GAME_HEIGHT) {
+            // Fallback for very large obstacles or small maps
+            safeMargin = Math.min(Config.GAME_WIDTH, Config.GAME_HEIGHT) * 0.2;
+        }
+        
+        double centerX = safeMargin + ThreadLocalRandom.current().nextDouble(Config.GAME_WIDTH - 2 * safeMargin);
+        double centerY = safeMargin + ThreadLocalRandom.current().nextDouble(Config.GAME_HEIGHT - 2 * safeMargin);
 
         List<Vector2D> points = new ArrayList<>();
         for (int i = 0; i < vertexCount; i++) {
@@ -133,6 +146,11 @@ public class Obstacle implements HasId {
             double radius = avgRadius * (0.8 + ThreadLocalRandom.current().nextDouble() * 0.4); // Add some irregularity
             double x = centerX + radius * Math.cos(angle);
             double y = centerY + radius * Math.sin(angle);
+            
+            // Double-check that vertices are within safe bounds (extra safety)
+            x = Math.max(edgeBuffer, Math.min(Config.GAME_WIDTH - edgeBuffer, x));
+            y = Math.max(edgeBuffer, Math.min(Config.GAME_HEIGHT - edgeBuffer, y));
+            
             points.add(new Vector2D(x, y));
         }
         return new Obstacle(points);
