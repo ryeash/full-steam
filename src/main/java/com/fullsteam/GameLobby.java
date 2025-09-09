@@ -1,11 +1,9 @@
 package com.fullsteam;
 
 import com.fullsteam.games.AbstractGameStateManager;
-import com.fullsteam.games.ArmoredAssaultManager;
-import com.fullsteam.games.BaseDestructionManager;
 import com.fullsteam.games.BuilderManager;
 import com.fullsteam.games.CaptureTheFlagManager;
-import com.fullsteam.games.DualBaseDestructionManager;
+import com.fullsteam.games.BaseDestructionManager;
 import com.fullsteam.games.EliminationManager;
 import com.fullsteam.games.EscortManager;
 import com.fullsteam.games.FreeForAllManager;
@@ -66,8 +64,6 @@ public class GameLobby {
         gameMap.put("Builder", BuilderManager.class);
         gameMap.put("Zombie Defense", ZombieDefenseManager.class);
         gameMap.put("Base Destruction", BaseDestructionManager.class);
-        gameMap.put("Dual Base Destruction", DualBaseDestructionManager.class);
-        gameMap.put("Armored Assault", ArmoredAssaultManager.class);
         gameMap.put("Portal", PortalManager.class);
     }
 

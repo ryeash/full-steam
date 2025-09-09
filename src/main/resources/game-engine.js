@@ -47,13 +47,6 @@ const GAME_MODE_INFO = {
         team1Objective: 'Hold the Oddball and defend the carrier',
         team2Objective: 'Hold the Oddball and defend the carrier'
     },
-    'Base Destruction': {
-        subtitle: 'Attack vs. Defense',
-        objective: 'Attackers must destroy the defending team\'s base before time runs out. Defenders must protect their base.',
-        teamBased: true,
-        team1Objective: 'Destroy Team 2\'s base',
-        team2Objective: 'Defend your base until time runs out'
-    },
     'Escort': {
         subtitle: 'Move the payload',
         objective: 'Teams compete to move the payload to the opposite side of the map. Stand near the payload to move it towards your goal.',
@@ -78,13 +71,6 @@ const GAME_MODE_INFO = {
         objective: 'Use the action key (E) to place destructible crates. Build defensive positions and destroy enemy structures.',
         teamBased: false
     },
-    'Armored Assault': {
-        subtitle: 'Vehicle-based warfare',
-        objective: 'Control Motor Pools to spawn powerful vehicles. Use teamwork to dominate with tanks, mechs, and other armored units.',
-        teamBased: true,
-        team1Objective: 'Control Motor Pools and destroy enemy vehicles',
-        team2Objective: 'Control Motor Pools and destroy enemy vehicles'
-    },
     'Lone Wolf': {
         subtitle: 'One vs. many survival',
         objective: 'One enhanced player (the Lone Wolf) fights against multiple hunters. Survive as long as possible or hunt down the wolf.',
@@ -99,7 +85,7 @@ const GAME_MODE_INFO = {
         team1Objective: 'Eliminate Team 2 players using portal tactics',
         team2Objective: 'Eliminate Team 1 players using portal tactics'
     },
-    'Dual Base Destruction': {
+    'Base Destruction': {
         subtitle: 'Symmetric base warfare with vehicles',
         objective: 'Both teams have a base to defend and must destroy the enemy base while protecting their own. Capture motor pools to spawn vehicles for attack and defense.',
         teamBased: true,
@@ -316,27 +302,6 @@ class GameUIManager {
                 this.elements.team1Score.innerHTML = lives + "🐺";
             },
             'Base Destruction': (info) => {
-                this.game.shouldDrawRespawnOverlay = true;
-                this.elements.yourTeam.style.display = 'inline';
-                this.elements.switchTeamBtn.style.display = 'block';
-                this.elements.team1Score.style.display = 'inline';
-                this.elements.team2Score.style.display = 'inline';
-
-                // Show base health percentage and team labels
-                const baseHealthPercent = info.base ? Math.round(((info.base.hp || 0) / info.base.maxHp) * 100) : 0;
-                this.elements.team1Score.innerHTML = ``;
-                this.elements.team2Score.innerHTML = `<span style="font-size: 0.8em; color: ${baseHealthPercent > 50 ? GameColors.health.high : baseHealthPercent > 25 ? GameColors.health.medium : GameColors.health.low};">Base: ${baseHealthPercent}%</span>`;
-            },
-            'Armored Assault': (info) => {
-                this.game.shouldDrawRespawnOverlay = true;
-                this.elements.yourTeam.style.display = 'inline';
-                this.elements.switchTeamBtn.style.display = 'block';
-                this.elements.team1Score.style.display = 'inline';
-                this.elements.team2Score.style.display = 'inline';
-                this.elements.team1Score.innerHTML = `${Math.floor(info.team1Score || 0)}`;
-                this.elements.team2Score.innerHTML = `${Math.floor(info.team2Score || 0)}`;
-            },
-            'Dual Base Destruction': (info) => {
                 this.game.shouldDrawRespawnOverlay = true;
                 this.elements.yourTeam.style.display = 'inline';
                 this.elements.switchTeamBtn.style.display = 'block';
@@ -1856,8 +1821,7 @@ class Game {
 
     drawMotorPools() {
         const gameInfo = this.gameState.info;
-        if (!gameInfo || (!gameInfo.motorPools || 
-            (gameInfo.type !== 'Armored Assault' && gameInfo.type !== 'Dual Base Destruction'))) {
+        if (!gameInfo || (!gameInfo.motorPools || (gameInfo.type !== 'Base Destruction'))) {
             return;
         }
 
@@ -2129,7 +2093,7 @@ class Game {
 
             // Draw repair indicator if vehicle is being repaired
             if (this.gameState.info && 
-                (this.gameState.info.type === 'Armored Assault' || this.gameState.info.type === 'Dual Base Destruction') && 
+                this.gameState.info.type === 'Base Destruction' &&
                 this.gameState.info.motorPools) {
                 const teamPool = this.gameState.info.motorPools.find(pool => pool.team === vehicle.team);
                 if (teamPool) {
@@ -2776,17 +2740,8 @@ class Game {
 
     drawBase() {
         const gameInfo = this.gameState.info;
-        
-        // Handle single base (Base Destruction mode)
-        if (gameInfo && gameInfo.type === 'Base Destruction' && gameInfo.base) {
-            const base = gameInfo.base;
-            if (!base.destroyed) {
-                this.drawSingleBase(base);
-            }
-        }
-        
-        // Handle dual bases (Dual Base Destruction mode)
-        if (gameInfo && gameInfo.type === 'Dual Base Destruction') {
+        // Handle bases (Base Destruction mode)
+        if (gameInfo && gameInfo.type === 'Base Destruction') {
             if (gameInfo.team1Base && !gameInfo.team1BaseDestroyed) {
                 this.drawSingleBase(gameInfo.team1Base, 1);
             }

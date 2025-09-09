@@ -2,6 +2,7 @@ package com.fullsteam.systems;
 
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
+import com.fullsteam.model.Base;
 import com.fullsteam.model.Bullet;
 import com.fullsteam.model.BulletScatter;
 import com.fullsteam.model.Explosion;
@@ -25,7 +26,6 @@ import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
 
 import java.util.Comparator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -72,7 +72,7 @@ public class FieldEffectSystem {
                 case Portal portal -> updatePortal(portal, delta);
                 case BulletScatter bulletScatter -> updateBulletScatter(bulletScatter);
                 case null, default ->
-                        throw new UnsupportedOperationException("unsupported field effect type: " + (fieldEffect != null ? fieldEffect.getClass().getSimpleName() : null));
+                        throw new UnsupportedOperationException("unsupported field effect type: " + fieldEffect.getClass().getSimpleName());
             }
         }
         // Next, remove any effects that have exceeded their duration.
@@ -166,7 +166,6 @@ public class FieldEffectSystem {
                             gridPoint.takeDamage(explosion.getDamage());
                         }
                     }
-
                     case Vehicle vehicle -> {
                         if (vehicle.getDriverId() == null || shooter != null && vehicle.getTeam() == shooter.getTeam() && !Objects.equals(vehicle.getId(), shooter.getId())) {
                             continue;
@@ -175,11 +174,16 @@ public class FieldEffectSystem {
                             vehicle.takeDamage(explosion.getDamage());
                         }
                     }
+                    case Base base -> {
+                        // Check for collision with enemy base only (prevent friendly fire)
+                        if (base.getTeam() != explosion.getTeam()
+                            && CollisionUtils.checkCirclePolygonCollision(explosionCenter, explosion.getRadius(), base.getVertices())) {
+                            base.takeDamage(explosion.getDamage());
+                        }
+                    }
                     case Obstacle obstacle -> {
-                        if (obstacle instanceof HasLife hasLife && CollisionUtils.checkCirclePolygonCollision(
-                                explosionCenter,
-                                explosion.getRadius(),
-                                obstacle.getVertices())) {
+                        if (obstacle instanceof HasLife hasLife
+                            && CollisionUtils.checkCirclePolygonCollision(explosionCenter, explosion.getRadius(), obstacle.getVertices())) {
                             // If the explosion hits a destructible obstacle, apply damage to it.
                             hasLife.takeDamage(explosion.getDamage());
                         }
@@ -389,8 +393,8 @@ public class FieldEffectSystem {
                 .filter(fe -> fe instanceof GridPoint)
                 .map(fe -> (GridPoint) fe)
                 .filter(gp -> gp.getTeam() == gridPoint.getTeam()
-                        && gp.id() != gridPoint.id()
-                        && gridPoint.readyToFire())
+                              && gp.id() != gridPoint.id()
+                              && gridPoint.readyToFire())
                 .sorted(Comparator.comparingDouble(a -> gridPoint.position().distanceSquared(a.position())))
                 .limit(2)
                 .toList();
@@ -503,8 +507,8 @@ public class FieldEffectSystem {
                     .values()
                     .stream()
                     .filter(fe -> fe instanceof Portal p
-                            && p.id() != portal.id()
-                            && p.getOwnerId() == portal.getOwnerId())
+                                  && p.id() != portal.id()
+                                  && p.getOwnerId() == portal.getOwnerId())
                     .findFirst()
                     .map(HasId::id)
                     .ifPresent(portal::setLinkedTo);
