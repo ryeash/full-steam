@@ -27,8 +27,6 @@ import static com.fullsteam.Config.PLAYER_SIZE;
  * Single Responsibility Principle.
  */
 public class PhysicsEngine {
-
-
     private final GameEntities entities;
 
     public PhysicsEngine(GameEntities entities) {
@@ -84,49 +82,128 @@ public class PhysicsEngine {
         double moveX = vel.x() * delta;
         double moveY = vel.y() * delta;
         Vector2D intendedPos = new Vector2D(startPos.x() + moveX, startPos.y() + moveY);
-        
-        // Use predictive collision detection to prevent tunneling
-        Vector2D safePos = findSafeMovementPosition(startPos, intendedPos, PLAYER_RADIUS, obstacles);
-        
-        // Update player position to the safe position
-        player.setX(safePos.x());
-        player.setY(safePos.y());
-        
-        // Adjust velocity based on any collisions that occurred
-        if (!safePos.equals(intendedPos)) {
-            // We hit something, adjust velocity for sliding
-            adjustVelocityForCollision(player, startPos, safePos, intendedPos, obstacles);
-        }
+
+        // Use predictive collision detection with sliding
+        Vector2D finalPos = resolveMovementWithSliding(startPos, intendedPos, PLAYER_RADIUS, obstacles, player);
+
+        // Update player position to the final position
+        player.setX(finalPos.x());
+        player.setY(finalPos.y());
     }
-    
+
+    /**
+     * Resolves movement with proper sliding mechanics while preventing tunneling.
+     */
+    private static Vector2D resolveMovementWithSliding(Vector2D startPos, Vector2D intendedPos, double radius, List<Obstacle> obstacles, Player player) {
+        Vector2D currentPos = startPos;
+        Vector2D remainingMovement = new Vector2D(intendedPos.x() - startPos.x(), intendedPos.y() - startPos.y());
+
+        // Allow up to 3 collision iterations for complex geometry
+        for (int iteration = 0; iteration < 3; iteration++) {
+            Vector2D nextIntendedPos = new Vector2D(currentPos.x() + remainingMovement.x(), currentPos.y() + remainingMovement.y());
+
+            // Check for collisions along the remaining movement
+            CollisionResult result = findSafeMovementPosition(currentPos, nextIntendedPos, radius, obstacles);
+
+            if (result.collidingObstacle == null) {
+                // No collision, we can move to the intended position
+                return result.position;
+            }
+
+            // We hit an obstacle, move to the collision point
+            currentPos = result.position;
+
+            // Calculate how much movement we have left
+            Vector2D actualMovement = new Vector2D(currentPos.x() - startPos.x(), currentPos.y() - startPos.y());
+            Vector2D totalIntendedMovement = new Vector2D(intendedPos.x() - startPos.x(), intendedPos.y() - startPos.y());
+
+            // Calculate remaining movement magnitude
+            double totalDistance = Math.sqrt(totalIntendedMovement.x() * totalIntendedMovement.x() + totalIntendedMovement.y() * totalIntendedMovement.y());
+            double actualDistance = Math.sqrt(actualMovement.x() * actualMovement.x() + actualMovement.y() * actualMovement.y());
+            double remainingDistance = totalDistance - actualDistance;
+
+            if (remainingDistance <= 0.1) {
+                // Very little movement left, stop here
+                break;
+            }
+
+            // Calculate the collision normal and slide along the surface
+            Vector2D normal = calculateCollisionNormal(currentPos, result.collidingObstacle);
+
+            // Project the remaining movement onto the surface (perpendicular to normal)
+            double dotProduct = remainingMovement.x() * normal.x() + remainingMovement.y() * normal.y();
+            Vector2D projectedMovement = new Vector2D(
+                    remainingMovement.x() - dotProduct * normal.x(),
+                    remainingMovement.y() - dotProduct * normal.y()
+            );
+
+            // Update velocity for sliding (only if we're moving into the obstacle)
+            Vector2D vel = player.getVelocity();
+            double velDotNormal = vel.x() * normal.x() + vel.y() * normal.y();
+            if (velDotNormal < 0) {
+                Vector2D newVel = new Vector2D(
+                        vel.x() - velDotNormal * normal.x(),
+                        vel.y() - velDotNormal * normal.y()
+                );
+                player.setVelocity(newVel);
+            }
+
+            // Continue with the projected movement
+            remainingMovement = projectedMovement;
+
+            // If the projected movement is very small, stop
+            double projectedLength = Math.sqrt(projectedMovement.x() * projectedMovement.x() + projectedMovement.y() * projectedMovement.y());
+            if (projectedLength < 0.1) {
+                break;
+            }
+        }
+
+        return currentPos;
+    }
+
     /**
      * Finds a safe position for the player to move to, preventing tunneling through obstacles.
+     * Returns both the safe position and the obstacle that caused the collision (if any).
      */
-    private static Vector2D findSafeMovementPosition(Vector2D startPos, Vector2D intendedPos, double radius, List<Obstacle> obstacles) {
+    private static CollisionResult findSafeMovementPosition(Vector2D startPos, Vector2D intendedPos, double radius, List<Obstacle> obstacles) {
         // If no movement intended, return start position
         if (startPos.equals(intendedPos)) {
-            return startPos;
+            return new CollisionResult(startPos, null);
         }
-        
+
         // Check if the intended position would cause collisions
         for (Obstacle obstacle : obstacles) {
             // Quick broad-phase check
             if (!CollisionUtils.checkLineCircleCollision(startPos, intendedPos, obstacle.getCenter(), obstacle.getBoundingRadius() + radius)) {
                 continue;
             }
-            
+
             // Check if the movement path intersects the obstacle
             if (CollisionUtils.checkLinePolygonCollision(startPos, intendedPos, obstacle.getVertices()) ||
                 CollisionUtils.checkCirclePolygonCollision(intendedPos, radius, obstacle.getVertices())) {
-                
+
                 // Find the safe position along the movement path
-                return findSafePositionAlongPath(startPos, intendedPos, radius, obstacle);
+                Vector2D safePos = findSafePositionAlongPath(startPos, intendedPos, radius, obstacle);
+                return new CollisionResult(safePos, obstacle);
             }
         }
-        
-        return intendedPos; // No collisions, intended position is safe
+
+        return new CollisionResult(intendedPos, null); // No collisions, intended position is safe
     }
-    
+
+    /**
+     * Helper class to return both position and colliding obstacle
+     */
+    private static class CollisionResult {
+        final Vector2D position;
+        final Obstacle collidingObstacle;
+
+        CollisionResult(Vector2D position, Obstacle collidingObstacle) {
+            this.position = position;
+            this.collidingObstacle = collidingObstacle;
+        }
+    }
+
     /**
      * Finds a safe position along the movement path when a collision is detected.
      */
@@ -135,14 +212,14 @@ public class PhysicsEngine {
         Vector2D safePos = startPos;
         double low = 0.0;
         double high = 1.0;
-        
+
         for (int i = 0; i < 10; i++) { // Limit iterations for performance
             double mid = (low + high) / 2.0;
             Vector2D testPos = new Vector2D(
-                startPos.x() + (intendedPos.x() - startPos.x()) * mid,
-                startPos.y() + (intendedPos.y() - startPos.y()) * mid
+                    startPos.x() + (intendedPos.x() - startPos.x()) * mid,
+                    startPos.y() + (intendedPos.y() - startPos.y()) * mid
             );
-            
+
             if (!CollisionUtils.checkCirclePolygonCollision(testPos, radius, obstacle.getVertices())) {
                 safePos = testPos;
                 low = mid;
@@ -150,36 +227,11 @@ public class PhysicsEngine {
                 high = mid;
             }
         }
-        
+
         return safePos;
     }
-    
-    /**
-     * Adjusts player velocity for sliding when a collision occurs.
-     */
-    private static void adjustVelocityForCollision(Player player, Vector2D startPos, Vector2D safePos, Vector2D intendedPos, List<Obstacle> obstacles) {
-        Vector2D vel = player.getVelocity();
-        
-        // Find the obstacle we collided with
-        for (Obstacle obstacle : obstacles) {
-            if (CollisionUtils.checkCirclePolygonCollision(intendedPos, PLAYER_RADIUS, obstacle.getVertices())) {
-                // Calculate collision normal
-                Vector2D normal = calculateCollisionNormal(safePos, obstacle);
-                
-                // Remove velocity component along the normal (enable sliding)
-                double velDotNormal = vel.x() * normal.x() + vel.y() * normal.y();
-                if (velDotNormal < 0) { // Only adjust if moving into the obstacle
-                    Vector2D newVel = new Vector2D(
-                        vel.x() - velDotNormal * normal.x(),
-                        vel.y() - velDotNormal * normal.y()
-                    );
-                    player.setVelocity(newVel);
-                }
-                break; // Only handle the first collision for simplicity
-            }
-        }
-    }
-    
+
+
     /**
      * Calculates the collision normal for a position relative to an obstacle.
      */
@@ -187,12 +239,12 @@ public class PhysicsEngine {
         List<Vector2D> verts = obstacle.getVertices();
         double bestDistSq = Double.POSITIVE_INFINITY;
         double closestX = 0, closestY = 0;
-        
+
         // Find closest point on obstacle perimeter
         for (int i = 0; i < verts.size(); i++) {
             Vector2D a = verts.get(i);
             Vector2D b = verts.get((i + 1) % verts.size());
-            
+
             // Project pos onto segment a-b
             double ax = a.x(), ay = a.y();
             double bx = b.x(), by = b.y();
@@ -214,7 +266,7 @@ public class PhysicsEngine {
                 closestY = projY;
             }
         }
-        
+
         // Calculate normal from closest point to player position
         double nx = pos.x() - closestX;
         double ny = pos.y() - closestY;
@@ -228,7 +280,7 @@ public class PhysicsEngine {
                 return new Vector2D(0, 1); // Default normal
             }
         }
-        
+
         return new Vector2D(nx / nLen, ny / nLen);
     }
 
@@ -240,11 +292,11 @@ public class PhysicsEngine {
     public void constrainPlayerToBounds(Player player) {
         double originalX = player.getX();
         double originalY = player.getY();
-        
+
         // Apply basic boundary constraints
         player.setX(CollisionUtils.constrain(player.getX(), PLAYER_RADIUS, GAME_WIDTH - PLAYER_RADIUS));
         player.setY(CollisionUtils.constrain(player.getY(), PLAYER_RADIUS, GAME_HEIGHT - PLAYER_RADIUS));
-        
+
         // If position changed due to boundary constraints, check for obstacle collisions
         if (player.getX() != originalX || player.getY() != originalY) {
             if (isColliding(player, entities.getObstacles())) {
@@ -254,11 +306,11 @@ public class PhysicsEngine {
                 player.setY(safePosition.y());
             }
         }
-        
+
         // Final safety check: ensure player is never stuck inside obstacles
         validatePlayerNotStuckInObstacles(player);
     }
-    
+
     /**
      * Validates that a player is not stuck inside obstacles and moves them to safety if needed.
      */
@@ -272,13 +324,13 @@ public class PhysicsEngine {
             player.setVelocity(Vector2D.ZERO);
         }
     }
-    
+
     /**
      * Finds a safe position near the boundary when a player gets constrained.
      */
     private Vector2D findSafePositionNearBoundary(Player player, double originalX, double originalY) {
         Vector2D currentPos = player.position();
-        
+
         // Try moving the player inward from the boundary in small steps
         for (int distance = 5; distance <= 50; distance += 5) {
             // Try moving toward the center of the map
@@ -287,33 +339,33 @@ public class PhysicsEngine {
             double dirX = centerX - currentPos.x();
             double dirY = centerY - currentPos.y();
             double length = Math.sqrt(dirX * dirX + dirY * dirY);
-            
+
             if (length > 0) {
                 dirX /= length;
                 dirY /= length;
-                
+
                 Vector2D testPos = new Vector2D(
-                    currentPos.x() + dirX * distance,
-                    currentPos.y() + dirY * distance
+                        currentPos.x() + dirX * distance,
+                        currentPos.y() + dirY * distance
                 );
-                
+
                 // Ensure test position is within bounds
                 testPos = new Vector2D(
-                    CollisionUtils.constrain(testPos.x(), PLAYER_RADIUS, GAME_WIDTH - PLAYER_RADIUS),
-                    CollisionUtils.constrain(testPos.y(), PLAYER_RADIUS, GAME_HEIGHT - PLAYER_RADIUS)
+                        CollisionUtils.constrain(testPos.x(), PLAYER_RADIUS, GAME_WIDTH - PLAYER_RADIUS),
+                        CollisionUtils.constrain(testPos.y(), PLAYER_RADIUS, GAME_HEIGHT - PLAYER_RADIUS)
                 );
-                
-                if (!CollisionUtils.checkCirclePolygonCollision(testPos, PLAYER_RADIUS, 
-                    entities.getObstacles().stream().flatMap(o -> o.getVertices().stream()).toList())) {
+
+                if (!CollisionUtils.checkCirclePolygonCollision(testPos, PLAYER_RADIUS,
+                        entities.getObstacles().stream().flatMap(o -> o.getVertices().stream()).toList())) {
                     return testPos;
                 }
             }
         }
-        
+
         // Last resort: return to original position
         return new Vector2D(originalX, originalY);
     }
-    
+
     /**
      * Finds the nearest safe position for a player that's stuck in obstacles.
      */
@@ -323,16 +375,16 @@ public class PhysicsEngine {
             for (int angle = 0; angle < 360; angle += 15) {
                 double radians = Math.toRadians(angle);
                 Vector2D testPos = new Vector2D(
-                    stuckPos.x() + Math.cos(radians) * searchRadius,
-                    stuckPos.y() + Math.sin(radians) * searchRadius
+                        stuckPos.x() + Math.cos(radians) * searchRadius,
+                        stuckPos.y() + Math.sin(radians) * searchRadius
                 );
-                
+
                 // Ensure position is within game bounds
                 if (testPos.x() < radius || testPos.x() > GAME_WIDTH - radius ||
                     testPos.y() < radius || testPos.y() > GAME_HEIGHT - radius) {
                     continue;
                 }
-                
+
                 // Check if this position is safe
                 boolean isSafe = true;
                 for (Obstacle obstacle : obstacles) {
@@ -341,13 +393,13 @@ public class PhysicsEngine {
                         break;
                     }
                 }
-                
+
                 if (isSafe) {
                     return testPos;
                 }
             }
         }
-        
+
         // Emergency fallback: center of the map
         return new Vector2D(GAME_WIDTH / 2.0, GAME_HEIGHT / 2.0);
     }

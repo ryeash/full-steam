@@ -4,7 +4,7 @@ import com.fullsteam.Config;
 import io.micronaut.core.annotation.Introspected;
 
 /**
- * Represents a weapon dropped by a defeated player that can be picked up by other players.
+ * Represents a weapon upgrade by a defeated player that can be picked up by other players.
  */
 @Introspected
 public class WeaponUpgrade implements HasId {
