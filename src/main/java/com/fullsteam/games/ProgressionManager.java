@@ -21,7 +21,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 @Prototype
-public class ProgressionManager extends AbstractFreeForAllManager {
+public class ProgressionManager extends AbstractTeamBasedManager {
     private static final Logger log = LoggerFactory.getLogger(ProgressionManager.class);
 
     // Weapon progression tiers (weakest to strongest)
@@ -33,8 +33,6 @@ public class ProgressionManager extends AbstractFreeForAllManager {
             WeaponFactory.LASER_PISTOL,     // Tier 4
             WeaponFactory.LASER_RIFLE       // Tier 5 - Best weapon
     };
-
-    private static final double PICKUP_RADIUS = 30.0; // Distance to pick up weapon drops
 
     private final List<WeaponUpgrade> weaponUpgrades = Collections.synchronizedList(new LinkedList<>());
 
@@ -62,6 +60,17 @@ public class ProgressionManager extends AbstractFreeForAllManager {
         super.updateGame(delta);
         updateWeaponDrops();
         handleWeaponPickups();
+    }
+
+    @Override
+    protected boolean checkEndConditions() {
+        if (System.currentTimeMillis() >= roundEndTime) {
+            sendVictoryMessage();
+            log.info("Round timer has expired. Starting a new round.");
+            return true;
+        } else {
+            return false;
+        }
     }
 
     @Override
@@ -120,7 +129,7 @@ public class ProgressionManager extends AbstractFreeForAllManager {
                 WeaponUpgrade drop = iterator.next();
                 double distance = player.position().distance(drop.getPosition());
 
-                if (distance <= PICKUP_RADIUS) {
+                if (distance <= drop.getRadius()) {
                     Weapon weapon = player.getWeapon();
 
                     for (int i = 0, weaponTiersLength = WEAPON_TIERS.length; i < weaponTiersLength; i++) {
