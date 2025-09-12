@@ -21,7 +21,7 @@ public class GunMasterManager extends AbstractFreeForAllManager {
 
     private static final long WEAPON_SWITCH_INTERVAL_MS = 20_000; // 20 seconds
     private long nextWeaponSwitchTime = 0;
-    private Weapon currentGlobalWeapon;
+    private Weapon currentGlobalWeapon = WeaponFactory.getRandomWeapon();
 
     public GunMasterManager(ObjectMapper objectMapper, GameLobby gameLobby) {
         super(objectMapper, gameLobby);
@@ -47,16 +47,11 @@ public class GunMasterManager extends AbstractFreeForAllManager {
     }
 
     private void forceWeaponSwitch() {
-        if (this.currentGlobalWeapon != null) {
-            // don't switch to the same weapon
-            Weapon next;
-            do {
-                next = WeaponFactory.getRandomWeapon();
-            } while (Objects.equals(next.getName(), this.currentGlobalWeapon.getName()));
-            this.currentGlobalWeapon = next;
-        } else {
-            this.currentGlobalWeapon = WeaponFactory.getRandomWeapon();
-        }
+        Weapon next;
+        do {
+            next = WeaponFactory.getRandomWeapon();
+        } while (Objects.equals(next.getName(), this.currentGlobalWeapon.getName()));
+        this.currentGlobalWeapon = next;
         sendGameEvent(GameEvent.blue("Weapon switched to: " + this.currentGlobalWeapon.getName()));
         for (Player player : entities.getPlayers()) {
             player.setWeapon(this.currentGlobalWeapon);
@@ -67,11 +62,8 @@ public class GunMasterManager extends AbstractFreeForAllManager {
     public PlayerSession addPlayer(long playerId, WebSocketSession channel) {
         PlayerSession session = super.addPlayer(playerId, channel);
         if (session != null) {
-            // Ensure new players get the current weapon
-            if (currentGlobalWeapon != null) {
-                sendGameEvent(GameEvent.yellow("Weapon switched to: " + this.currentGlobalWeapon.getName(), playerId));
-                session.getPlayer().setWeapon(currentGlobalWeapon);
-            }
+            sendGameEvent(GameEvent.yellow("Weapon switched to: " + this.currentGlobalWeapon.getName(), playerId));
+            session.getPlayer().setWeapon(currentGlobalWeapon);
         }
         return session;
     }
