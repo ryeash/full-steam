@@ -14,6 +14,7 @@ import com.fullsteam.model.GridPoint;
 import com.fullsteam.model.HasId;
 import com.fullsteam.model.HasLife;
 import com.fullsteam.model.LaserBlast;
+import com.fullsteam.model.LaserScatter;
 import com.fullsteam.model.Mine;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
@@ -34,6 +35,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
 import static com.fullsteam.Config.DEFENSE_GRID_LASER_MAX_PER_USER;
+import static com.fullsteam.Config.LASER_SHOT_DURATION;
 import static com.fullsteam.Config.MAX_PORTALS_PER_PLAYER;
 import static com.fullsteam.Config.MAX_TURRETS_PER_PLAYER;
 import static com.fullsteam.Config.PLAYER_RADIUS;
@@ -71,6 +73,7 @@ public class FieldEffectSystem {
                 case GridPoint gridPoint -> updateGridPoint(gridPoint);
                 case Portal portal -> updatePortal(portal, delta);
                 case BulletScatter bulletScatter -> updateBulletScatter(bulletScatter);
+                case LaserScatter laserScatter -> updateLaserScatter(laserScatter);
                 case null, default ->
                         throw new UnsupportedOperationException("unsupported field effect type: " + fieldEffect.getClass().getSimpleName());
             }
@@ -630,7 +633,7 @@ public class FieldEffectSystem {
 
     // Constants for properly handling the BulletScatter effect
     private static final double SPAWN_CHECK_RADIUS = 2.0; // small collision radius for spawn test
-    private static final double INITIAL_OFFSET = 6.0;     // start a bit away from the effect center
+    private static final double INITIAL_OFFSET = 3.0;     // start a bit away from the effect center
     private static final double STEP = 3.0;               // step outward if inside obstacle
     private static final double MAX_DISTANCE = 24.0;      // give up after this distance
 
@@ -684,6 +687,60 @@ public class FieldEffectSystem {
             );
 
             entities.getBullets().add(scatteredBullet);
+        }
+    }
+
+    /**
+     * Handles laser scatter effects that spawn multiple laser blasts in random directions
+     */
+    private void updateLaserScatter(LaserScatter laserScatter) {
+        entities.getFieldEffects().remove(laserScatter.id());
+
+        Player player = entities.getPlayer(laserScatter.getShooterId());
+        double damageMultiplier = player.getDamageMultiplier();
+        double laserDamageOverTimeMod = (double) 1000 / LASER_SHOT_DURATION;
+
+        for (int i = 0; i < laserScatter.getLaserCount(); i++) {
+            double angle = ThreadLocalRandom.current().nextDouble(0, 2 * Math.PI);
+            double dirX = Math.cos(angle);
+            double dirY = Math.sin(angle);
+
+            Vector2D startPos = laserScatter.position().add(new Vector2D(dirX * INITIAL_OFFSET, dirY * INITIAL_OFFSET));
+
+            // Calculate end position based on laser range
+            Vector2D endPos = startPos.add(new Vector2D(dirX * laserScatter.getLaserRange(), dirY * laserScatter.getLaserRange()));
+
+            // Try to find a spawn position that isn't inside any obstacle
+            boolean inside;
+            double traveled = 0.0;
+            do {
+                Vector2D finalStart = startPos; // effectively final for lambda
+                inside = entities.getObstacles().stream()
+                        .anyMatch(obstacle -> CollisionUtils.checkCirclePolygonCollision(finalStart, SPAWN_CHECK_RADIUS, obstacle.vertices()));
+
+                if (inside) {
+                    // move outward along direction
+                    startPos = startPos.add(new Vector2D(dirX * STEP, dirY * STEP));
+                    endPos = startPos.add(new Vector2D(dirX * laserScatter.getLaserRange(), dirY * laserScatter.getLaserRange()));
+                    traveled += STEP;
+                }
+            } while (inside && traveled < MAX_DISTANCE);
+
+            if (inside) {
+                // couldn't find a free spot; skip this scattered laser
+                continue;
+            }
+
+            LaserBlast scatteredLaser = new LaserBlast(
+                    startPos,
+                    endPos,
+                    laserScatter.getShooterId(),
+                    laserScatter.getTeam(),
+                    (30 * laserDamageOverTimeMod) * damageMultiplier,
+                    System.currentTimeMillis() + LASER_SHOT_DURATION
+            );
+            weaponSystem.calculateTerminus(scatteredLaser);
+            entities.getLaserBlasts().add(scatteredLaser);
         }
     }
 

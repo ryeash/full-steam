@@ -13,7 +13,8 @@ public interface FieldEffect extends HasId {
         TURRET,
         GRID_POINT,
         PORTAL,
-        BULLET_SCATTER
+        BULLET_SCATTER,
+        LASER_SCATTER
     }
 
     Type getType();
