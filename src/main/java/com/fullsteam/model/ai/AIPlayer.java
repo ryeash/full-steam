@@ -105,7 +105,8 @@ public class AIPlayer extends Player {
 
     public AIPlayer(long id, double x, double y, int team, IAIStrategy aiStrategy, AIArchetype archetype) {
         super(id, "AI - " + RandomNames.randomName(), x, y, team, WeaponFactory.getRandomWeapon());
-        this.aiStrategy = aiStrategy;
+        // Use UnifiedAIStrategy if no specific strategy is provided
+        this.aiStrategy = aiStrategy != null ? aiStrategy : new UnifiedAIStrategy();
         this.archetype = archetype;
 
         // Initialize personality traits with some randomness
@@ -117,6 +118,13 @@ public class AIPlayer extends Player {
         // Initialize input smoothing - different archetypes have different smoothing levels
         this.inputSmoothingFactor = calculateSmoothingFactor(archetype);
         this.previousInput = new PlayerInput(); // Start with empty input
+    }
+
+    /**
+     * Convenience constructor that uses the UnifiedAIStrategy by default.
+     */
+    public AIPlayer(long id, double x, double y, int team, AIArchetype archetype) {
+        this(id, x, y, team, new UnifiedAIStrategy(), archetype);
     }
 
     /**
@@ -446,7 +454,7 @@ public class AIPlayer extends Player {
     private Vector2D calculateObjectiveForce(List<Obstacle> obstacles) {
         return switch (currentState) {
             case ATTACKING -> calculateAttackForce(obstacles);
-            case FLEEING -> calculateFleeForce(currentTarget.position(), obstacles);
+            case FLEEING -> calculateFleeForce(currentTarget != null ? currentTarget.position() : null, obstacles);
             case CAPTURING_OBJECTIVE -> calculateSeekForce(this.objectiveTargetPoint, obstacles);
             case SEEKING_VEHICLE -> calculateVehicleSeekForce(obstacles);
             default -> calculateWanderForce(obstacles);

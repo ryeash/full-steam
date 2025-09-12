@@ -5,10 +5,11 @@ import com.fullsteam.Config;
 import com.fullsteam.GameLobby;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Obstacle;
+import com.fullsteam.model.Payload;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
-import com.fullsteam.model.ai.EscortAIStrategy;
 import com.fullsteam.model.ai.IAIStrategy;
+import com.fullsteam.model.ai.UnifiedAIStrategy;
 import com.fullsteam.model.gamemodes.EscortGameInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
 import io.micronaut.context.annotation.Prototype;
@@ -20,7 +21,7 @@ import java.util.stream.Collectors;
 @Prototype
 public class EscortManager extends AbstractTeamBasedManager {
 
-    private Obstacle payload;
+    private Payload payload;
 
     public EscortManager(ObjectMapper objectMapper, GameLobby gameLobby) {
         super(objectMapper, gameLobby);
@@ -29,17 +30,23 @@ public class EscortManager extends AbstractTeamBasedManager {
 
     @Override
     protected IAIStrategy buildAIStrategy() {
-        return new EscortAIStrategy();
+        // Use UnifiedAIStrategy which will automatically discover the Payload objective
+        return new UnifiedAIStrategy();
     }
 
     @Override
     public void startNewRound() {
         super.startNewRound();
-        payload = new Obstacle(Obstacle.createRectangle(
-                (Config.GAME_WIDTH - Config.ESCORT_OBSTACLE_WIDTH) / 2,
-                (Config.GAME_HEIGHT - Config.ESCORT_OBSTACLE_HEIGHT) / 2,
-                Config.ESCORT_OBSTACLE_WIDTH,
-                Config.ESCORT_OBSTACLE_HEIGHT).vertices(), false);
+        payload = new Payload(
+                Obstacle.createRectangle(
+                        (Config.GAME_WIDTH - Config.ESCORT_OBSTACLE_WIDTH) / 2,
+                        (Config.GAME_HEIGHT - Config.ESCORT_OBSTACLE_HEIGHT) / 2,
+                        Config.ESCORT_OBSTACLE_WIDTH,
+                        Config.ESCORT_OBSTACLE_HEIGHT).vertices(),
+                Config.ESCORT_PLAYER_PROXIMITY,
+                50.0, // Left boundary (Team 2's goal)
+                Config.GAME_WIDTH - 50.0 // Right boundary (Team 1's goal)
+        );
         entities.getObstacles().add(payload);
     }
 
@@ -68,10 +75,10 @@ public class EscortManager extends AbstractTeamBasedManager {
         // Update payload to its new position for this frame, checking boundaries
         if (moveX != 0) {
             double finalDelta = moveX;
-            Obstacle nextPayload = new Obstacle(payload.vertices()
+            Payload nextPayload = payload.withVertices(payload.vertices()
                     .stream()
                     .map(v -> v.add(new Vector2D(finalDelta, 0)))
-                    .toList(), false);
+                    .toList());
 
             double minX = nextPayload.vertices().stream().mapToDouble(Vector2D::x).min().orElse(0);
             double maxX = nextPayload.vertices().stream().mapToDouble(Vector2D::x).max().orElse(0);
@@ -90,12 +97,12 @@ public class EscortManager extends AbstractTeamBasedManager {
         double maxX = payload.vertices().stream().mapToDouble(Vector2D::x).max().orElse(0D);
 
         // Team 2 (Red) wins by pushing the payload to the left boundary
-        if (minX <= 50) {
+        if (minX <= payload.getLeftBoundary()) {
             sendGameEvent(GameEvent.red("Team 2 has delivered the payload!"));
             team2Score++;
             return true;
             // Team 1 (Green) wins by pushing the payload to the right boundary
-        } else if (maxX >= Config.GAME_WIDTH - 50) {
+        } else if (maxX >= payload.getRightBoundary()) {
             sendGameEvent(GameEvent.red("Team 1 has delivered the payload!"));
             team1Score++;
             return true;
@@ -145,10 +152,9 @@ public class EscortManager extends AbstractTeamBasedManager {
 
         return new EscortGameInfo(
                 team1Score,
-                team1Score,
+                team2Score,
                 timeLeft,
-                payload,
-                Config.ESCORT_PLAYER_PROXIMITY
+                payload
         );
     }
 }

@@ -10,7 +10,7 @@ import java.util.List;
  * The base is essentially a large, destructible obstacle with significant health.
  */
 @Introspected
-public class Base extends Obstacle implements HasId, HasLife, Targetable {
+public class Base extends Obstacle implements HasLife, Targetable, Objective {
     @JsonIgnore
     private final long id;
     private final Vector2D center;
@@ -100,5 +100,68 @@ public class Base extends Obstacle implements HasId, HasLife, Targetable {
 
     public double getY() {
         return center.y();
+    }
+    
+    // Objective interface implementations
+    
+    @Override
+    public int getOwningTeam() {
+        return team;
+    }
+    
+    @Override
+    public int getControllingTeam() {
+        return isDestroyed() ? 0 : team; // Team controls their base unless destroyed
+    }
+    
+    @Override
+    public boolean isContested() {
+        // Bases could be considered contested if under heavy attack
+        // For now, return false as bases don't have traditional contested state
+        return false;
+    }
+    
+    @Override
+    public int getStrategicValue() {
+        return 10; // Bases are the highest value objectives
+    }
+    
+    @Override
+    public double getInteractionRadius() {
+        return radius * 1.5; // Slightly larger than the base itself for interaction
+    }
+    
+    @Override
+    public String getObjectiveType() {
+        return "Base";
+    }
+    
+    @Override
+    public boolean canInteract(int teamId) {
+        // Enemy teams can attack bases, friendly teams can defend
+        return true;
+    }
+    
+    @Override
+    public int getPriorityForTeam(int teamId) {
+        if (teamId == team) {
+            // Defending our own base
+            double healthRatio = hp / maxHp;
+            if (healthRatio < 0.3) {
+                return 9; // Critical - base almost destroyed
+            } else if (healthRatio < 0.7) {
+                return 6; // High priority - base damaged
+            } else {
+                return 3; // Low priority - base healthy
+            }
+        } else {
+            // Attacking enemy base
+            double healthRatio = hp / maxHp;
+            if (healthRatio < 0.3) {
+                return 10; // Very high priority - almost destroyed
+            } else {
+                return 8; // High priority - attack enemy base
+            }
+        }
     }
 }

@@ -27,7 +27,7 @@ public class EscortAIStrategy implements IAIStrategy {
 
         // --- Pre-computation ---
         Collection<Player> allPlayers = gameState.players();
-        Obstacle payload = escortInfo.getObstacle();
+        Obstacle payload = escortInfo.getPayload();
         Vector2D payloadCenter = getPayloadCenter(payload);
         Player closestEnemy = findClosestEnemy(self, allPlayers);
 

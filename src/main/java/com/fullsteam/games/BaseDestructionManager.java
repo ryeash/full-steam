@@ -13,6 +13,8 @@ import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
+import com.fullsteam.model.ai.IAIStrategy;
+import com.fullsteam.model.ai.UnifiedAIStrategy;
 import com.fullsteam.model.gamemodes.BaseDestructionInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
 import io.micronaut.context.annotation.Prototype;
@@ -64,6 +66,11 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
     public BaseDestructionManager(ObjectMapper objectMapper, GameLobby gameLobby) {
         super(objectMapper, gameLobby);
         initializeBasesAndMotorPools();
+    }
+    
+    @Override
+    protected IAIStrategy buildAIStrategy() {
+        return new UnifiedAIStrategy();
     }
 
     private void initializeBasesAndMotorPools() {

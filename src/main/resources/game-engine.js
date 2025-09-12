@@ -2818,11 +2818,11 @@ class Game {
 
     drawPayload() {
         const gameInfo = this.gameState.info;
-        if (!gameInfo || gameInfo.type !== 'Escort' || !gameInfo.obstacle) {
+        if (!gameInfo || gameInfo.type !== 'Escort' || !gameInfo.payload) {
             return;
         }
 
-        const payload = gameInfo.obstacle;
+        const payload = gameInfo.payload;
         if (!payload.vertices || payload.vertices.length < 3) {
             return;
         }

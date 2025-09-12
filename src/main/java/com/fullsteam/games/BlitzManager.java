@@ -8,7 +8,7 @@ import com.fullsteam.model.Hill;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.ai.IAIStrategy;
-import com.fullsteam.model.ai.KingOfTheHillAIStrategy;
+import com.fullsteam.model.ai.UnifiedAIStrategy;
 import com.fullsteam.model.gamemodes.BlitzInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
 import io.micronaut.context.annotation.Prototype;
@@ -40,7 +40,7 @@ public class BlitzManager extends AbstractTeamBasedManager {
 
     @Override
     protected IAIStrategy buildAIStrategy() {
-        return new KingOfTheHillAIStrategy(); // Reuse KOTH AI for now
+        return new UnifiedAIStrategy();
     }
 
     /**

@@ -1,20 +1,18 @@
 package com.fullsteam.model.gamemodes;
 
-import com.fullsteam.model.Obstacle;
+import com.fullsteam.model.Payload;
 
 public final class EscortGameInfo extends GameInfo {
     private final double team1Score;
     private final double team2Score;
     private final long timeLeft;
-    private final Obstacle obstacle;
-    private final double captureRadius;
+    private final Payload payload;
 
-    public EscortGameInfo(double team1Score, double team2Score, long timeLeft, Obstacle obstacle, double captureRadius) {
+    public EscortGameInfo(double team1Score, double team2Score, long timeLeft, Payload payload) {
         this.team1Score = team1Score;
         this.team2Score = team2Score;
         this.timeLeft = timeLeft;
-        this.obstacle = obstacle;
-        this.captureRadius = captureRadius;
+        this.payload = payload;
     }
 
     @Override
@@ -34,11 +32,11 @@ public final class EscortGameInfo extends GameInfo {
         return timeLeft;
     }
 
-    public Obstacle getObstacle() {
-        return obstacle;
+    public Payload getPayload() {
+        return payload;
     }
 
     public double getCaptureRadius() {
-        return captureRadius;
+        return payload.getCaptureRadius();
     }
 }
