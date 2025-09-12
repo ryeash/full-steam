@@ -2,6 +2,7 @@ package com.fullsteam;
 
 import com.fullsteam.games.AbstractGameStateManager;
 import com.fullsteam.games.BaseDestructionManager;
+import com.fullsteam.games.BlitzManager;
 import com.fullsteam.games.BuilderManager;
 import com.fullsteam.games.CaptureTheFlagManager;
 import com.fullsteam.games.EliminationManager;
@@ -45,13 +46,10 @@ public class GameLobby {
     public GameLobby(ApplicationContext ctx) {
         this.ctx = ctx;
         this.globalPlayerCountSemaphore = new Semaphore(Config.MAX_GLOBAL_PLAYERS);
-
         Config.EXECUTOR.scheduleAtFixedRate(this::cleanupEmptyGames,
                 Config.CLEANUP_INTERVAL_SECONDS,
                 Config.CLEANUP_INTERVAL_SECONDS,
                 TimeUnit.SECONDS);
-        log.info("Lobby maintenance task scheduled to run every {} seconds.",
-                Config.CLEANUP_INTERVAL_SECONDS);
         gameMap.put("Team Deathmatch", TeamDeathmatchManager.class);
         gameMap.put("Capture The Flag", CaptureTheFlagManager.class);
         gameMap.put("King Of The Hill", KingOfTheHillManager.class);
@@ -67,6 +65,7 @@ public class GameLobby {
         gameMap.put("Base Destruction", BaseDestructionManager.class);
         gameMap.put("Portal", PortalManager.class);
         gameMap.put("Progression", ProgressionManager.class);
+        gameMap.put("Blitz", BlitzManager.class);
     }
 
     public List<ActiveGame> getActiveGames() {

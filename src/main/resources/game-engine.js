@@ -96,6 +96,13 @@ const GAME_MODE_INFO = {
         subtitle: 'Weapon tier advancement',
         objective: 'Start with a weak weapon and upgrade by collecting drops from defeated enemies. Players cannot manually change weapons.',
         teamBased: false
+    },
+    'Blitz': {
+        subtitle: 'Tactical capture warfare',
+        objective: 'Capture opponent capture points while defending your own. Teams must balance offense and defense.',
+        teamBased: true,
+        team1Objective: 'Capture Team 2\'s points while defending your own',
+        team2Objective: 'Capture Team 1\'s points while defending your own'
     }
 };
 
@@ -1871,11 +1878,24 @@ class Game {
 
     drawHill() {
         const gameInfo = this.gameState.info;
-        if (!gameInfo || !gameInfo.hill) {
-            return;
+        
+        // Handle King of the Hill mode (single hill)
+        if (gameInfo && gameInfo.hill) {
+            this.drawSingleHill(gameInfo.hill);
         }
+        
+        // Handle Blitz mode (multiple capture points)
+        if (gameInfo && gameInfo.type === 'Blitz') {
+            if (gameInfo.team1CapturePoints) {
+                gameInfo.team1CapturePoints.forEach(hill => this.drawSingleHill(hill));
+            }
+            if (gameInfo.team2CapturePoints) {
+                gameInfo.team2CapturePoints.forEach(hill => this.drawSingleHill(hill));
+            }
+        }
+    }
 
-        const hill = gameInfo.hill;
+    drawSingleHill(hill, label = null) {
         const pos = hill.position;
         const radius = hill.radius;
 
