@@ -33,6 +33,13 @@ const GAME_MODE_INFO = {
         team1Objective: 'Eliminate all Team 2 players',
         team2Objective: 'Eliminate all Team 1 players'
     },
+    'Stock Battle': {
+        subtitle: 'Limited lives tactical combat',
+        objective: 'Each team has limited revives (stock). Eliminate enemies to deplete their stock, then eliminate remaining players to win.',
+        teamBased: true,
+        team1Objective: 'Deplete Team 2\'s stock and eliminate survivors',
+        team2Objective: 'Deplete Team 1\'s stock and eliminate survivors'
+    },
     'Zombie Defense': {
         subtitle: 'Survive the undead horde',
         objective: 'Work together as survivors to defend against increasingly difficult waves of zombies until the timer runs out.',
@@ -337,6 +344,20 @@ class GameUIManager {
                 
                 this.elements.team1Score.innerHTML = `${Math.floor(info.team1Score || 0)} <span style="font-size: 0.8em; color: ${team1Color};">Base: ${team1BaseHealthPercent}%</span>`;
                 this.elements.team2Score.innerHTML = `${Math.floor(info.team2Score || 0)} <span style="font-size: 0.8em; color: ${team2Color};">Base: ${team2BaseHealthPercent}%</span>`;
+            },
+            'Stock Battle': (info) => {
+                this.game.shouldDrawRespawnOverlay = true;
+                this.elements.yourTeam.style.display = 'inline';
+                this.elements.switchTeamBtn.style.display = 'block';
+                this.elements.team1Score.style.display = 'inline';
+                this.elements.team2Score.style.display = 'inline';
+                
+                // Show kills and stock for each team
+                const team1StockColor = GameColors.teams.team1.primary
+                const team2StockColor = GameColors.teams.team2.primary
+                
+                this.elements.team1Score.innerHTML = `<span style="font-size: 0.8em; color: ${team1StockColor};">Stock: ${info.team1Stock || 0}</span>`;
+                this.elements.team2Score.innerHTML = `<span style="font-size: 0.8em; color: ${team2StockColor};">Stock: ${info.team2Stock || 0}</span>`;
             },
             'default': (info) => {
                 this.game.shouldDrawRespawnOverlay = true;
@@ -3023,7 +3044,7 @@ class Game {
     }
 
     drawRespawnOverlay() {
-        if (this.isLocalPlayerDead && this.shouldDrawRespawnOverlay) {
+        if (this.isLocalPlayerDead && this.shouldDrawRespawnOverlay && this.localPlayer.respawnTime > 0) {
             if (this.localPlayer && this.localPlayer.respawnTime && this.gameState.serverTime > 0) {
                 const remainingTime = Math.max(0, (this.localPlayer.respawnTime - this.gameState.serverTime) / 1000);
                 this.ctx.fillStyle = GameColors.overlays.respawn;

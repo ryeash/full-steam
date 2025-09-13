@@ -15,6 +15,7 @@ import com.fullsteam.games.LoneWolfManager;
 import com.fullsteam.games.OddballManager;
 import com.fullsteam.games.PortalManager;
 import com.fullsteam.games.ProgressionManager;
+import com.fullsteam.games.StockBattleManager;
 import com.fullsteam.games.TeamDeathmatchManager;
 import com.fullsteam.games.ZombieDefenseManager;
 import com.fullsteam.model.ActiveGame;
@@ -66,6 +67,7 @@ public class GameLobby {
         gameMap.put("Portal", PortalManager.class);
         gameMap.put("Progression", ProgressionManager.class);
         gameMap.put("Blitz", BlitzManager.class);
+        gameMap.put("Stock Battle", StockBattleManager.class);
     }
 
     public List<ActiveGame> getActiveGames() {
