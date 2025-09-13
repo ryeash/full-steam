@@ -7,8 +7,6 @@ import com.fullsteam.GameLobby;
 import com.fullsteam.model.Hill;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
-import com.fullsteam.model.ai.IAIStrategy;
-import com.fullsteam.model.ai.KingOfTheHillAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.KingOfTheHillInfo;
 import io.micronaut.context.annotation.Prototype;
@@ -35,11 +33,6 @@ public class KingOfTheHillManager extends AbstractTeamBasedManager {
         // Create the hill in the center of the map
         Vector2D hillPosition = new Vector2D(Config.GAME_WIDTH / 2.0, Config.GAME_HEIGHT / 2.0);
         this.hill = new Hill(hillPosition, KOTH_HILL_RADIUS, KOTH_HILL_RADIUS * KOTH_HILL_RADIUS, 0, false);
-    }
-
-    @Override
-    protected IAIStrategy buildAIStrategy() {
-        return new KingOfTheHillAIStrategy();
     }
 
     @Override

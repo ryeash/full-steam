@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -113,8 +112,6 @@ public class PlayerManager {
      */
     public void updatePlayers(long delta, GameInfo gameInfo) {
         for (Player player : entities.getPlayers()) {
-            double oldX = player.getX();
-            double oldY = player.getY();
 
             // Check for reload completion before any other action
             if (player.isReloading() && System.currentTimeMillis() >= player.getReloadCompleteTime()) {
@@ -143,10 +140,10 @@ public class PlayerManager {
             handlePlayerInput(player.getId(), input, delta);
             // Apply field effects and physics for AI players too
             fieldEffectSystem.updateGravityWellAffect(player);
-            player.update(delta);
 
-            // --- Collision Resolution with Obstacles ---
-            physicsEngine.resolvePlayerObstacleCollisions(player, oldX, oldY);
+            // --- Predictive Collision Resolution BEFORE Movement ---
+            // This prevents high-speed tunneling by checking the intended movement path
+            PhysicsEngine.resolvePlayerObstacleCollisions(player, entities.getObstacles(), delta);
 
             // Keep players within game bounds
             physicsEngine.constrainPlayerToBounds(player);
@@ -265,8 +262,8 @@ public class PlayerManager {
     private void handleTurretWeaponCycling(Player player) {
         PlayerSession playerSession = entities.getPlayerSessions().get(player.id());
         if (playerSession != null
-                && player.getWeapon().getName().equals(WeaponFactory.ENGINEER_WRENCH.getName())
-                && entities.getLastAltActionTime(player.id()) + 500 < System.currentTimeMillis()) {
+            && player.getWeapon().getName().equals(WeaponFactory.ENGINEER_WRENCH.getName())
+            && entities.getLastAltActionTime(player.id()) + 500 < System.currentTimeMillis()) {
             entities.setLastAltActionTime(player.id(), System.currentTimeMillis());
             Weapon weapon = playerSession.cycleTurretWeapons();
             for (FieldEffect fieldEffect : entities.getFieldEffects().values()) {
@@ -371,8 +368,8 @@ public class PlayerManager {
         long currentTime = System.currentTimeMillis();
         for (Player player : entities.getPlayers()) {
             if (player.isDead()
-                    && player.getRespawnTime() != -1 // indicates a player's respawn has been disabled
-                    && currentTime >= player.getRespawnTime()) {
+                && player.getRespawnTime() != -1 // indicates a player's respawn has been disabled
+                && currentTime >= player.getRespawnTime()) {
                 respawnPlayer(player);
             }
         }
@@ -426,7 +423,8 @@ public class PlayerManager {
      */
     public AIPlayer addAIPlayer(AbstractGameStateManager game, int team) {
         long playerId = ID_COUNTER.incrementAndGet();
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, aiStrategyBuilder.get(), AIArchetype.randomArchetype());
+        AIPlayer player = new AIPlayer(playerId, 0, 0, team, null, AIArchetype.randomArchetype());
+//        AIPlayer player = new AIPlayer(playerId, 0, 0, team, aiStrategyBuilder.get(), AIArchetype.randomArchetype());
         setValidSpawnPositionHandler.accept(player);
         entities.addPlayer(new PlayerSession(game, player, null));
         return player;
@@ -460,8 +458,8 @@ public class PlayerManager {
         }
 
         if (request.getWeaponName() != null
-                && !request.getWeaponName().isEmpty()
-                && !request.getWeaponName().equals(player.getWeapon().getName())) {
+            && !request.getWeaponName().isEmpty()
+            && !request.getWeaponName().equals(player.getWeapon().getName())) {
             Weapon newWeapon = WeaponFactory.getWeapon(request.getWeaponName());
             player.setWeapon(newWeapon);
         }

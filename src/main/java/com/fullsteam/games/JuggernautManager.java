@@ -7,8 +7,6 @@ import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.PlayerInput;
 import com.fullsteam.model.PlayerSession;
-import com.fullsteam.model.ai.IAIStrategy;
-import com.fullsteam.model.ai.JuggernautAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.JuggernautInfo;
 import io.micronaut.context.annotation.Prototype;
@@ -55,11 +53,6 @@ public class JuggernautManager extends AbstractTeamBasedManager {
         if (team1Juggernaut == null || team2Juggernaut == null) {
             sendGameEvent(GameEvent.info("Waiting for juggernaut promotion", playerSession.getPlayerId()));
         }
-    }
-
-    @Override
-    protected IAIStrategy buildAIStrategy() {
-        return new JuggernautAIStrategy();
     }
 
     @Override

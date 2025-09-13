@@ -1,6 +1,7 @@
 package com.fullsteam.systems;
 
 import com.fullsteam.CollisionUtils;
+import com.fullsteam.model.Base;
 import com.fullsteam.model.Bullet;
 import com.fullsteam.model.BulletEffect;
 import com.fullsteam.model.GameEntities;
@@ -166,7 +167,7 @@ public class WeaponSystem {
                         // Check for collision with an enemy player
                         // For the purposes of player collisions, we use a slightly larger radius to account fo the bullet not being a point.
                         if (!player.isDead() && player.getTeam() != bullet.getTeam()
-                                && CollisionUtils.checkLineCircleCollision(oldPos, newPos, player.position(), PLAYER_RADIUS + 2)) {
+                            && CollisionUtils.checkLineCircleCollision(oldPos, newPos, player.position(), PLAYER_RADIUS + 2)) {
                             Player shooter = entities.getPlayer(bullet.getShooterId());
 
                             // Apply damage and check if it was a kill
@@ -195,9 +196,17 @@ public class WeaponSystem {
                         }
                     }
                     case Vehicle vehicle -> {
-                        if (vehicle.getTeam() != bullet.getTeam() && CollisionUtils.checkLinePolygonCollision(oldPos, newPos, vehicle)) {
+                        if (vehicle.getTeam() >= 0 && vehicle.getTeam() != bullet.getTeam() && CollisionUtils.checkLinePolygonCollision(oldPos, newPos, vehicle)) {
                             vehicle.takeDamage(bullet.getDamage());
                             applyBulletDestructionEffect(bullet, target);
+                            return true;
+                        }
+                    }
+                    case Base base -> {
+                        // Check for collision with enemy base only (prevent friendly fire)
+                        if (base.getTeam() != bullet.getTeam() && CollisionUtils.checkLinePolygonCollision(oldPos, newPos, base)) {
+                            base.takeDamage(bullet.getDamage());
+                            applyBulletDestructionEffect(bullet, base);
                             return true;
                         }
                     }
@@ -227,9 +236,9 @@ public class WeaponSystem {
 
             // Last check: Remove bullets that will move out of bounds
             return newPos.x() < 0
-                    || newPos.x() > GAME_WIDTH
-                    || newPos.y() < 0
-                    || newPos.y() > GAME_HEIGHT;
+                   || newPos.x() > GAME_WIDTH
+                   || newPos.y() < 0
+                   || newPos.y() > GAME_HEIGHT;
         });
     }
 
@@ -273,10 +282,16 @@ public class WeaponSystem {
                         }
                     }
                     case Vehicle vehicle -> {
-                        if (vehicle.getTeam() != laserBlast.getTeam()) {
+                        if (vehicle.getTeam() >= 0 && vehicle.getTeam() != laserBlast.getTeam()) {
                             if (CollisionUtils.checkLinePolygonCollision(laserBlast.getStart(), laserBlast.getEnd(), vehicle)) {
                                 vehicle.takeDamage(damageForDelta);
                             }
+                        }
+                    }
+                    case Base base -> {
+                        // Check for collision with enemy base only (prevent friendly fire)
+                        if (base.getTeam() != laserBlast.getTeam() && CollisionUtils.checkLinePolygonCollision(laserBlast.getStart(), laserBlast.getEnd(), base)) {
+                            base.takeDamage(damageForDelta);
                         }
                     }
                     case Obstacle o -> {

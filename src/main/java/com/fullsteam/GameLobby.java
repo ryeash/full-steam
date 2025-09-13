@@ -1,8 +1,8 @@
 package com.fullsteam;
 
 import com.fullsteam.games.AbstractGameStateManager;
-import com.fullsteam.games.ArmoredAssaultManager;
 import com.fullsteam.games.BaseDestructionManager;
+import com.fullsteam.games.BlitzManager;
 import com.fullsteam.games.BuilderManager;
 import com.fullsteam.games.CaptureTheFlagManager;
 import com.fullsteam.games.EliminationManager;
@@ -14,6 +14,7 @@ import com.fullsteam.games.KingOfTheHillManager;
 import com.fullsteam.games.LoneWolfManager;
 import com.fullsteam.games.OddballManager;
 import com.fullsteam.games.PortalManager;
+import com.fullsteam.games.ProgressionManager;
 import com.fullsteam.games.TeamDeathmatchManager;
 import com.fullsteam.games.ZombieDefenseManager;
 import com.fullsteam.model.ActiveGame;
@@ -45,13 +46,10 @@ public class GameLobby {
     public GameLobby(ApplicationContext ctx) {
         this.ctx = ctx;
         this.globalPlayerCountSemaphore = new Semaphore(Config.MAX_GLOBAL_PLAYERS);
-
         Config.EXECUTOR.scheduleAtFixedRate(this::cleanupEmptyGames,
                 Config.CLEANUP_INTERVAL_SECONDS,
                 Config.CLEANUP_INTERVAL_SECONDS,
                 TimeUnit.SECONDS);
-        log.info("Lobby maintenance task scheduled to run every {} seconds.",
-                Config.CLEANUP_INTERVAL_SECONDS);
         gameMap.put("Team Deathmatch", TeamDeathmatchManager.class);
         gameMap.put("Capture The Flag", CaptureTheFlagManager.class);
         gameMap.put("King Of The Hill", KingOfTheHillManager.class);
@@ -65,8 +63,9 @@ public class GameLobby {
         gameMap.put("Builder", BuilderManager.class);
         gameMap.put("Zombie Defense", ZombieDefenseManager.class);
         gameMap.put("Base Destruction", BaseDestructionManager.class);
-        gameMap.put("Armored Assault", ArmoredAssaultManager.class);
         gameMap.put("Portal", PortalManager.class);
+        gameMap.put("Progression", ProgressionManager.class);
+        gameMap.put("Blitz", BlitzManager.class);
     }
 
     public List<ActiveGame> getActiveGames() {

@@ -52,8 +52,7 @@ public final class BulletScatter extends AbstractFieldEffect implements BulletEf
      * Creates a BulletScatter effect from a bullet destruction
      */
     public static BulletScatter create(Bullet bullet, Object destructionSource) {
-        // Random bullet count between 3-7
-        int bulletCount = ThreadLocalRandom.current().nextInt(3, 8);
+        int bulletCount = ThreadLocalRandom.current().nextInt(4, 9);
 
         return new BulletScatter(
                 Config.ID_COUNTER.incrementAndGet(),

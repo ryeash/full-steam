@@ -2,6 +2,7 @@ package com.fullsteam.systems;
 
 import com.fullsteam.CollisionUtils;
 import com.fullsteam.Config;
+import com.fullsteam.model.Base;
 import com.fullsteam.model.Bullet;
 import com.fullsteam.model.BulletScatter;
 import com.fullsteam.model.Explosion;
@@ -13,10 +14,10 @@ import com.fullsteam.model.GridPoint;
 import com.fullsteam.model.HasId;
 import com.fullsteam.model.HasLife;
 import com.fullsteam.model.LaserBlast;
+import com.fullsteam.model.LaserScatter;
 import com.fullsteam.model.Mine;
 import com.fullsteam.model.Obstacle;
 import com.fullsteam.model.Player;
-import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.PoisonCloud;
 import com.fullsteam.model.Portal;
 import com.fullsteam.model.SmokeCloud;
@@ -26,14 +27,15 @@ import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Vehicle;
 
 import java.util.Comparator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
 import static com.fullsteam.Config.DEFENSE_GRID_LASER_MAX_PER_USER;
+import static com.fullsteam.Config.LASER_SHOT_DURATION;
 import static com.fullsteam.Config.MAX_PORTALS_PER_PLAYER;
 import static com.fullsteam.Config.MAX_TURRETS_PER_PLAYER;
 import static com.fullsteam.Config.PLAYER_RADIUS;
@@ -71,6 +73,7 @@ public class FieldEffectSystem {
                 case GridPoint gridPoint -> updateGridPoint(gridPoint);
                 case Portal portal -> updatePortal(portal, delta);
                 case BulletScatter bulletScatter -> updateBulletScatter(bulletScatter);
+                case LaserScatter laserScatter -> updateLaserScatter(laserScatter);
                 case null, default ->
                         throw new UnsupportedOperationException("unsupported field effect type: " + fieldEffect.getClass().getSimpleName());
             }
@@ -166,7 +169,6 @@ public class FieldEffectSystem {
                             gridPoint.takeDamage(explosion.getDamage());
                         }
                     }
-
                     case Vehicle vehicle -> {
                         if (vehicle.getDriverId() == null || shooter != null && vehicle.getTeam() == shooter.getTeam() && !Objects.equals(vehicle.getId(), shooter.getId())) {
                             continue;
@@ -175,11 +177,16 @@ public class FieldEffectSystem {
                             vehicle.takeDamage(explosion.getDamage());
                         }
                     }
+                    case Base base -> {
+                        // Check for collision with enemy base only (prevent friendly fire)
+                        if (base.getTeam() != explosion.getTeam()
+                            && CollisionUtils.checkCirclePolygonCollision(explosionCenter, explosion.getRadius(), base.getVertices())) {
+                            base.takeDamage(explosion.getDamage());
+                        }
+                    }
                     case Obstacle obstacle -> {
-                        if (obstacle instanceof HasLife hasLife && CollisionUtils.checkCirclePolygonCollision(
-                                explosionCenter,
-                                explosion.getRadius(),
-                                obstacle.getVertices())) {
+                        if (obstacle instanceof HasLife hasLife
+                            && CollisionUtils.checkCirclePolygonCollision(explosionCenter, explosion.getRadius(), obstacle.getVertices())) {
                             // If the explosion hits a destructible obstacle, apply damage to it.
                             hasLife.takeDamage(explosion.getDamage());
                         }
@@ -389,8 +396,8 @@ public class FieldEffectSystem {
                 .filter(fe -> fe instanceof GridPoint)
                 .map(fe -> (GridPoint) fe)
                 .filter(gp -> gp.getTeam() == gridPoint.getTeam()
-                        && gp.id() != gridPoint.id()
-                        && gridPoint.readyToFire())
+                              && gp.id() != gridPoint.id()
+                              && gridPoint.readyToFire())
                 .sorted(Comparator.comparingDouble(a -> gridPoint.position().distanceSquared(a.position())))
                 .limit(2)
                 .toList();
@@ -503,8 +510,8 @@ public class FieldEffectSystem {
                     .values()
                     .stream()
                     .filter(fe -> fe instanceof Portal p
-                            && p.id() != portal.id()
-                            && p.getOwnerId() == portal.getOwnerId())
+                                  && p.id() != portal.id()
+                                  && p.getOwnerId() == portal.getOwnerId())
                     .findFirst()
                     .map(HasId::id)
                     .ifPresent(portal::setLinkedTo);
@@ -624,24 +631,50 @@ public class FieldEffectSystem {
         entities.getFieldEffects().values().removeIf(fe -> fe instanceof Portal p && p.getOwnerId() == player.id());
     }
 
+    // Constants for properly handling the BulletScatter effect
+    private static final double SPAWN_CHECK_RADIUS = 2.0; // small collision radius for spawn test
+    private static final double INITIAL_OFFSET = 3.0;     // start a bit away from the effect center
+    private static final double STEP = 3.0;               // step outward if inside obstacle
+    private static final double MAX_DISTANCE = 24.0;      // give up after this distance
+
     /**
      * Handles bullet scatter effects that spawn multiple bullets in random directions
      */
     private void updateBulletScatter(BulletScatter bulletScatter) {
         entities.getFieldEffects().remove(bulletScatter.id());
-        // Create scattered bullets
         for (int i = 0; i < bulletScatter.getBulletCount(); i++) {
-            // Random angle for each bullet
-            double angle = Math.random() * 2 * Math.PI;
+            double angle = ThreadLocalRandom.current().nextDouble(0, 2 * Math.PI);
+            double dirX = Math.cos(angle);
+            double dirY = Math.sin(angle);
 
-            // Calculate velocity components
-            double vx = Math.cos(angle) * bulletScatter.getBulletSpeed();
-            double vy = Math.sin(angle) * bulletScatter.getBulletSpeed();
+            Vector2D spawnPos = bulletScatter.position().add(new Vector2D(dirX * INITIAL_OFFSET, dirY * INITIAL_OFFSET));
 
-            // Create scattered bullet
+            // Try to find a spawn position that isn't inside any obstacle
+            boolean inside;
+            double traveled = 0.0;
+            do {
+                Vector2D finalSpawn = spawnPos; // effectively final for lambda
+                inside = entities.getObstacles().stream()
+                        .anyMatch(obstacle -> CollisionUtils.checkCirclePolygonCollision(finalSpawn, SPAWN_CHECK_RADIUS, obstacle.vertices()));
+
+                if (inside) {
+                    // move outward along direction
+                    spawnPos = spawnPos.add(new Vector2D(dirX * STEP, dirY * STEP));
+                    traveled += STEP;
+                }
+            } while (inside && traveled < MAX_DISTANCE);
+
+            if (inside) {
+                // couldn't find a free spot; skip this scattered bullet
+                continue;
+            }
+
+            double vx = dirX * bulletScatter.getBulletSpeed();
+            double vy = dirY * bulletScatter.getBulletSpeed();
+
             Bullet scatteredBullet = new Bullet(
-                    bulletScatter.getX(),
-                    bulletScatter.getY(),
+                    spawnPos.x(),
+                    spawnPos.y(),
                     vx,
                     vy,
                     bulletScatter.getShooterId(),
@@ -649,11 +682,65 @@ public class FieldEffectSystem {
                     bulletScatter.getBulletDamage(),
                     bulletScatter.getBulletSpeed(),
                     bulletScatter.getBulletRange(),
-                    0.8, // Moderate speed decay
-                    null // No special destruction effect for scattered bullets
+                    0.8,
+                    null
             );
 
             entities.getBullets().add(scatteredBullet);
+        }
+    }
+
+    /**
+     * Handles laser scatter effects that spawn multiple laser blasts in random directions
+     */
+    private void updateLaserScatter(LaserScatter laserScatter) {
+        entities.getFieldEffects().remove(laserScatter.id());
+
+        Player player = entities.getPlayer(laserScatter.getShooterId());
+        double damageMultiplier = player.getDamageMultiplier();
+        double laserDamageOverTimeMod = (double) 1000 / LASER_SHOT_DURATION;
+
+        for (int i = 0; i < laserScatter.getLaserCount(); i++) {
+            double angle = ThreadLocalRandom.current().nextDouble(0, 2 * Math.PI);
+            double dirX = Math.cos(angle);
+            double dirY = Math.sin(angle);
+
+            Vector2D startPos = laserScatter.position().add(new Vector2D(dirX * INITIAL_OFFSET, dirY * INITIAL_OFFSET));
+
+            // Calculate end position based on laser range
+            Vector2D endPos = startPos.add(new Vector2D(dirX * laserScatter.getLaserRange(), dirY * laserScatter.getLaserRange()));
+
+            // Try to find a spawn position that isn't inside any obstacle
+            boolean inside;
+            double traveled = 0.0;
+            do {
+                Vector2D finalStart = startPos; // effectively final for lambda
+                inside = entities.getObstacles().stream()
+                        .anyMatch(obstacle -> CollisionUtils.checkCirclePolygonCollision(finalStart, SPAWN_CHECK_RADIUS, obstacle.vertices()));
+
+                if (inside) {
+                    // move outward along direction
+                    startPos = startPos.add(new Vector2D(dirX * STEP, dirY * STEP));
+                    endPos = startPos.add(new Vector2D(dirX * laserScatter.getLaserRange(), dirY * laserScatter.getLaserRange()));
+                    traveled += STEP;
+                }
+            } while (inside && traveled < MAX_DISTANCE);
+
+            if (inside) {
+                // couldn't find a free spot; skip this scattered laser
+                continue;
+            }
+
+            LaserBlast scatteredLaser = new LaserBlast(
+                    startPos,
+                    endPos,
+                    laserScatter.getShooterId(),
+                    laserScatter.getTeam(),
+                    (30 * laserDamageOverTimeMod) * damageMultiplier,
+                    System.currentTimeMillis() + LASER_SHOT_DURATION
+            );
+            weaponSystem.calculateTerminus(scatteredLaser);
+            entities.getLaserBlasts().add(scatteredLaser);
         }
     }
 

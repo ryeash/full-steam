@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.micronaut.core.annotation.Introspected;
 
 /**
- * Represents the state of a Motor Pool zone in Armored Assault.
+ * Represents the state of a Motor Pool zone.
  *
  * @param position         The center coordinates of the motor pool.
  * @param radius           The radius of the capture zone.

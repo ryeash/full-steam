@@ -118,7 +118,7 @@ public class Config {
     public static final long JUGGERNAUT_SELECTION_DELAY_MS = getLong("game.juggernaut.selection_delay_ms", 7000);
 
     // --- King of the Hill (KOTH) Game Mode ---
-    public static final double KOTH_SCORE_TO_WIN = getDouble("game.koth.score_to_win", 100.0);
+    public static final double KOTH_SCORE_TO_WIN = getDouble("game.koth.score_to_win", (double) ROUND_DURATION_SECONDS / 2);
     public static final double KOTH_POINTS_PER_SECOND = getDouble("game.koth.points_per_second", 1.0);
     public static final double KOTH_HILL_RADIUS = getDouble("game.koth.hill_radius", 75.0);
     public static final double KOTH_HILL_KEEP_OUT_RADIUS = getDouble("game.koth.hill_keep_out_radius", 125.0);
@@ -156,8 +156,6 @@ public class Config {
     // --- Vehicle System ---
     public static final double VEHICLE_INTERACTION_RADIUS = getDouble("game.vehicle.interaction_radius", 40.0);
     public static final long VEHICLE_ACTION_DEBOUNCE_MS = getLong("game.vehicle.action_debounce_ms", 500);
-
-    // --- Armored Assault MotorPool System ---
     public static final double MOTOR_POOL_RADIUS = getDouble("game.armored_assault.motor_pool_radius", 80.0);
     public static final long MOTOR_POOL_CONTROL_TIME_MS = getLong("game.armored_assault.motor_pool_control_time_ms", 15_000); // 15 seconds to control
     public static final double VEHICLE_REPAIR_RATE = getDouble("game.armored_assault.vehicle_repair_rate", 2.0); // HP per tick

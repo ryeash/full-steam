@@ -4,6 +4,7 @@ import com.fullsteam.model.BulletScatter;
 import com.fullsteam.model.Explosion;
 import com.fullsteam.model.GravityWell;
 import com.fullsteam.model.GridPoint;
+import com.fullsteam.model.LaserScatter;
 import com.fullsteam.model.Mine;
 import com.fullsteam.model.PoisonCloud;
 import com.fullsteam.model.SmokeCloud;
@@ -236,6 +237,21 @@ public class WeaponFactory {
             BulletScatter::create
     ));
 
+    public static final Weapon GRENADE_LASER_SCATTER = (new Weapon(
+            "Grenade (Laser Scatter)",
+            "LS",
+            5, // Fire Rate
+            0, // Damage (damage comes from scattered lasers)
+            12, // Range
+            8, // Speed
+            3, // Speed Decay
+            0, // Accuracy
+            0, // Multi-shot
+            2, // Magazine Size (fewer shots due to higher damage potential)
+            10, // Reload Speed
+            LaserScatter::create
+    ));
+
     public static final Weapon MARKSMAN_RIFLE = (new Weapon(
             "Marksman Rifle",
             "MR",
@@ -281,7 +297,7 @@ public class WeaponFactory {
             null
     ));
 
-    public static final Weapon LASER_PISTON = (new Weapon(
+    public static final Weapon LASER_PISTOL = (new Weapon(
             "Laser Pistol",
             "LAZ",
             Weapon.Ordinance.LASER,
@@ -442,6 +458,7 @@ public class WeaponFactory {
             ASSAULT,
             SMG,
             SNIPER_RIFLE,
+            FLAMEFLOWER,
             MINIGUN,
             SHOTGUN,
             STREET_SWEEPER,
@@ -450,10 +467,11 @@ public class WeaponFactory {
             GRENADE_FRAGMENTATION,
             GRNADE_POISON,
             GRENADE_SCATTERBLAST,
+            GRENADE_LASER_SCATTER,
             MARKSMAN_RIFLE,
             TACTICAL_RIFLE,
             HAND_CANNON,
-            LASER_PISTON,
+            LASER_PISTOL,
             LASER_RIFLE
     );
 
@@ -468,7 +486,7 @@ public class WeaponFactory {
     public static final List<Weapon> TURRET_WEAPONS = List.of(
             ASSAULT,
             FLAMEFLOWER,
-            LASER_PISTON,
+            LASER_PISTOL,
             MARKSMAN_RIFLE,
             GRENADE_SMOKE
     );

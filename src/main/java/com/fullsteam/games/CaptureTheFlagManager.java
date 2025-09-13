@@ -7,8 +7,6 @@ import com.fullsteam.model.Flag;
 import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
-import com.fullsteam.model.ai.CaptureTheFlagAIStrategy;
-import com.fullsteam.model.ai.IAIStrategy;
 import com.fullsteam.model.gamemodes.CaptureTheFlagInfo;
 import com.fullsteam.model.gamemodes.GameInfo;
 import io.micronaut.context.annotation.Prototype;
@@ -40,11 +38,6 @@ public class CaptureTheFlagManager extends AbstractTeamBasedManager {
         super(objectMapper, gameLobby);
         log.info("Capture the Flag game mode initialized.");
         randomizeBaseLocations();
-    }
-
-    @Override
-    protected IAIStrategy buildAIStrategy() {
-        return new CaptureTheFlagAIStrategy();
     }
 
     @Override
