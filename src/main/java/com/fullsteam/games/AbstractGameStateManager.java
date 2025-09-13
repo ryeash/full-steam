@@ -26,8 +26,8 @@ import com.fullsteam.model.Vector2D;
 import com.fullsteam.model.Weapon;
 import com.fullsteam.model.WelcomeMessage;
 import com.fullsteam.model.ai.AIPlayer;
-import com.fullsteam.model.ai.DeathmatchAIStrategy;
 import com.fullsteam.model.ai.IAIStrategy;
+import com.fullsteam.model.ai.UnifiedAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.systems.FieldEffectSystem;
 import com.fullsteam.systems.PhysicsEngine;
@@ -190,7 +190,7 @@ public abstract class AbstractGameStateManager {
     }
 
     protected IAIStrategy buildAIStrategy() {
-        return new DeathmatchAIStrategy();
+        return new UnifiedAIStrategy();
     }
 
     public void removePlayer(long playerId) {

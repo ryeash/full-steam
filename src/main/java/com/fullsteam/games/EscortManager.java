@@ -29,12 +29,6 @@ public class EscortManager extends AbstractTeamBasedManager {
     }
 
     @Override
-    protected IAIStrategy buildAIStrategy() {
-        // Use UnifiedAIStrategy which will automatically discover the Payload objective
-        return new UnifiedAIStrategy();
-    }
-
-    @Override
     public void startNewRound() {
         super.startNewRound();
         payload = new Payload(

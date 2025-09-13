@@ -8,8 +8,6 @@ import com.fullsteam.model.GameEvent;
 import com.fullsteam.model.Oddball;
 import com.fullsteam.model.Player;
 import com.fullsteam.model.Vector2D;
-import com.fullsteam.model.ai.IAIStrategy;
-import com.fullsteam.model.ai.OddballAIStrategy;
 import com.fullsteam.model.gamemodes.GameInfo;
 import com.fullsteam.model.gamemodes.OddballInfo;
 import io.micronaut.context.annotation.Prototype;
@@ -36,11 +34,6 @@ public class OddballManager extends AbstractTeamBasedManager {
     public OddballManager(ObjectMapper objectMapper, GameLobby gameLobby) {
         super(objectMapper, gameLobby);
         this.oddball = new Oddball(Oddball.OddballState.ON_SPAWN, ballSpawnPoint, null, 0);
-    }
-
-    @Override
-    protected IAIStrategy buildAIStrategy() {
-        return new OddballAIStrategy();
     }
 
     @Override

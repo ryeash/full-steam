@@ -15,8 +15,7 @@ public final class BlitzInfo extends GameInfo {
     private final double team2Score;
     private final long timeLeft;
 
-    public BlitzInfo(List<Hill> team1CapturePoints, List<Hill> team2CapturePoints, 
-                     double team1Score, double team2Score, long timeLeft) {
+    public BlitzInfo(List<Hill> team1CapturePoints, List<Hill> team2CapturePoints, double team1Score, double team2Score, long timeLeft) {
         this.team1CapturePoints = team1CapturePoints;
         this.team2CapturePoints = team2CapturePoints;
         this.team1Score = team1Score;

@@ -67,11 +67,6 @@ public class BaseDestructionManager extends AbstractTeamBasedManager {
         super(objectMapper, gameLobby);
         initializeBasesAndMotorPools();
     }
-    
-    @Override
-    protected IAIStrategy buildAIStrategy() {
-        return new UnifiedAIStrategy();
-    }
 
     private void initializeBasesAndMotorPools() {
         generateBasePositions();

@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 /**
  * A unified AI strategy that analyzes the game state dynamically and makes intelligent decisions
@@ -107,7 +108,7 @@ public class UnifiedAIStrategy implements IAIStrategy {
                 // When near a base, we should ATTACK it (shoot at it), not just stand there
                 if (base.getTeam() != self.getTeam()) {
                     decision.state = AIPlayer.AIState.ATTACKING;
-                    decision.target = base.position();
+                    decision.target = applyAntiClustering(self, base.position(), analysis, 60.0);
                     decision.priority = 10;
                     decision.reasoning = "Attacking enemy base: " + base.getObjectiveType();
                 } else {
@@ -120,7 +121,7 @@ public class UnifiedAIStrategy implements IAIStrategy {
                         decision.reasoning = "Defending friendly base from nearby enemy";
                     } else {
                         decision.state = AIPlayer.AIState.WANDERING;
-                        decision.target = base.position();
+                        decision.target = applyAntiClustering(self, base.position(), analysis, 80.0);
                         decision.priority = 6;
                         decision.reasoning = "Patrolling friendly base area";
                     }
@@ -128,7 +129,7 @@ public class UnifiedAIStrategy implements IAIStrategy {
             } else {
                 // Default objective behavior for non-base objectives
                 decision.state = AIPlayer.AIState.CAPTURING_OBJECTIVE;
-                decision.target = immediateObjective.position();
+                decision.target = applyAntiClustering(self, immediateObjective.position(), analysis, 50.0);
                 decision.priority = 10;
                 decision.reasoning = "Immediate objective within interaction range: " + immediateObjective.getObjectiveType();
             }
@@ -139,7 +140,7 @@ public class UnifiedAIStrategy implements IAIStrategy {
         ObjectiveInfo criticalObjective = findCriticalObjective(self, analysis);
         if (criticalObjective != null && criticalObjective.priority >= 8) {
             decision.state = AIPlayer.AIState.CAPTURING_OBJECTIVE;
-            decision.target = criticalObjective.position;
+            decision.target = applyAntiClustering(self, criticalObjective.position, analysis, 50.0);
             decision.priority = criticalObjective.priority;
             decision.reasoning = "Pursuing critical objective: " + criticalObjective.type;
             return decision;
@@ -149,7 +150,7 @@ public class UnifiedAIStrategy implements IAIStrategy {
         OpportunityInfo bestOpportunity = findBestOpportunity(self, analysis);
         if (bestOpportunity != null && bestOpportunity.priority >= 7) {
             decision.state = getStateForOpportunity(bestOpportunity);
-            decision.target = bestOpportunity.position;
+            decision.target = applyAntiClustering(self, bestOpportunity.position, analysis, 40.0);
             decision.priority = bestOpportunity.priority;
             decision.reasoning = "Pursuing opportunity: " + bestOpportunity.type;
             return decision;
@@ -158,19 +159,48 @@ public class UnifiedAIStrategy implements IAIStrategy {
         // Priority 5: Combat engagement
         Player bestTarget = findBestCombatTarget(self, analysis);
         if (bestTarget != null) {
-            decision.state = shouldEngageDirectly(self, bestTarget, analysis) ? 
-                AIPlayer.AIState.ATTACKING : AIPlayer.AIState.CAPTURING_OBJECTIVE;
-            decision.target = bestTarget.position();
-            decision.combatTarget = bestTarget;
-            decision.priority = 6;
-            decision.reasoning = "Engaging enemy: " + bestTarget.getName();
+            double distance = self.position().distance(bestTarget.position());
+            double weaponRange = self.getWeapon().getBulletRange();
+            double optimalRange = getOptimalEngagementRange(self, weaponRange);
+            
+            // Determine optimal combat behavior based on distance to target
+            if (distance > weaponRange) {
+                // Target is out of range - move closer
+                decision.state = AIPlayer.AIState.CAPTURING_OBJECTIVE;
+                decision.target = bestTarget.position();
+                decision.combatTarget = bestTarget;
+                decision.priority = 7;
+                decision.reasoning = "Closing distance to enemy: " + bestTarget.getName() + " (out of range)";
+            } else if (distance < optimalRange * 0.5) {
+                // Too close - back away while shooting
+                decision.state = AIPlayer.AIState.FLEEING;
+                decision.target = bestTarget.position(); // Flee FROM this position
+                decision.combatTarget = bestTarget;
+                decision.priority = 8;
+                decision.reasoning = "Backing away from enemy: " + bestTarget.getName() + " (too close)";
+            } else if (Math.abs(distance - optimalRange) > optimalRange * 0.3) {
+                // Not at optimal range - reposition
+                decision.state = AIPlayer.AIState.CAPTURING_OBJECTIVE;
+                Vector2D optimalPos = calculateOptimalPosition(self, bestTarget, optimalRange);
+                decision.target = applyAntiClustering(self, optimalPos, analysis, 30.0);
+                decision.combatTarget = bestTarget;
+                decision.priority = 7;
+                decision.reasoning = "Repositioning for optimal range against: " + bestTarget.getName();
+            } else {
+                // At good range - engage directly
+                decision.state = AIPlayer.AIState.ATTACKING;
+                decision.target = bestTarget.position();
+                decision.combatTarget = bestTarget;
+                decision.priority = 8;
+                decision.reasoning = "Engaging enemy at optimal range: " + bestTarget.getName();
+            }
             return decision;
         }
         
         // Priority 6: Secondary objectives
         if (criticalObjective != null) {
             decision.state = AIPlayer.AIState.CAPTURING_OBJECTIVE;
-            decision.target = criticalObjective.position;
+            decision.target = applyAntiClustering(self, criticalObjective.position, analysis, 50.0);
             decision.priority = criticalObjective.priority;
             decision.reasoning = "Pursuing secondary objective: " + criticalObjective.type;
             return decision;
@@ -179,6 +209,7 @@ public class UnifiedAIStrategy implements IAIStrategy {
         // Default: Intelligent wandering based on team and map control
         decision.state = AIPlayer.AIState.WANDERING;
         decision.target = generateStrategicWanderTarget(self, analysis);
+        decision.combatTarget = null;
         decision.priority = 1;
         decision.reasoning = "Strategic wandering";
         return decision;
@@ -192,6 +223,8 @@ public class UnifiedAIStrategy implements IAIStrategy {
         self.setObjectiveTargetPoint(decision.target);
         if (decision.combatTarget != null) {
             self.setCurrentTarget(decision.combatTarget);
+        } else {
+            self.setCurrentTarget(null);
         }
     }
 
@@ -791,7 +824,81 @@ public class UnifiedAIStrategy implements IAIStrategy {
     }
 
     private Player findBestCombatTarget(AIPlayer self, GameStateAnalysis analysis) {
-        return findClosestEnemy(self, analysis.gameState.players());
+        double weaponRange = self.getWeapon().getBulletRange();
+        
+        // Find enemies within weapon range, prioritizing those at optimal distance
+        return analysis.gameState.players().stream()
+            .filter(player -> player.getTeam() != self.getTeam())
+            .filter(player -> !player.isDead())
+            .filter(player -> {
+                double distance = self.position().distance(player.position());
+                return distance <= weaponRange; // Only consider enemies within weapon range
+            })
+            .min(Comparator.comparing(player -> {
+                double distance = self.position().distance(player.position());
+                double optimalRange = getOptimalEngagementRange(self, weaponRange);
+                
+                // Score based on how close to optimal range (lower score = better)
+                double rangeScore = Math.abs(distance - optimalRange);
+                
+                // Bonus for low health enemies (easier kills)
+                double healthPenalty = player.getHp() / player.getMaxHp() * 50;
+                
+                return rangeScore + healthPenalty;
+            }))
+            .orElse(null);
+    }
+    
+    /**
+     * Calculates the optimal engagement range based on AI archetype and current health.
+     */
+    private double getOptimalEngagementRange(AIPlayer self, double weaponRange) {
+        double healthRatio = self.getHp() / self.getMaxHp();
+        
+        // Base range multiplier by archetype
+        double baseMultiplier = switch (self.archetype()) {
+            case WARRIOR -> 0.6; // Aggressive - get closer
+            case GUARDIAN -> 0.8; // Cautious - stay farther
+            case OBJECTIVE_HOUND -> 0.7; // Balanced but slightly aggressive
+            case BALANCED -> 0.7; // Standard range
+        };
+        
+        // Adjust based on health (wounded AI should stay farther)
+        double healthMultiplier = healthRatio < 0.3 ? 1.2 : // Stay far when critically wounded
+                                 healthRatio < 0.6 ? 1.1 : // Stay slightly farther when damaged
+                                 1.0; // Normal range when healthy
+        
+        return weaponRange * baseMultiplier * healthMultiplier;
+    }
+    
+    /**
+     * Calculates an optimal position to engage a target from the desired range.
+     */
+    private Vector2D calculateOptimalPosition(AIPlayer self, Player target, double optimalRange) {
+        Vector2D selfPos = self.position();
+        Vector2D targetPos = target.position();
+        
+        // Calculate direction from target to self
+        Vector2D direction = selfPos.subtract(targetPos);
+        double currentDistance = direction.magnitude();
+        
+        if (currentDistance == 0) {
+            // If we're exactly on top of the target, pick a random direction
+            double angle = ThreadLocalRandom.current().nextDouble() * 2 * Math.PI;
+            direction = new Vector2D(Math.cos(angle), Math.sin(angle));
+        } else {
+            // Normalize the direction
+            direction = direction.normalize();
+        }
+        
+        // Calculate the optimal position at the desired range
+        Vector2D optimalPos = targetPos.add(direction.multiply(optimalRange));
+        
+        // Ensure the position is within game bounds
+        double clampedX = Math.max(50, Math.min(Config.GAME_WIDTH - 50, optimalPos.x()));
+        double clampedY = Math.max(50, Math.min(Config.GAME_HEIGHT - 50, optimalPos.y()));
+        
+        return new Vector2D(clampedX, clampedY);
     }
     
     /**
@@ -999,7 +1106,85 @@ public class UnifiedAIStrategy implements IAIStrategy {
         double x = Config.GAME_WIDTH * xBias;
         double y = ThreadLocalRandom.current().nextDouble(50, Config.GAME_HEIGHT - 50);
         
-        return new Vector2D(x, y);
+        Vector2D baseTarget = new Vector2D(x, y);
+        
+        // Apply anti-clustering to spread out AI players
+        return applyAntiClustering(self, baseTarget, analysis, 80.0);
+    }
+
+    /**
+     * Applies anti-clustering logic to prevent AI players from all converging on the same point.
+     * Adjusts the target position to maintain spacing between friendly AI players.
+     */
+    private Vector2D applyAntiClustering(AIPlayer self, Vector2D originalTarget, GameStateAnalysis analysis, double minSpacing) {
+        List<AIPlayer> nearbyFriendlyAI = findNearbyFriendlyAI(self, analysis, originalTarget, minSpacing * 2);
+        
+        if (nearbyFriendlyAI.isEmpty()) {
+            return originalTarget; // No clustering issue
+        }
+        
+        // Calculate repulsion forces from nearby friendly AI
+        Vector2D repulsionForce = Vector2D.ZERO;
+        int repulsionCount = 0;
+        
+        for (AIPlayer friendlyAI : nearbyFriendlyAI) {
+            Vector2D direction = originalTarget.subtract(friendlyAI.position());
+            double distance = direction.magnitude();
+            
+            if (distance > 0 && distance < minSpacing * 2) {
+                // Stronger repulsion when closer
+                double repulsionStrength = (minSpacing * 2 - distance) / (minSpacing * 2);
+                repulsionForce = repulsionForce.add(direction.normalize().multiply(repulsionStrength * minSpacing));
+                repulsionCount++;
+            }
+        }
+        
+        // If too many AI are clustered, use a more aggressive spreading approach
+        if (repulsionCount >= 3) {
+            // Create a radial distribution pattern
+            double angleOffset = (self.getId() % 8) * (Math.PI / 4); // 8 directions
+            double spreadDistance = minSpacing * (1 + repulsionCount * 0.3);
+            
+            Vector2D radialOffset = new Vector2D(
+                Math.cos(angleOffset) * spreadDistance,
+                Math.sin(angleOffset) * spreadDistance
+            );
+            
+            Vector2D adjustedTarget = originalTarget.add(radialOffset);
+            
+            // Ensure the adjusted target is within game bounds
+            double clampedX = Math.max(50, Math.min(Config.GAME_WIDTH - 50, adjustedTarget.x()));
+            double clampedY = Math.max(50, Math.min(Config.GAME_HEIGHT - 50, adjustedTarget.y()));
+            
+            return new Vector2D(clampedX, clampedY);
+        }
+        
+        // Apply normal repulsion force to spread out the target
+        Vector2D adjustedTarget = originalTarget.add(repulsionForce);
+        
+        // Ensure the adjusted target is within game bounds
+        double clampedX = Math.max(50, Math.min(Config.GAME_WIDTH - 50, adjustedTarget.x()));
+        double clampedY = Math.max(50, Math.min(Config.GAME_HEIGHT - 50, adjustedTarget.y()));
+        
+        return new Vector2D(clampedX, clampedY);
+    }
+    
+    /**
+     * Finds nearby friendly AI players that might cause clustering.
+     */
+    private List<AIPlayer> findNearbyFriendlyAI(AIPlayer self, GameStateAnalysis analysis, Vector2D targetPosition, double searchRadius) {
+        return analysis.gameState.players().stream()
+            .filter(player -> player instanceof AIPlayer)
+            .map(player -> (AIPlayer) player)
+            .filter(ai -> ai.getId() != self.getId()) // Exclude self
+            .filter(ai -> ai.getTeam() == self.getTeam()) // Only friendly AI
+            .filter(ai -> !ai.isDead()) // Only alive AI
+            .filter(ai -> {
+                // Check if AI is near the target position
+                double distanceToTarget = ai.position().distance(targetPosition);
+                return distanceToTarget < searchRadius;
+            })
+            .collect(Collectors.toList());
     }
 
     // === Data Classes ===
@@ -1020,6 +1205,18 @@ public class UnifiedAIStrategy implements IAIStrategy {
         Player combatTarget;
         int priority;
         String reasoning;
+        
+        AIDecision() {
+            // Default constructor
+        }
+        
+        AIDecision(AIPlayer.AIState state, Vector2D target, Player combatTarget, int priority, String reasoning) {
+            this.state = state;
+            this.target = target;
+            this.combatTarget = combatTarget;
+            this.priority = priority;
+            this.reasoning = reasoning;
+        }
     }
 
     private static class ObjectiveInfo {

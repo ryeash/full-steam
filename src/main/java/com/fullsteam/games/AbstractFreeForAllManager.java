@@ -9,7 +9,7 @@ import com.fullsteam.model.PlayerConfigRequest;
 import com.fullsteam.model.PlayerSession;
 import com.fullsteam.model.ai.AIArchetype;
 import com.fullsteam.model.ai.AIPlayer;
-import com.fullsteam.model.ai.DeathmatchAIStrategy;
+import com.fullsteam.model.ai.UnifiedAIStrategy;
 import io.micronaut.websocket.WebSocketSession;
 
 import java.util.Comparator;
@@ -75,7 +75,7 @@ public abstract class AbstractFreeForAllManager extends AbstractGameStateManager
     @Override
     public AIPlayer addAIPlayer(int team) {
         long playerId = Config.ID_COUNTER.incrementAndGet();
-        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new DeathmatchAIStrategy(), AIArchetype.randomArchetype());
+        AIPlayer player = new AIPlayer(playerId, 0, 0, team, new UnifiedAIStrategy(), AIArchetype.randomArchetype());
         setValidSpawnPosition(player);
         entities.addPlayer(new PlayerSession(this, player, null));
         log.info("AI Player {} joined at position ({}, {})", playerId, player.getX(), player.getY());

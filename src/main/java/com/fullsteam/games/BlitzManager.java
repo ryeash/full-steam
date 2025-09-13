@@ -38,11 +38,6 @@ public class BlitzManager extends AbstractTeamBasedManager {
         initializeCapturePoints();
     }
 
-    @Override
-    protected IAIStrategy buildAIStrategy() {
-        return new UnifiedAIStrategy();
-    }
-
     /**
      * Initialize capture points on each team's side of the field
      */
