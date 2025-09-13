@@ -3046,14 +3046,14 @@ class Game {
     drawRespawnOverlay() {
         if (this.isLocalPlayerDead && this.shouldDrawRespawnOverlay && this.localPlayer.respawnTime > 0) {
             if (this.localPlayer && this.localPlayer.respawnTime && this.gameState.serverTime > 0) {
-                const remainingTime = Math.max(0, (this.localPlayer.respawnTime - this.gameState.serverTime) / 1000);
+                const remainingTime = Math.ceil(Math.max(0, (this.localPlayer.respawnTime - this.gameState.serverTime) / 1000));
                 this.ctx.fillStyle = GameColors.overlays.respawn;
                 this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                 this.ctx.fillStyle = GameColors.text.primary;
                 this.ctx.font = '48px Arial';
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'middle';
-                this.ctx.fillText(`Respawning in ${remainingTime.toFixed(1)}s`, this.canvas.width / 2, this.canvas.height / 2);
+                this.ctx.fillText(`Respawning in ${remainingTime.toFixed(0)}s`, this.canvas.width / 2, this.canvas.height / 2);
             }
         }
     }
