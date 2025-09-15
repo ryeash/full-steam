@@ -257,7 +257,7 @@ public class InfectionManager extends AbstractGameStateManager {
     }
 
     private void applySurvivorAbilities(Player survivor) {
-        survivor.setWeapon(WeaponFactory.getRandomRangedWeapon());
+        survivor.setWeapon(WeaponFactory.ASSAULT);
         survivor.setMaxHp(Config.DEFAULT_PLAYER_HEALTH);
         survivor.setHp(Config.DEFAULT_PLAYER_HEALTH);
         survivor.setSpeed(Config.DEFAULT_PLAYER_SPEED); // Normal speed
