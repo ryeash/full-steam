@@ -265,7 +265,7 @@ public class InfectionManager extends AbstractGameStateManager {
     }
 
     private void applyZombieAbilities(Player zombie) {
-        zombie.setWeapon(WeaponFactory.HEAVY_ZOMBIE_CLAW);
+        zombie.setWeapon(WeaponFactory.ZOMBIE_CLAW);
         zombie.setMaxHp(ZOMBIE_HEALTH);
         zombie.setHp(ZOMBIE_HEALTH);
         double zombieSpeed = Config.DEFAULT_PLAYER_SPEED * ZOMBIE_SPEED_MULTIPLIER;
