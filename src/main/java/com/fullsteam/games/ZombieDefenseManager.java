@@ -171,7 +171,7 @@ public class ZombieDefenseManager extends AbstractGameStateManager {
         // Create a "bunker" at the bottom of the map.
         double houseWidth = 350;
         double houseHeight = 250;
-        double wallThickness = 15;
+        double wallThickness = 35;
         double doorSize = 60;
 
         double centerX = Config.GAME_WIDTH / 2.0;

@@ -9,12 +9,14 @@ import com.fullsteam.games.EliminationManager;
 import com.fullsteam.games.EscortManager;
 import com.fullsteam.games.FreeForAllManager;
 import com.fullsteam.games.GunMasterManager;
+import com.fullsteam.games.InfectionManager;
 import com.fullsteam.games.JuggernautManager;
 import com.fullsteam.games.KingOfTheHillManager;
 import com.fullsteam.games.LoneWolfManager;
 import com.fullsteam.games.OddballManager;
 import com.fullsteam.games.PortalManager;
 import com.fullsteam.games.ProgressionManager;
+import com.fullsteam.games.StockBattleManager;
 import com.fullsteam.games.TeamDeathmatchManager;
 import com.fullsteam.games.ZombieDefenseManager;
 import com.fullsteam.model.ActiveGame;
@@ -66,6 +68,8 @@ public class GameLobby {
         gameMap.put("Portal", PortalManager.class);
         gameMap.put("Progression", ProgressionManager.class);
         gameMap.put("Blitz", BlitzManager.class);
+        gameMap.put("Stock Battle", StockBattleManager.class);
+        gameMap.put("Infection", InfectionManager.class);
     }
 
     public List<ActiveGame> getActiveGames() {

@@ -33,6 +33,20 @@ const GAME_MODE_INFO = {
         team1Objective: 'Eliminate all Team 2 players',
         team2Objective: 'Eliminate all Team 1 players'
     },
+    'Stock Battle': {
+        subtitle: 'Limited lives tactical combat',
+        objective: 'Each team has limited revives (stock). Eliminate enemies to deplete their stock, then eliminate remaining players to win.',
+        teamBased: true,
+        team1Objective: 'Deplete Team 2\'s stock and eliminate survivors',
+        team2Objective: 'Deplete Team 1\'s stock and eliminate survivors'
+    },
+    'Infection': {
+        subtitle: 'Survive the outbreak',
+        objective: 'Survivors must outlast the infected until time runs out. Infected must spread the virus to all survivors by eliminating them.',
+        teamBased: true,
+        team1Objective: 'Survive until time runs out',
+        team2Objective: 'Infect all survivors'
+    },
     'Zombie Defense': {
         subtitle: 'Survive the undead horde',
         objective: 'Work together as survivors to defend against increasingly difficult waves of zombies until the timer runs out.',
@@ -337,6 +351,43 @@ class GameUIManager {
                 
                 this.elements.team1Score.innerHTML = `${Math.floor(info.team1Score || 0)} <span style="font-size: 0.8em; color: ${team1Color};">Base: ${team1BaseHealthPercent}%</span>`;
                 this.elements.team2Score.innerHTML = `${Math.floor(info.team2Score || 0)} <span style="font-size: 0.8em; color: ${team2Color};">Base: ${team2BaseHealthPercent}%</span>`;
+            },
+            'Stock Battle': (info) => {
+                this.game.shouldDrawRespawnOverlay = true;
+                this.elements.yourTeam.style.display = 'inline';
+                this.elements.switchTeamBtn.style.display = 'block';
+                this.elements.team1Score.style.display = 'inline';
+                this.elements.team2Score.style.display = 'inline';
+                
+                // Show kills and stock for each team
+                const team1StockColor = GameColors.teams.team1.primary
+                const team2StockColor = GameColors.teams.team2.primary
+                
+                this.elements.team1Score.innerHTML = `<span style="font-size: 0.8em; color: ${team1StockColor};">Stock: ${info.team1Stock || 0}</span>`;
+                this.elements.team2Score.innerHTML = `<span style="font-size: 0.8em; color: ${team2StockColor};">Stock: ${info.team2Stock || 0}</span>`;
+            },
+            'Infection': (info) => {
+                this.game.shouldDrawRespawnOverlay = true;
+                this.elements.yourTeam.style.display = 'inline';
+                this.elements.switchTeamBtn.style.display = 'none'; // No team switching in infection
+                this.elements.team1Score.style.display = 'inline';
+                this.elements.team2Score.style.display = 'inline';
+                
+                // Show survivor and infected counts with color coding
+                const survivorColor = info.survivorCount > 0 ? GameColors.teams.team1.primary : GameColors.health.low;
+                const infectedColor = info.infectedCount > 0 ? GameColors.teams.team2.primary : GameColors.health.low;
+                
+                this.elements.team1Score.innerHTML = `<span style="color: ${survivorColor};">Survivors: ${info.survivorCount || 0}</span>`;
+                this.elements.team2Score.innerHTML = `<span style="color: ${infectedColor};">Infected: ${info.infectedCount || 0}</span>`;
+                
+                // Show infection countdown during preparation phase
+                if (!info.gameStarted && info.infectionStartTime) {
+                    const currentTime = Date.now();
+                    const timeUntilInfection = Math.max(0, Math.ceil((info.infectionStartTime - currentTime) / 1000));
+                    if (timeUntilInfection > 0) {
+                        this.elements.roundTimer.textContent = `Infection in: ${timeUntilInfection}s`;
+                    }
+                }
             },
             'default': (info) => {
                 this.game.shouldDrawRespawnOverlay = true;
@@ -3023,16 +3074,16 @@ class Game {
     }
 
     drawRespawnOverlay() {
-        if (this.isLocalPlayerDead && this.shouldDrawRespawnOverlay) {
+        if (this.isLocalPlayerDead && this.shouldDrawRespawnOverlay && this.localPlayer.respawnTime > 0) {
             if (this.localPlayer && this.localPlayer.respawnTime && this.gameState.serverTime > 0) {
-                const remainingTime = Math.max(0, (this.localPlayer.respawnTime - this.gameState.serverTime) / 1000);
+                const remainingTime = Math.ceil(Math.max(0, (this.localPlayer.respawnTime - this.gameState.serverTime) / 1000));
                 this.ctx.fillStyle = GameColors.overlays.respawn;
                 this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                 this.ctx.fillStyle = GameColors.text.primary;
                 this.ctx.font = '48px Arial';
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'middle';
-                this.ctx.fillText(`Respawning in ${remainingTime.toFixed(1)}s`, this.canvas.width / 2, this.canvas.height / 2);
+                this.ctx.fillText(`Respawning in ${remainingTime.toFixed(0)}s`, this.canvas.width / 2, this.canvas.height / 2);
             }
         }
     }

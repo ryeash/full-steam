@@ -475,6 +475,22 @@ public class WeaponFactory {
             LASER_RIFLE
     );
 
+    // Ranged weapons suitable for survivors in Infection mode
+    public static final List<Weapon> RANGED_WEAPONS = List.of(
+            ASSAULT,
+            SMG,
+            SNIPER_RIFLE,
+            MINIGUN,
+            SHOTGUN,
+            STREET_SWEEPER,
+            TWIN_SIXES,
+            MARKSMAN_RIFLE,
+            TACTICAL_RIFLE,
+            HAND_CANNON,
+            LASER_PISTOL,
+            LASER_RIFLE
+    );
+
     public static final List<Weapon> NON_LETHAL = List.of(
             GRENADE_SMOKE,
             GRENADE_GRAVITY,
@@ -528,5 +544,12 @@ public class WeaponFactory {
 
     public static Weapon getRandomWeapon() {
         return RANDOM_WEAPONS.get(ThreadLocalRandom.current().nextInt(RANDOM_WEAPONS.size()));
+    }
+
+    /**
+     * Gets a random ranged weapon suitable for survivors in Infection mode.
+     */
+    public static Weapon getRandomRangedWeapon() {
+        return RANGED_WEAPONS.get(ThreadLocalRandom.current().nextInt(RANGED_WEAPONS.size()));
     }
 }

@@ -97,12 +97,6 @@ public class AIPlayer extends Player {
     @JsonIgnore
     private transient final double inputSmoothingFactor; // 0.0 = no smoothing, 1.0 = maximum smoothing
 
-    /**
-     * Represents a decision to fire the weapon in a specific direction.
-     */
-    public record ShootAction(double directionX, double directionY) {
-    }
-
     public AIPlayer(long id, double x, double y, int team, IAIStrategy aiStrategy, AIArchetype archetype) {
         super(id, "AI - " + RandomNames.randomName(), x, y, team, WeaponFactory.getRandomWeapon());
         // Use UnifiedAIStrategy if no specific strategy is provided
