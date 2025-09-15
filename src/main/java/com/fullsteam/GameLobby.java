@@ -9,6 +9,7 @@ import com.fullsteam.games.EliminationManager;
 import com.fullsteam.games.EscortManager;
 import com.fullsteam.games.FreeForAllManager;
 import com.fullsteam.games.GunMasterManager;
+import com.fullsteam.games.InfectionManager;
 import com.fullsteam.games.JuggernautManager;
 import com.fullsteam.games.KingOfTheHillManager;
 import com.fullsteam.games.LoneWolfManager;
@@ -68,6 +69,7 @@ public class GameLobby {
         gameMap.put("Progression", ProgressionManager.class);
         gameMap.put("Blitz", BlitzManager.class);
         gameMap.put("Stock Battle", StockBattleManager.class);
+        gameMap.put("Infection", InfectionManager.class);
     }
 
     public List<ActiveGame> getActiveGames() {

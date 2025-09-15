@@ -40,6 +40,13 @@ const GAME_MODE_INFO = {
         team1Objective: 'Deplete Team 2\'s stock and eliminate survivors',
         team2Objective: 'Deplete Team 1\'s stock and eliminate survivors'
     },
+    'Infection': {
+        subtitle: 'Survive the outbreak',
+        objective: 'Survivors must outlast the infected until time runs out. Infected must spread the virus to all survivors by eliminating them.',
+        teamBased: true,
+        team1Objective: 'Survive until time runs out',
+        team2Objective: 'Infect all survivors'
+    },
     'Zombie Defense': {
         subtitle: 'Survive the undead horde',
         objective: 'Work together as survivors to defend against increasingly difficult waves of zombies until the timer runs out.',
@@ -358,6 +365,29 @@ class GameUIManager {
                 
                 this.elements.team1Score.innerHTML = `<span style="font-size: 0.8em; color: ${team1StockColor};">Stock: ${info.team1Stock || 0}</span>`;
                 this.elements.team2Score.innerHTML = `<span style="font-size: 0.8em; color: ${team2StockColor};">Stock: ${info.team2Stock || 0}</span>`;
+            },
+            'Infection': (info) => {
+                this.game.shouldDrawRespawnOverlay = true;
+                this.elements.yourTeam.style.display = 'inline';
+                this.elements.switchTeamBtn.style.display = 'none'; // No team switching in infection
+                this.elements.team1Score.style.display = 'inline';
+                this.elements.team2Score.style.display = 'inline';
+                
+                // Show survivor and infected counts with color coding
+                const survivorColor = info.survivorCount > 0 ? GameColors.teams.team1.primary : GameColors.health.low;
+                const infectedColor = info.infectedCount > 0 ? GameColors.teams.team2.primary : GameColors.health.low;
+                
+                this.elements.team1Score.innerHTML = `<span style="color: ${survivorColor};">Survivors: ${info.survivorCount || 0}</span>`;
+                this.elements.team2Score.innerHTML = `<span style="color: ${infectedColor};">Infected: ${info.infectedCount || 0}</span>`;
+                
+                // Show infection countdown during preparation phase
+                if (!info.gameStarted && info.infectionStartTime) {
+                    const currentTime = Date.now();
+                    const timeUntilInfection = Math.max(0, Math.ceil((info.infectionStartTime - currentTime) / 1000));
+                    if (timeUntilInfection > 0) {
+                        this.elements.roundTimer.textContent = `Infection in: ${timeUntilInfection}s`;
+                    }
+                }
             },
             'default': (info) => {
                 this.game.shouldDrawRespawnOverlay = true;

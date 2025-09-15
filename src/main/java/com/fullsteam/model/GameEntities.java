@@ -206,7 +206,7 @@ public class GameEntities {
     /**
      * Gets the count of players on a specific team
      */
-    public long getTeamPlayerCount(int team) {
+    public int getTeamPlayerCount(int team) {
         return (int) playerSessions.values()
                 .stream()
                 .filter(ps -> ps.getPlayer() != null && ps.getPlayer().getTeam() == team)
