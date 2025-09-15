@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
  * Infection game mode manager.
@@ -43,10 +42,8 @@ public class InfectionManager extends AbstractGameStateManager {
     private static final int INITIAL_INFECTED_COUNT = 3; // Number of initial infected
     private static final double ZOMBIE_SPEED_MULTIPLIER = 1.3; // Zombies are faster
     private static final double ZOMBIE_HEALTH = 75.0; // Zombies have less health
-    private static final double SURVIVOR_HEALTH = 100.0; // Survivors have full health
 
     // AI balancing constants
-    private static final int MIN_PLAYERS = 7; // Minimum players for good infection gameplay
     private static final int MAX_PLAYERS = Config.MAX_PLAYERS_PER_TEAM * 2; // Maximum total players
     private static final long AI_FILL_CHECK_INTERVAL_MS = 5000; // 5 seconds
     private static final double INFECTED_RATIO_TARGET = 0.25; // Target 25% infected initially
@@ -106,17 +103,14 @@ public class InfectionManager extends AbstractGameStateManager {
                 .count();
 
         // If we have enough human players, don't add AI
-        if (humanPlayers >= MIN_PLAYERS) {
+        if (humanPlayers >= MAX_PLAYERS) {
             return;
         }
 
         // Calculate how many AI to add
-        int playersToAdd = Math.min(MIN_PLAYERS - totalPlayers, MAX_PLAYERS - totalPlayers);
+        int playersToAdd = MAX_PLAYERS - totalPlayers;
 
         if (playersToAdd > 0) {
-            log.info("Infection: Adding {} AI players. Current: {}, Human: {}, Target: {}",
-                    playersToAdd, totalPlayers, humanPlayers, MIN_PLAYERS);
-
             // During preparation phase, add AI as survivors first
             if (!gameStarted) {
                 for (int i = 0; i < playersToAdd; i++) {
@@ -231,8 +225,12 @@ public class InfectionManager extends AbstractGameStateManager {
         players.sort((p1, p2) -> {
             boolean p1IsAI = p1 instanceof AIPlayer;
             boolean p2IsAI = p2 instanceof AIPlayer;
-            if (p1IsAI && !p2IsAI) return -1; // AI first
-            if (!p1IsAI && p2IsAI) return 1;  // Human second
+            if (p1IsAI && !p2IsAI) {
+                return -1; // AI first
+            }
+            if (!p1IsAI && p2IsAI) {
+                return 1;  // Human second
+            }
             return 0; // Same type, keep random order
         });
 
@@ -250,6 +248,7 @@ public class InfectionManager extends AbstractGameStateManager {
     }
 
     private void startInfection() {
+        infectionStartTime = 0;
         gameStarted = true;
         selectInitialInfected();
         sendGameEvent(GameEvent.red("THE INFECTION HAS BEGUN!"));
@@ -259,8 +258,8 @@ public class InfectionManager extends AbstractGameStateManager {
 
     private void applySurvivorAbilities(Player survivor) {
         survivor.setWeapon(WeaponFactory.getRandomRangedWeapon());
-        survivor.setMaxHp(SURVIVOR_HEALTH);
-        survivor.setHp(SURVIVOR_HEALTH);
+        survivor.setMaxHp(Config.DEFAULT_PLAYER_HEALTH);
+        survivor.setHp(Config.DEFAULT_PLAYER_HEALTH);
         survivor.setSpeed(Config.DEFAULT_PLAYER_SPEED); // Normal speed
         survivor.setDefaultSpeed(Config.DEFAULT_PLAYER_SPEED);
     }
@@ -314,13 +313,12 @@ public class InfectionManager extends AbstractGameStateManager {
         // Check for zombie victory
         if (entities.getTeamPlayerCount(1) <= 0) {
             sendGameEvent(GameEvent.team(2, "The infection is complete! Zombies win!"));
-            log.info("Zombies achieved total infection victory");
         }
     }
 
     @Override
     protected boolean checkEndConditions() {
-        if (infectionStartTime < System.currentTimeMillis()) {
+        if (!gameStarted) {
             return false;
         }
 
@@ -348,68 +346,18 @@ public class InfectionManager extends AbstractGameStateManager {
     protected GameInfo buildGameInfo() {
         long remainingMillis = roundEndTime - System.currentTimeMillis();
         long timeLeft = Math.max(0, TimeUnit.MILLISECONDS.toSeconds(remainingMillis));
-
-        // Get player names for each team
-        List<String> survivorNames = entities.getPlayers().stream()
-                .filter(p -> !infectedPlayers.contains(p.id()))
-                .map(Player::getName)
-                .collect(Collectors.toList());
-
-        List<String> infectedNames = entities.getPlayers().stream()
-                .filter(p -> infectedPlayers.contains(p.getId()))
-                .map(Player::getName)
-                .collect(Collectors.toList());
-
         return new InfectionInfo(
                 entities.getTeamPlayerCount(1),
                 infectedPlayers.size(),
                 timeLeft,
-                survivorNames,
-                infectedNames,
                 gameStarted,
                 infectionStartTime
         );
     }
 
-//    @Override
-//    protected void setValidSpawnPosition(Player player) {
-//        // Use team-based spawning
-//        boolean invalidPosition;
-//        do {
-//            invalidPosition = false;
-//            double x, y;
-//
-//            if (survivorPlayers.contains(player.getId())) {
-//                // Survivors spawn on the left side
-//                double spawnableWidth = (Config.GAME_WIDTH * 0.4) - Config.SPAWN_HORIZONTAL_PADDING;
-//                x = Config.SPAWN_HORIZONTAL_PADDING + ThreadLocalRandom.current().nextDouble() * spawnableWidth;
-//            } else if (infectedPlayers.contains(player.getId())) {
-//                // Infected spawn on the right side
-//                double minX = Config.GAME_WIDTH * 0.6;
-//                double maxX = Config.GAME_WIDTH - Config.SPAWN_HORIZONTAL_PADDING;
-//                x = minX + ThreadLocalRandom.current().nextDouble() * (maxX - minX);
-//            } else {
-//                // Default spawning for preparation phase
-//                x = Config.SPAWN_HORIZONTAL_PADDING + ThreadLocalRandom.current().nextDouble() *
-//                                                      (Config.GAME_WIDTH - 2 * Config.SPAWN_HORIZONTAL_PADDING);
-//            }
-//
-//            double spawnableHeight = Config.GAME_HEIGHT - (2 * Config.SPAWN_VERTICAL_PADDING);
-//            y = Config.SPAWN_VERTICAL_PADDING + ThreadLocalRandom.current().nextDouble() * spawnableHeight;
-//
-//            player.setX(x);
-//            player.setY(y);
-//
-//            // Check if spawn point is inside an obstacle
-//            if (physicsEngine.isColliding(player, entities.getObstacles())) {
-//                invalidPosition = true;
-//            }
-//        } while (invalidPosition);
-//    }
-
     @Override
     public void handlePlayerConfigChange(Long playerId, PlayerConfigRequest request) {
-        // Disallow weapon changes
+        // Disallow weapon changes for zombies
         if (infectedPlayers.contains(playerId)
             && request.getWeaponName() != null
             && !request.getWeaponName().isEmpty()) {
